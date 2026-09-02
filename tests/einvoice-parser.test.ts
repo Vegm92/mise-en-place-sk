@@ -261,6 +261,19 @@ describe('parseFacturae322', () => {
 		expect(result.supplier_address).toBe('Polígono Ind. La Resina, Nave 14, 28201, Madrid');
 	});
 
+	it('extracts the buyer party as the receiver (issue #905)', () => {
+		const result = parseFacturae322(FACTURAE_322_XML);
+		expect(result.receiver_name).toBe('Restaurante El Buen Sabor S.L.');
+		expect(result.receiver_nif).toBe('A98765432');
+	});
+
+	it('scores both parties in field_confidences so a swap can carry them (issue #905)', () => {
+		const result = parseFacturae322(FACTURAE_322_XML);
+		expect(result.field_confidences?.supplier_nif).toBe(1.0);
+		expect(result.field_confidences?.receiver_name).toBe(1.0);
+		expect(result.field_confidences?.receiver_nif).toBe(1.0);
+	});
+
 	it('extracts supplier email and phone from ContactDetails (issue #385)', () => {
 		const result = parseFacturae322(FACTURAE_322_XML);
 		expect(result.supplier_email).toBe('facturacion@disalim.es');
@@ -373,6 +386,13 @@ describe('parseUbl21Invoice', () => {
 	it('extracts supplier address from PostalAddress (issue #385)', () => {
 		const result = parseUbl21Invoice(UBL_21_XML);
 		expect(result.supplier_address).toBe('Camino de Salcedo, 1, Haro, 26200');
+	});
+
+	it('extracts the customer party as the receiver, null-safe when it prints no name (issue #905)', () => {
+		const result = parseUbl21Invoice(UBL_21_XML);
+		expect(result.receiver_nif).toBe('B98765432');
+		expect(result.receiver_name).toBeNull();
+		expect(result.receiver_address).toBeNull();
 	});
 
 	it('extracts supplier email and phone from Contact (issue #385)', () => {

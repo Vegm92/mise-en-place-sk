@@ -77,6 +77,100 @@ const FACTURAE_UNIT_CODES: Record<string, string | null> = {
 	'36': 'kWh',
 };
 
+interface PartyFields {
+	name: string | null;
+	nif: string | null;
+	address: string | null;
+}
+
+function joinAddress(parts: Array<string | null>): string | null {
+	return parts.filter((v): v is string => !!v).join(', ') || null;
+}
+
+function facturaeParty(party: Record<string, unknown>): PartyFields {
+	const entity = (party['LegalEntity'] ?? party['Individual'] ?? {}) as Record<string, unknown>;
+	const addressNode = (entity['AddressInSpain'] ?? entity['OverseasAddress']) as Record<string, unknown> | undefined;
+	return {
+		name:
+			getText(getChild(party, 'LegalEntity', 'CorporateName')) ??
+			getText(getChild(party, 'Individual', 'Name')),
+		nif: getText(getChild(party, 'TaxIdentification', 'TaxIdentificationNumber')),
+		address: addressNode
+			? joinAddress([getText(addressNode['Address']), getText(addressNode['PostCode']), getText(addressNode['Town'])])
+			: null,
+	};
+}
+
+function ublParty(party: Record<string, unknown> | undefined): PartyFields {
+	const postalAddress = party?.['PostalAddress'] as Record<string, unknown> | undefined;
+	return {
+		name:
+			getText(getChild(party, 'PartyName', 'Name')) ??
+			getText(getChild(party, 'PartyLegalEntity', 'RegistrationName')),
+		nif:
+			getText(getChild(party, 'PartyTaxScheme', 'CompanyID')) ??
+			getText(getChild(party, 'PartyLegalEntity', 'CompanyID')),
+		address: postalAddress
+			? joinAddress([
+				getText(postalAddress['StreetName']),
+				getText(postalAddress['CityName']),
+				getText(postalAddress['PostalZone']),
+			])
+			: null,
+	};
+}
+
+interface EinvoiceParts {
+	supplier: PartyFields;
+	receiver: PartyFields;
+	supplierEmail: string | null;
+	supplierPhone: string | null;
+	invoiceNumber: string | null;
+	invoiceDate: string | null;
+	dueDate: string | null;
+	totalAmount: number | null;
+	currency: string;
+	taxBase: number | null;
+	taxBreakdown: ExtractedInvoice['tax_breakdown'];
+	lineItems: ExtractedInvoice['line_items'];
+	format: EinvoiceFormat;
+}
+
+function einvoiceResult(parts: EinvoiceParts): ParsedEinvoice {
+	const { supplier, receiver, invoiceNumber, invoiceDate, totalAmount } = parts;
+	return {
+		supplier_name: supplier.name,
+		supplier_nif: supplier.nif,
+		supplier_address: supplier.address,
+		supplier_email: parts.supplierEmail,
+		supplier_phone: parts.supplierPhone,
+		receiver_name: receiver.name,
+		receiver_nif: receiver.nif,
+		receiver_address: receiver.address,
+		invoice_number: invoiceNumber,
+		document_type: 'factura',
+		invoice_date: invoiceDate,
+		due_date: parts.dueDate,
+		total_amount: totalAmount,
+		currency: parts.currency,
+		tax_base: parts.taxBase,
+		tax_breakdown: parts.taxBreakdown,
+		confidence: 1.0,
+		field_confidences: {
+			supplier_name: supplier.name ? 1.0 : 0,
+			supplier_nif: supplier.nif ? 1.0 : 0,
+			receiver_name: receiver.name ? 1.0 : 0,
+			receiver_nif: receiver.nif ? 1.0 : 0,
+			invoice_number: invoiceNumber ? 1.0 : 0,
+			document_type: 1.0,
+			invoice_date: invoiceDate ? 1.0 : 0,
+			total_amount: totalAmount != null ? 1.0 : 0,
+		},
+		line_items: parts.lineItems,
+		e_invoice_format: parts.format,
+	};
+}
+
 export function parseFacturae322(xml: string): ExtractedInvoice & { e_invoice_format: EinvoiceFormat; supplier_nif: string | null } {
 	const doc = parser.parse(xml) as Record<string, unknown>;
 
@@ -85,22 +179,13 @@ export function parseFacturae322(xml: string): ExtractedInvoice & { e_invoice_fo
 	const parties = root['Parties'] as Record<string, unknown> | undefined;
 	const seller = (parties?.['SellerParty'] ?? {}) as Record<string, unknown>;
 
-	const nif = getText(getChild(seller, 'TaxIdentification', 'TaxIdentificationNumber'));
-	const legalEntity = (seller['LegalEntity'] ?? seller['Individual'] ?? {}) as Record<string, unknown>;
-	const supplierName =
-		getText(getChild(seller, 'LegalEntity', 'CorporateName')) ??
-		getText(getChild(seller, 'Individual', 'Name'));
-
-	const addressNode = (legalEntity['AddressInSpain'] ?? legalEntity['OverseasAddress']) as Record<string, unknown> | undefined;
-	const supplierAddress = addressNode
-		? [getText(addressNode['Address']), getText(addressNode['PostCode']), getText(addressNode['Town'])]
-			.filter((v): v is string => !!v)
-			.join(', ') || null
-		: null;
+	const supplier = facturaeParty(seller);
 
 	const contactDetails = seller['ContactDetails'] as Record<string, unknown> | undefined;
 	const supplierEmail = getText(contactDetails?.['ElectronicMail']);
 	const supplierPhone = getText(contactDetails?.['Telephone']);
+
+	const receiver = facturaeParty((parties?.['BuyerParty'] ?? {}) as Record<string, unknown>);
 
 	const invoicesNode = root['Invoices'] as Record<string, unknown> | undefined;
 	const invoices = getArr(invoicesNode, 'Invoice');
@@ -145,31 +230,12 @@ export function parseFacturae322(xml: string): ExtractedInvoice & { e_invoice_fo
 		};
 	});
 
-	return {
-		supplier_name: supplierName,
-		supplier_nif: nif,
-		supplier_address: supplierAddress,
-		supplier_email: supplierEmail,
-		supplier_phone: supplierPhone,
-		invoice_number: fullNumber,
-		document_type: 'factura',
-		invoice_date: invoiceDate,
-		due_date: null,
-		total_amount: totalAmount,
-		currency,
-		tax_base: taxBase,
-		tax_breakdown: taxBreakdown,
-		confidence: 1.0,
-		field_confidences: {
-			supplier_name: supplierName ? 1.0 : 0,
-			invoice_number: fullNumber ? 1.0 : 0,
-			document_type: 1.0,
-			invoice_date: invoiceDate ? 1.0 : 0,
-			total_amount: totalAmount != null ? 1.0 : 0,
-		},
-		line_items,
-		e_invoice_format: 'facturae_322',
-	};
+	return einvoiceResult({
+		supplier, receiver, supplierEmail, supplierPhone,
+		invoiceNumber: fullNumber, invoiceDate, dueDate: null,
+		totalAmount, currency, taxBase, taxBreakdown,
+		lineItems: line_items, format: 'facturae_322',
+	});
 }
 
 export function parseUbl21Invoice(xml: string): ExtractedInvoice & { e_invoice_format: EinvoiceFormat; supplier_nif: string | null } {
@@ -178,28 +244,13 @@ export function parseUbl21Invoice(xml: string): ExtractedInvoice & { e_invoice_f
 
 	const supplierParty = getChild(inv, 'AccountingSupplierParty', 'Party') as Record<string, unknown> | undefined;
 
-	const supplierName =
-		getText(getChild(supplierParty, 'PartyName', 'Name')) ??
-		getText(getChild(supplierParty, 'PartyLegalEntity', 'RegistrationName'));
-
-	const nif =
-		getText(getChild(supplierParty, 'PartyTaxScheme', 'CompanyID')) ??
-		getText(getChild(supplierParty, 'PartyLegalEntity', 'CompanyID'));
-
-	const postalAddress = supplierParty?.['PostalAddress'] as Record<string, unknown> | undefined;
-	const supplierAddress = postalAddress
-		? [
-			getText(postalAddress['StreetName']),
-			getText(postalAddress['CityName']),
-			getText(postalAddress['PostalZone']),
-		]
-			.filter((v): v is string => !!v)
-			.join(', ') || null
-		: null;
+	const supplier = ublParty(supplierParty);
 
 	const contact = supplierParty?.['Contact'] as Record<string, unknown> | undefined;
 	const supplierEmail = getText(contact?.['ElectronicMail']);
 	const supplierPhone = getText(contact?.['Telephone']);
+
+	const receiver = ublParty(getChild(inv, 'AccountingCustomerParty', 'Party') as Record<string, unknown> | undefined);
 
 	const invoiceNumber = getText(inv['ID']);
 	const invoiceDate = getText(inv['IssueDate']);
@@ -248,31 +299,12 @@ export function parseUbl21Invoice(xml: string): ExtractedInvoice & { e_invoice_f
 		};
 	});
 
-	return {
-		supplier_name: supplierName,
-		supplier_nif: nif,
-		supplier_address: supplierAddress,
-		supplier_email: supplierEmail,
-		supplier_phone: supplierPhone,
-		invoice_number: invoiceNumber,
-		document_type: 'factura',
-		invoice_date: invoiceDate,
-		due_date: dueDate,
-		total_amount: totalAmount,
-		currency,
-		tax_base: taxBase,
-		tax_breakdown: taxBreakdown,
-		confidence: 1.0,
-		field_confidences: {
-			supplier_name: supplierName ? 1.0 : 0,
-			invoice_number: invoiceNumber ? 1.0 : 0,
-			document_type: 1.0,
-			invoice_date: invoiceDate ? 1.0 : 0,
-			total_amount: totalAmount != null ? 1.0 : 0,
-		},
-		line_items,
-		e_invoice_format: 'ubl_21',
-	};
+	return einvoiceResult({
+		supplier, receiver, supplierEmail, supplierPhone,
+		invoiceNumber, invoiceDate, dueDate,
+		totalAmount, currency, taxBase, taxBreakdown,
+		lineItems: line_items, format: 'ubl_21',
+	});
 }
 
 export type ParsedEinvoice = ExtractedInvoice & {

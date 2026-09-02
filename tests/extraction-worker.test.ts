@@ -63,6 +63,14 @@ const extractMocks = vi.hoisted(() => ({
 }));
 vi.mock('../src/lib/server/extract.js', () => extractMocks);
 
+const partyMocks = vi.hoisted(() => ({
+	ownPartyIdentity: vi.fn(async () => ({ taxId: null, names: [] }) as { taxId: string | null; names: Array<string | null> }),
+}));
+vi.mock('../src/lib/server/party.js', async (importOriginal) => ({
+	...(await importOriginal<typeof import('../src/lib/server/party')>()),
+	ownPartyIdentity: partyMocks.ownPartyIdentity,
+}));
+
 vi.mock('../src/lib/server/products.js', () => ({
 	annotateLineItems: vi.fn(async (_supplier: string, items: unknown[]) => ({
 		enriched: items,
@@ -141,6 +149,7 @@ beforeEach(() => {
 	quotaMocks.claimMonthlyExtraction.mockResolvedValue({ claimed: true, limit: 100 });
 	quotaMocks.reserveMonthlyExtractions.mockResolvedValue({ reserved: true });
 	quotaMocks.attributeReservation.mockResolvedValue(undefined);
+	partyMocks.ownPartyIdentity.mockResolvedValue({ taxId: null, names: [] });
 });
 
 describe('processExtractionJob retry policy (#482)', () => {
@@ -662,5 +671,55 @@ describe('processExtractionJob — composite documents are separated before extr
 		expect(extractMocks.extractWithProvider).not.toHaveBeenCalled();
 		expect(batchMocks.markFailed).not.toHaveBeenCalled();
 		expect(quotaMocks.releaseMonthlyExtraction).toHaveBeenCalledWith('r1', item.id, expect.any(String));
+	});
+});
+
+/**
+ * Issue #905: the tester's document printed no emisor/cliente labels, so the
+ * model picked a party and the restaurant itself was stored as a brand-new
+ * supplier while the real issuer — already in the database — was never
+ * recognised. Extraction now reports both parties and the worker decides,
+ * before annotateLineItems and markDone see a supplier name: everything
+ * downstream, the review screen included, reads the corrected pair.
+ */
+const swappedInvoice = {
+	supplier_name: 'Clínica Dental Víctor Granda',
+	supplier_nif: '47306879L',
+	supplier_email: 'hola@clinica.example',
+	supplier_category: 'Material y Menaje',
+	receiver_name: 'Elaboradental SL',
+	receiver_nif: 'B99999997',
+	total_amount: 100,
+	line_items: [{ description: 'Férula', total_price: 100 }],
+};
+
+const PARTY_CASES = [
+	{
+		label: 'the document names the restaurant as emisor',
+		identity: { taxId: '47306879L', names: ['Clínica Dental Víctor Granda'] },
+		expected: {
+			supplier_name: 'Elaboradental SL',
+			supplier_nif: 'B99999997',
+			supplier_email: null,
+			supplier_category: null,
+			receiver_name: 'Clínica Dental Víctor Granda',
+		},
+	},
+	{
+		label: 'the restaurant has no fiscal identity on file',
+		identity: { taxId: null, names: [] },
+		expected: { supplier_name: 'Clínica Dental Víctor Granda', supplier_nif: '47306879L' },
+	},
+] as const;
+
+describe('processExtractionJob — emisor/receptor assignment (#905)', () => {
+	it.each(PARTY_CASES)('stores $expected.supplier_name as the supplier when $label', async ({ identity, expected }) => {
+		batchMocks.markExtracting.mockResolvedValue(true);
+		partyMocks.ownPartyIdentity.mockResolvedValue({ taxId: identity.taxId, names: [...identity.names] });
+		extractMocks.extractWithProvider.mockResolvedValue({ invoice: swappedInvoice, usage: {} });
+
+		await processExtractionJob({ itemId: item.id, restaurantId: 'r1' }, undefined, { retryCount: 0, retryLimit: 2 });
+
+		expect(batchMocks.markDone).toHaveBeenCalledWith(item.id, expect.objectContaining(expected), expect.anything());
 	});
 });

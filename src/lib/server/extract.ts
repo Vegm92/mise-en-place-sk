@@ -31,12 +31,15 @@ Common Spanish supplier units to recognise: ud (unidad), kg, g, L, ml, caja, gar
 
 Return ONLY valid JSON with this exact structure:
 {
-  "supplier_name": "string",
+  "supplier_name": "the EMISOR's name — the party that issued the document and is owed the money",
   "supplier_category": "one of the CATEGORY VALUES listed below, or null",
-  "supplier_nif": "the SUPPLIER's (emisor/proveedor) CIF or NIF, e.g. B12345678 — or null if not printed",
-  "supplier_address": "the SUPPLIER's postal address as printed (street, city, postal code) — or null if not printed",
-  "supplier_email": "the SUPPLIER's contact email — or null if not printed",
-  "supplier_phone": "the SUPPLIER's contact phone — or null if not printed",
+  "supplier_nif": "the EMISOR's CIF or NIF, e.g. B12345678 — or null if not printed",
+  "supplier_address": "the EMISOR's postal address as printed (street, city, postal code) — or null if not printed",
+  "supplier_email": "the EMISOR's contact email — or null if not printed",
+  "supplier_phone": "the EMISOR's contact phone — or null if not printed",
+  "receiver_name": "the RECEPTOR's name — the party billed, who owes the money (cliente, destinatario) — or null if not printed",
+  "receiver_nif": "the RECEPTOR's CIF or NIF — or null if not printed",
+  "receiver_address": "the RECEPTOR's postal address as printed — or null if not printed",
   "invoice_number": "string or null",
   "document_type": "'factura' or 'albaran', or null if you cannot tell which",
   "invoice_date": "YYYY-MM-DD or null",
@@ -62,7 +65,10 @@ Return ONLY valid JSON with this exact structure:
   "outstanding_balance": number or null (the outstanding balance owed to the supplier — printed as Saldo, saldo pendiente, saldo anterior, etc. — or null if not present),
   "field_confidences": {
     "supplier_name": 0.0 to 1.0,
+    "supplier_nif": 0.0 to 1.0,
     "supplier_category": 0.0 to 1.0,
+    "receiver_name": 0.0 to 1.0,
+    "receiver_nif": 0.0 to 1.0,
     "invoice_number": 0.0 to 1.0,
     "document_type": 0.0 to 1.0,
     "invoice_date": 0.0 to 1.0,
@@ -94,10 +100,31 @@ Tax fallback — use arithmetic when OCR is uncertain: After reading all line it
   is a food-safety declaration; a guess is worse than a null. Use only these codes:
   gluten, crustaceos, huevos, pescado, cacahuetes, soja, lacteos, frutos_cascara, apio, mostaza, sesamo,
   sulfitos, altramuces, moluscos.
-- Spanish invoices commonly print both parties' details (emisor/proveedor AND cliente/destinatario).
-  supplier_nif, supplier_address, supplier_email and supplier_phone must always refer to the
-  SUPPLIER issuing the invoice, never the restaurant/client receiving it — when in doubt, or when
-  you cannot tell which party a detail belongs to, return null rather than guessing.
+Both parties — extract them separately, never pick one:
+- Spanish invoices print two parties: the EMISOR (proveedor, quien factura, who is owed the money)
+  and the RECEPTOR (cliente, destinatario, quien paga). Return BOTH. Extracting only one and leaving
+  the other null is a failure even when the labels are missing: the reader downstream can correct a
+  swapped pair, but cannot recover a party you did not report.
+- The CIF/NIF is the unique identifier of a party — it outranks every name. The same business may be
+  printed under its razón social, its nombre comercial, or an individual's name on three different
+  documents; the tax id is the same on all three. Report each party's tax id whenever it is printed,
+  and never move a tax id from the party it is printed next to.
+- Telling them apart when the document has no "emisor"/"cliente" labels, in order:
+  1. Labels and headings: Emisor / Proveedor / Facturado por vs Cliente / Destinatario / Facturar a /
+     A la atención de. Any explicit label settles it.
+  2. Bank details, IBAN, "forma de pago", logo and letterhead belong to the EMISOR — the party being
+     paid prints where to pay it.
+  3. Position, and only when you can see the page: on a Spanish invoice the emisor is usually printed
+     top-left or in the letterhead, and the receptor in a block to its right or beneath it. When the
+     input is a plain text dump instead of an image that geometry is gone — the two blocks arrive in
+     whatever order the PDF stored them, which is very often the receptor first — so never treat the
+     order the parties appear in as evidence of which one issued the document.
+  4. A LOPD/RGPD footer names the data controller, which is the EMISOR.
+- If after all of that you genuinely cannot tell which party is which, still return both — put the one
+  you consider more likely to be the emisor in supplier_*, and score both receiver_name and
+  supplier_name below 0.60 in field_confidences so the uncertainty is visible. Do not return nulls to
+  express doubt about which is which; nulls mean "not printed on the document".
+- Never fabricate: a party's field is null when the document does not print it.
 
 supplier_category — what this supplier mainly sells or provides, judged from its name, trade, and the line items.
 
@@ -125,7 +152,7 @@ scores high; a guess from two ambiguous line items on a crisp scan scores low.
 
 QR code: If you can see and decode a QR code on the document, return the full decoded URL in the "qr_url" field. Spanish VERI*FACTU invoices carry an AEAT verification URL (e.g. https://www2.agenciatributaria.es/wlpl/TIKE-CONT/ValidarQR?nif=...&numserie=...&fecha=...&importe=...). If no QR is visible or decodable, set qr_url to null.`;
 
-export const EXTRACTION_PROMPT_REVISION = 'v1';
+export const EXTRACTION_PROMPT_REVISION = 'v2';
 
 export const EXTRACTION_PROMPT_VERSION =
 	`${EXTRACTION_PROMPT_REVISION}-${createHash('sha256').update(EXTRACTION_PROMPT).digest('hex').slice(0, 12)}`;
@@ -139,6 +166,9 @@ export interface ExtractedInvoice {
 	supplier_address?: string | null;
 	supplier_email?: string | null;
 	supplier_phone?: string | null;
+	receiver_name?: string | null;
+	receiver_nif?: string | null;
+	receiver_address?: string | null;
 	invoice_number: string | null;
 	document_type?: 'factura' | 'albaran' | null;
 	invoice_date: string | null;
@@ -150,7 +180,10 @@ export interface ExtractedInvoice {
 	confidence: number;
 	field_confidences?: {
 		supplier_name?: number;
+		supplier_nif?: number;
 		supplier_category?: number;
+		receiver_name?: number;
+		receiver_nif?: number;
 		invoice_number?: number;
 		document_type?: number;
 		invoice_date?: number;
@@ -203,7 +236,10 @@ const FIELD_CONFIDENCES_SCHEMA: Schema = {
 	type: Type.OBJECT,
 	properties: {
 		supplier_name: { type: Type.NUMBER },
+		supplier_nif: { type: Type.NUMBER },
 		supplier_category: { type: Type.NUMBER },
+		receiver_name: { type: Type.NUMBER },
+		receiver_nif: { type: Type.NUMBER },
 		invoice_number: { type: Type.NUMBER },
 		document_type: { type: Type.NUMBER },
 		invoice_date: { type: Type.NUMBER },
@@ -211,8 +247,8 @@ const FIELD_CONFIDENCES_SCHEMA: Schema = {
 		total_amount: { type: Type.NUMBER },
 	},
 	required: [
-		'supplier_name', 'supplier_category', 'invoice_number', 'document_type',
-		'invoice_date', 'due_date', 'total_amount',
+		'supplier_name', 'supplier_nif', 'supplier_category', 'receiver_name', 'receiver_nif',
+		'invoice_number', 'document_type', 'invoice_date', 'due_date', 'total_amount',
 	],
 };
 
@@ -225,6 +261,9 @@ export const INVOICE_RESPONSE_SCHEMA: Schema = {
 		supplier_address: { type: Type.STRING, nullable: true },
 		supplier_email: { type: Type.STRING, nullable: true },
 		supplier_phone: { type: Type.STRING, nullable: true },
+		receiver_name: { type: Type.STRING, nullable: true },
+		receiver_nif: { type: Type.STRING, nullable: true },
+		receiver_address: { type: Type.STRING, nullable: true },
 		invoice_number: { type: Type.STRING, nullable: true },
 		document_type: { type: Type.STRING, enum: ['factura', 'albaran'], nullable: true },
 		invoice_date: { type: Type.STRING, nullable: true },
@@ -241,7 +280,8 @@ export const INVOICE_RESPONSE_SCHEMA: Schema = {
 	},
 	required: [
 		'supplier_name', 'supplier_category', 'supplier_nif', 'supplier_address', 'supplier_email',
-		'supplier_phone', 'invoice_number', 'document_type', 'invoice_date', 'due_date', 'total_amount',
+		'supplier_phone', 'receiver_name', 'receiver_nif', 'receiver_address',
+		'invoice_number', 'document_type', 'invoice_date', 'due_date', 'total_amount',
 		'currency', 'tax_base', 'tax_breakdown', 'outstanding_balance', 'qr_url', 'field_confidences',
 		'line_items', 'confidence',
 	],
@@ -312,6 +352,9 @@ export function sanitizeExtractedInvoice(invoice: ExtractedInvoice): ExtractedIn
 		supplier_email: sanitizeFreeText(invoice.supplier_email, MAX_EMAIL_LENGTH),
 		supplier_phone: sanitizeFreeText(invoice.supplier_phone, MAX_PHONE_LENGTH),
 		supplier_nif: sanitizeFreeText(invoice.supplier_nif, MAX_NIF_LENGTH),
+		receiver_name: sanitizeFreeText(invoice.receiver_name, MAX_SUPPLIER_NAME_LENGTH),
+		receiver_nif: sanitizeFreeText(invoice.receiver_nif, MAX_NIF_LENGTH),
+		receiver_address: sanitizeFreeText(invoice.receiver_address, MAX_ADDRESS_LENGTH),
 		invoice_number: sanitizeFreeText(invoice.invoice_number, MAX_INVOICE_NUMBER_LENGTH),
 		line_items: (invoice.line_items ?? []).map((item) => ({
 			...item,
