@@ -17,10 +17,9 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 	trackEvent('recipe_sheet_exported', rid, { recipeId: id });
 
-	return new Response(toCsv(doc.csv.header, doc.csv.rows), {
-		headers: {
-			'Content-Type': 'text/csv; charset=utf-8',
-			'Content-Disposition': contentDispositionHeader('attachment', doc.csv.filename),
-		},
-	});
+	const body = toCsv(doc.csv.header, doc.csv.rows);
+	const headers = new Headers();
+	headers.set('Content-Type', 'text/csv; charset=utf-8');
+	headers.set('Content-Disposition', contentDispositionHeader('attachment', doc.csv.filename));
+	return new Response(body, { headers });
 };
