@@ -427,6 +427,12 @@ describe.skipIf(!hasDbEnv)('per-restaurant categories (issue #881)', () => {
 		return result.category;
 	}
 
+	async function createHidden(rid: string, name: string) {
+		const category = await createOk(rid, name);
+		await setCategoryHidden(rid, category.id, true, testDb);
+		return category;
+	}
+
 	it('seeds the default taxonomy, minus Other, and is idempotent', async () => {
 		const r = await createTestRestaurant('cat-seed');
 		try {
@@ -508,8 +514,7 @@ describe.skipIf(!hasDbEnv)('per-restaurant categories (issue #881)', () => {
 	it('excludes hidden categories from listCategories by default, but includeHidden surfaces them', async () => {
 		const r = await createTestRestaurant('cat-hidden');
 		try {
-			const category = await createOk(r.id, 'Marketing');
-			await setCategoryHidden(r.id, category.id, true, testDb);
+			const category = await createHidden(r.id, 'Marketing');
 
 			const visible = await listCategories(r.id, {}, testDb);
 			expect(visible.find((c) => c.id === category.id)).toBeUndefined();
@@ -536,8 +541,7 @@ describe.skipIf(!hasDbEnv)('per-restaurant categories (issue #881)', () => {
 	it('resolveCategoryFor: a hidden custom category falls back to the sentinel', async () => {
 		const r = await createTestRestaurant('cat-resolve-hidden');
 		try {
-			const category = await createOk(r.id, 'Marketing');
-			await setCategoryHidden(r.id, category.id, true, testDb);
+			await createHidden(r.id, 'Marketing');
 			expect(await resolveCategoryFor(r.id, 'Marketing', 1, testDb)).toBe(UNCATEGORIZED_CATEGORY);
 		} finally {
 			await cleanupTestRestaurant(r.id);
