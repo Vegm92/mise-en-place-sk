@@ -48,6 +48,9 @@
     invoice_date: Date | string | null;
     due_date: Date | string | null;
     source_file: string | null;
+    payment_method?: string | null;
+    payment_terms?: string | null;
+    iban?: string | null;
     linked_invoice?: LinkedInvoice | null;
   }
 
@@ -163,6 +166,13 @@
           <div class="num" style="color: var(--mep-fg); font-weight: 500; margin-top: 2px;">{lineItems.length}</div>
         </div>
       </div>
+      {#if invoice.payment_method || invoice.payment_terms || invoice.iban}
+        <div class="border-t border-divider text-fg-2" style="margin-top: 12px; padding-top: 12px; font-size: 11px;">
+          {#if invoice.payment_method}{$t(`field.paymentMethod.${invoice.payment_method}`)}{/if}
+          {#if invoice.payment_terms} · {invoice.payment_terms}{/if}
+          {#if invoice.iban} · {invoice.iban}{/if}
+        </div>
+      {/if}
     </div>
 
     {#if invoice.source_file}

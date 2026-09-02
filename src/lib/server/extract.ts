@@ -3,11 +3,12 @@ import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { Type, type Schema } from '@google/genai';
 import { GEMINI_TIMEOUT_MS } from './env';
-import { VALID_CATEGORIES, UNCATEGORIZED_CATEGORY } from '$lib/constants';
+import { VALID_CATEGORIES, UNCATEGORIZED_CATEGORY, PAYMENT_METHODS, isValidPaymentMethod } from '$lib/constants';
 import { categoryGuideBlock } from './category-guide';
 import { parseJsonResponse } from './llm-json';
 import { createGeminiProvider, type LLMUsage } from './llm-provider';
 import { parseEinvoice } from './einvoice-parser';
+import { normalizeIban, isValidIban } from '$lib/iban';
 
 const EXTRACTION_PROMPT = `You are an invoice data extraction specialist for Spanish restaurants. Extract all relevant information from this document and return it as a JSON object.
 
@@ -22,6 +23,7 @@ Key Spanish field names to look for:
 - Date: fecha de emisión, fecha factura, fecha entrega, fecha albarán
 - Due date: fecha de vencimiento, vence el, fecha límite pago
 - Tax IDs: CIF, NIF, NIF/CIF (format: letter + 8 digits, e.g. B12345678 or 12345678A)
+- Payment: forma de pago, modo de pago, condiciones (de pago), pago por, vencimiento; IBAN / cuenta / nº cuenta / CCC
 - Taxable base: base imponible, base gravable
 - VAT amount: cuota IVA, importe IVA, IVA (rates: 21% general, 10% reducido for food/restaurants, 4% superreducido for basic staples)
 - Total: total factura, total albarán, importe total, total a pagar
@@ -40,6 +42,9 @@ Return ONLY valid JSON with this exact structure:
   "receiver_name": "the RECEPTOR's name — the party billed, who owes the money (cliente, destinatario) — or null if not printed",
   "receiver_nif": "the RECEPTOR's CIF or NIF — or null if not printed",
   "receiver_address": "the RECEPTOR's postal address as printed — or null if not printed",
+  "payment_method": "one of ${PAYMENT_METHODS.filter((m) => m !== 'otro').join(' | ')} | otro — or null if not printed",
+  "iban": "the EMISOR's bank account (IBAN / cuenta / nº cuenta / CCC), as printed — or null if not printed",
+  "payment_terms": "payment terms exactly as printed (e.g. '30 días', 'contado', '60 días f.f.') — or null if not printed",
   "invoice_number": "string or null",
   "document_type": "'factura' or 'albaran', or null if you cannot tell which",
   "invoice_date": "YYYY-MM-DD or null",
@@ -78,7 +83,8 @@ Return ONLY valid JSON with this exact structure:
     "document_type": 0.0 to 1.0,
     "invoice_date": 0.0 to 1.0,
     "due_date": 0.0 to 1.0,
-    "total_amount": 0.0 to 1.0
+    "total_amount": 0.0 to 1.0,
+    "iban": 0.0 to 1.0
   },
   "confidence": 0.0 to 1.0
 }
@@ -177,6 +183,9 @@ export interface ExtractedInvoice {
 	receiver_name?: string | null;
 	receiver_nif?: string | null;
 	receiver_address?: string | null;
+	payment_method?: string | null;
+	iban?: string | null;
+	payment_terms?: string | null;
 	invoice_number: string | null;
 	document_type?: 'factura' | 'albaran' | null;
 	invoice_date: string | null;
@@ -202,6 +211,7 @@ export interface ExtractedInvoice {
 		invoice_date?: number;
 		due_date?: number;
 		total_amount?: number;
+		iban?: number;
 	};
 	line_items: Array<{
 		description: string;
@@ -258,6 +268,7 @@ const FIELD_CONFIDENCES_SCHEMA: Schema = {
 		invoice_date: { type: Type.NUMBER },
 		due_date: { type: Type.NUMBER },
 		total_amount: { type: Type.NUMBER },
+		iban: { type: Type.NUMBER },
 	},
 	required: [
 		'supplier_name', 'supplier_nif', 'supplier_category', 'receiver_name', 'receiver_nif',
@@ -277,6 +288,9 @@ export const INVOICE_RESPONSE_SCHEMA: Schema = {
 		receiver_name: { type: Type.STRING, nullable: true },
 		receiver_nif: { type: Type.STRING, nullable: true },
 		receiver_address: { type: Type.STRING, nullable: true },
+		payment_method: { type: Type.STRING, enum: [...PAYMENT_METHODS], nullable: true },
+		iban: { type: Type.STRING, nullable: true },
+		payment_terms: { type: Type.STRING, nullable: true },
 		invoice_number: { type: Type.STRING, nullable: true },
 		document_type: { type: Type.STRING, enum: ['factura', 'albaran'], nullable: true },
 		invoice_date: { type: Type.STRING, nullable: true },
@@ -299,6 +313,7 @@ export const INVOICE_RESPONSE_SCHEMA: Schema = {
 	required: [
 		'supplier_name', 'supplier_category', 'supplier_nif', 'supplier_address', 'supplier_email',
 		'supplier_phone', 'receiver_name', 'receiver_nif', 'receiver_address',
+		'payment_method', 'iban', 'payment_terms',
 		'invoice_number', 'document_type', 'invoice_date', 'due_date', 'total_amount',
 		'currency', 'tax_base', 'gross_amount', 'discount_amount', 'discount_rate',
 		'retention_rate', 'retention_amount', 'tax_breakdown', 'outstanding_balance', 'qr_url',
@@ -347,6 +362,7 @@ const MAX_EMAIL_LENGTH = 254;
 const MAX_PHONE_LENGTH = 40;
 const MAX_NIF_LENGTH = 40;
 const MAX_INVOICE_NUMBER_LENGTH = 100;
+const MAX_PAYMENT_TERMS_LENGTH = 100;
 const MAX_LINE_DESCRIPTION_LENGTH = 300;
 const MAX_PRODUCT_CODE_LENGTH = 100;
 
@@ -363,7 +379,18 @@ function sanitizeFreeText(value: string | null | undefined, maxLength: number): 
 	return collapsed.length > maxLength ? collapsed.slice(0, maxLength) : collapsed;
 }
 
+function sanitizeIban(
+	rawIban: string | null | undefined,
+	fieldConfidences: ExtractedInvoice['field_confidences'],
+): { iban: string | null; fieldConfidences: ExtractedInvoice['field_confidences'] } {
+	const iban = normalizeIban(rawIban);
+	if (!iban) return { iban: null, fieldConfidences };
+	if (isValidIban(iban)) return { iban, fieldConfidences };
+	return { iban, fieldConfidences: { ...fieldConfidences, iban: 0.5 } };
+}
+
 export function sanitizeExtractedInvoice(invoice: ExtractedInvoice): ExtractedInvoice {
+	const { iban, fieldConfidences } = sanitizeIban(invoice.iban, invoice.field_confidences);
 	return {
 		...invoice,
 		supplier_name: sanitizeFreeText(invoice.supplier_name, MAX_SUPPLIER_NAME_LENGTH),
@@ -374,6 +401,10 @@ export function sanitizeExtractedInvoice(invoice: ExtractedInvoice): ExtractedIn
 		receiver_name: sanitizeFreeText(invoice.receiver_name, MAX_SUPPLIER_NAME_LENGTH),
 		receiver_nif: sanitizeFreeText(invoice.receiver_nif, MAX_NIF_LENGTH),
 		receiver_address: sanitizeFreeText(invoice.receiver_address, MAX_ADDRESS_LENGTH),
+		payment_method: isValidPaymentMethod(invoice.payment_method) ? invoice.payment_method : null,
+		iban,
+		payment_terms: sanitizeFreeText(invoice.payment_terms, MAX_PAYMENT_TERMS_LENGTH),
+		field_confidences: fieldConfidences,
 		invoice_number: sanitizeFreeText(invoice.invoice_number, MAX_INVOICE_NUMBER_LENGTH),
 		line_items: (invoice.line_items ?? []).map((item) => ({
 			...item,

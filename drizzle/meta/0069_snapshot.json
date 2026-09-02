@@ -1,6 +1,6 @@
 {
-  "id": "8676ab1c-f6c6-4dfd-bfb4-6eadf65e3bb3",
-  "prevId": "03c432c3-5413-41e0-9826-832b79865449",
+  "id": "2961d7c6-b84f-448c-a947-17bb35d6ca6c",
+  "prevId": "8676ab1c-f6c6-4dfd-bfb4-6eadf65e3bb3",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -2030,6 +2030,30 @@
         "tax_breakdown": {
           "name": "tax_breakdown",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gross_amount": {
+          "name": "gross_amount",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "discount_amount": {
+          "name": "discount_amount",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "retention_rate": {
+          "name": "retention_rate",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "retention_amount": {
+          "name": "retention_amount",
+          "type": "numeric(12, 2)",
           "primaryKey": false,
           "notNull": false
         },

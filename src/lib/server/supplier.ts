@@ -11,6 +11,8 @@ export interface SupplierContactInfo {
 	email?: string | null;
 	phone?: string | null;
 	address?: string | null;
+	iban?: string | null;
+	paymentTerms?: string | null;
 }
 
 interface ContactMerge {
@@ -19,6 +21,8 @@ interface ContactMerge {
 	email: string | null;
 	phone: string | null;
 	address: string | null;
+	iban: string | null;
+	paymentTerms: string | null;
 }
 
 async function mergeContactInto(
@@ -33,7 +37,9 @@ async function mergeContactInto(
 			normalized_cif = COALESCE(normalized_cif, ${merge.normalizedCif}),
 			contact_email = COALESCE(contact_email, ${merge.email}),
 			contact_phone = COALESCE(contact_phone, ${merge.phone}),
-			address = COALESCE(address, ${merge.address})
+			address = COALESCE(address, ${merge.address}),
+			iban = COALESCE(iban, ${merge.iban}),
+			payment_terms = COALESCE(payment_terms, ${merge.paymentTerms})
 		WHERE id = ${supplierId} AND restaurant_id = ${restaurantId}
 	`);
 }
@@ -103,6 +109,8 @@ export async function getOrCreateSupplierId(
 	const email = contact.email?.trim() || null;
 	const phone = contact.phone?.trim() || null;
 	const address = contact.address?.trim() || null;
+	const iban = contact.iban?.trim() || null;
+	const paymentTerms = contact.paymentTerms?.trim() || null;
 	const normalizedCif = normalizeTaxId(cif);
 	const merge: ContactMerge = {
 		cif: contactTrusted ? cif : null,
@@ -110,6 +118,8 @@ export async function getOrCreateSupplierId(
 		email: contactTrusted ? email : null,
 		phone: contactTrusted ? phone : null,
 		address: contactTrusted ? address : null,
+		iban: contactTrusted ? iban : null,
+		paymentTerms: contactTrusted ? paymentTerms : null,
 	};
 
 	if (contactTrusted && normalizedCif) {
@@ -130,8 +140,8 @@ export async function getOrCreateSupplierId(
 	}
 
 	const rows = await exec.execute<{ id: number }>(sql`
-		INSERT INTO suppliers (restaurant_id, name, category, cif, normalized_cif, contact_email, contact_phone, address)
-		VALUES (${restaurantId}, ${trimmed}, ${resolved}, ${cif}, ${normalizedCif}, ${email}, ${phone}, ${address})
+		INSERT INTO suppliers (restaurant_id, name, category, cif, normalized_cif, contact_email, contact_phone, address, iban, payment_terms)
+		VALUES (${restaurantId}, ${trimmed}, ${resolved}, ${cif}, ${normalizedCif}, ${email}, ${phone}, ${address}, ${iban}, ${paymentTerms})
 		ON CONFLICT (restaurant_id, lower(name))
 		DO UPDATE SET
 			name = suppliers.name,
@@ -140,7 +150,9 @@ export async function getOrCreateSupplierId(
 			normalized_cif = COALESCE(suppliers.normalized_cif, ${merge.normalizedCif}),
 			contact_email = COALESCE(suppliers.contact_email, ${merge.email}),
 			contact_phone = COALESCE(suppliers.contact_phone, ${merge.phone}),
-			address = COALESCE(suppliers.address, ${merge.address})
+			address = COALESCE(suppliers.address, ${merge.address}),
+			iban = COALESCE(suppliers.iban, ${merge.iban}),
+			payment_terms = COALESCE(suppliers.payment_terms, ${merge.paymentTerms})
 		RETURNING id
 	`);
 	return rows[0].id;

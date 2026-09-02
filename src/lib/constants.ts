@@ -24,6 +24,22 @@ export const VALID_CATEGORIES: string[] = [
 
 export const MIN_CATEGORY_CONFIDENCE = 0.6;
 
+export const PAYMENT_METHODS = [
+	'transferencia',
+	'efectivo',
+	'tarjeta',
+	'domiciliacion',
+	'giro',
+	'pagare',
+	'otro',
+] as const;
+
+export type PaymentMethod = typeof PAYMENT_METHODS[number];
+
+export function isValidPaymentMethod(value: unknown): value is PaymentMethod {
+	return typeof value === 'string' && (PAYMENT_METHODS as readonly string[]).includes(value);
+}
+
 export const VENUE_TYPES = [
 	{ value: 'menu_del_dia', labelKey: 'onboard.venue.menuDelDia' },
 	{ value: 'carta',        labelKey: 'onboard.venue.carta' },

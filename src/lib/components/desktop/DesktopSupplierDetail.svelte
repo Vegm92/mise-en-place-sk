@@ -26,6 +26,7 @@
     contactEmail: string | null;
     contactPhone: string | null;
     cif: string | null;
+    iban: string | null;
     address: string | null;
     deliveryDays: string | null;
     paymentTerms: string | null;
@@ -259,6 +260,10 @@
                 <input id="edit-cif" class="input" name="cif" value={s.cif ?? ''} style="width:100%;" placeholder="B12345678" />
               </div>
               <div>
+                <label for="edit-iban" class="label" style="display:block;margin-bottom:4px;">{$t('sup.field.iban')}</label>
+                <input id="edit-iban" class="input" name="iban" value={s.iban ?? ''} style="width:100%;" placeholder={$t('sup.ph.iban')} />
+              </div>
+              <div>
                 <label for="edit-address" class="label" style="display:block;margin-bottom:4px;">{$t('sup.field.address')}</label>
                 <input id="edit-address" class="input" name="address" value={s.address ?? ''} style="width:100%;" placeholder={$t('sup.ph.address')} />
               </div>
@@ -445,7 +450,7 @@
 
             <div class="card" style="padding:16px;">
               <div class="subtitle" style="margin-bottom:10px;">{$t('sup.info')}</div>
-              {#if !s.contactEmail && !s.contactPhone && !s.cif && !s.address && !s.deliveryDays && !s.paymentTerms && !s.notes && !s.alias}
+              {#if !s.contactEmail && !s.contactPhone && !s.cif && !s.iban && !s.address && !s.deliveryDays && !s.paymentTerms && !s.notes && !s.alias}
                 <p class="text-[12.5px] text-fg-3 italic">{$t('sup.noContact')}</p>
                 <button class="btn btn-secondary" style="height:28px;font-size:12px;margin-top:8px;"
                   onclick={() => { editing = true; confirmDelete = false; }}>
@@ -469,6 +474,12 @@
                     <div class="flex items-center gap-2.5 text-[12.5px] text-fg-2">
                       <CreditCard size={14} class="text-fg-3 shrink-0" />
                       <span>{$t('sup.field.cif')}: {s.cif}</span>
+                    </div>
+                  {/if}
+                  {#if s.iban}
+                    <div class="flex items-center gap-2.5 text-[12.5px] text-fg-2">
+                      <CreditCard size={14} class="text-fg-3 shrink-0" />
+                      <span>{$t('sup.field.iban')}: {s.iban}</span>
                     </div>
                   {/if}
                   {#if s.address}
