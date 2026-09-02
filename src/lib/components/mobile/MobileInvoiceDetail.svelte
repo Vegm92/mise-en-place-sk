@@ -167,11 +167,7 @@
         </div>
       </div>
       {#if invoice.payment_method || invoice.payment_terms || invoice.iban}
-        <div style="
-          margin-top: 12px; padding-top: 12px;
-          border-top: 1px solid var(--mep-divider);
-          font-size: 11px; color: var(--mep-fg-2);
-        ">
+        <div class="border-t border-divider text-fg-2" style="margin-top: 12px; padding-top: 12px; font-size: 11px;">
           {#if invoice.payment_method}{$t(`field.paymentMethod.${invoice.payment_method}`)}{/if}
           {#if invoice.payment_terms} · {invoice.payment_terms}{/if}
           {#if invoice.iban} · {invoice.iban}{/if}

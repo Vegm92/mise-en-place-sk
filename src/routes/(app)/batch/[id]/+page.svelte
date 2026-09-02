@@ -1178,7 +1178,7 @@
                       {$t('field.iban')}
                       <ConfidenceDot confidence={fieldConf.iban} />
                     </label>
-                    <input id="field-iban" type="text" readonly value={str(review?.data?.iban)} class="rev-input" style="color:var(--mep-fg-3);" />
+                    <input id="field-iban" type="text" readonly value={str(review?.data?.iban)} class="rev-input text-fg-3" />
                   </div>
                 {/if}
                 {#if fieldVisible.notes}

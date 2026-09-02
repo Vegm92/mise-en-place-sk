@@ -90,7 +90,7 @@
                         {r.invoice_number ?? '—'}
                       </div>
                       {#if paymentLine(r.payment_method, r.iban)}
-                        <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 2px;">
+                        <div class="text-fg-3" style="font-size: 11px; margin-top: 2px;">
                           {paymentLine(r.payment_method, r.iban)}
                         </div>
                       {/if}
