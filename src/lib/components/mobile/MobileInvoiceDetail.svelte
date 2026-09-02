@@ -51,6 +51,10 @@
     payment_method?: string | null;
     payment_terms?: string | null;
     iban?: string | null;
+    gross_amount?: number | null;
+    discount_amount?: number | null;
+    retention_rate?: number | null;
+    retention_amount?: number | null;
     linked_invoice?: LinkedInvoice | null;
   }
 
@@ -171,6 +175,27 @@
           {#if invoice.payment_method}{$t(`field.paymentMethod.${invoice.payment_method}`)}{/if}
           {#if invoice.payment_terms} · {invoice.payment_terms}{/if}
           {#if invoice.iban} · {invoice.iban}{/if}
+        </div>
+      {/if}
+
+      {#if invoice.gross_amount != null || invoice.discount_amount != null || invoice.retention_amount != null}
+        <div class="border-t border-divider flex flex-wrap items-baseline gap-1.5 text-[11px] text-fg-3" style="margin-top: 12px; padding-top: 12px;">
+          {#if invoice.gross_amount != null}
+            <span>{$t('extract.grossAmount')} <span class="num text-fg-2">{fmt(invoice.gross_amount)}</span></span>
+            <span class="opacity-60">→</span>
+          {/if}
+          {#if invoice.discount_amount != null}
+            <span>{$t('extract.discountAmount')} <span class="num text-fg-2">−{fmt(invoice.discount_amount)}</span></span>
+            <span class="opacity-60">→</span>
+          {/if}
+          {#if invoice.retention_amount != null}
+            <span>
+              {$t('extract.retention')}{invoice.retention_rate != null ? ` (${(invoice.retention_rate * 100).toLocaleString($locale)}%)` : ''}
+              <span class="num text-fg-2">−{fmt(invoice.retention_amount)}</span>
+            </span>
+            <span class="opacity-60">→</span>
+          {/if}
+          <span class="body-strong text-fg">{$t('field.totalAmount')} <span class="num">{fmt(invoice.total_amount)}</span></span>
         </div>
       {/if}
     </div>

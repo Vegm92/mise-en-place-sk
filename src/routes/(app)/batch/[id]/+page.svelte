@@ -31,6 +31,7 @@
   } from '$lib/tax';
   import { t, ti, tp } from '$lib/i18n';
   import { PAYMENT_METHODS } from '$lib/constants';
+  import { moneyToNullableNumber } from '$lib/money';
 
   import type { ActionData } from './$types';
   const { data, form }: { data: PageData; form: ActionData } = $props();
@@ -604,16 +605,16 @@
     const pct = fractionToPercent(rate);
     return pct === null ? '—' : String(pct).replace('.', ',') + '%';
   }
-  function numOrNull(v: unknown): number | null {
+  function rateOrNull(v: unknown): number | null {
     if (typeof v === 'number' && !isNaN(v)) return v;
     if (typeof v === 'string' && v.trim() !== '' && !isNaN(Number(v))) return Number(v);
     return null;
   }
-  const grossAmount = $derived(numOrNull(data.review?.data?.gross_amount));
-  const discountAmount = $derived(numOrNull(data.review?.data?.discount_amount));
-  const retentionRate = $derived(numOrNull(data.review?.data?.retention_rate));
-  const retentionAmount = $derived(numOrNull(data.review?.data?.retention_amount));
-  const hasTotalsChain = $derived(grossAmount !== null || retentionAmount !== null);
+  const grossAmount = $derived(moneyToNullableNumber(data.review?.data?.gross_amount as string | number | null | undefined));
+  const discountAmount = $derived(moneyToNullableNumber(data.review?.data?.discount_amount as string | number | null | undefined));
+  const retentionRate = $derived(rateOrNull(data.review?.data?.retention_rate));
+  const retentionAmount = $derived(moneyToNullableNumber(data.review?.data?.retention_amount as string | number | null | undefined));
+  const hasTotalsChain = $derived(grossAmount !== null || discountAmount !== null || retentionAmount !== null);
 
   const totalCalc = $derived(lineTotal + taxTotal - (discountAmount ?? 0) - (retentionAmount ?? 0));
   const discrepancy = $derived(Math.abs(totalCalc - extractedTotal));
