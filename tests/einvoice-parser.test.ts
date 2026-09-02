@@ -335,11 +335,9 @@ describe('parseFacturae322', () => {
 	it('yields null purchase_order/seller_name/delivery_date/delivery_address/printed_notes when AdditionalData is absent', () => {
 		const xmlNoAdditionalData = FACTURAE_322_XML.replace(/<AdditionalData>[\s\S]*?<\/AdditionalData>/, '');
 		const result = parseFacturae322(xmlNoAdditionalData);
-		expect(result.purchase_order).toBeNull();
-		expect(result.seller_name).toBeNull();
-		expect(result.delivery_date).toBeNull();
-		expect(result.delivery_address).toBeNull();
-		expect(result.printed_notes).toBeNull();
+		expect(result).toMatchObject({
+			purchase_order: null, seller_name: null, delivery_date: null, delivery_address: null, printed_notes: null,
+		});
 	});
 
 	it('extracts invoice date', () => {
@@ -517,10 +515,9 @@ describe('parseUbl21Invoice', () => {
 			.replace(/<cac:OrderReference>[\s\S]*?<\/cac:OrderReference>/, '')
 			.replace(/<cac:Delivery>[\s\S]*?<\/cac:Delivery>/, '');
 		const result = parseUbl21Invoice(xmlBare);
-		expect(result.purchase_order).toBeNull();
-		expect(result.delivery_date).toBeNull();
-		expect(result.delivery_address).toBeNull();
-		expect(result.printed_notes).toBeNull();
+		expect(result).toMatchObject({
+			purchase_order: null, delivery_date: null, delivery_address: null, printed_notes: null,
+		});
 	});
 
 	it('extracts issue date', () => {

@@ -8,7 +8,7 @@ import { claimRequest, releaseRequest, isValidKey } from '$lib/server/idempotenc
 import { getOrCreateSupplierId } from '$lib/server/supplier';
 import { toMoneyString, moneyToNullableNumber } from '$lib/server/money';
 import { isBlankOrIsoDate, toIsoDate } from '$lib/server/dates';
-import { parseLineInputs, enrichLineItems, computeFormContentHash, linkProductsToInvoice, findInvalidMonetaryField } from '$lib/server/invoice-save';
+import { parseLineInputs, enrichLineItems, computeFormContentHash, linkProductsToInvoice, findInvalidMonetaryField, documentReferenceColumns, type DocumentReferenceFields } from '$lib/server/invoice-save';
 import { reevaluateInvoiceAlerts } from '$lib/server/alerts';
 import { requirePositiveIntId } from '$lib/server/route-params';
 import type { TaxBand } from '$lib/tax';
@@ -43,14 +43,6 @@ async function checkDuplicateInvoice(
 		.where(and(tdb.scope(invoices.restaurantId), eq(invoices.contentHash, contentHash), ne(invoices.id, id), isNull(invoices.deletedAt)))
 		.limit(1);
 	return hashMatch.length > 0;
-}
-
-interface DocumentReferenceFields {
-	purchaseOrder: string | null;
-	sellerName: string | null;
-	deliveryDate: string | null;
-	deliveryAddress: string | null;
-	printedNotes: string | null;
 }
 
 async function executeEditTransaction(
@@ -126,11 +118,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				notes:          invoices.notes,
 				created_at:     invoices.createdAt,
 				version:        invoices.version,
-				purchase_order:   invoices.purchaseOrder,
-				seller_name:      invoices.sellerName,
-				delivery_date:    invoices.deliveryDate,
-				delivery_address: invoices.deliveryAddress,
-				printed_notes:    invoices.printedNotes,
+				...documentReferenceColumns,
 			})
 				.from(invoices)
 				.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))

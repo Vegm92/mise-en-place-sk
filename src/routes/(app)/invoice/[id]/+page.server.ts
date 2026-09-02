@@ -6,7 +6,7 @@ import { db, forTenant } from '$lib/server/db';
 import { invoices, invoiceLineItems, invoiceAuditLog, suppliers, restaurants, systemNotifications } from '$lib/server/schema';
 import { asc, desc, eq, and, isNull, sql } from 'drizzle-orm';
 import { moneyToNullableNumber } from '$lib/server/money';
-import { linkProductsToInvoice } from '$lib/server/invoice-save';
+import { linkProductsToInvoice, documentReferenceColumns } from '$lib/server/invoice-save';
 import { orphanInvoiceAlerts, reevaluateBudgetAlertsForInvoice } from '$lib/server/alerts';
 import { parsePack } from '$lib/server/products';
 import { rateLimitScoped } from '$lib/server/rate-limit-scope';
@@ -42,11 +42,7 @@ async function invoiceDetailRow(tdb: ReturnType<typeof forTenant>, id: number) {
 		notes:            invoices.notes,
 		created_at:       invoices.createdAt,
 		linked_invoice_id: invoices.linkedInvoiceId,
-		purchase_order:   invoices.purchaseOrder,
-		seller_name:      invoices.sellerName,
-		delivery_date:    invoices.deliveryDate,
-		delivery_address: invoices.deliveryAddress,
-		printed_notes:    invoices.printedNotes,
+		...documentReferenceColumns,
 	})
 		.from(invoices)
 		.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
