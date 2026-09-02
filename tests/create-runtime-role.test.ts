@@ -21,7 +21,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import postgres from 'postgres';
 import { PgBoss } from 'pg-boss';
-import { testSql, closeDb, hasDbEnv } from './helpers/test-db';
+import { testSql, closeDb, hasDbEnv, retryOnDeadlock } from './helpers/test-db';
 import { resolveDbGate } from './helpers/db-gate';
 
 const SCRIPT_PATH = path.resolve(
@@ -53,7 +53,7 @@ function runtimeUrl(): string {
 }
 
 async function dropTestRole(): Promise<void> {
-	await testSql.unsafe(`
+	await retryOnDeadlock(() => testSql.unsafe(`
 		DO $$
 		BEGIN
 			IF EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = '${TEST_ROLE}') THEN
@@ -63,7 +63,7 @@ async function dropTestRole(): Promise<void> {
 			END IF;
 		END
 		$$;
-	`);
+	`));
 }
 
 function runScript(): void {
@@ -78,8 +78,10 @@ let runtimeSql: ReturnType<typeof postgres> | null = null;
 
 beforeAll(async () => {
 	if (!canRun) return;
-	await dropTestRole();
-	runScript();
+	await retryOnDeadlock(async () => {
+		await dropTestRole();
+		runScript();
+	});
 	runtimeSql = postgres(runtimeUrl(), { ssl: gate.isLocal ? false : 'require', max: 1 });
 	// This suite proves GRANTs, not tenant isolation (that's #222's
 	// tests/rls-runtime-role.test.ts) — #222 added row-level security
