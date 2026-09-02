@@ -154,6 +154,19 @@ These comments were deliberately left in the code because a tool reads them.
 - Split pages render `mobile/*` and `desktop/*` components; CSS (`md:` at
   768px) chooses which shows (ADR-020). Do not add a second breakpoint.
 - Theme via CSS variables (dark/light), `svelte.config.js` CSP hash-mode.
+- Style components with the Tailwind utilities `@theme inline` generates from
+  the MEP tokens (`text-fg-3`, `bg-surface-2`, `border-neg`, `rounded-pill`,
+  `shadow-card`…), never with `style="…var(--mep-*)…"`. Those inline attributes
+  are the only reason `style-src` still carries `'unsafe-inline'`, so the
+  hash-mode CSP is not actually strict until they reach zero (issue #845).
+  `pnpm lint:inline-styles` holds a per-file ratchet
+  (`scripts/lint-invariants.mjs`'s `INLINE_TOKEN_STYLE_BUDGET`): a file with no
+  entry is budgeted at zero, and a converted file's entry is lowered — or
+  deleted at zero — in the same commit, since a budget above the real count
+  would let the drift climb back. Convert one file per PR, worst-first.
+- Genuinely dynamic values (a category swatch, a chart series colour) stay
+  inline; move the static declarations around them to classes so the attribute
+  carries no token reference.
 
 ## Forms and mutations
 
