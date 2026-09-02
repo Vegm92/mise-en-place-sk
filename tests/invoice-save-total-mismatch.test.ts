@@ -68,16 +68,23 @@ afterAll(async () => {
 	await closeDb();
 });
 
+async function saveInvoice(
+	extractedData: Record<string, unknown> | null,
+	formOpts: { invoiceNumber: string; totalAmount: string; lineTotal: string; supplier?: string },
+): Promise<number> {
+	const out = await saveReviewedInvoice(mismatchFakeItem(extractedData), mismatchForm(formOpts), rid);
+	expect(out.type).toBe('saved');
+	if (out.type !== 'saved') throw new Error('unreachable — asserted above');
+	return out.invoiceId;
+}
+
 async function saveAndGetReviewState(
 	extractedData: Record<string, unknown> | null,
 	formOpts: { invoiceNumber: string; totalAmount: string; lineTotal: string; supplier?: string },
 ): Promise<{ reviewState: string; incidenceKind: string | null }> {
-	const out = await saveReviewedInvoice(mismatchFakeItem(extractedData), mismatchForm(formOpts), rid);
-	expect(out.type).toBe('saved');
-	if (out.type !== 'saved') throw new Error('unreachable — asserted above');
-
+	const invoiceId = await saveInvoice(extractedData, formOpts);
 	const [invoiceRow] = await testSql`
-		SELECT review_state, incidence_kind FROM invoices WHERE id = ${out.invoiceId}`;
+		SELECT review_state, incidence_kind FROM invoices WHERE id = ${invoiceId}`;
 	return { reviewState: invoiceRow.review_state, incidenceKind: invoiceRow.incidence_kind };
 }
 
@@ -117,5 +124,27 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → extraction-time total_mismat
 		);
 		expect(reviewState).toBe('revisado');
 		expect(incidenceKind).toBeNull();
+	});
+
+	it('does not flag a gestoría invoice with a 15% IRPF retention as a mismatch, and persists the retention (issue #916)', async () => {
+		const invoiceId = await saveInvoice(
+			{
+				confidence: 1,
+				tax_base: 1000,
+				tax_breakdown: [{ rate: 0.21, base: 1000, tax_amount: 210, type: 'iva' }],
+				retention_rate: 0.15,
+				retention_amount: 150,
+			},
+			{ invoiceNumber: 'FAC-916-001', totalAmount: '1060.00', lineTotal: '1000.00' },
+		);
+
+		const [invoiceRow] = await testSql`
+			SELECT review_state, incidence_kind, total_amount, retention_rate, retention_amount
+			FROM invoices WHERE id = ${invoiceId}`;
+		expect(invoiceRow.review_state).toBe('revisado');
+		expect(invoiceRow.incidence_kind).toBeNull();
+		expect(Number(invoiceRow.total_amount)).toBeCloseTo(1060, 2);
+		expect(Number(invoiceRow.retention_rate)).toBeCloseTo(0.15, 5);
+		expect(Number(invoiceRow.retention_amount)).toBeCloseTo(150, 2);
 	});
 });
