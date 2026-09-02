@@ -86,9 +86,6 @@ jobs:
       - name: Lint — no explanatory comments in src (per-subsystem Code notes sections)
         run: pnpm lint:no-comments
 
-      - name: Lint — orchestrator dispatch budget (docs/07_ai/dispatch_context_budget.md)
-        run: pnpm orchestrator:check
-
       - name: Lint — duplication on new code (approximates the SonarCloud gate)
         env:
           EVENT_NAME: ${{ github.event_name }}

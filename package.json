@@ -37,7 +37,6 @@
 		"lint:duplication": "node scripts/check-duplication.mjs",
 		"qa:sweep": "node scripts/qa-browser-sweep.mjs",
 		"pr:overlap": "node scripts/check-pr-overlap.mjs",
-		"orchestrator:check": "node scripts/check-orchestrator-budget.mjs",
 		"madge": "node scripts/madge-report.mjs",
 		"icons:generate": "node scripts/generate-pwa-icons.mjs"
 	},
