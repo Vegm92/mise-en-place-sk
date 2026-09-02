@@ -2,6 +2,7 @@ import { error } from '@sveltejs/kit';
 import path from 'path';
 import { getItem } from '$lib/server/batch';
 import { getStorage } from '$lib/server/storage';
+import { contentDispositionHeader } from '$lib/server/content-disposition';
 import type { RequestHandler } from './$types';
 
 const MIME: Record<string, string> = {
@@ -35,7 +36,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	return new Response(new Uint8Array(buf), {
 		headers: {
 			'Content-Type': contentType,
-			'Content-Disposition': 'inline',
+			'Content-Disposition': contentDispositionHeader('inline', filename),
 			'Cache-Control': 'private, no-store',
 		},
 	});
