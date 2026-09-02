@@ -11,7 +11,7 @@ import {
 	pendingFuzzyMatches,
 	productMatchingStats,
 } from '$lib/server/extraction-quality';
-import { promptVersionStats } from '$lib/server/extraction-corpus';
+import { promptVersionStats, confidenceTrend } from '$lib/server/extraction-corpus';
 
 export interface PromptVersionRow {
 	promptVersion: string;
@@ -29,7 +29,7 @@ export const load: PageServerLoad = async () => {
 		const [
 			summary, byField, bySupplier, byTenant, trend,
 			aliasStats, pendingFuzzy, fuzzyOutcomes,
-			corpusStats, corrections,
+			corpusStats, corrections, pulse,
 		] = await Promise.all([
 			learningSummary(),
 			correctionsByField(),
@@ -41,6 +41,7 @@ export const load: PageServerLoad = async () => {
 			fuzzyMatchOutcomes(),
 			promptVersionStats(),
 			correctionsByPromptVersion(),
+			confidenceTrend(),
 		]);
 
 		const correctionsByVersion = new Map(corrections.map(c => [c.promptVersion, c]));
@@ -71,6 +72,7 @@ export const load: PageServerLoad = async () => {
 			pendingFuzzy,
 			fuzzyOutcomes,
 			byPromptVersion,
+			pulse,
 		};
 	});
 };

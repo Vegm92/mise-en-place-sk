@@ -50,6 +50,7 @@ const ALLOWED = new Set([
 	'ise en place',
 	'EUR',
 	'kg',
+	'pp',
 	'CV:',
 	'YYYY-MM-DD',
 	'OK',
