@@ -99,6 +99,11 @@ export const invoices = pgTable('invoices', {
 	paidAt:          timestamp('paid_at', { withTimezone: true }),
 	version:         integer('version').notNull().default(1),
 	linkedInvoiceId: integer('linked_invoice_id').references((): AnyPgColumn => invoices.id, { onDelete: 'set null' }),
+	purchaseOrder:   text('purchase_order'),
+	sellerName:      text('seller_name'),
+	deliveryDate:    date('delivery_date'),
+	deliveryAddress: text('delivery_address'),
+	printedNotes:    text('printed_notes'),
 }, (t) => [
 	uniqueIndex('uq_invoices_rid_supplier_number')
 		.on(t.restaurantId, t.supplierId, t.invoiceNumber)
@@ -112,6 +117,9 @@ export const invoices = pgTable('invoices', {
 	uniqueIndex('uq_invoices_rid_content_hash')
 		.on(t.restaurantId, t.contentHash)
 		.where(sql`${t.contentHash} IS NOT NULL AND ${t.deletedAt} IS NULL`),
+	index('idx_invoices_rid_purchase_order')
+		.on(t.restaurantId, t.purchaseOrder)
+		.where(sql`${t.purchaseOrder} IS NOT NULL`),
 	index('idx_invoices_rid_status').on(t.restaurantId, t.status),
 	index('idx_invoices_rid_review_state').on(t.restaurantId, t.reviewState),
 	index('idx_invoices_rid_incidence_kind').on(t.restaurantId, t.incidenceKind).where(sql`${t.incidenceKind} IS NOT NULL`),
