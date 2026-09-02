@@ -8,6 +8,11 @@ related: "[[CONTEXT]]"
 The authenticated app shell (`(app)` route group), the public waitlist page, and the
 shared UI/library/worker-support code they are built on. Condensed per-file notes.
 
+`src/routes/(app)/plantilla-lista` is the design-system demo page for
+`ListPageTemplate.svelte` (its own copy says the data shown is sample data) —
+not a marketing or export template. A real product/feature "template" (e.g.
+the inventory template, issue #885) is a different route entirely.
+
 ## Code notes
 
 ### `src/routes/(app)/+layout.server.ts`

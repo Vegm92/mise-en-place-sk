@@ -324,6 +324,56 @@ export async function loadCatalogYoyChangeMap(
 	return result;
 }
 
+export interface CatalogExportRow {
+	id:             number;
+	canonicalName:  string;
+	category:       string | null;
+	canonicalUnit:  string | null;
+	unitPrice:      number | null;
+}
+
+type CatalogExportDbRow = {
+	id:                     number;
+	canonical_name:         string;
+	category:               string | null;
+	canonical_unit:         string | null;
+	unit_price:             string | number | null;
+	normalized_unit_price:  string | number | null;
+};
+
+export async function listCatalogForExport(
+	database: Database,
+	restaurantId: string,
+): Promise<CatalogExportRow[]> {
+	const rows = await database.execute<CatalogExportDbRow>(sql`
+		SELECT
+			p.id, p.canonical_name, p.category, p.canonical_unit,
+			latest.unit_price, latest.normalized_unit_price
+		FROM products p
+		LEFT JOIN LATERAL (
+			SELECT ili.unit_price, ili.normalized_unit_price
+			FROM invoice_line_items ili
+			JOIN invoices i ON i.id = ili.invoice_id
+			WHERE ili.restaurant_id = ${restaurantId}
+			  AND ili.product_id = p.id
+			  AND i.invoice_date IS NOT NULL
+			  AND i.deleted_at IS NULL
+			ORDER BY i.invoice_date DESC, i.id DESC
+			LIMIT 1
+		) latest ON true
+		WHERE p.restaurant_id = ${restaurantId}
+		ORDER BY p.category NULLS LAST, p.canonical_name
+	`);
+
+	return rows.map((row) => ({
+		id:            row.id,
+		canonicalName: row.canonical_name,
+		category:      row.category,
+		canonicalUnit: row.canonical_unit,
+		unitPrice:     moneyToNullableNumber(row.normalized_unit_price) ?? moneyToNullableNumber(row.unit_price),
+	}));
+}
+
 export async function defineUnitConversion(
 	database: Database,
 	restaurantId: string,

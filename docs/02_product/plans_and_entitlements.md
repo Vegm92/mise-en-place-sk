@@ -13,12 +13,12 @@ Full billing feature spec: `docs/03_features/billing.md`. Decision record:
 
 ## Tiers
 
-| Tier | Monthly invoice quota | Locations | Recipe sheets | `weeklyDigest` | `stockTracking` | `supplierScores` | `multiLocation` | `aiAssistant` | `prioritySupport` |
-|---|---|---|---|---|---|---|---|---|---|
-| `trial` | 20 | 1 | 3 | — | — | — | — | — | — |
-| `starter` | 100 | 1 | 3 | — | — | — | — | — | — |
-| `pro` | 300 | 1 | unlimited | ✓ | ✓ | ✓ | — | ✓ | — |
-| `business` | unlimited (`null`) | 5 | unlimited | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Tier | Monthly invoice quota | Locations | Recipe sheets | `weeklyDigest` | `stockTracking` | `supplierScores` | `multiLocation` | `aiAssistant` | `prioritySupport` | `inventoryTemplate` |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `trial` | 20 | 1 | 3 | — | — | — | — | — | — | — |
+| `starter` | 100 | 1 | 3 | — | — | — | — | — | — | — |
+| `pro` | 300 | 1 | unlimited | ✓ | ✓ | ✓ | — | ✓ | — | ✓ |
+| `business` | unlimited (`null`) | 5 | unlimited | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 
 - Trial: 30 days (`TRIAL_DAYS`), `subscriptions.status = 'trialing'`,
   `trialEndsAt = createdAt + 30d`; locked when the window passes unless the
@@ -78,6 +78,7 @@ Full billing feature spec: `docs/03_features/billing.md`. Decision record:
 | `maxRecipes` | Not a feature flag — a count. `/recipes` is `'open'`; the `create` action returns 402 with an upgrade link once non-archived sheets reach the tier's limit. Mirrors `maxLocations`. |
 | `supplierScores` | `/analytics/prices` load → redirect `?upgrade=prices` |
 | `multiLocation` | `/settings` location creation |
+| `inventoryTemplate` | `(app)/products/inventory-template/+server.ts` → 403 in-handler, plus `ROUTE_POLICY` → redirect `/billing?upgrade=inventario` (issue #885) |
 
 The upload action and extraction worker also check `getAccessState()` (trial
 expiry / inactive subscription) and the monthly quota before allowing work.

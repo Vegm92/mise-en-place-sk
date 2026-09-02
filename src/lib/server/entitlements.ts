@@ -18,6 +18,7 @@ export const UPGRADE_SLUG: Record<FeatureKey, string> = {
 	multiLocation:   'locations',
 	prioritySupport: 'support',
 	aiAssistant:     'assistant',
+	inventoryTemplate: 'inventario',
 };
 
 export const ROUTE_POLICY = {
@@ -74,6 +75,7 @@ export const ROUTE_POLICY = {
 	'/(app)/plantilla-lista':            'open',
 	'/(app)/products':                   'open',
 	'/(app)/products/[id]':              'open',
+	'/(app)/products/inventory-template': { feature: 'inventoryTemplate' },
 	'/(app)/recipes':                    'open',
 	'/(app)/recipes/[id]':               'open',
 	'/(app)/recipes/[id]/cocina':        'open',
