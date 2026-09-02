@@ -1632,6 +1632,7 @@ export default {
   'sup.ph.email':                 'supplier@example.com',
   'sup.ph.address':               'Street, number, postal code, city',
   'sup.ph.delivery':              'Mon, Wed, Fri',
+  'sup.ph.iban':                  'ES00 0000 0000 0000 0000 0000',
   'sup.ph.terms':                 '30 days',
   'sup.ph.notes':                 'Internal notes…',
   'tbl.lastOrder':                'Last order',

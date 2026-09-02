@@ -1630,6 +1630,7 @@ export default {
   'sup.ph.email':                 'proveedor@ejemplo.com',
   'sup.ph.address':               'Calle, número, código postal, ciudad',
   'sup.ph.delivery':              'Lun, Mié, Vie',
+  'sup.ph.iban':                  'ES00 0000 0000 0000 0000 0000',
   'sup.ph.terms':                 '30 días',
   'sup.ph.notes':                 'Notas internas…',
   'tbl.lastOrder':                'Último pedido',
