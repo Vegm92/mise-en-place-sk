@@ -155,23 +155,23 @@
 
         {#if invoice.gross_amount != null || invoice.retention_amount != null}
           <div class="divider"></div>
-          <div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;font-size:11px;color:var(--mep-fg-3);">
+          <div class="flex flex-wrap items-baseline gap-1.5 text-[11px] text-fg-3">
             {#if invoice.gross_amount != null}
-              <span>{$t('extract.grossAmount')} <span class="num" style="color:var(--mep-fg-2);">{fmt(invoice.gross_amount)}</span></span>
-              <span style="opacity:0.6;">→</span>
+              <span>{$t('extract.grossAmount')} <span class="num text-fg-2">{fmt(invoice.gross_amount)}</span></span>
+              <span class="opacity-60">→</span>
             {/if}
             {#if invoice.discount_amount != null}
-              <span>{$t('extract.discountAmount')} <span class="num" style="color:var(--mep-fg-2);">−{fmt(invoice.discount_amount)}</span></span>
-              <span style="opacity:0.6;">→</span>
+              <span>{$t('extract.discountAmount')} <span class="num text-fg-2">−{fmt(invoice.discount_amount)}</span></span>
+              <span class="opacity-60">→</span>
             {/if}
             {#if invoice.retention_amount != null}
               <span>
                 {$t('extract.retention')}{invoice.retention_rate != null ? ` (${(invoice.retention_rate * 100).toLocaleString($locale)}%)` : ''}
-                <span class="num" style="color:var(--mep-fg-2);">−{fmt(invoice.retention_amount)}</span>
+                <span class="num text-fg-2">−{fmt(invoice.retention_amount)}</span>
               </span>
-              <span style="opacity:0.6;">→</span>
+              <span class="opacity-60">→</span>
             {/if}
-            <span class="body-strong" style="color:var(--mep-fg);">{$t('field.totalAmount')} <span class="num">{fmt(invoice.total_amount)}</span></span>
+            <span class="body-strong text-fg">{$t('field.totalAmount')} <span class="num">{fmt(invoice.total_amount)}</span></span>
           </div>
         {/if}
 
