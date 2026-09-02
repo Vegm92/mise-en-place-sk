@@ -6,6 +6,7 @@ export const ALERT_PREFERENCE_TYPES = [
 	'price_shock',
 	'budget_overage',
 	'possible_duplicate_purchase',
+	'line_item_mismatch',
 	'supplier_uncategorized',
 	'low_stock_forecast',
 	'weekly_digest',
@@ -22,7 +23,7 @@ export interface AlertPreferenceGroup {
 }
 
 export const ALERT_PREFERENCE_GROUPS: readonly AlertPreferenceGroup[] = [
-	{ id: 'purchase', types: ['price_shock', 'budget_overage', 'possible_duplicate_purchase', 'supplier_uncategorized'] },
+	{ id: 'purchase', types: ['price_shock', 'budget_overage', 'possible_duplicate_purchase', 'line_item_mismatch', 'supplier_uncategorized'] },
 	{ id: 'inventory', types: ['low_stock_forecast'] },
 	{ id: 'reports', types: ['weekly_digest', 'invoice_reminders'] },
 ];
@@ -76,6 +77,7 @@ const NOTIFICATION_TYPE_PREFERENCE: Readonly<Record<string, AlertPreferenceType>
 	budget_overage: 'budget_overage',
 	possible_duplicate_purchase: 'possible_duplicate_purchase',
 	related_document_found: 'possible_duplicate_purchase',
+	line_item_mismatch: 'line_item_mismatch',
 	supplier_uncategorized: 'supplier_uncategorized',
 	supplier_category_suggested: 'supplier_uncategorized',
 	low_stock_forecast: 'low_stock_forecast',

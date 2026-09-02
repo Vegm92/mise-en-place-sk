@@ -32,6 +32,19 @@ consistent i18n rendering and actionable CTAs, plus the unified reminders hub.
   `low_stock_forecast`, `budget_overage`, `supplier_uncategorized`,
   `supplier_category_suggested`, `unit_conversion_needed`, `product_suggestion`,
   `verifactu_qr_mismatch`.
+- **Producer** (`alerts.ts` `runLineItemReconciliation`, #886): `line_item_mismatch`
+  — raised as a post-save effect right after duplicate-purchase detection, only
+  when the just-saved invoice has a `linkedInvoiceId` (document-level linking,
+  #809/#879) and `reconcileLineItems` (`src/lib/server/line-reconciliation.ts`)
+  finds a missing line item or a quantity mismatch between the linked albarán
+  and factura. See "Line-item reconciliation" in `invoice_management.md` for
+  the matching/verdict rules. Rendering: `notification-display.ts` gives it its
+  own icon/color (`file-diff`, warn) — neither `possible_duplicate_purchase`
+  nor `related_document_found` are special-cased in `NotificationItem.svelte`
+  today (no notification type currently deep-links to its invoice; that is a
+  separate gap, not one this issue closes), so `line_item_mismatch` renders
+  through the same generic path they do, with its own icon/color and the
+  `messageKey`/`messageVars` payload carrying the detail.
 - **Producers** (`integrations/whatsapp/jobs.ts` `raiseReviewNotification`):
   `whatsapp_pending_save` (sender answered `OK`), `whatsapp_needs_review`
   (sender answered `NO`, or extraction failed). These are the only rows written
@@ -43,9 +56,10 @@ consistent i18n rendering and actionable CTAs, plus the unified reminders hub.
   payload, status pending|sent|resolved)`; index `(rid, status, created_at)`.
 - **Per-type preferences** (#577): each tenant can switch individual alert types
   off in Ajustes → Alertas. The toggleable set is `price_shock`,
-  `budget_overage`, `possible_duplicate_purchase`, `supplier_uncategorized`,
-  `low_stock_forecast`, `weekly_digest`, `invoice_reminders`, grouped for the UI
-  as `purchase` / `inventory` / `reports`. Stored as `settings` rows keyed
+  `budget_overage`, `possible_duplicate_purchase`, `line_item_mismatch` (#886),
+  `supplier_uncategorized`, `low_stock_forecast`, `weekly_digest`,
+  `invoice_reminders`, grouped for the UI as `purchase` / `inventory` /
+  `reports`. Stored as `settings` rows keyed
   `alert_pref_<type>` with value `true`/`false`; **absent means enabled**, so
   existing tenants keep today's behaviour and no migration is needed.
   `saveAlerts` is the single choke point: it drops every alert whose type maps
@@ -77,7 +91,9 @@ a distinct outcome from the user's own dismissal, so the two can be told
 apart later (e.g. to measure how much alert volume was real vs. noise).
 Re-evaluated on invoice edit (`price_shock`, `budget_overage`,
 `possible_duplicate_purchase`/`related_document_found`,
-`verifactu_qr_mismatch`) and on invoice delete (same four, orphaned instead of
+`verifactu_qr_mismatch`, `line_item_mismatch` (#886) — re-runs the
+reconciliation and resolves the pending row once the edited line items no
+longer produce an issue) and on invoice delete (same five, orphaned instead of
 re-checked since there is nothing left to compare against, except
 `budget_overage` which is re-evaluated against the category's remaining
 spend); `supplier_uncategorized`/`supplier_category_suggested` also resolve
@@ -153,7 +169,8 @@ Type ∈ known set; payload shape per type; tenant scope.
 - Tests: `tests/events.test.ts`, `tests/alert-engine.test.ts`,
   `tests/working-days.test.ts`, `tests/alert-preferences.test.ts`,
   `tests/settings-alert-preferences.test.ts`, `tests/scheduler.test.ts`,
-  `tests/alert-reevaluation.test.ts`.
+  `tests/alert-reevaluation.test.ts`, `tests/line-reconciliation.test.ts` (#886,
+  pure), `tests/invoice-save-duplicate-purchase.test.ts` (#886, DB-backed).
 
 ## Code notes
 
@@ -219,12 +236,12 @@ Type ∈ known set; payload shape per type; tenant scope.
 **`function orphanInvoiceAlerts`** (#831)
 
 - Called after an invoice is soft-deleted. Closes `price_shock`,
-  `possible_duplicate_purchase`, `related_document_found`, and
-  `verifactu_qr_mismatch` alerts tied to that invoice — there is nothing left
-  to re-compare, so they are marked `resolved` outright rather than orphaned
-  against a gone invoice. `budget_overage` is handled separately
-  (`reevaluateBudgetAlertsForInvoice`) since it is category-wide, not specific
-  to the deleted invoice.
+  `possible_duplicate_purchase`, `related_document_found`,
+  `verifactu_qr_mismatch`, and `line_item_mismatch` (#886) alerts tied to that
+  invoice — there is nothing left to re-compare, so they are marked `resolved`
+  outright rather than orphaned against a gone invoice. `budget_overage` is
+  handled separately (`reevaluateBudgetAlertsForInvoice`) since it is
+  category-wide, not specific to the deleted invoice.
 
 **`function resolveSupplierCategoryAlerts`** (#831)
 
@@ -233,6 +250,40 @@ Type ∈ known set; payload shape per type; tenant scope.
   `supplier_uncategorized`/`supplier_category_suggested` for that supplier —
   the same outcome `dismissSuggestion` gives when the correction instead comes
   through `(app)/api/supplier-category`.
+
+**`function runLineItemReconciliation`** (#886)
+
+- Line-item reconciliation between a linked delivery note and invoice (issue
+  #886, on top of #809's document-level linking): reads back the just-saved
+  invoice's `linkedInvoiceId`, resolves which side is the `albaran` and which
+  the `factura` by `documentType`, loads both documents' `invoice_line_items`,
+  and hands them to the pure `reconcileLineItems` (see
+  `src/lib/server/line-reconciliation.ts` below). When the result has a
+  document issue (a missing line, or a quantity mismatch — a unit or price
+  mismatch alone does not count, per ADR-009's "unknown, not wrong" discipline
+  for unit comparison), and no pending `line_item_mismatch` notification already exists
+  for this pair (`notificationsForType`, reused from #876 rather than a new
+  query), it builds one `Alert` and flips both invoices to
+  `reviewState: 'incidencia', incidenceKind: 'documento'` unless a given side
+  is already `incidencia` — mirroring the duplicate-purchase flip, but across
+  both documents in the pair since either one could be the invoice currently
+  being saved. Wired into `runPostSaveEffects` (`invoice-save.ts`, ADR-008)
+  right after the duplicate-purchase effect, as one more entry in its
+  `alertEffects` table — the invoice-save side only calls the function and
+  lets the existing `saveAlerts`/`filterEnabledAlerts` pipeline persist and
+  gate it; all reconciliation logic and the flip live here, next to
+  `runPossibleDuplicatePurchase`, its sibling.
+
+**`function reevaluateLineItemMismatchAlerts`** (#886)
+
+- Re-evaluation counterpart (#831 pattern): finds pending `line_item_mismatch`
+  rows tied to either side of the pair, re-runs the same reconciliation via
+  `resolveLinkedDocumentPair`/`reconcileLinkedDocuments` (shared with
+  `runLineItemReconciliation`, so a re-evaluation call never re-triggers the
+  create-time dedup check against its own still-pending row), and resolves
+  them once the edited line items no longer produce a document issue. Does
+  not reverse the `incidencia`/`documento` flip — consistent with every other
+  re-evaluator, which only ever closes the notification.
 ### `src/lib/server/email.ts`
 
 **`const apiKey`**
@@ -310,6 +361,32 @@ Type ∈ known set; payload shape per type; tenant scope.
 **`function filterEnabledAlerts`**
 
 - Early-outs before touching the database when nothing in the batch is governed, so the common invoice-save path adds a query only when it has something to gate.
+
+### `src/lib/server/line-reconciliation.ts` (#886)
+
+**`function reconcileLineItems`**
+
+- Pure, DB-free: `reconcileLineItems(a, b)` where `a` is the delivery note's
+  lines and `b` the invoice's. Matches greedily and one-to-one in two passes —
+  first by `productId` when both sides carry one (a catalog match always
+  outranks a text match), then by `normalizeProductKey(description)` on
+  whatever is left; anything still unmatched lands in `missingInInvoice`
+  (delivery lines with no invoice counterpart) or `missingInDeliveryNote`
+  (invoice lines with no delivery counterpart).
+- For each matched pair: with equal units (case-insensitive), a quantity
+  mismatch is a difference beyond `max(0.01, 0.5% of the larger quantity)` —
+  an absolute floor for small counts, a relative one for large ones. With
+  different units, it falls back to each line's `baseQuantity` (pack size ×
+  quantity, in kg/L/ud — the caller derives this from `parsePack`, this module
+  never parses text) when *both* sides carry one; when they do not, the pair
+  is a `unitMismatch`, not a quantity verdict — ADR-009's normalisation
+  returns *unknown*, not *wrong*, for anything it cannot resolve, and this
+  module refuses to guess rather than compare unlike things. Price mismatch is a separate,
+  independent check: normalized €/base when both sides have one, else raw
+  `unitPrice` with equal units, flagged beyond 5%.
+- `hasDocumentIssue` is `true` on a missing line or a quantity mismatch only —
+  a unit mismatch or a price-only mismatch is recorded but does not, on its
+  own, flag the document pair (the caller decides what to do with those).
 
 ### `src/lib/components/mep/NotificationBell.svelte`
 

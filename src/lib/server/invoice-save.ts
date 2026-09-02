@@ -5,7 +5,7 @@ import { eq, and, isNull, inArray, notInArray } from 'drizzle-orm';
 import { resolveUnit, resolveLineProducts, parsePack, normalizedUnitPrice, applyExtractedAllergens, assignLineProduct, getProductName } from './products';
 import { enqueueCategorize, enqueueNormalize } from './queue';
 import { normalizeProductKey, isSameSupplierName } from './normalize';
-import { runPriceShock, runStockForecast, runBudgetCheck, runCategorizationNudge, runCategorySuggestion, runPossibleDuplicatePurchase, saveAlerts, type Alert } from './alerts';
+import { runPriceShock, runStockForecast, runBudgetCheck, runCategorizationNudge, runCategorySuggestion, runPossibleDuplicatePurchase, runLineItemReconciliation, saveAlerts, type Alert } from './alerts';
 import { getTierFeatures } from './billing';
 import { maybeSendQuotaWarning } from './quota-warning';
 import { trackEvent } from './events';
@@ -696,6 +696,10 @@ async function runPostSaveEffects(params: {
 				}
 				return duplicatePurchase.alerts;
 			},
+		},
+		{
+			key: 'lineItemReconciliation', label: 'line item reconciliation',
+			run: () => runLineItemReconciliation(invoiceId, rid),
 		},
 	];
 
