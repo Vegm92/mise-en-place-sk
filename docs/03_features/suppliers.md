@@ -37,8 +37,8 @@ price-shock history.
 
 ## Business rules
 
-- **Upsert** (`supplier.ts:13-39`): `ON CONFLICT (restaurant_id, lower(name))`
-  fills missing contact via `COALESCE(suppliers.x, EXCLUDED.x)`; category
+- **Upsert** (`supplier.ts:13-44`): `ON CONFLICT (restaurant_id, lower(name))`
+  fills missing contact via `COALESCE(suppliers.x, <merge value>)`; category
   validated against `VALID_CATEGORIES` else `'Other'`.
 - **Category resolution** (`constants.ts:36`): diacritic-stripped name match;
   `'Other'` unless extraction confidence ≥ `MIN_CATEGORY_CONFIDENCE` (0.6).
@@ -263,6 +263,7 @@ validated by `parseSupplierListParams` before any of them reaches a query.
 
 **`function getOrCreateSupplierId`**
 - Contact fields filled with `COALESCE`, never overwritten — an existing non-null value (user-typed or earlier capture) always beats a new extraction.
+- `contactTrusted` (issue #905) says whether the reviewed supplier name still matches the one the document printed. Untrusted contact data is applied on INSERT but withheld from the DO UPDATE arm: a row created by this save is the document's issuer whatever name the reviewer gave it, while an existing row may be an unrelated supplier the reviewer retargeted to, and must not inherit another document's CIF. Without the split, correcting a printed trade name to the legal name discarded the NIF for exactly the entities whose names vary between documents.
 
 ### `src/lib/components/desktop/DesktopSupplierDetail.svelte`
 

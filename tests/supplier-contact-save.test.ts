@@ -3,6 +3,11 @@
  * extracted from an invoice were captured but never made it onto the
  * created/updated supplier record.
  *
+ * Issue #905 — the name guard added for #385 also dropped the contact
+ * fields when the reviewer merely corrected the printed name. The guard
+ * now only protects supplier rows that already exist: a row created by
+ * this save is the document's issuer, whatever name it was given.
+ *
  * DB-backed; skipped without a local Postgres (see tests/helpers/test-db.ts).
  */
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
@@ -158,6 +163,36 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → supplier contact fields (iss
 		row = await supplierRow(supplierName);
 		expect(row!.cif).toBe('B11112222');
 		expect(row!.contact_email).toBe('contacto@fillgap.es');
+	});
+
+	it('keeps the document contact fields when the reviewed name corrects the printed one (issue #905)', async () => {
+		// The document prints a trade name; the reviewer replaces it with the
+		// legal name. No supplier by that name exists yet, so the row created
+		// here IS the document's issuer and must keep its printed NIF —
+		// otherwise the CIF is never captured for exactly the entities whose
+		// names vary between documents.
+		const legalName = '__sup_contact_legal_name__';
+		const item = batchItem({
+			supplier_name: '__sup_contact_trade_name__',
+			invoice_number: 'INV-RENAMED',
+			total_amount: 100,
+			confidence: 0.95,
+			supplier_nif: '47306879L',
+			supplier_address: 'Calle Mayor 1, 07001 Palma',
+			supplier_email: 'admin@legalname.es',
+			supplier_phone: '+34 971 00 11 22',
+			line_items: [{ description: 'Aceite de oliva', quantity: 1, unit: 'garrafa', unit_price: 100, total_price: 100 }],
+		});
+
+		const out = await saveReviewedInvoice(item, form(legalName, 'INV-RENAMED'), rid);
+		expect(out.type).toBe('saved');
+
+		const row = await supplierRow(legalName);
+		expect(row).toBeDefined();
+		expect(row!.cif).toBe('47306879L');
+		expect(row!.address).toBe('Calle Mayor 1, 07001 Palma');
+		expect(row!.contact_email).toBe('admin@legalname.es');
+		expect(row!.contact_phone).toBe('+34 971 00 11 22');
 	});
 
 	it('ignores extracted contact fields when the reviewed supplier name was changed to a different supplier', async () => {
