@@ -16,11 +16,12 @@ vi.mock('../src/lib/server/db', async () => {
 });
 
 import {
-	testSql, closeDb,
+	testDb, testSql, closeDb,
 	createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
 import { saveReviewedInvoice } from '../src/lib/server/invoice-save';
 import { UNCATEGORIZED_CATEGORY } from '../src/lib/constants';
+import { createCategory, listCategories, setCategoryHidden } from '../src/lib/server/categories';
 
 let rid = '';
 
@@ -194,5 +195,49 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → supplier category (issue #38
 		if (secondOut.type !== 'saved') return;
 
 		expect(await categoryFor(secondOut.invoiceId)).toBe('Vinos y Cavas');
+	});
+
+	it('accepts a custom category the restaurant created, when extraction proposes exactly its name (issue #881 part 2)', async () => {
+		const supplierName = 'Agencia de Marketing Norte';
+		await createCategory(rid, 'Marketing', testDb);
+		const item = extractedItem({
+			supplier_name: supplierName,
+			supplier_category: 'Marketing',
+			field_confidences: { supplier_category: 0.9 },
+			confidence: 0.9,
+		});
+
+		const out = await saveReviewedInvoice(item, form(supplierName, [
+			{ desc: 'Campaña redes', unit: 'ud', price: '1' },
+		]), rid);
+		expect(out.type).toBe('saved');
+		if (out.type !== 'saved') return;
+
+		expect(await categoryFor(out.invoiceId)).toBe('Marketing');
+	});
+
+	it('degrades to the uncategorised bucket when extraction proposes a category this restaurant has hidden (issue #881 part 2)', async () => {
+		const supplierName = 'Frutería Escondida';
+		const rows = await listCategories(rid, {}, testDb);
+		const fruit = rows.find((c) => c.name === 'Frutas y Verduras')!;
+		await setCategoryHidden(rid, fruit.id, true, testDb);
+		try {
+			const item = extractedItem({
+				supplier_name: supplierName,
+				supplier_category: 'Frutas y Verduras',
+				field_confidences: { supplier_category: 0.9 },
+				confidence: 0.9,
+			});
+
+			const out = await saveReviewedInvoice(item, form(supplierName, [
+				{ desc: 'Tomate pera', unit: 'kg', price: '1' },
+			]), rid);
+			expect(out.type).toBe('saved');
+			if (out.type !== 'saved') return;
+
+			expect(await categoryFor(out.invoiceId)).toBe(UNCATEGORIZED_CATEGORY);
+		} finally {
+			await setCategoryHidden(rid, fruit.id, false, testDb);
+		}
 	});
 });
