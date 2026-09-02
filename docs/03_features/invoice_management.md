@@ -35,6 +35,23 @@ Browse, inspect, edit and export confirmed invoices; manage the review state
   `UPDATE … WHERE review_state IN (...)`). The legacy `status` column
   (`pending|accepted|rejected|paid`) and `due_date` remain as data but no
   longer drive the UI.
+- **Incidence kind** (issue #879 — a read/extraction problem is not the same
+  fix as a real problem with the document): `invoices.incidence_kind` is a
+  second, independent axis, only meaningful alongside `review_state =
+  'incidencia'` (null otherwise). `resolveReviewState()` (`invoice-save.ts`)
+  classifies the low-confidence-ack / totals-mismatch / unit-conversion /
+  QR-mismatch signals as `lectura` (an extraction/scan problem — the fix is to
+  re-check the scan or correct a field) since they are all about *how the
+  document was read*, not about what it says; the later possible-duplicate
+  flip to `incidencia` sets `documento` (a real document problem — the fix is
+  to contact the supplier) since a duplicate purchase is a fact about the
+  document itself. `markInvoiceReviewed`/`markInvoicesReviewedBulk` clear it
+  back to null when the invoice transitions to `revisado`. Every place a
+  `review_state = 'incidencia'` badge renders (`/invoices`, `/reminders`, the
+  invoice detail, and their mobile variants) renders the kind next to it via
+  `IncidenceKindBadge.svelte`, styled with the existing warn (`lectura`) and
+  neg (`documento`) badge tokens so the two read as visually distinct at a
+  glance; the detail views also show the kind's one-line hint.
 - **Edit** carries an optimistic-lock `version`; stale writes are rejected. The
   action delete-and-reinserts line items, so the edit form must post back every
   column the save path reads — `line_supplier_skus` included, or the SKU is
@@ -144,6 +161,7 @@ Tenant scope on every read; version check on edit; status-transition guards.
 - Two-column layout: doc viewer (44%) with filename header, zoom controls and source-file preview; details card + actions, line items, activity timeline.
 - The line-items card leads with the orphan-line warning and its re-link button when `unlinkedLineCount > 0`; the mobile variant carries the same pair above its line list.
 - When `invoices.linked_invoice_id` is set (issue #809 — factura↔albarán linking, `runPossibleDuplicatePurchase` in `alerts.ts`), the details card renders a "linked document" row with a link to `/invoice/{linked_invoice.id}`; the load in `+page.server.ts` fetches the linked invoice's id/number/document_type in a second query rather than a join, since it's a nullable self-reference. Mobile variant surfaces the same link as its own card.
+- `IncidenceKindBadge` renders under the status badge with `hint` (issue #879): the detail view is where the user decides what to *do* about an incidencia, so it carries the one-line action hint (`inv.review.kind.*.hint`) that the list rows don't — re-check the scan/field for `lectura`, contact the supplier for `documento`. Mobile variant mirrors the same placement.
 
 ### `src/routes/(app)/invoice/[id]/edit/+page.server.ts`
 
@@ -216,6 +234,7 @@ Tenant scope on every read; version check on edit; status-transition guards.
 **`markup`**
 - Saved toast shared by both layouts (issue #235).
 - KPI strip; collapsible filter panel; hidden bulk forms; bulk action bar; rows with checkbox, supplier+invoice no, due date, amount, status badge and expand chevron; expanded drawer with actions/line items/notes; pagination; confirm dialogs.
+- The status badge is followed by `IncidenceKindBadge` (issue #879, `$lib/components/mep/IncidenceKindBadge.svelte`) so an `incidencia` row shows *which kind* at a glance — `lectura` (warn token, re-scan/correct) vs `documento` (neg token, contact the supplier) — without opening the row. Renders nothing when `incidence_kind` is null (every non-incidencia row, and legacy rows saved before the column existed).
 - The filter panel is a plain button + `#inv-filter-panel` region wired with `aria-expanded` / `aria-controls`; no accordion primitive is vendored in this repo (there is no `src/lib/components/ui`, and bits-ui is not a dependency), so adding one for a single disclosure was not worth a new dependency.
 
 ### `src/routes/(app)/invoices/export/download/+server.ts`
@@ -242,6 +261,7 @@ Tenant scope on every read; version check on edit; status-transition guards.
 
 **`markup`**
 - Mobile alerts / desktop reminders variants; incidencias section linking each invoice with a mark-reviewed action; notification groups.
+- Each incidencia row carries an `IncidenceKindBadge` next to the `incidencia` badge (issue #879) — reminders exists specifically to tell the user "you have incidents to act on", so the kind (re-scan vs contact the supplier) is shown here too, not just on the invoice detail.
 
 ### `src/lib/server/invoice-status.ts`
 
@@ -250,9 +270,11 @@ Tenant scope on every read; version check on edit; status-transition guards.
 
 **`function markInvoiceReviewed`**
 - por_revisar/incidencia → revisado; guarded `UPDATE … WHERE review_state IN (from)` reporting whether it fired, so a stale tab or double-submit is a no-op (issue #243 pattern carried over to the review model, issue #746).
+- Also clears `incidenceKind` back to null (issue #879): a reviewed invoice has no open incident left to classify, so a re-flagged invoice starts from a clean kind rather than showing a stale `lectura`/`documento` label from its previous incidencia.
 
 **`function markInvoicesReviewedBulk`**
 - Bulk por_revisar/incidencia → revisado; returns how many rows actually transitioned.
+- Clears `incidenceKind` to null for the same reason as the single-invoice transition above.
 
 **`function invoiceReviewFilter`**
 - Turns a review-state filter value from the URL into a `review_state` equality. A value outside the vocabulary compiles to `false` instead of being passed through to SQL (issue #520 pattern).
@@ -280,10 +302,17 @@ Tenant scope on every read; version check on edit; status-transition guards.
 
 ## UI components
 
+### `src/lib/components/mep/IncidenceKindBadge.svelte`
+
+**`markup`**
+- Issue #879: renders nothing when `kind` is null/unrecognised (`isIncidenceKind` guard), otherwise the `lectura`/`documento` badge from `$lib/status` and, with `hint`, the one-line action text underneath. One component rather than repeating the same `{#if}` in every place an `incidencia` badge renders (`/invoices`, `/reminders`, the invoice detail and their mobile variants) — mirrors `StatusBadge.svelte`'s shape (a `status`/`kind` prop) but is a separate component rather than a mode of `StatusBadge`, since the two axes (`ReviewState` vs `IncidenceKind`) are independent vocabularies with their own fallback and never share a badge.
+- No `style` passthrough (issue #845 — inline styles are being removed repo-wide, and `tests/design-scale-ratchet.test.ts` ratchets off-scale inline font sizes down, never up): a `small` boolean prop switches to `text-[11px] px-1.5 py-px` Tailwind utilities for the tighter list-row placement instead, and the hint paragraph is `text-[11px] text-fg-3` rather than an inline `font-size`.
+
 ### `src/lib/components/mobile/MobileInvoiceDetail.svelte`
 
 **`markup`**
 - Sticky header, scrollable content, hero total card, doc preview, line items, 3-column action grid.
+- The status badge is followed by `IncidenceKindBadge` with `hint` (issue #879) — see the desktop detail page's Code notes above.
 
 ### `src/lib/components/mobile/MobileInvoiceList.svelte`
 
@@ -294,6 +323,7 @@ Tenant scope on every read; version check on edit; status-transition guards.
 - Search, filter chips, grouped invoice list.
 - The search box is a controlled input driven by the page's `q` filter (issue #579): it goes through the same debounced URL update as the desktop bar, so mobile search covers every invoice instead of only the 50 on the current page. The status chips stay client-side over the loaded page.
 - The filter chips ride the shared `ScrollStrip` (issue #658). The row measured 516px against a 390px viewport with the scrollbar hidden, so "Por categoría" sat entirely off-screen and nothing on the screen said the row scrolled.
+- Each row's status badge is followed by `IncidenceKindBadge` (issue #879) — same placement as the desktop list.
 
 ### `src/lib/invoice-filters.ts`
 

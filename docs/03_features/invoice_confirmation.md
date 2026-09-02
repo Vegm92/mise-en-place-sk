@@ -420,10 +420,15 @@ shapes, `low_confidence_ack` value.
 - VERI\*FACTU QR tamper check (issue #392): the QR is decoded off the document and never re-derived from reviewed/submitted fields; runs unconditionally before the insert so every invoice with a decodable AEAT QR gets it.
 - Total-mismatch signal is the OR of two checks (issue #808): the submitted form recomputed through `detectTotalMismatch`, and `extracted_data.total_mismatch` — a flag `extraction-worker.ts` stamps at extraction time so a batch item nobody ever opens for review can still land as `incidencia`, even when the (never-touched) submission happens to reconcile with itself.
 
+**`function resolveReviewState`**
+
+- Issue #879: returns `{ reviewState, incidenceKind }` instead of a bare `ReviewState`, so the caller always knows *why* an `incidencia` fired, not just that it did. The four signals it composes (low-confidence ack, totals mismatch, unit-conversion needed, VeriFactu QR mismatch) are all about how the document was read, not what it says, so they are uniformly classified `lectura` — one flag firing is enough to know the fix is "re-check the scan", regardless of which one. `incidenceKind` is null whenever `reviewState` is not `incidencia` (no incident, nothing to classify).
+
 **`function runPostSaveEffects`**
 
 - Runs after the save transaction commits; nothing here can undo the invoice. Each effect (product linking, the five alert rules, the incidencia flip, the `invoice_saved` event, correction logging, the onboarding flag) is wrapped independently through a small `isolated(label, fallback, fn)` helper, so one effect throwing degrades to its fallback and logs, rather than skipping every effect queued after it. See ADR-008 for why this replaced one shared `try/catch`.
 - The six alert-producing effects (price shock, stock forecast, budget check, categorization nudge, category suggestion, duplicate-purchase detection) are declared as a small `{ key, label, run }` table and executed in a loop, one `isolated()` call site for all of them, rather than six near-identical statements — `duplicatePurchaseAlerts` (needed afterwards for the incidencia flip) is pulled back out of the results by key.
+- The incidencia flip stamps `incidenceKind: 'documento'` alongside `reviewState: 'incidencia'` (issue #879): unlike the four `lectura` signals resolved before the insert, a possible-duplicate-purchase alert is a fact about the document itself (this delivery looks like one the tenant already has), not about how it was read — the reviewer's next move is to check with the supplier, not re-scan the file.
 - `trackEvent` and `maybeSendQuotaWarning` are called bare (not through `isolated`) because both already self-isolate internally and are fire-and-forget by design.
 
 ### `src/lib/server/alerts.ts`

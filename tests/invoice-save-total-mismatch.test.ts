@@ -71,40 +71,42 @@ afterAll(async () => {
 async function saveAndGetReviewState(
 	extractedData: Record<string, unknown> | null,
 	formOpts: { invoiceNumber: string; totalAmount: string; lineTotal: string; supplier?: string },
-): Promise<string> {
+): Promise<{ reviewState: string; incidenceKind: string | null }> {
 	const out = await saveReviewedInvoice(mismatchFakeItem(extractedData), mismatchForm(formOpts), rid);
 	expect(out.type).toBe('saved');
 	if (out.type !== 'saved') throw new Error('unreachable — asserted above');
 
 	const [invoiceRow] = await testSql`
-		SELECT review_state FROM invoices WHERE id = ${out.invoiceId}`;
-	return invoiceRow.review_state;
+		SELECT review_state, incidence_kind FROM invoices WHERE id = ${out.invoiceId}`;
+	return { reviewState: invoiceRow.review_state, incidenceKind: invoiceRow.incidence_kind };
 }
 
 describe.skipIf(!hasDbEnv)('saveReviewedInvoice → extraction-time total_mismatch signal (issue #808)', () => {
-	it('marks the invoice incidencia when the extraction flagged a mismatch, even though the unedited submission reconciles', async () => {
+	it('marks the invoice incidencia (kind lectura) when the extraction flagged a mismatch, even though the unedited submission reconciles', async () => {
 		// The reviewer accepted the extraction as-is: the submitted line total
 		// and total_amount agree with each other (100 == 100), so a check
 		// recomputed only from the submission would pass — but the extraction
 		// step itself had already detected the raw lines didn't add up, e.g.
 		// because Gemini's own tax fallback force-reconciled the gap.
-		const reviewState = await saveAndGetReviewState(
+		const { reviewState, incidenceKind } = await saveAndGetReviewState(
 			{ confidence: 1, total_mismatch: true },
 			{ invoiceNumber: 'FAC-808-001', totalAmount: '100.00', lineTotal: '100.00' },
 		);
 		expect(reviewState).toBe('incidencia');
+		expect(incidenceKind).toBe('lectura');
 	});
 
-	it('still marks incidencia when the reviewer submits a fresh mismatch, independent of the extraction-time flag', async () => {
-		const reviewState = await saveAndGetReviewState(
+	it('still marks incidencia (kind lectura) when the reviewer submits a fresh mismatch, independent of the extraction-time flag', async () => {
+		const { reviewState, incidenceKind } = await saveAndGetReviewState(
 			{ confidence: 1, total_mismatch: false },
 			{ invoiceNumber: 'FAC-808-002', totalAmount: '100.00', lineTotal: '40.00' },
 		);
 		expect(reviewState).toBe('incidencia');
+		expect(incidenceKind).toBe('lectura');
 	});
 
-	it('is revisado when neither the extraction nor the submission show a mismatch', async () => {
-		const reviewState = await saveAndGetReviewState(
+	it('is revisado, with no incidence kind, when neither the extraction nor the submission show a mismatch', async () => {
+		const { reviewState, incidenceKind } = await saveAndGetReviewState(
 			{ confidence: 1, total_mismatch: false },
 			{
 				invoiceNumber: 'FAC-808-003',
@@ -114,5 +116,6 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → extraction-time total_mismat
 			},
 		);
 		expect(reviewState).toBe('revisado');
+		expect(incidenceKind).toBeNull();
 	});
 });

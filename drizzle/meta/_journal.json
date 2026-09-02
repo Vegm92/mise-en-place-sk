@@ -449,6 +449,13 @@
       "when": 1788217420447,
       "tag": "0063_usage_events_ledger",
       "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1788304997127,
+      "tag": "0064_round_midnight",
+      "breakpoints": true
     }
   ]
 }

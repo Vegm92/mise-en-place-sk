@@ -343,3 +343,4 @@ Type ∈ known set; payload shape per type; tenant scope.
 **`markup`**
 
 - Summary chips; overdue section; due-soon section.
+- Each incidencias card carries an `IncidenceKindBadge` under the `incidencia` badge (issue #879, see `docs/03_features/invoice_management.md`) so the read-error-vs-document-problem distinction shows up here too, not only on the invoice detail.
