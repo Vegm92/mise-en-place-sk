@@ -30,17 +30,31 @@ price-shock history.
 
 ## Outputs
 
-- `suppliers` row (unique per `(rid, lower(name))`).
+- `suppliers` row (unique per `(rid, lower(name))`, plus `normalized_cif` as the
+  identity key when the document prints one).
+- `supplier_aliases` row per extra trade name a tax id turns out to carry.
 - `supplier_metrics` reliability scores (computed + cached).
 - Supplier list rows carrying `total_spend` alongside `month_spend`.
 - Category nudges/suggestions notifications.
 
 ## Business rules
 
-- **Upsert** (`supplier.ts:13-44`): `ON CONFLICT (restaurant_id, lower(name))`
+- **Resolution order** (`supplier.ts`, issue #905 task 3): normalised tax id →
+  captured alias → `ON CONFLICT (restaurant_id, lower(name))` insert. Only the
+  last step can create a row.
+- **Upsert** (`supplier.ts`): `ON CONFLICT (restaurant_id, lower(name))`
   fills missing contact via `COALESCE(suppliers.x, <merge value>)`; category
   validated against the restaurant's own `categories` (`resolveCategoryFor`,
   ADR-037 part 2, issue #881) else `'Other'`.
+- **Tax-id identity**: `suppliers.normalized_cif` holds `normalizeTaxId(cif)` and
+  is indexed per tenant. A supplier already holding the document's tax id wins
+  over any name, so a razón social and a nombre comercial that share a NIF stay
+  one row.
+- **Alias capture**: when the tax id resolves a supplier whose stored name is a
+  different entity name (`isSameSupplierName` says no), the printed name is
+  written to `supplier_aliases` so a later document that prints only that name —
+  and no tax id — still lands on the same supplier. An alias never beats a real
+  supplier name: the lookup skips itself when a supplier of that name exists.
 - **Category resolution** (`categories.ts`'s `resolveCategoryFor`, the
   per-restaurant successor to `constants.ts`'s `resolveCategory`): matches the
   proposal against the restaurant's own visible categories first
@@ -121,8 +135,15 @@ issue #881); name non-empty; tenant scope. List search params validated by
 
 ## Edge cases
 
-- Same legal supplier under two spellings → treated as two suppliers unless
-  name normalization collapses them.
+- Same legal supplier under two spellings → one supplier when the documents
+  print the same tax id, or when the second spelling was already captured as an
+  alias. With no tax id on either document and no alias yet, they are still two
+  suppliers.
+- Duplicate rows created before issue #905 keep their own `normalized_cif` after
+  the backfill; the first (lowest `id`) wins every later match. Merging them is
+  destructive (invoices, metrics and product aliases point at `supplier_id`) and
+  is deliberately left to its own migration, which is also what a partial *unique*
+  index on `(restaurant_id, normalized_cif)` has to wait for.
 - Extraction of contact fields for an existing supplier → COALESCE keeps the
   user's saved values.
 
@@ -133,6 +154,10 @@ issue #881); name non-empty; tenant scope. List search params validated by
 ## Idempotency rules
 
 - Upsert is idempotent by the lower(name) unique constraint.
+- The tax-id branch takes `pg_advisory_xact_lock(restaurant_id, normalized_cif)`
+  first, so two concurrent saves for one tax id under two different names
+  serialise instead of racing to insert two rows. The lock only spans an
+  enclosing transaction — both production call sites pass one.
 
 ## Observability
 
@@ -275,9 +300,19 @@ issue #881); name non-empty; tenant scope. List search params validated by
 **`interface SupplierContactInfo`**
 - Supplier-level contact fields lifted from an extracted invoice (CIF/NIF, address, email, phone); any may be null/undefined when the source document doesn't print them — never fabricated.
 
+**`function findByTaxId`**
+- The first resolution step (issue #905 task 3), and the only one that can point at a supplier whose name has nothing in common with the document's. Takes the advisory lock before reading, so the read-then-insert window it opens cannot produce two rows for one tax id. `ORDER BY id` makes the winner deterministic while pre-#905 duplicates still exist.
+
+**`function findByAlias`**
+- Second step. The `NOT EXISTS` clause is the whole safety property: an alias is a hint recorded from one document, a supplier name is a row someone owns, so a name that exists as both resolves to the supplier and never to the alias' target.
+
+**`function recordAlias`**
+- Writes the trade name only when the tax-id match landed on a supplier with a genuinely different name — `isSameSupplierName` already ignores case, accents and legal forms, so "Distribuciones Sur" and "distribuciones sur, S.L." never generate an alias. `DO NOTHING` on conflict: the first supplier to claim a normalised name keeps it.
+
 **`function getOrCreateSupplierId`**
 - Contact fields filled with `COALESCE`, never overwritten — an existing non-null value (user-typed or earlier capture) always beats a new extraction.
 - `contactTrusted` (issue #905) says whether the reviewed supplier name still matches the one the document printed. Untrusted contact data is applied on INSERT but withheld from the DO UPDATE arm: a row created by this save is the document's issuer whatever name the reviewer gave it, while an existing row may be an unrelated supplier the reviewer retargeted to, and must not inherit another document's CIF. Without the split, correcting a printed trade name to the legal name discarded the NIF for exactly the entities whose names vary between documents.
+- Untrusted contact data also disables tax-id *matching* (issue #905 task 3), not just the merge. The reviewer having renamed the supplier away from what the document printed is exactly the case where the printed NIF may belong to a different entity than the name being saved.
 
 ### `src/lib/tax-id.ts`
 

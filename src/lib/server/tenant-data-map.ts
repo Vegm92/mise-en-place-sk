@@ -1,7 +1,7 @@
 import { isNull, type SQL } from 'drizzle-orm';
 import type { AnyPgColumn, PgTable } from 'drizzle-orm/pg-core';
 import {
-	restaurants, suppliers, invoices, invoiceLineItems, products, categoryBudgets,
+	restaurants, suppliers, supplierAliases, invoices, invoiceLineItems, products, categoryBudgets,
 	systemNotifications, invoiceAuditLog, productAliases, supplierMetrics, settings,
 	unitConversions, stockLevels, extractionCorrections, extractionResults, chatSessions, chatMessages,
 	llmUsageLog, tenantLlmQuotas, monthlyUsage, usageEvents, idempotencyKeys, uploadBatches, batchItems,
@@ -40,6 +40,7 @@ export const tenantDataMap: readonly TenantDataMapEntry[] = [
 	{ tableName: 'system_notifications', table: systemNotifications, scopeColumn: systemNotifications.restaurantId, deletion: 'cascade-via-restaurants', exportKey: null },
 	{ tableName: 'invoice_audit_log', table: invoiceAuditLog, scopeColumn: invoiceAuditLog.restaurantId, deletion: 'cascade-via-restaurants', exportKey: null },
 	{ tableName: 'product_aliases', table: productAliases, scopeColumn: productAliases.restaurantId, deletion: 'cascade-via-restaurants', exportKey: null },
+	{ tableName: 'supplier_aliases', table: supplierAliases, scopeColumn: supplierAliases.restaurantId, deletion: 'cascade-via-restaurants', exportKey: null },
 	{ tableName: 'supplier_metrics', table: supplierMetrics, scopeColumn: supplierMetrics.restaurantId, deletion: 'cascade-via-restaurants', exportKey: null },
 	{ tableName: 'llm_usage_log', table: llmUsageLog, scopeColumn: llmUsageLog.restaurantId, deletion: 'cascade-via-restaurants', exportKey: null },
 	{ tableName: 'tenant_llm_quotas', table: tenantLlmQuotas, scopeColumn: tenantLlmQuotas.restaurantId, deletion: 'cascade-via-restaurants', exportKey: null },

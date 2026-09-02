@@ -146,7 +146,7 @@ Full map with file locations: `docs/01_architecture/routing_and_navigation.md`.
 ## Important entities (see `docs/01_architecture/data_schemas_and_relations.md`)
 
 `restaurants` (+`parentId` multi-location), `users`, `user_restaurants`,
-`suppliers`, `products`, `product_aliases`, `invoices`,
+`suppliers`, `supplier_aliases`, `products`, `product_aliases`, `invoices`,
 `invoice_line_items`, `upload_batches`, `batch_items`, `unit_conversions`,
 `category_budgets`, `stock_levels`, `system_notifications`,
 `subscriptions`, `settings`, `chat_sessions`, `chat_messages`,
