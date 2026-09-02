@@ -238,23 +238,23 @@
       {#each [...selectedIds] as id}<input type="hidden" name="invoice_ids" value={id} />{/each}
     </form>
 
-    <div style="padding: 0 18px 10px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-      <label style="display: flex; align-items: center; gap: 8px; min-height: 44px;">
+    <div class="px-[18px] pb-[10px] flex items-center gap-2.5 flex-wrap">
+      <label class="flex items-center gap-2 min-h-[44px]">
         <input type="checkbox" class="accent-acc" checked={allSelected} indeterminate={someSelected}
           onchange={(e) => toggleSelectAll((e.target as HTMLInputElement).checked)} />
-        <span class="body" style="font-size: 13px;">{$t('inv.selectAll')}</span>
+        <span class="body">{$t('inv.selectAll')}</span>
       </label>
       {#if selectedIds.size > 0}
-        <span class="body-strong text-acc" style="font-size: 13px;">{selectedIds.size} {$t('inv.selected')}</span>
-        <button type="button" class="chip" style="gap: 6px;" onclick={() => submitBulkForm('mobile-bulk-reviewed-form')}>
+        <span class="body-strong text-acc">{selectedIds.size} {$t('inv.selected')}</span>
+        <button type="button" class="chip gap-1.5" onclick={() => submitBulkForm('mobile-bulk-reviewed-form')}>
           <Check size={13} />
           {$t('inv.markReviewed')}
         </button>
-        <button type="button" class="chip" style="gap: 6px;" onclick={() => submitBulkForm('mobile-bulk-delete-form')}>
+        <button type="button" class="chip gap-1.5" onclick={() => submitBulkForm('mobile-bulk-delete-form')}>
           <Trash2 size={13} />
           {$t('inv.delete')}
         </button>
-        <a href={bulkDownloadHref} data-sveltekit-reload class="chip" style="gap: 6px;" title={$t('inv.export.selected.tooltip')}>
+        <a href={bulkDownloadHref} data-sveltekit-reload class="chip gap-1.5" title={$t('inv.export.selected.tooltip')}>
           <FileDown size={13} />
           {$t('inv.export.selected.button')}
         </a>
@@ -337,8 +337,8 @@
           ">{label}</div>
           <div style="padding: 0 18px; display: flex; flex-direction: column; gap: 8px;">
             {#each group as inv (inv.id)}
-              <div style="display: flex; align-items: center; gap: 4px;">
-                <label style="display: flex; align-items: center; justify-content: center; flex-shrink: 0; min-height: 44px;">
+              <div class="flex items-center gap-1">
+                <label class="flex items-center justify-center shrink-0 min-h-[44px]">
                   <input type="checkbox" class="accent-acc"
                     checked={selectedIds.has(inv.id)}
                     onclick={(e) => e.stopPropagation()}
