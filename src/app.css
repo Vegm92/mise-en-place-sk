@@ -1776,3 +1776,83 @@
   .tbl-stack tr.row:hover { background: var(--mep-hover); }
   .tbl-stack tr.row:hover td { background: transparent; }
 }
+
+/* Admin HUD console (dark, fixed-palette command-center style used by
+   /admin/* ops pages — deliberately not on var(--mep-*) theme tokens). */
+.hud-grid {
+  display: grid;
+  gap: 10px;
+}
+.hud-grid-2 { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+.hud-grid-3 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.hud-grid-4 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+
+.hud-table {
+  width: 100%;
+  border-collapse: collapse;
+  font: 500 11.5px/1.3 ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+.hud-table thead tr { background: rgba(255, 255, 255, 0.03); }
+.hud-table th {
+  padding: 6px 10px;
+  font: 600 9px/1 ui-monospace, monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #5b6472;
+  text-align: left;
+  white-space: nowrap;
+}
+.hud-table th.r { text-align: right; }
+.hud-table th.w45 { width: 45%; }
+.hud-table td {
+  padding: 5px 10px;
+  color: #e7edf5;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.hud-table td.r { text-align: right; }
+.hud-table td.mono { font-family: ui-monospace, monospace; }
+.hud-table td.dim { color: #5b6472; }
+.hud-table td.nowrap { white-space: nowrap; }
+.hud-table td.good { color: #34d399; }
+.hud-table td.warn { color: #fbbf24; }
+.hud-table td.bad { color: #f87171; }
+.hud-table td.empty {
+  text-align: center;
+  color: #5b6472;
+  padding: 14px 10px;
+}
+
+.hud-bar-track {
+  height: 6px;
+  border-radius: 2px;
+  background: #38bdf8;
+  opacity: 0.6;
+}
+
+.hud-kpi-row {
+  display: flex;
+  flex-wrap: wrap;
+}
+.hud-kpi {
+  flex: 1 1 0;
+  min-width: 140px;
+  padding: 9px 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.hud-kpi + .hud-kpi { border-left: 1px solid rgba(255, 255, 255, 0.08); }
+.hud-kpi-label {
+  font: 600 9.5px/1 ui-monospace, monospace;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #5b6472;
+}
+.hud-kpi-value {
+  font: 700 21px/1.1 ui-monospace, monospace;
+  color: #e7edf5;
+}
+.hud-kpi-value.good { color: #34d399; }
+.hud-kpi-value.warn { color: #fbbf24; }
+.hud-kpi-value.bad { color: #f87171; }
