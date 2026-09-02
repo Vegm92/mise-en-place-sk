@@ -13,6 +13,32 @@ fleet. Cache reads are what a long-lived agent conversation pays every turn to
 re-see everything already said; the fix is bounding what accumulates in that
 conversation, not "using less cache" (the cache is why it wasn't ~10x that).
 
+## Enforcement
+
+Advisory rules get ignored under deadline pressure, so the two bounds that are
+mechanical — how many workers are active, and how big and how old each
+dispatch is — are checked, not just stated. At the moment of dispatch the
+coordinator writes `docs/05_operations/dispatch/<issue-number>.json`
+(schema and rationale: `docs/05_operations/dispatch/README.md`) recording the
+issue, branch, routes, prompt size and dispatch time, and deletes it once the
+worker's result lands in `ORCHESTRATOR_BACKLOG.md`. `pnpm orchestrator:check`
+(`scripts/check-orchestrator-budget.mjs`), wired into CI, fails the build when:
+
+- more than **2** manifests are active at once (§6's fan-out is by subsystem,
+  not by headcount — two concurrent workers is the cap regardless);
+- a manifest's `routes` list exceeds 8 entries (the dispatch is too wide, not
+  the cap too tight — split it);
+- a manifest's `prompt_chars` exceeds 6000 (a dispatch prompt that size is
+  carrying more than an issue and a routes list);
+- a manifest is older than 3h (the worker session should have finished or
+  been recut by then — see Session hygiene below).
+
+This only catches what the coordinator commits — there is no hook from CI
+into a live Claude session — so it is a backstop on the coordinator's own
+bookkeeping, not a runtime guarantee. It works for the same reason
+`ORCHESTRATOR_BACKLOG.md` already works as a state record: the coordinator
+commits its own state as it goes.
+
 ## What a dispatch prompt may contain
 
 - The issue: id, title, acceptance criteria — quoted, not paraphrased from
