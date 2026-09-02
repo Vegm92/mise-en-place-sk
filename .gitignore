@@ -67,10 +67,10 @@ DEPLOYMENT.md
 !/docs/04_engineering/
 !/docs/05_operations/
 !/docs/06_decisions/
-!/docs/07_ai/
 !/docs/03_features/report_templates/
 !/docs/REVENUE_METRICS.md
 # Architecture decision records live in docs/06_decisions/ (not ignored) â€” see its README.md
+# docs/07_ai/ is internal agent ways-of-working (dev-eyes-only, like AGENTS.md/CLAUDE.md) â€” not shipped
 # ...and the onboarding pack, which has to reach new teammates (tracked on purpose)
 !/docs/onboarding/
 !/docs/onboarding/**
