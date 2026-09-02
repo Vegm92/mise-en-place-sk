@@ -7,6 +7,7 @@ import Tag from '@lucide/svelte/icons/tag';
 import Wallet from '@lucide/svelte/icons/wallet';
 import Lock from '@lucide/svelte/icons/lock';
 import MessageCircle from '@lucide/svelte/icons/message-circle';
+import FileDiff from '@lucide/svelte/icons/file-diff';
 
 export type Notif = {
   id: number;
@@ -35,6 +36,7 @@ export function notificationIcon(type: string) {
   if (type === 'locations_locked')            return Lock;
   if (type === 'whatsapp_pending_save')       return MessageCircle;
   if (type === 'whatsapp_needs_review')       return MessageCircle;
+  if (type === 'line_item_mismatch')          return FileDiff;
   return Bell;
 }
 
@@ -49,6 +51,7 @@ export function notificationColor(type: string) {
   if (type === 'locations_locked')            return 'var(--mep-warn)';
   if (type === 'whatsapp_pending_save')       return 'var(--mep-info)';
   if (type === 'whatsapp_needs_review')       return 'var(--mep-warn)';
+  if (type === 'line_item_mismatch')          return 'var(--mep-warn)';
   return 'var(--mep-fg-2)';
 }
 

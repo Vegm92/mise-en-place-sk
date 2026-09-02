@@ -50,13 +50,40 @@ Browse, inspect, edit and export confirmed invoices; manage the review state
   document was read*, not about what it says; the later possible-duplicate
   flip to `incidencia` sets `documento` (a real document problem — the fix is
   to contact the supplier) since a duplicate purchase is a fact about the
-  document itself. `markInvoiceReviewed`/`markInvoicesReviewedBulk` clear it
+  document itself. Line-item reconciliation (#886, below) sets the same
+  `documento` kind on both linked documents for the same reason — a missing
+  item or a quantity mismatch between an albarán and its factura is a fact
+  about what was delivered vs. what was billed, not about how either document
+  was scanned. `markInvoiceReviewed`/`markInvoicesReviewedBulk` clear it
   back to null when the invoice transitions to `revisado`. Every place a
   `review_state = 'incidencia'` badge renders (`/invoices`, `/reminders`, the
   invoice detail, and their mobile variants) renders the kind next to it via
   `IncidenceKindBadge.svelte`, styled with the existing warn (`lectura`) and
   neg (`documento`) badge tokens so the two read as visually distinct at a
   glance; the detail views also show the kind's one-line hint.
+- **Line-item reconciliation** (issue #886, on top of #809's document-level
+  linking): document-level linking alone only tells you two documents are
+  probably the same purchase — it says nothing about whether they actually
+  agree line by line. Once `invoices.linked_invoice_id` is set for a
+  factura/albarán pair, `runLineItemReconciliation` (`alerts.ts`) matches
+  their `invoice_line_items` — by `product_id` when both sides have one, else
+  by normalized description (`src/lib/server/line-reconciliation.ts`,
+  `reconcileLineItems`, pure and DB-free) — and flags what does not line up: a
+  line missing from one side, or a quantity mismatch between matched lines
+  (units compared like-for-like, or via each line's base quantity when the
+  units differ; a mismatch the module cannot compare confidently is recorded
+  as a `unitMismatch`, never guessed at — the same "unknown, not wrong"
+  discipline
+  [ADR-009](../06_decisions/invoicing/ADR-009-unit-normalisation-and-product-identity.md)
+  applies to unit canonicalisation. A document issue (missing line or quantity
+  mismatch — a unit or price mismatch alone does not count) raises one
+  `line_item_mismatch` notification (`notifications.md`) and flips both linked
+  invoices to `incidencia`/`documento`, same as the duplicate-purchase flip
+  but applied to both sides of the pair. Wired as one more post-save effect in
+  `runPostSaveEffects` (`invoice-save.ts`, right after duplicate-purchase
+  detection, per
+  [ADR-008](../06_decisions/invoicing/ADR-008-single-invoice-write-path.md)'s
+  single canonical write path).
 - **Edit** carries an optimistic-lock `version`; stale writes are rejected. The
   action delete-and-reinserts line items, so the edit form must post back every
   column the save path reads — `line_supplier_skus` included, or the SKU is
@@ -170,6 +197,13 @@ Tenant scope on every read; version check on edit; status-transition guards.
   `tests/debounce.test.ts` (debounce timing),
   `tests/invoices-filters-load.test.ts` (`load()` turns search params into SQL
   predicates on both the page and the row-count query).
+- Linking a delivery note and its invoice (#809) surfaces which line items
+  disagree, not just whether the totals do (#886): a missing item or a
+  quantity mismatch between the two raises `line_item_mismatch` and flips both
+  documents to `incidencia`/`documento`.
+  Tests: `tests/line-reconciliation.test.ts` (pure matching/verdict rules),
+  `tests/invoice-save-duplicate-purchase.test.ts` (DB-backed, end-to-end
+  through `saveReviewedInvoice`).
 
 ## Code notes
 
