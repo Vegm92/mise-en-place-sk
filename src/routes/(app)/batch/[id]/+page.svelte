@@ -787,9 +787,9 @@
             {#if q.id === data.review?.itemId}
               <span class="rev-strip-mark">{$t('review.reviewing')}</span>
             {:else if q.status === 'confirmed'}
-              <span style="color:var(--mep-pos);display:inline-flex;"><Check size={14} /></span>
+              <span class="text-pos inline-flex"><Check size={14} /></span>
             {:else if q.status === 'failed'}
-              <span style="color:var(--mep-neg);display:inline-flex;"><AlertTriangle size={14} /></span>
+              <span class="text-neg inline-flex"><AlertTriangle size={14} /></span>
             {/if}
           </button>
         {/each}
@@ -825,7 +825,7 @@
         {#if queueOpen}
           <span class="body-strong" style="flex:1;min-width:0;">{$t('review.queue')}</span>
         {/if}
-        <span class="num" title={$t('upload.queue')} style="font-size:11px;font-weight:600;padding:2px 7px;border-radius:999px;background:var(--mep-acc-soft);color:var(--mep-acc);">{doneCount}/{data.queue.length}</span>
+        <span class="num text-[11px] font-semibold px-[7px] py-0.5 rounded-full bg-acc-soft text-acc" title={$t('upload.queue')}>{doneCount}/{data.queue.length}</span>
       </div>
 
       <div class="rev-rail-list" style="flex:1;overflow-y:auto;min-height:0;padding:0 {queueOpen ? 6 : 5}px;">
@@ -850,8 +850,8 @@
             />
             {#if queueOpen}
               <div style="flex:1;min-width:0;">
-                <div style="font-size:12.5px;font-weight:500;color:{q.status === 'confirmed' ? 'var(--mep-fg-3)' : 'var(--mep-fg)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{q.name}</div>
-                <div class="num" style="font-size:11px;color:var(--mep-fg-3);">
+                <div class="text-[12.5px] font-medium truncate {q.status === 'confirmed' ? 'text-fg-3' : 'text-fg'}">{q.name}</div>
+                <div class="num text-[11px] text-fg-3">
                   {queueItemSubLabel(q)}
                 </div>
               </div>
@@ -861,22 +861,22 @@
                 <span class="rev-draft-dot" title={$t('review.draftPending')} aria-label={$t('review.draftPending')}></span>
               {/if}
               {#if q.status === 'confirmed'}
-                <div style="width:18px;height:18px;border-radius:var(--mep-r-pill);background:var(--mep-pos-soft);color:var(--mep-pos);display:flex;align-items:center;justify-content:center;"><Check size={11} /></div>
+                <div class="w-[18px] h-[18px] rounded-pill bg-pos-soft text-pos flex items-center justify-center"><Check size={11} /></div>
               {:else if q.status === 'done'}
                 {#if queueOpen}
-                  <div style="width:18px;height:18px;border-radius:var(--mep-r-pill);background:var(--mep-acc-soft);color:var(--mep-acc);display:flex;align-items:center;justify-content:center;"><Check size={11} /></div>
+                  <div class="w-[18px] h-[18px] rounded-pill bg-acc-soft text-acc flex items-center justify-center"><Check size={11} /></div>
                 {/if}
               {:else if q.status === 'extracting'}
-                <svg width="18" height="18" viewBox="0 0 16 16" style="animation:mepspin 1.1s linear infinite;color:var(--mep-acc);">
+                <svg width="18" height="18" viewBox="0 0 16 16" class="text-acc" style="animation:mepspin 1.1s linear infinite;">
                   <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-opacity="0.2" stroke-width="2" />
                   <path d="M14 8a6 6 0 00-6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
                 </svg>
               {:else if q.status === 'queued'}
                 {#if queueOpen}
-                  <div style="width:18px;height:18px;border-radius:var(--mep-r-pill);border:1px dashed var(--mep-border);color:var(--mep-fg-3);display:flex;align-items:center;justify-content:center;"><Clock size={10} /></div>
+                  <div class="w-[18px] h-[18px] rounded-pill border border-dashed border-border text-fg-3 flex items-center justify-center"><Clock size={10} /></div>
                 {/if}
               {:else if q.status === 'failed'}
-                <span style="color:var(--mep-neg);display:inline-flex;"><AlertTriangle size={13} /></span>
+                <span class="text-neg inline-flex"><AlertTriangle size={13} /></span>
               {:else if queueOpen}
                 <form method="POST" action="?/remove">
                   <input type="hidden" name="itemId" value={q.id} />
@@ -890,20 +890,20 @@
         {/each}
       </div>
 
-      <div class="rev-rail-foot" style="padding:8px {queueOpen ? 12 : 6}px 2px;border-top:1px solid var(--mep-divider);display:flex;flex-direction:column;gap:8px;align-items:{queueOpen ? 'stretch' : 'center'};">
+      <div class="rev-rail-foot border-t border-divider flex flex-col gap-2 {queueOpen ? 'items-stretch' : 'items-center'}" style="padding:8px {queueOpen ? 12 : 6}px 2px;">
         {#if queueOpen}
-          <button type="button" class="btn btn-ghost" style="font-size:12.5px;color:var(--mep-acc);padding:0;justify-content:flex-start;height:24px;"
+          <button type="button" class="btn btn-ghost text-[12.5px] text-acc p-0 justify-start h-6"
             onclick={() => addMoreOpen = !addMoreOpen}>
             {addMoreOpen ? $t('confirm.hideAdd') : $t('confirm.showAdd')}
           </button>
           {#if addMoreOpen}
-            <label style="display:flex;align-items:center;gap:8px;padding:10px;border-radius:8px;border:1.5px dashed var(--mep-border-strong);cursor:pointer;font-size:12px;color:var(--mep-fg-3);background:var(--mep-surface-2);">
+            <label class="flex items-center gap-2 p-2.5 rounded-lg border-[1.5px] border-dashed border-border-strong cursor-pointer text-xs text-fg-3 bg-surface-2">
               <Upload size={14} />
               {$t('confirm.addMoreTitle')}
               <input type="file" class="hidden" accept={UPLOAD_ACCEPT} multiple onchange={onFileInputChange} />
             </label>
             {#each addFiles as f, i}
-              <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--mep-fg);">
+              <div class="flex items-center gap-2 text-xs text-fg">
                 <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{f.name}</span>
                 <button type="button" class="rev-icon-btn" style="width:20px;height:20px;" title={$t('confirm.remove')} aria-label={$t('confirm.remove')} onclick={() => addFiles = addFiles.filter((_, j) => j !== i)}><X size={11} /></button>
               </div>
@@ -944,8 +944,8 @@
         <h2 class="sr-only">{$t('a11y.documentPreview')}</h2>
         {#if previewOpen}
           <div class="rev-bar rev-bar-head" style="padding:8px 8px 8px 12px;gap:6px;">
-            <span style="display:inline-flex;color:var(--mep-fg-3);flex-shrink:0;"><FileText size={13} /></span>
-            <div title={review.filename} style="flex:1;min-width:0;font-size:12px;color:var(--mep-fg-2);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+            <span class="inline-flex text-fg-3 shrink-0"><FileText size={13} /></span>
+            <div title={review.filename} class="flex-1 min-w-0 text-xs text-fg-2 font-medium truncate">
               {review.filename}
             </div>
             <a href={previewSrc} target="_blank" rel="noopener" class="rev-icon-btn" title={$t('review.openInTab')} aria-label={$t('review.openInTab')}>
@@ -958,14 +958,14 @@
               <ChevronsLeft size={14} />
             </button>
           </div>
-          <div style="flex:1;min-height:0;overflow:hidden;background:var(--mep-surface-2);">
+          <div class="flex-1 min-h-0 overflow-hidden bg-surface-2">
             <iframe
               src={previewSrc}
               title={$t('a11y.documentPreview')}
               style="width:100%;height:100%;border:none;display:block;"
             ></iframe>
           </div>
-          <div style="padding:6px 10px;border-top:1px solid var(--mep-divider);display:flex;align-items:center;gap:5px;font-size:11px;color:var(--mep-acc);">
+          <div class="px-2.5 py-1.5 border-t border-divider flex items-center gap-[5px] text-[11px] text-acc">
             <Sparkle size={10} /> {$t('extract.aiExtracted')} · {$t(confidenceBadgeKey)}
           </div>
         {:else}
@@ -1013,7 +1013,7 @@
 
           <div class="rev-bar rev-bar-head">
             <div class="rev-bar-title">
-              <div style="font-size:14px;font-weight:600;color:var(--mep-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+              <div class="text-sm font-semibold text-fg truncate">
                 {invoiceNumber} · {supplierName}
               </div>
             </div>
@@ -1120,15 +1120,14 @@
                         oninput={() => { dueDateSuggested = false; }}
                         class="rev-input num" class:flagged={flagged('due_date')} />
                       {#if dueDateSuggested}
-                        <div style="font-size:11px;color:var(--mep-fg-3);margin-top:4px;">{$t('field.dueDateSuggested')}</div>
+                        <div class="text-[11px] text-fg-3 mt-1">{$t('field.dueDateSuggested')}</div>
                       {/if}
                     </div>
                   {:else}
                     <div>
                       <label class="rev-field-label" for="field-due-date">{$t('extract.due')}</label>
-                      <input id="field-due-date" type="text" class="rev-input" readonly
-                        value={$t('field.dueDate.notApplicable')}
-                        style="color:var(--mep-fg-4);" />
+                      <input id="field-due-date" type="text" class="rev-input text-fg-4" readonly
+                        value={$t('field.dueDate.notApplicable')} />
                       <input type="hidden" name="due_date" value="" />
                     </div>
                   {/if}
@@ -1144,7 +1143,7 @@
                     aria-describedby={hasDiscrepancy ? 'err-total_amount' : undefined}
                     class="rev-input num" class:mismatch={hasDiscrepancy} class:flagged={!hasDiscrepancy && flagged('total_amount')} />
                   {#if hasDiscrepancy}
-                    <div id="err-total_amount" style="font-size:11px;color:var(--mep-warn);margin-top:4px;display:flex;align-items:center;gap:4px;">
+                    <div id="err-total_amount" class="text-[11px] text-warn mt-1 flex items-center gap-1">
                       <AlertTriangle size={10} /> {$t('extract.mismatch')} ({fmt(totalCalc)})
                     </div>
                   {/if}
@@ -1163,7 +1162,7 @@
 
             <div class="rev-sticky-head">
               <div class="body-strong">
-                {$t('extract.lineItems')} <span class="num" style="color:var(--mep-fg-3);font-weight:400;">· {lineItems.length}</span>
+                {$t('extract.lineItems')} <span class="num text-fg-3 font-normal">· {lineItems.length}</span>
               </div>
               <button type="button" class="btn btn-ghost" style="height:26px;font-size:12px;padding:0 8px;gap:5px;" onclick={addRow}>
                 <Plus size={12} /> {$t('extract.addLine')}
@@ -1171,7 +1170,7 @@
             </div>
 
             {#if lineItems.length === 0}
-              <div class="rev-section" style="font-size:12.5px;color:var(--mep-fg-3);">{$t('review.noLines')}</div>
+              <div class="rev-section text-[12.5px] text-fg-3">{$t('review.noLines')}</div>
             {:else if isMobile}
               <div class="rev-cards">
                 {#each lineItems as item, i}
@@ -1274,8 +1273,8 @@
                   {#each lineItems as item, i}
                     {@const itemConf = typeof item.confidence === 'number' ? item.confidence : null}
                     {@const confLow = itemConf != null && itemConf < 0.85}
-                    <tr data-line={i} style="background:{confLow ? 'var(--mep-warn-soft)' : 'transparent'};">
-                      <td class="num" style="color:var(--mep-fg-4);font-size:11px;">{i + 1}</td>
+                    <tr data-line={i} class={confLow ? 'bg-warn-soft' : 'bg-transparent'}>
+                      <td class="num text-fg-4 text-[11px]">{i + 1}</td>
                       <td>
                         <div style="display:flex;align-items:center;gap:5px;">
                           <input type="text" name="line_descriptions" bind:value={lineItems[i].description}
@@ -1306,7 +1305,7 @@
                       <td>
                         <input type="text" name="line_units" bind:value={lineItems[i].unit}
                           aria-label={$ti('batch.aria.lineUnit', { row: i + 1 })}
-                          class="rev-cell" style="color:var(--mep-fg-2);" />
+                          class="rev-cell text-fg-2" />
                       </td>
                       <td class="num">
                         <input type="text" name="line_unit_prices" bind:value={lineItems[i].unit_price}
@@ -1349,7 +1348,7 @@
               <div class="rev-tax-panel-head">
                 <span class="body-strong">
                   {$t('review.taxes')}
-                  <span class="num" style="color:var(--mep-fg-3);font-weight:400;">· {$tp('review.taxTypeCount', taxBands.length)}</span>
+                  <span class="num text-fg-3 font-normal">· {$tp('review.taxTypeCount', taxBands.length)}</span>
                 </span>
                 {#if !taxBaseMatchesLines && taxBands.length > 0}
                   <span class="rev-tax-stale" title={$t('review.taxBaseStaleHint')}>
@@ -1374,7 +1373,7 @@
               </div>
 
               {#if taxBands.length === 0}
-                <div style="font-size:12px;color:var(--mep-fg-3);padding:4px 0 10px;">{$t('review.taxNoBands')}</div>
+                <div class="text-xs text-fg-3 pt-1 pb-2.5">{$t('review.taxNoBands')}</div>
               {:else}
                 <table class="tbl rev-tax-tbl">
                   <thead>
@@ -1419,8 +1418,8 @@
                   </tbody>
                   <tfoot>
                     <tr>
-                      <td colspan="2" style="color:var(--mep-fg-3);">{$t('tbl.total')}</td>
-                      <td class="num" style="color:var(--mep-fg-3);">{fmt(taxBase)}</td>
+                      <td colspan="2" class="text-fg-3">{$t('tbl.total')}</td>
+                      <td class="num text-fg-3">{fmt(taxBase)}</td>
                       <td class="num" style="font-weight:600;">{fmt(taxTotal)}</td>
                       <td></td>
                     </tr>
@@ -1432,15 +1431,15 @@
 
           <div class="rev-bar rev-bar-foot">
             {#if hasDiscrepancy}
-              <div class="rev-foot-status" style="color:var(--mep-warn);font-weight:500;">
+              <div class="rev-foot-status text-warn font-medium">
                 <AlertTriangle size={12} /> {$t('extract.discrepancy')} · {fmt(discrepancy)}
               </div>
             {:else if lineItems.length > 0}
-              <div class="rev-foot-status" style="color:var(--mep-pos);font-weight:500;">
+              <div class="rev-foot-status text-pos font-medium">
                 <Check size={12} /> {$t('extract.totalsMatch')}
               </div>
             {:else}
-              <div class="rev-foot-status" style="color:var(--mep-fg-3);">{$t('extract.noLinesVerify')}</div>
+              <div class="rev-foot-status text-fg-3">{$t('extract.noLinesVerify')}</div>
             {/if}
 
             <div class="rev-shortcuts" title={$t('review.shortcuts')}>
@@ -1451,13 +1450,13 @@
             </div>
 
             <div class="rev-foot-totals">
-              <span style="font-size:11.5px;color:var(--mep-fg-3);">{$t('extract.taxBase')} <span class="num" style="color:var(--mep-fg-2);">{fmt(lineTotal)}</span></span>
+              <span class="text-[11.5px] text-fg-3">{$t('extract.taxBase')} <span class="num text-fg-2">{fmt(lineTotal)}</span></span>
               <button type="button" class="rev-tax-toggle" onclick={() => taxPanelOpen = !taxPanelOpen}
                 aria-expanded={taxPanelOpen}
                 title={taxPanelOpen ? $t('review.hideTaxes') : $t('review.showTaxes')}>
                 {$t('extract.vat')} <span class="num">{fmt(taxTotal)}</span>
                 {#if documentTypeInput === 'albaran' && taxBands.length === 0}
-                  <span style="text-transform:none;letter-spacing:0;color:var(--mep-fg-3);">{$t('extract.optional')}</span>
+                  <span class="normal-case tracking-normal text-fg-3">{$t('extract.optional')}</span>
                 {/if}
                 {#if showBandKinds}
                   {#each bandKinds as kind}
@@ -1477,8 +1476,8 @@
                   <span class="num" style="font-weight:600;">{driftLabel}</span>
                 </span>
               {/if}
-              <span style="font-size:12px;color:var(--mep-fg-2);">{$t('extract.calcTotal')}</span>
-              <span class="num" style="font-size:15px;font-weight:600;color:var(--mep-fg);">{fmt(totalCalc)}</span>
+              <span class="text-xs text-fg-2">{$t('extract.calcTotal')}</span>
+              <span class="num text-[15px] font-semibold text-fg">{fmt(totalCalc)}</span>
             </div>
           </div>
 
@@ -1488,9 +1487,9 @@
 
     {:else if data.failedItem}
       <div class="rev-col rev-col-fill" style="display:flex;flex-direction:column;gap:12px;max-width:560px;overflow:visible;">
-        <div class="card p-4" style="background:var(--mep-neg-soft);border-color:var(--mep-neg);">
-          <strong class="body-strong" style="color:var(--mep-neg);display:block;margin-bottom:6px;">{$t('extract.error')} · {data.failedItem.name}</strong>
-          <p style="font-size:13px;color:var(--mep-neg);">{data.failedItem.errorVars ? $ti(data.failedItem.error, data.failedItem.errorVars) : $t(data.failedItem.error)}</p>
+        <div class="card p-4 bg-neg-soft border-neg">
+          <strong class="body-strong text-neg block mb-1.5">{$t('extract.error')} · {data.failedItem.name}</strong>
+          <p class="text-[13px] text-neg">{data.failedItem.errorVars ? $ti(data.failedItem.error, data.failedItem.errorVars) : $t(data.failedItem.error)}</p>
         </div>
         <div style="display:flex;gap:8px;">
           <form method="POST" action="?/retry">
@@ -1508,11 +1507,11 @@
 
     {:else if data.stalled}
       <div class="rev-col rev-col-fill" style="display:flex;flex-direction:column;gap:12px;max-width:560px;overflow:visible;">
-        <div class="card p-4" style="background:var(--mep-warn-soft);border-color:var(--mep-warn);">
-          <strong class="body-strong" style="color:var(--mep-warn);display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+        <div class="card p-4 bg-warn-soft border-warn">
+          <strong class="body-strong text-warn flex items-center gap-1.5 mb-1.5">
             <AlertTriangle size={14} /> {$t('batch.stalledTitle')}
           </strong>
-          <p style="font-size:13px;color:var(--mep-fg-2);line-height:1.5;">
+          <p class="text-[13px] text-fg-2 leading-normal">
             {$ti('batch.stalledBody', { name: data.stalled.name })}
           </p>
         </div>
@@ -1532,12 +1531,12 @@
 
     {:else if data.anyInFlight}
       <div class="card rev-col rev-col-fill" style="align-items:center;justify-content:center;gap:18px;padding:40px 32px;text-align:center;">
-        <div style="width:44px;height:44px;border:3px solid var(--mep-acc);border-top-color:transparent;border-radius:50%;animation:mepspin 0.9s linear infinite;"></div>
+        <div class="w-11 h-11 border-[3px] border-acc border-t-transparent rounded-full" style="animation:mepspin 0.9s linear infinite;"></div>
         <div>
-          <div style="font-size:15px;font-weight:600;color:var(--mep-fg);margin-bottom:6px;">
+          <div class="text-[15px] font-semibold text-fg mb-1.5">
             {$ti('batch.extracting', { name: extractingItem?.name ?? $t('misc.invoice') })}
           </div>
-          <div style="font-size:13px;color:var(--mep-fg-3);line-height:1.5;">
+          <div class="text-[13px] text-fg-3 leading-normal">
             {$ti('batch.progress', { done: doneCount, total: data.queue.length })}
           </div>
         </div>
@@ -1545,14 +1544,14 @@
 
     {:else}
       <div class="card rev-col rev-col-fill" style="align-items:center;justify-content:center;gap:16px;padding:40px 32px;text-align:center;">
-        <div style="width:48px;height:48px;border-radius:24px;background:var(--mep-acc-soft);color:var(--mep-acc);display:flex;align-items:center;justify-content:center;">
+        <div class="w-12 h-12 rounded-3xl bg-acc-soft text-acc flex items-center justify-center">
           <Sparkle size={20} />
         </div>
         <div>
-          <div style="font-size:15px;font-weight:600;color:var(--mep-fg);margin-bottom:4px;">
+          <div class="text-[15px] font-semibold text-fg mb-1">
             {$tp('batch.readyToExtract', data.openCount)}
           </div>
-          <div style="font-size:13px;color:var(--mep-fg-3);">{$t('batch.processParallel')}</div>
+          <div class="text-[13px] text-fg-3">{$t('batch.processParallel')}</div>
         </div>
         <form method="POST" action="?/extract">
           <button type="submit" class="btn btn-primary" style="height:40px;justify-content:center;font-weight:500;gap:6px;padding:0 20px;">
@@ -1629,7 +1628,7 @@
     onclick={closeContentDuplicateModal}
   >
     <div
-      style="background:var(--mep-bg);border:1px solid var(--mep-border-strong);border-radius:14px;padding:28px 24px;max-width:400px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,0.2);"
+      class="bg-bg border border-border-strong rounded-[14px] px-6 py-7 max-w-[400px] w-full shadow-[0_12px_40px_rgba(0,0,0,0.2)]"
       role="dialog"
       tabindex="-1"
       aria-modal="true"
@@ -1639,10 +1638,10 @@
       onkeydown={(e) => { if (e.key === 'Escape') closeContentDuplicateModal(); else e.stopPropagation(); }}
     >
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-        <AlertTriangle size={18} style="color:var(--mep-neg);flex-shrink:0;" />
-        <strong id="dup-modal-title" style="font-size:15px;font-weight:600;color:var(--mep-fg);">{$t('batch.dupTitle')}</strong>
+        <AlertTriangle size={18} class="text-neg shrink-0" />
+        <strong id="dup-modal-title" class="text-[15px] font-semibold text-fg">{$t('batch.dupTitle')}</strong>
       </div>
-      <p style="font-size:13px;color:var(--mep-fg-2);line-height:1.6;margin:0 0 20px;">
+      <p class="text-[13px] text-fg-2 leading-[1.6] mb-5">
         {$t('batch.dupBody')}
       </p>
       <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
@@ -1666,7 +1665,7 @@
     onclick={closeLowConfModal}
   >
     <div
-      style="background:var(--mep-bg);border:1px solid var(--mep-border-strong);border-radius:14px;padding:28px 24px;max-width:400px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,0.2);"
+      class="bg-bg border border-border-strong rounded-[14px] px-6 py-7 max-w-[400px] w-full shadow-[0_12px_40px_rgba(0,0,0,0.2)]"
       role="dialog"
       tabindex="-1"
       aria-modal="true"
@@ -1676,14 +1675,14 @@
       onkeydown={(e) => { if (e.key === 'Escape') closeLowConfModal(); else e.stopPropagation(); }}
     >
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-        <AlertTriangle size={18} style="color:var(--mep-warn);flex-shrink:0;" />
-        <strong id="lowconf-modal-title" style="font-size:15px;font-weight:600;color:var(--mep-fg);">{$t('batch.lowConfTitle')}</strong>
+        <AlertTriangle size={18} class="text-warn shrink-0" />
+        <strong id="lowconf-modal-title" class="text-[15px] font-semibold text-fg">{$t('batch.lowConfTitle')}</strong>
       </div>
-      <p style="font-size:13px;color:var(--mep-fg-2);line-height:1.6;margin:0 0 16px;">
+      <p class="text-[13px] text-fg-2 leading-[1.6] mb-4">
         {$t('batch.lowConfPre')} <strong>{uncertainCount}</strong> {$tp('batch.field', uncertainCount)} {$t('batch.lowConfPost')}
       </p>
       {#if uncertainHeaderFields.length > 0}
-        <ul style="font-size:12.5px;color:var(--mep-fg-3);margin:0 0 16px;padding-left:16px;">
+        <ul class="text-[12.5px] text-fg-3 mb-4 pl-4">
           {#each uncertainHeaderFields as f}
             <li>{uncertainFieldLabel(f)}</li>
           {/each}

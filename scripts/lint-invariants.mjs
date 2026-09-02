@@ -324,6 +324,153 @@ function runActionAuthzGate() {
 	return true;
 }
 
+/**
+ * Ratcheting per-file budget for issue #845: the `style="…var(--mep-*)…"`
+ * attributes that still style components by hand instead of using the Tailwind
+ * utilities `@theme inline` generates from the same tokens (`text-fg-3`,
+ * `bg-surface`, `shadow-card`, …). src/app.css states the rule in its own
+ * words: never put hex codes or var(--mep-*) in component .svelte files.
+ *
+ * The count is a gate rather than a style preference: those attributes are the
+ * only reason svelte.config.js has to ship `style-src 'unsafe-inline'`, so the
+ * strict hash-mode CSP around them is not actually strict until this reaches
+ * zero. Conversion is inherently many small diffs — one file per PR,
+ * worst-first — and this budget is what keeps the total moving one way.
+ *
+ * The numbers may go down, never up. Convert a file, then set its entry to the
+ * new count (or delete the entry at zero) in the same commit; the gate fails
+ * on a count that is above its budget *and* on one that is below it, because a
+ * stale budget silently allows drift back up to the old number. A file with no
+ * entry is budgeted at zero, so new inline token styles fail on arrival.
+ */
+const INLINE_TOKEN_STYLE_BUDGET = new Map([
+	['src/routes/(app)/+layout.svelte', 58],
+	['src/routes/(app)/suppliers/[id]/+page.svelte', 53],
+	['src/routes/(app)/budgets/+page.svelte', 49],
+	['src/routes/(app)/analytics/extraction/+page.svelte', 48],
+	['src/lib/components/UploadPanel.svelte', 43],
+	['src/routes/(app)/analytics/prices/+page.svelte', 29],
+	['src/lib/components/mobile/MobileInvoiceDetail.svelte', 27],
+	['src/routes/(app)/chat/+page.svelte', 26],
+	['src/routes/signup/+page.svelte', 22],
+	['src/lib/components/mobile/MobileAnalyticsPrices.svelte', 21],
+	['src/lib/components/mobile/MobileInvoiceList.svelte', 21],
+	['src/lib/components/mep/BillingStatusCard.svelte', 19],
+	['src/routes/(admin)/admin/+page.svelte', 18],
+	['src/routes/(admin)/admin/access/+page.svelte', 18],
+	['src/routes/(admin)/admin/events/+page.svelte', 18],
+	['src/routes/(app)/analytics/spend/+page.svelte', 17],
+	['src/routes/(app)/suppliers/+page.svelte', 17],
+	['src/lib/components/mobile/MobileProducts.svelte', 16],
+	['src/lib/components/mobile/MobileSuppliersList.svelte', 15],
+	['src/routes/(admin)/admin/errors/+page.svelte', 15],
+	['src/lib/components/mep/BillingFeatureMatrix.svelte', 14],
+	['src/lib/components/mobile/MobileAnalyticsSpend.svelte', 14],
+	['src/lib/components/mobile/MobileDashboard.svelte', 14],
+	['src/lib/components/waitlist/CaptureMock.svelte', 14],
+	['src/lib/components/mep/BillingPlanCard.svelte', 13],
+	['src/lib/components/waitlist/ExtractMock.svelte', 13],
+	['src/routes/(app)/settings/+page.svelte', 12],
+	['src/lib/components/waitlist/AppDashboardMock.svelte', 11],
+	['src/routes/onboarding/+page.svelte', 11],
+	['src/lib/components/mep/NotificationBell.svelte', 10],
+	['src/lib/components/mobile/MobileRecipes.svelte', 10],
+	['src/routes/(admin)/+layout.svelte', 10],
+	['src/routes/(app)/invoice/[id]/+page.svelte', 10],
+	['src/routes/s/[token]/+page.svelte', 10],
+	['src/lib/components/desktop/DesktopDashboard.svelte', 9],
+	['src/lib/components/mobile/MobileAlerts.svelte', 9],
+	['src/lib/components/waitlist/DashboardMock.svelte', 9],
+	['src/routes/(app)/billing/+page.svelte', 9],
+	['src/routes/(app)/invoices/+page.svelte', 9],
+	['src/lib/components/waitlist/EmailForm.svelte', 8],
+	['src/routes/(app)/billing/confirm/+page.svelte', 8],
+	['src/routes/(admin)/admin/whatsapp/+page.svelte', 7],
+	['src/lib/components/mep/AlertRow.svelte', 6],
+	['src/lib/components/mep/ConfirmDialog.svelte', 6],
+	['src/lib/components/mep/TrendLineChart.svelte', 6],
+	['src/lib/components/mobile/turno/WorkCardMobile.svelte', 6],
+	['src/routes/(app)/settings/confirm-email/+page.svelte', 6],
+	['src/lib/components/admin/AdminSystemBanner.svelte', 5],
+	['src/lib/components/desktop/turno/WorkCard.svelte', 5],
+	['src/routes/(admin)/admin/feature-flags/+page.svelte', 5],
+	['src/routes/forgot-password/+page.svelte', 5],
+	['src/routes/verify-email/+page.svelte', 5],
+	['src/lib/components/mep/ChatFab.svelte', 4],
+	['src/lib/components/mep/CoachMark.svelte', 4],
+	['src/lib/components/mep/PeriodPicker.svelte', 4],
+	['src/routes/(app)/help/+page.svelte', 4],
+	['src/routes/(app)/products/+page.svelte', 4],
+	['src/routes/(app)/reports/[type]/+page.svelte', 4],
+	['src/routes/(app)/reports/+page.svelte', 4],
+	['src/routes/reset-password/+page.svelte', 4],
+	['src/lib/components/admin/AdminPageHead.svelte', 3],
+	['src/lib/components/mep/AuthShell.svelte', 3],
+	['src/lib/components/mep/DateRangePicker.svelte', 3],
+	['src/lib/components/mep/FlowSteps.svelte', 3],
+	['src/lib/components/mep/NotificationItem.svelte', 3],
+	['src/routes/(app)/recipes/[id]/sheet/+page.svelte', 3],
+	['src/routes/+error.svelte', 3],
+	['src/lib/components/admin/AdminKpiCard.svelte', 2],
+	['src/lib/components/mep/ListPageTemplate.svelte', 2],
+	['src/lib/components/desktop/turno/StatusChip.svelte', 1],
+	['src/lib/components/FileTypeBadge.svelte', 1],
+	['src/lib/components/mep/ErrorBoundary.svelte', 1],
+	['src/lib/components/mep/RecipeLineRow.svelte', 1],
+	['src/routes/(app)/plantilla-lista/+page.svelte', 1],
+	['src/routes/(app)/recipes/[id]/cocina/+page.svelte', 1],
+]);
+
+/**
+ * Deliberately matches the attribute, not the declaration: one `style` carrying
+ * four token references is one attribute to retire, and one CSP concession.
+ */
+function countInlineTokenStyles(src) {
+	return (src.match(/style="[^"]*var\(--mep-/g) ?? []).length;
+}
+
+function runInlineTokenStyleGate() {
+	const root = path.join(ROOT, 'src');
+	if (!fs.existsSync(root)) return true;
+
+	const over = [];
+	const stale = [];
+	const seen = new Set();
+	for (const file of walk(root, ['.svelte'])) {
+		const rel = path.relative(ROOT, file).split(path.sep).join('/');
+		const budget = INLINE_TOKEN_STYLE_BUDGET.get(rel) ?? 0;
+		if (budget > 0) seen.add(rel);
+		const count = countInlineTokenStyles(fs.readFileSync(file, 'utf8'));
+		if (count > budget) over.push(`${rel}: ${count} inline token styles, budget ${budget}`);
+		else if (count < budget)
+			stale.push(
+				`${rel}: ${count} inline token styles, budget ${budget} — ` +
+					(count === 0 ? 'fully converted, delete its entry' : `lower the entry to ${count}`)
+			);
+	}
+	for (const rel of INLINE_TOKEN_STYLE_BUDGET.keys()) {
+		if (!seen.has(rel)) stale.push(`${rel}: no longer exists — drop its entry`);
+	}
+
+	if (over.length > 0) {
+		console.error(
+			'Error: inline style="…var(--mep-*)…" above the recorded budget — style with the Tailwind\n' +
+				'  utilities @theme inline already generates from these tokens (src/app.css) instead. Genuinely\n' +
+				'  dynamic values stay inline, but move the static parts to classes so the attribute goes away\n' +
+				'  (issue #845; retiring all of them is what lets style-src drop \'unsafe-inline\').'
+		);
+		for (const v of over) console.error(`  ${v}`);
+	}
+	if (stale.length > 0) {
+		console.error(
+			'Error: INLINE_TOKEN_STYLE_BUDGET is stale — a budget above the real count would let the drift\n' +
+				'  climb back to the old number. Lower the entries below in the same commit that converted them.'
+		);
+		for (const v of stale) console.error(`  ${v}`);
+	}
+	return over.length === 0 && stale.length === 0;
+}
+
 function walk(dir, extensions) {
 	const entries = fs.readdirSync(dir, { withFileTypes: true });
 	const files = [];
@@ -370,7 +517,9 @@ function runGate(name, gate) {
 }
 
 const requested = process.argv[2];
-const names = requested ? [requested] : [...Object.keys(GATES), 'unscoped-tenant-query', 'action-authz'];
+const names = requested
+	? [requested]
+	: [...Object.keys(GATES), 'unscoped-tenant-query', 'action-authz', 'inline-token-style'];
 
 let ok = true;
 for (const name of names) {
@@ -380,6 +529,10 @@ for (const name of names) {
 	}
 	if (name === 'action-authz') {
 		if (!runActionAuthzGate()) ok = false;
+		continue;
+	}
+	if (name === 'inline-token-style') {
+		if (!runInlineTokenStyleGate()) ok = false;
 		continue;
 	}
 	const gate = GATES[name];
