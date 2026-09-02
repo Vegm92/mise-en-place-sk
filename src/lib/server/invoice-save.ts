@@ -586,15 +586,19 @@ function isLowConfidenceBlocked(item: BatchItem | null, formData: FormData): boo
 	return hasLowConf || overallConf < 0.85;
 }
 
-function resolveSupplierInfo(extracted: ExtractedInvoice | undefined, supplierName: string): { proposedCategory: string; proposedContact: SupplierContactInfo } {
+function resolveSupplierInfo(extracted: ExtractedInvoice | undefined, supplierName: string): { proposedCategory: string; proposedContact: SupplierContactInfo; contactTrusted: boolean } {
 	const sameSupplier = typeof extracted?.supplier_name === 'string' && isSameSupplierName(extracted.supplier_name, supplierName);
 	return {
 		proposedCategory: sameSupplier
 			? resolveCategory(extracted?.supplier_category, extracted?.field_confidences?.supplier_category)
 			: UNCATEGORIZED_CATEGORY,
-		proposedContact: sameSupplier
-			? { cif: extracted?.supplier_nif ?? null, email: extracted?.supplier_email ?? null, phone: extracted?.supplier_phone ?? null, address: extracted?.supplier_address ?? null }
-			: {},
+		proposedContact: {
+			cif: extracted?.supplier_nif ?? null,
+			email: extracted?.supplier_email ?? null,
+			phone: extracted?.supplier_phone ?? null,
+			address: extracted?.supplier_address ?? null,
+		},
+		contactTrusted: sameSupplier,
 	};
 }
 
@@ -793,7 +797,7 @@ export async function saveReviewedInvoice(
 	if (isLowConfidenceBlocked(item, formData)) return { type: 'lowConfidenceBlocked' };
 
 	const extracted = item?.extractedData as ExtractedInvoice | undefined;
-	const { proposedCategory, proposedContact } = resolveSupplierInfo(extracted, supplierName);
+	const { proposedCategory, proposedContact, contactTrusted } = resolveSupplierInfo(extracted, supplierName);
 
 	const lineDescriptions = formData.getAll('line_descriptions') as string[];
 	const lineQuantities = formData.getAll('line_quantities') as string[];
@@ -855,7 +859,7 @@ export async function saveReviewedInvoice(
 			return;
 		}
 
-		supplierId = await getOrCreateSupplierId(rid, supplierName, tx, proposedCategory, proposedContact);
+		supplierId = await getOrCreateSupplierId(rid, supplierName, tx, proposedCategory, proposedContact, contactTrusted);
 
 		const outstandingBalance = typeof extracted?.outstanding_balance === 'number' ? String(extracted.outstanding_balance) : null;
 		if (outstandingBalance !== null) {
