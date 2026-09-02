@@ -30,7 +30,7 @@ import 'dotenv/config';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import postgres from 'postgres';
 import { sql } from 'drizzle-orm';
-import { testSql, closeDb, hasDbEnv } from './helpers/test-db';
+import { testSql, closeDb, hasDbEnv, retryOnDeadlock } from './helpers/test-db';
 import { resolveDbGate } from './helpers/db-gate';
 import { runWithTenantContext, runAsSystem, activeTenantContext } from '../src/lib/server/db';
 
@@ -64,7 +64,7 @@ async function resetGucs(sql: ReturnType<typeof postgres>): Promise<void> {
 beforeAll(async () => {
 	if (!canRun) return;
 
-	await testSql.unsafe(`
+	await retryOnDeadlock(() => testSql.unsafe(`
 		DO $$
 		BEGIN
 			IF EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = '${TEST_ROLE}') THEN
@@ -73,14 +73,14 @@ beforeAll(async () => {
 			END IF;
 		END
 		$$;
-	`);
-	await testSql.unsafe(
+	`));
+	await retryOnDeadlock(() => testSql.unsafe(
 		`CREATE ROLE ${TEST_ROLE} LOGIN PASSWORD '${TEST_PASSWORD}' NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
-	);
-	await testSql.unsafe(`GRANT CONNECT ON DATABASE ${testSql.options.database} TO ${TEST_ROLE}`);
-	await testSql.unsafe(`GRANT USAGE ON SCHEMA public TO ${TEST_ROLE}`);
-	await testSql.unsafe(`GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ${TEST_ROLE}`);
-	await testSql.unsafe(`GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO ${TEST_ROLE}`);
+	));
+	await retryOnDeadlock(() => testSql.unsafe(`GRANT CONNECT ON DATABASE ${testSql.options.database} TO ${TEST_ROLE}`));
+	await retryOnDeadlock(() => testSql.unsafe(`GRANT USAGE ON SCHEMA public TO ${TEST_ROLE}`));
+	await retryOnDeadlock(() => testSql.unsafe(`GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ${TEST_ROLE}`));
+	await retryOnDeadlock(() => testSql.unsafe(`GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO ${TEST_ROLE}`));
 
 	runtimeSql = postgres(runtimeUrl(), { ssl: gate.isLocal ? false : 'require', max: 1 });
 
@@ -105,7 +105,7 @@ afterAll(async () => {
 	await runtimeSql?.end({ timeout: 5 });
 	if (ridA) await testSql`DELETE FROM restaurants WHERE id = ${ridA}`;
 	if (ridB) await testSql`DELETE FROM restaurants WHERE id = ${ridB}`;
-	await testSql.unsafe(`
+	await retryOnDeadlock(() => testSql.unsafe(`
 		DO $$
 		BEGIN
 			IF EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = '${TEST_ROLE}') THEN
@@ -114,7 +114,7 @@ afterAll(async () => {
 			END IF;
 		END
 		$$;
-	`);
+	`));
 	await closeDb();
 });
 
@@ -300,5 +300,36 @@ describe.skipIf(!canRun)('digest share (#329) public route — runtime-role back
 		expect(rows[0].restaurant_id).toBe(ridA);
 		expect(rows[0].restaurant_id).not.toBe(ridB);
 		await resetGucs(runtimeSql!);
+	});
+});
+
+describe('retryOnDeadlock (test helper)', () => {
+	it('retries a statement aborted with SQLSTATE 40P01 and returns its eventual result', async () => {
+		let calls = 0;
+		const result = await retryOnDeadlock(async () => {
+			calls++;
+			if (calls < 3) throw Object.assign(new Error('deadlock detected'), { code: '40P01' });
+			return 'ok';
+		});
+		expect(result).toBe('ok');
+		expect(calls).toBe(3);
+	});
+
+	it('does not retry any other error', async () => {
+		let calls = 0;
+		await expect(retryOnDeadlock(async () => {
+			calls++;
+			throw Object.assign(new Error('permission denied'), { code: '42501' });
+		})).rejects.toThrow('permission denied');
+		expect(calls).toBe(1);
+	});
+
+	it('gives up after the attempt budget', async () => {
+		let calls = 0;
+		await expect(retryOnDeadlock(async () => {
+			calls++;
+			throw Object.assign(new Error('deadlock detected'), { code: '40P01' });
+		}, 2)).rejects.toThrow('deadlock detected');
+		expect(calls).toBe(2);
 	});
 });
