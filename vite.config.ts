@@ -3,6 +3,7 @@ import { sentrySvelteKit } from '@sentry/sveltekit';
 import { defineConfig, loadEnv } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { fileURLToPath } from 'node:url';
 
 // Uploads source maps and creates a release on build when SENTRY_AUTH_TOKEN is
 // set; a silent no-op otherwise. Registered before sveltekit() below.
@@ -92,6 +93,7 @@ export default defineConfig(({ mode }) => {
 		},
 		test: {
 			include: ['tests/**/*.test.ts'],
+			alias: { '@sentry/sveltekit': fileURLToPath(new URL('./tests/helpers/sentry-stub.ts', import.meta.url)) },
 			globalSetup: ['tests/setup/global-setup.ts'],
 			// Default reporter first; the skip summary prints below its
 			// "Test Files … skipped" line, where a developer actually looks.
