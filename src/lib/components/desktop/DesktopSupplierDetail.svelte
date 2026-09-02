@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { VALID_CATEGORIES } from '$lib/constants';
   import { categoryColor, categoryTint, seriesColor, SERIES_OTHER } from '$lib/colors';
   import { fmtEur, fmtDate, fmtDateShort, fmtMonthShort, initials } from '$lib/formatters';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
@@ -72,6 +71,7 @@
     monthly,
     conversions,
     products,
+    categories,
     prefillIngredient = '',
     prefillPurchaseUnit = '',
     tab       = $bindable<'resumen'|'albaranes'|'productos'|'conversiones'>('resumen'),
@@ -85,6 +85,7 @@
     monthly: MonthlyBar[];
     conversions: Conversion[];
     products: Product[];
+    categories: string[];
     prefillIngredient?: string;
     prefillPurchaseUnit?: string;
     tab?: 'resumen'|'albaranes'|'productos'|'conversiones';
@@ -248,7 +249,7 @@
                 <select id="edit-category" class="input" class:mep-field-highlight={highlightCategory} name="category" style="width:100%;"
                   onfocus={() => highlightCategory = false} onchange={() => highlightCategory = false}>
                   <option value="">{$t('sup.noCategory')}</option>
-                  {#each VALID_CATEGORIES as cat}
+                  {#each categories as cat}
                     <option value={cat} selected={s.category === cat}>{$tcat(cat)}</option>
                   {/each}
                 </select>

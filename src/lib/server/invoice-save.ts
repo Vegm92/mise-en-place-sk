@@ -11,7 +11,8 @@ import { maybeSendQuotaWarning } from './quota-warning';
 import { trackEvent } from './events';
 import { claimRequest, releaseRequest, isValidKey } from './idempotency';
 import { getOrCreateSupplierId, type SupplierContactInfo } from './supplier';
-import { resolveCategory, UNCATEGORIZED_CATEGORY } from '$lib/constants';
+import { UNCATEGORIZED_CATEGORY } from '$lib/constants';
+import { resolveCategoryFor } from './categories';
 import type { EnrichedLineItem, PackInfo } from './products';
 import type { ExtractedInvoice } from './extract';
 import type { BatchDb, BatchItem } from './batch';
@@ -586,11 +587,11 @@ function isLowConfidenceBlocked(item: BatchItem | null, formData: FormData): boo
 	return hasLowConf || overallConf < 0.85;
 }
 
-function resolveSupplierInfo(extracted: ExtractedInvoice | undefined, supplierName: string): { proposedCategory: string; proposedContact: SupplierContactInfo; contactTrusted: boolean } {
+async function resolveSupplierInfo(rid: string, extracted: ExtractedInvoice | undefined, supplierName: string): Promise<{ proposedCategory: string; proposedContact: SupplierContactInfo; contactTrusted: boolean }> {
 	const sameSupplier = typeof extracted?.supplier_name === 'string' && isSameSupplierName(extracted.supplier_name, supplierName);
 	return {
 		proposedCategory: sameSupplier
-			? resolveCategory(extracted?.supplier_category, extracted?.field_confidences?.supplier_category)
+			? await resolveCategoryFor(rid, extracted?.supplier_category, extracted?.field_confidences?.supplier_category)
 			: UNCATEGORIZED_CATEGORY,
 		proposedContact: {
 			cif: extracted?.supplier_nif ?? null,
@@ -797,7 +798,7 @@ export async function saveReviewedInvoice(
 	if (isLowConfidenceBlocked(item, formData)) return { type: 'lowConfidenceBlocked' };
 
 	const extracted = item?.extractedData as ExtractedInvoice | undefined;
-	const { proposedCategory, proposedContact, contactTrusted } = resolveSupplierInfo(extracted, supplierName);
+	const { proposedCategory, proposedContact, contactTrusted } = await resolveSupplierInfo(rid, extracted, supplierName);
 
 	const lineDescriptions = formData.getAll('line_descriptions') as string[];
 	const lineQuantities = formData.getAll('line_quantities') as string[];

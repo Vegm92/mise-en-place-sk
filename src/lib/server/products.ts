@@ -8,6 +8,7 @@ import { normalizeProductKey, canonicalizeUnit } from './normalize';
 import { categoryGuideBlock } from './category-guide';
 import { parseJsonResponse } from './llm-json';
 import { UNCATEGORIZED_CATEGORY, resolveCategory } from '$lib/constants';
+import { resolveCategoryFor } from './categories';
 import { GEMINI_API_KEY } from './env';
 import { createGeminiProvider, Type, type Schema } from './llm-provider';
 import { recordLlmUsage } from './llm-quota';
@@ -1316,8 +1317,11 @@ export async function processCategorizeJob(
 		const category = parseCategorizeResponse(resp.text);
 		if (!category) return;
 
+		const visibleCategory = await resolveCategoryFor(restaurantId, category, undefined, database);
+		if (visibleCategory === UNCATEGORIZED_CATEGORY) return;
+
 		await database.execute(sql`
-			UPDATE products SET category = ${category}
+			UPDATE products SET category = ${visibleCategory}
 			WHERE id = ${productId} AND restaurant_id = ${restaurantId} AND category IS NULL
 		`);
 	} catch (err) {

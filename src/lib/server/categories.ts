@@ -150,6 +150,16 @@ export async function setCategoryHidden(rid: string, id: number, hidden: boolean
 		.where(tenant.scope(categories.restaurantId, eq(categories.id, id)));
 }
 
+export async function visibleCategoryNames(rid: string, exec: BatchDb = db): Promise<Set<string>> {
+	const rows = await listCategories(rid, {}, exec);
+	return new Set(rows.map((c) => c.name));
+}
+
+export async function selectableCategoryNames(rid: string, exec: BatchDb = db): Promise<string[]> {
+	const rows = await listCategories(rid, {}, exec);
+	return [...rows.map((c) => c.name), UNCATEGORIZED_CATEGORY];
+}
+
 export async function resolveCategoryFor(
 	rid: string,
 	proposed: unknown,

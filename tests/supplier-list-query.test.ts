@@ -36,7 +36,7 @@ import { VALID_CATEGORIES } from '../src/lib/constants';
 // ── Param parsing (pure — runs without a database) ────────────────────────────
 
 describe('parseSupplierListParams', () => {
-	const parse = (qs: string) => parseSupplierListParams(new URLSearchParams(qs));
+	const parse = (qs: string) => parseSupplierListParams(new URLSearchParams(qs), VALID_CATEGORIES);
 
 	it('offers at least four sort options covering name, spend, last invoice and reliability', () => {
 		expect(SUPPLIER_SORT_KEYS.length).toBeGreaterThanOrEqual(4);

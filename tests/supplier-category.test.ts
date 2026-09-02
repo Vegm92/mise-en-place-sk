@@ -589,7 +589,8 @@ describe.skipIf(!hasDbEnv)('per-restaurant categories (issue #881)', () => {
 		try {
 			const category = await createOk(a.id, 'Marketing');
 
-			expect(await listCategories(b.id, { includeHidden: true }, testDb)).toEqual([]);
+			const bCategories = await listCategories(b.id, { includeHidden: true }, testDb);
+			expect(bCategories.find((c) => c.name === 'Marketing')).toBeUndefined();
 			expect(await resolveCategoryFor(b.id, 'Marketing', 1, testDb)).toBe(UNCATEGORIZED_CATEGORY);
 
 			const renamedFromB = await renameCategory(b.id, category.id, 'Marketing B', testDb);

@@ -6,7 +6,7 @@ import { db } from '$lib/server/db';
 import { sql } from 'drizzle-orm';
 import { normalizeProductKey } from '$lib/server/normalize';
 import { loadConversionPrompts, loadCatalogYoyChangeMap } from '$lib/server/products';
-import { VALID_CATEGORIES } from '$lib/constants';
+import { selectableCategoryNames } from '$lib/server/categories';
 import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import { parseProductSort, sortProducts } from '$lib/product-filters';
 
@@ -107,7 +107,7 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 			sort,
 			suggestions,
 			conversionPrompts,
-			categories: VALID_CATEGORIES,
+			categories: await selectableCategoryNames(rid),
 		};
 	});
 };
@@ -129,7 +129,7 @@ export const actions: Actions = {
 		const nameKey = normalizeProductKey(canonicalName);
 		if (!nameKey) return fail(422, { error: 'El nombre del producto es obligatorio' });
 
-		const cat = category && VALID_CATEGORIES.includes(category) ? category : null;
+		const cat = category && (await selectableCategoryNames(rid)).includes(category) ? category : null;
 
 		// tenant-check-ok: inserts under rid from locals; the ON CONFLICT target
 		// is (restaurant_id, name_key), so even the update path stays tenant-scoped.

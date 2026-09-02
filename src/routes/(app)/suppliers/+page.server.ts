@@ -5,7 +5,8 @@ import { periodRange } from '$lib/server/period-range';
 import { db, forTenant } from '$lib/server/db';
 import { suppliers, invoices, supplierMetrics } from '$lib/server/schema';
 import { sql, eq, and } from 'drizzle-orm';
-import { UNCATEGORIZED_CATEGORY, VALID_CATEGORIES } from '$lib/constants';
+import { UNCATEGORIZED_CATEGORY } from '$lib/constants';
+import { selectableCategoryNames } from '$lib/server/categories';
 import { computeAndCacheReliabilityScore } from '$lib/server/supplier-reliability';
 import { describedLine, lineAmountExpr, lineCategoryExpr, lineProductJoin } from '$lib/server/category-spend';
 import { parseSupplierListParams } from '$lib/supplier-list';
@@ -33,7 +34,8 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 	const tdb = forTenant(rid);
 	return handleLoad('suppliers', async () => {
 		const { rangeFrom, rangeTo } = await parent?.() ?? periodRange(url);
-		const listParams = parseSupplierListParams(url.searchParams);
+		const categoryNames = await selectableCategoryNames(rid);
+		const listParams = parseSupplierListParams(url.searchParams, categoryNames);
 		const today   = new Date().toISOString().slice(0, 10);
 		const weekEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
@@ -113,9 +115,9 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 			const key = row.category ?? UNCATEGORIZED_CATEGORY;
 			categoryCounts[key] = (categoryCounts[key] ?? 0) + Number(row.supplier_count);
 		}
-		const orderedCategories = [...VALID_CATEGORIES].sort((a, b) =>
+		const orderedCategories = [...categoryNames].sort((a, b) =>
 			(categoryCounts[b] ?? 0) - (categoryCounts[a] ?? 0)
-			|| VALID_CATEGORIES.indexOf(a) - VALID_CATEGORIES.indexOf(b),
+			|| categoryNames.indexOf(a) - categoryNames.indexOf(b),
 		);
 
 		const metricsMap = new Map(metricsRows.map((m) => [m.supplierId, m]));
@@ -222,7 +224,7 @@ export const actions: Actions = {
 		const name = String(data.get('name') ?? '').trim();
 		const category = String(data.get('category') ?? '');
 		if (!name) error(400, 'Name is required');
-		const cat = VALID_CATEGORIES.includes(category) ? category : null;
+		const cat = (await selectableCategoryNames(rid)).includes(category) ? category : null;
 		// tenant-check-ok: inserts a brand-new row under rid from locals; no
 		// existing row is targeted, so there is no ownership check to make.
 		const [row] = await db.insert(suppliers)

@@ -3,7 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
 import { products, invoiceLineItems, invoices, suppliers, productAliases } from '$lib/server/schema';
 import { eq, desc } from 'drizzle-orm';
-import { VALID_CATEGORIES } from '$lib/constants';
+import { selectableCategoryNames } from '$lib/server/categories';
 import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import {
 	getLinkedSuppliers, unlinkSupplier as unlinkSupplierFromProduct,
@@ -72,7 +72,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			normalizedUnitPrice: moneyToNullableNumber(p.normalizedUnitPrice),
 		})),
 		priceByYear: pairYearlyPrices(yearlyPrices),
-		categories: VALID_CATEGORIES,
+		categories: await selectableCategoryNames(rid),
 		allergens: EU_ALLERGENS,
 	};
 };
@@ -133,7 +133,7 @@ export const actions: Actions = {
 			return fail(422, { error: 'Unidades por pack debe ser un número positivo' });
 		}
 
-		const cat = category && VALID_CATEGORIES.includes(category) ? category : null;
+		const cat = category && (await selectableCategoryNames(rid)).includes(category) ? category : null;
 
 		await db.update(products)
 			.set({ canonicalName, category: cat, canonicalUnit, unitsPerPack, baseUnit })
