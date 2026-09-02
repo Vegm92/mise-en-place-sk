@@ -20,7 +20,7 @@ import { toMoneyString, moneyToNumber, parseAmount } from './money';
 import { bandsFromInputs, taxableBaseMoney, detectTotalMismatch as detectAmountMismatch, type TaxBand } from '$lib/tax';
 import { renderTemplate } from '$lib/i18n-messages';
 import { isBlankOrIsoDate, toIsoDate } from './dates';
-import type { ReviewState } from '$lib/status';
+import type { IncidenceKind, ReviewState } from '$lib/status';
 
 export type SaveOutcome =
 	| { type: 'lowConfidenceBlocked' }
@@ -568,9 +568,11 @@ export function resolveReviewState(signals: {
 	totalMismatch: boolean;
 	conversionNeeded: boolean;
 	qrMismatch: boolean;
-}): ReviewState {
+}): { reviewState: ReviewState; incidenceKind: IncidenceKind | null } {
 	const flagged = signals.lowConfidenceAcked || signals.totalMismatch || signals.conversionNeeded || signals.qrMismatch;
-	return flagged ? 'incidencia' : 'revisado';
+	return flagged
+		? { reviewState: 'incidencia', incidenceKind: 'lectura' }
+		: { reviewState: 'revisado', incidenceKind: null };
 }
 
 const HEADER_CONFIDENCE_FIELDS = ['supplier_name', 'invoice_number', 'invoice_date', 'due_date', 'total_amount'];
@@ -722,7 +724,7 @@ async function runPostSaveEffects(params: {
 	if (reviewState !== 'incidencia' && hasDuplicateWarning) {
 		await isolated('incidencia flip', undefined, async () => {
 			await db.update(invoices)
-				.set({ reviewState: 'incidencia' })
+				.set({ reviewState: 'incidencia', incidenceKind: 'documento' })
 				.where(tdb.scope(invoices.restaurantId, eq(invoices.id, invoiceId)));
 		});
 	}
@@ -822,7 +824,7 @@ export async function saveReviewedInvoice(
 	const lineInputs = parseLineInputs(formData);
 	const enrichedLines = await enrichLineItems(rid, supplierName, lineInputs);
 
-	const reviewState = resolveReviewState({
+	const { reviewState, incidenceKind } = resolveReviewState({
 		lowConfidenceAcked: formData.get('low_confidence_ack') === 'true',
 		totalMismatch: detectTotalMismatch(lineInputs, taxBands, totalAmount) || extractedData?.total_mismatch === true,
 		conversionNeeded: enrichedLines.some((l) => l.requiresUnitConversion),
@@ -876,6 +878,7 @@ export async function saveReviewedInvoice(
 				taxBreakdown,
 				status: 'pending',
 				reviewState,
+				incidenceKind,
 				sourceFile: primaryFile,
 				confidence: confidenceRaw,
 				contentHash,

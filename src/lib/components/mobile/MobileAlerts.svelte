@@ -4,6 +4,7 @@
   import { locale, t } from '$lib/i18n';
   import { fmtEurCompact } from '$lib/formatters';
   import NotificationItem from '$lib/components/mep/NotificationItem.svelte';
+  import IncidenceKindBadge from '$lib/components/mep/IncidenceKindBadge.svelte';
   import { groupNotifications, type Notif } from '$lib/notification-display';
 
   interface Incidencia {
@@ -12,6 +13,7 @@
     invoice_number: string | null;
     display_amount: number;
     invoice_date: string | null;
+    incidence_kind: string | null;
   }
 
   type NotifGroups = ReturnType<typeof groupNotifications>;
@@ -81,6 +83,9 @@
                     <div style="text-align: right; flex-shrink: 0;">
                       <div class="num" style="font-size: 14px; font-weight: 600; color: var(--mep-fg);">{fmtAmount(r.display_amount)}</div>
                       <span class="badge badge-overdue">{$t('inv.review.incidencia')}</span>
+                      <div class="mt-0.5">
+                        <IncidenceKindBadge kind={r.incidence_kind} small />
+                      </div>
                     </div>
                   </div>
                 </a>

@@ -45,18 +45,18 @@ describe('detectTotalMismatch (save-path line shape)', () => {
 describe('resolveReviewState', () => {
 	const clean = { lowConfidenceAcked: false, totalMismatch: false, conversionNeeded: false, qrMismatch: false };
 
-	it('is revisado when every signal is clean', () => {
-		expect(resolveReviewState(clean)).toBe('revisado');
+	it('is revisado, with no incidence kind, when every signal is clean', () => {
+		expect(resolveReviewState(clean)).toEqual({ reviewState: 'revisado', incidenceKind: null });
 	});
 
-	it('is incidencia when the total mismatch signal alone fires', () => {
-		expect(resolveReviewState({ ...clean, totalMismatch: true })).toBe('incidencia');
+	it('is incidencia, kind lectura, when the total mismatch signal alone fires', () => {
+		expect(resolveReviewState({ ...clean, totalMismatch: true })).toEqual({ reviewState: 'incidencia', incidenceKind: 'lectura' });
 	});
 
-	it('is incidencia when any other signal fires, independent of the total mismatch', () => {
-		expect(resolveReviewState({ ...clean, lowConfidenceAcked: true })).toBe('incidencia');
-		expect(resolveReviewState({ ...clean, conversionNeeded: true })).toBe('incidencia');
-		expect(resolveReviewState({ ...clean, qrMismatch: true })).toBe('incidencia');
+	it('is incidencia, kind lectura, when any other signal fires, independent of the total mismatch', () => {
+		expect(resolveReviewState({ ...clean, lowConfidenceAcked: true })).toEqual({ reviewState: 'incidencia', incidenceKind: 'lectura' });
+		expect(resolveReviewState({ ...clean, conversionNeeded: true })).toEqual({ reviewState: 'incidencia', incidenceKind: 'lectura' });
+		expect(resolveReviewState({ ...clean, qrMismatch: true })).toEqual({ reviewState: 'incidencia', incidenceKind: 'lectura' });
 	});
 });
 
@@ -75,7 +75,7 @@ describe('resolveReviewState composition as saveReviewedInvoice wires it (issue 
 		const signal = totalMismatchSignal(submitted, '100.00', true);
 		expect(signal).toBe(true);
 		expect(resolveReviewState({ lowConfidenceAcked: false, totalMismatch: signal, conversionNeeded: false, qrMismatch: false }))
-			.toBe('incidencia');
+			.toEqual({ reviewState: 'incidencia', incidenceKind: 'lectura' });
 	});
 
 	it('still catches a fresh mismatch the reviewer introduced, even without an extraction-time flag', () => {

@@ -18,6 +18,7 @@
   } from '$lib/invoice-filters';
   import ListPageTemplate from '$lib/components/mep/ListPageTemplate.svelte';
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
+  import IncidenceKindBadge from '$lib/components/mep/IncidenceKindBadge.svelte';
   import MobileInvoiceList from '$lib/components/mobile/MobileInvoiceList.svelte';
   import ConfirmDialog from '$lib/components/mep/ConfirmDialog.svelte';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
@@ -440,8 +441,9 @@
                 {fmtEur(inv.total_amount ?? 0, $locale)}
               </div>
 
-              <div class="max-[800px]:hidden">
+              <div class="max-[800px]:hidden flex items-center gap-1.5">
                 <StatusBadge status={inv.review_state ?? 'revisado'} />
+                <IncidenceKindBadge kind={inv.incidence_kind} small />
               </div>
 
               <div class="flex justify-end text-fg-3 transition-transform {expanded ? 'rotate-90' : ''}">

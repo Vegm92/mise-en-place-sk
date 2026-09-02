@@ -1,5 +1,6 @@
 <script lang="ts">
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
+  import IncidenceKindBadge from '$lib/components/mep/IncidenceKindBadge.svelte';
   import { fmtEur } from '$lib/formatters';
   import { locale, t, tcat, ti } from '$lib/i18n';
   import ScrollStrip from '$lib/components/mep/ScrollStrip.svelte';
@@ -17,6 +18,7 @@
     total_amount: number | null;
     display_amount?: number | null;
     review_state: string | null;
+    incidence_kind: string | null;
     invoice_date: string | null;
     line_items?: unknown[];
   }
@@ -305,6 +307,7 @@
                   </div>
                   <div style="display: flex; align-items: center; gap: 6px; margin-top: 3px;">
                     <StatusBadge status={inv.review_state ?? 'revisado'} style="font-size: 11px; padding: 1px 5px;" />
+                    <IncidenceKindBadge kind={inv.incidence_kind} small />
                     <span class="num" style="font-size: 11px; color: var(--mep-fg-3);">
                       {inv.invoice_number ?? '—'}
                     </span>
