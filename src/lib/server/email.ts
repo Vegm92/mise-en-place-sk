@@ -14,7 +14,7 @@ export type EmailKind =
 	| 'welcome' | 'waitlist_invite' | 'weekly_digest' | 'incidencia_digest'
 	| 'trial_expiry' | 'trial_expired' | 'subscription_confirmation' | 'subscription_consolidated'
 	| 'quota_warning' | 'verify_email' | 'password_reset' | 'access_approved' | 'promo_code_dispatch'
-	| 'recipe_sheet';
+	| 'recipe_sheet' | 'supplier_claim';
 
 export interface EmailPayload {
 	to: string;
@@ -53,6 +53,10 @@ function escapeHtml(value: string): string {
 
 function sanitizeForHeader(value: string): string {
 	return value.replace(/[\x00-\x1f\x7f]+/g, ' ').trim();
+}
+
+function preserveLineBreaks(value: string): string {
+	return escapeHtml(value).replace(/\r\n|\r|\n/g, '<br>');
 }
 
 function p(html: string): string {
@@ -525,6 +529,43 @@ export function changeEmailAddress(newEmail: string, confirmUrl: string): EmailP
 			bodyHtml: p(`Pediste cambiar el correo de tu cuenta de ${strong('Mise en Place')} a esta dirección. Confírmalo aquí:`),
 			cta: { href: confirmUrl, label: 'Confirmar nuevo correo' },
 			ctaNote: 'Este enlace caduca en 1 hora. Si no pediste este cambio, ignora este correo.',
+		}),
+	};
+}
+
+interface SupplierClaimLine {
+	description: string;
+	detail: string;
+}
+
+export function supplierClaimEmail(input: {
+	to: string;
+	subject: string;
+	bodyText: string;
+	restaurantName: string;
+	supplierName: string;
+	documentNumber: string;
+	documentDate: string;
+	lines: SupplierClaimLine[];
+}): EmailPayload {
+	const { to, subject, bodyText, restaurantName, supplierName, documentNumber, documentDate, lines } = input;
+	const restaurant = escapeHtml(restaurantName);
+	const supplier = escapeHtml(supplierName);
+	const document = escapeHtml(documentNumber);
+	const linesTable = lines.length > 0
+		? dataTable(['Línea', 'Detalle'], lines.map((l) => [l.description, l.detail]), 2)
+		: '';
+	return {
+		to,
+		kind: 'supplier_claim',
+		subject,
+		html: renderEmailLayout({
+			preheader: `Reclamación de ${restaurant} a ${supplier} sobre ${document}${documentDate ? ` del ${escapeHtml(documentDate)}` : ''}.`,
+			tagChip: 'Reclamación',
+			eyebrow: 'Reclamación al proveedor',
+			headline: `Incidencia en ${document}`,
+			bodyHtml: p(preserveLineBreaks(bodyText)) + linesTable,
+			signature: strong(restaurant),
 		}),
 	};
 }
