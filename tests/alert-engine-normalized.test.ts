@@ -13,11 +13,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 
 vi.mock('../src/lib/server/db', () => import('./helpers/mock-db'));
 
-import {
-	testSql, closeDb,
-	createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
-} from './helpers/test-db';
-import { runPriceShock, runStockForecast } from '../src/lib/server/alerts';
+import { testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv, runPriceShock, runStockForecast } from './helpers/alert-engine-fixtures';
 import type { EnrichedLineItem } from '../src/lib/server/products';
 
 const SUPPLIER = '__norm_test_supplier__';
