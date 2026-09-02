@@ -216,7 +216,7 @@ function claimEvent(invoiceId: number, formData: FormData, restaurantId = rid) {
 	} as never;
 }
 
-async function expectRedirect(action: Promise<unknown>): Promise<void> {
+async function expectRedirect(action: unknown): Promise<void> {
 	let caught: unknown;
 	try {
 		await action;
