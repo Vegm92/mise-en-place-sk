@@ -516,13 +516,19 @@ export async function resolveLineProducts(
 ): Promise<Map<string, ResolvedLine>> {
 	const out = new Map<string, ResolvedLine>();
 
+	const lineEntries = lines.map((l) => {
+		const raw = (l.description ?? '').trim();
+		const key = normalizeProductKey(raw);
+		return { desc: l.description ?? '', raw, key };
+	});
+
 	const byKey = new Map<string, {
 		raw: string; key: string; unit: string | null; category: string | null;
 		unitsPerPack: number | null; baseUnit: string | null; supplierSku: string | null;
 	}>();
-	for (const line of lines) {
-		const raw = (line.description ?? '').trim();
-		const key = normalizeProductKey(raw);
+	for (let i = 0; i < lines.length; i++) {
+		const line = lines[i];
+		const { raw, key } = lineEntries[i];
 		if (!key) continue;
 		if (!byKey.has(key)) {
 			byKey.set(key, {
@@ -540,9 +546,9 @@ export async function resolveLineProducts(
 
 	for (const { raw, key, unit, category, unitsPerPack, baseUnit, supplierSku } of byKey.values()) {
 		const resolved = await resolveOne(tx, restaurantId, supplierId, raw, key, unit, category, unitsPerPack, baseUnit, supplierSku);
-		for (const line of lines) {
-			if (normalizeProductKey((line.description ?? '').trim()) === key) {
-				out.set(line.description ?? '', resolved);
+		for (const entry of lineEntries) {
+			if (entry.key === key) {
+				out.set(entry.desc, resolved);
 			}
 		}
 	}
