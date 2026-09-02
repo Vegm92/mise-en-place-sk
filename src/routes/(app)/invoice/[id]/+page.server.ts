@@ -233,32 +233,6 @@ export const actions: Actions = {
 		const lines = buildClaimLines(locale, mismatch.missingInInvoice, mismatch.quantityMismatches);
 		const documentLabel = row.invoice_number ?? `#${id}`;
 		const documentDate = formatClaimDate(row.invoice_date, locale);
-
-		let alreadySent = false;
-		await db.transaction(async (tx) => {
-			await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`claim:${rid}:${id}`}))`);
-			const [existing] = await tx.select({ id: invoiceAuditLog.id })
-				.from(invoiceAuditLog)
-				.where(tdb.scope(invoiceAuditLog.restaurantId, and(
-					eq(invoiceAuditLog.invoiceId, id),
-					eq(invoiceAuditLog.action, CLAIM_AUDIT_ACTION),
-				)!))
-				.limit(1);
-			if (existing) {
-				alreadySent = true;
-				return;
-			}
-			await tx.insert(invoiceAuditLog).values({
-				restaurantId: rid,
-				invoiceId:    id,
-				action:       CLAIM_AUDIT_ACTION,
-				userId:       uid,
-				reason:       subject,
-				snapshot:     JSON.stringify({ to, subject, body }),
-			});
-		});
-		if (alreadySent) return fail(409, { claim: 'alreadySent' });
-
 		const payload = supplierClaimEmail({
 			to, subject, bodyText: body,
 			restaurantName: rName,
@@ -267,11 +241,36 @@ export const actions: Actions = {
 			documentDate,
 			lines,
 		});
+
+		let alreadySent = false;
 		try {
-			await sendEmail(payload);
+			await db.transaction(async (tx) => {
+				await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`claim:${rid}:${id}`}))`);
+				const [existing] = await tx.select({ id: invoiceAuditLog.id })
+					.from(invoiceAuditLog)
+					.where(tdb.scope(invoiceAuditLog.restaurantId, and(
+						eq(invoiceAuditLog.invoiceId, id),
+						eq(invoiceAuditLog.action, CLAIM_AUDIT_ACTION),
+					)!))
+					.limit(1);
+				if (existing) {
+					alreadySent = true;
+					return;
+				}
+				await sendEmail(payload);
+				await tx.insert(invoiceAuditLog).values({
+					restaurantId: rid,
+					invoiceId:    id,
+					action:       CLAIM_AUDIT_ACTION,
+					userId:       uid,
+					reason:       subject,
+					snapshot:     JSON.stringify({ to, subject, body }),
+				});
+			});
 		} catch {
 			return fail(502, { claim: 'sendFailed' });
 		}
+		if (alreadySent) return fail(409, { claim: 'alreadySent' });
 
 		redirect(303, `/invoice/${id}`);
 	},
