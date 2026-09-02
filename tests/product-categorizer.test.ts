@@ -186,27 +186,17 @@ describe.skipIf(!hasDbEnv)('processCategorizeJob', () => {
 	});
 
 	it('leaves the product uncategorised (not stamped "Other") when the verdict names a category this restaurant has hidden (issue #881 part 2)', async () => {
-		const other = await createTestRestaurant('categorizer-hidden');
+		const rows = await listCategories(rid, {}, testDb);
+		const fruit = rows.find((c) => c.name === 'Frutas y Verduras')!;
+		await setCategoryHidden(rid, fruit.id, true, testDb);
 		try {
-			const rows = await listCategories(other.id, {}, testDb);
-			const fruit = rows.find((c) => c.name === 'Frutas y Verduras')!;
-			await setCategoryHidden(other.id, fruit.id, true, testDb);
-
-			const [row] = await testSql`
-				INSERT INTO products (restaurant_id, canonical_name, name_key, category)
-				VALUES (${other.id}, 'Tomate pera', 'tomate pera', NULL)
-				RETURNING id
-			`;
-			const id = Number(row.id);
-
-			await processCategorizeJob(
-				{ restaurantId: other.id, productId: id, canonicalName: 'Tomate pera' },
-				{ provider: fakeProvider('{"category": "Frutas y Verduras", "confidence": 0.92}'), recordUsage: vi.fn(async () => {}) },
-			);
-
+			const id = await seedProduct('Tomate pera', null);
+			const jobData = { restaurantId: rid, productId: id, canonicalName: 'Tomate pera' } as const;
+			const verdict = { provider: fakeProvider('{"category": "Frutas y Verduras", "confidence": 0.92}'), recordUsage: vi.fn(async () => {}) };
+			await processCategorizeJob(jobData, verdict);
 			expect(await categoryOf(id)).toBeNull();
 		} finally {
-			await cleanupTestRestaurant(other.id);
+			await setCategoryHidden(rid, fruit.id, false, testDb);
 		}
 	});
 
