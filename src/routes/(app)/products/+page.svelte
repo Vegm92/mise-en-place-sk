@@ -15,11 +15,13 @@
   import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
+  import Download from '@lucide/svelte/icons/download';
 
   type ConversionPrompt = PageData['conversionPrompts'][number];
 
   const { data, form }: { data: PageData; form: ActionData } = $props();
   const { products, suggestions, conversionPrompts, categories, sort } = $derived(data);
+  const hasInventoryTemplate = $derived(data.features.inventoryTemplate);
 
   function setSort(next: string) {
     goto(productSortHref(next as ProductSortKey, page.url.searchParams), { keepFocus: true, noScroll: true });
@@ -117,6 +119,7 @@
     conversionPrompts={conversionPrompts}
     categories={categories}
     sort={sort}
+    features={data.features}
     onSortChange={setSort}
     onRespondSuggestion={respondSuggestion}
     onSaveConversion={saveConversion}
@@ -219,6 +222,16 @@
                 </select>
                 <span class="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-fg-3 text-[11px]">▾</span>
               </div>
+
+              <a href="/products/inventory-template" data-sveltekit-reload
+                class="btn btn-secondary gap-1.5"
+                title={$t('prod.inventoryTemplate.tooltip')}>
+                <Download size={13} />
+                {$t('prod.inventoryTemplate.link')}
+                {#if !hasInventoryTemplate}
+                  <span class="badge badge-neutral border border-border">{$t('nav.badge.pro')}</span>
+                {/if}
+              </a>
             </div>
           {/if}
         </div>

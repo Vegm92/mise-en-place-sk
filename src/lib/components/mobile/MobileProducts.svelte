@@ -3,8 +3,10 @@
   import { t, tcat, ti, locale } from '$lib/i18n';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
+  import Download from '@lucide/svelte/icons/download';
   import ScrollStrip from '$lib/components/mep/ScrollStrip.svelte';
   import type { ConversionPrompt } from '$lib/server/products';
+  import type { TierConfig } from '$lib/server/billing';
   import { PRODUCT_SORT_KEYS, type ProductSortKey } from '$lib/product-filters';
   import { formatYoyPct } from '$lib/formatters';
 
@@ -27,6 +29,7 @@
     conversionPrompts,
     categories,
     sort,
+    features,
     onSortChange,
     onRespondSuggestion,
     onSaveConversion,
@@ -36,6 +39,7 @@
     conversionPrompts: ConversionPrompt[];
     categories: string[];
     sort: ProductSortKey;
+    features: TierConfig['features'];
     onSortChange?: (next: string) => void;
     onRespondSuggestion?: (id: number, action: 'confirm' | 'reject', description: string) => void;
     onSaveConversion?: (prompt: ConversionPrompt, canonicalUnit: string, factor: string) => void;
@@ -123,6 +127,18 @@
           <option value={key}>{$t(`prod.sort.${key}`)}</option>
         {/each}
       </select>
+    </div>
+
+    <div class="px-[18px] pb-2.5">
+      <a href="/products/inventory-template" data-sveltekit-reload
+        class="btn btn-secondary w-full justify-center gap-1.5"
+        title={$t('prod.inventoryTemplate.tooltip')}>
+        <Download size={13} />
+        {$t('prod.inventoryTemplate.link')}
+        {#if !features.inventoryTemplate}
+          <span class="badge badge-neutral border border-border">{$t('nav.badge.pro')}</span>
+        {/if}
+      </a>
     </div>
 
     <ScrollStrip label={$t('prod.col.category')} extraStyle="flex-shrink:0;">
