@@ -16,29 +16,18 @@
  * the ratchet: the numbers may go down, never up.
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
-
-const ROOT = path.resolve(__dirname, '..');
-const SRC = path.join(ROOT, 'src');
+import { ROOT, svelteFiles } from './helpers/svelte-sources';
 
 /** Lower these as the drift is paid down. Never raise them. */
-const BUDGET = { fontSize: 368, borderRadius: 82 };
+const BUDGET = { fontSize: 352, borderRadius: 77 };
 
 const TYPE_SCALE = new Set(['11px', '13px', '16px', '20px', '24px', '32px']);
 const RADIUS_SCALE = new Set([
 	'4px', '6px', '10px', '999px',
 	'var(--mep-r-tag)', 'var(--mep-r-input)', 'var(--mep-r-card)', 'var(--mep-r-pill)',
 ]);
-
-function walk(dir: string, out: string[] = []): string[] {
-	for (const entry of readdirSync(dir)) {
-		const full = path.join(dir, entry);
-		if (statSync(full).isDirectory()) walk(full, out);
-		else if (entry.endsWith('.svelte')) out.push(full);
-	}
-	return out;
-}
 
 type Offender = { file: string; value: string };
 
@@ -56,7 +45,7 @@ function inlineDeclarations(src: string): Array<{ key: string; value: string }> 
 
 function offScale(prop: string, scale: Set<string>): Offender[] {
 	const found: Offender[] = [];
-	for (const file of walk(SRC)) {
+	for (const file of svelteFiles()) {
 		for (const { key, value } of inlineDeclarations(readFileSync(file, 'utf8'))) {
 			// Interpolated values are computed at runtime — not a scale choice.
 			if (key !== prop || value.includes('{')) continue;

@@ -80,6 +80,9 @@ jobs:
       - name: Lint — no new form.get()/formData.get() `as` casts (issue #844)
         run: pnpm lint:form-get-cast
 
+      - name: Lint — inline var(--mep-*) styles stay under the ratchet (issue #845)
+        run: pnpm lint:inline-styles
+
       - name: Lint — no hardcoded user-facing strings
         run: pnpm lint:i18n
 
