@@ -3,8 +3,7 @@
   import { t } from '$lib/i18n';
   import AdminPageHead from '$lib/components/admin/AdminPageHead.svelte';
   import AdminStatusBadge from '$lib/components/admin/AdminStatusBadge.svelte';
-  import AdminKpiCard from '$lib/components/admin/AdminKpiCard.svelte';
-  import SectionCard from '$lib/components/mep/SectionCard.svelte';
+  import HudPanel from '$lib/components/admin/HudPanel.svelte';
   import AdminTableScroll from '$lib/components/admin/AdminTableScroll.svelte';
   let { data }: { data: PageData } = $props();
 
@@ -15,59 +14,69 @@
 
 <AdminPageHead route="/admin/errors" title={$t('admin.errors')} subtitle={$t('admin.errorsSubtitle')} />
 
-<div class="px-3 md:px-6" style="padding-bottom:24px;display:flex;flex-direction:column;gap:14px;">
+<div class="hud-page px-3 md:px-6 pb-6 flex flex-col gap-2.5">
 
   {#if !data.configured}
-    <div class="card" style="padding:14px 16px;font-size:13px;color:var(--mep-fg-2);">
+    <div style="background:#0a0c11;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:14px 16px;font-size:13px;color:#5b6472;">
       {$t('admin.errorsNotConfigured')}
     </div>
   {:else}
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;">
-      <AdminKpiCard label={$t('admin.errorsUnresolved')} value={data.summary?.unresolvedCount ?? 0}
-        valueColor={(data.summary?.unresolvedCount ?? 0) > 0 ? 'text-warn' : 'text-fg'} />
-      <AdminKpiCard label={$t('admin.errorsCritical')} value={data.summary?.criticalCount ?? 0}
-        valueColor={(data.summary?.criticalCount ?? 0) > 0 ? 'text-neg' : 'text-fg'} />
-      <AdminKpiCard label={$t('admin.errorsUsersAffected')} value={data.summary?.usersAffected ?? 0} />
-    </div>
+    <HudPanel title={$t('admin.errors')}>
+      <div class="hud-kpi-row">
+        <div class="hud-kpi">
+          <div class="hud-kpi-label">{$t('admin.errorsUnresolved')}</div>
+          <div class="hud-kpi-value" class:warn={(data.summary?.unresolvedCount ?? 0) > 0}>{data.summary?.unresolvedCount ?? 0}</div>
+        </div>
+        <div class="hud-kpi">
+          <div class="hud-kpi-label">{$t('admin.errorsCritical')}</div>
+          <div class="hud-kpi-value" class:bad={(data.summary?.criticalCount ?? 0) > 0}>{data.summary?.criticalCount ?? 0}</div>
+        </div>
+        <div class="hud-kpi">
+          <div class="hud-kpi-label">{$t('admin.errorsUsersAffected')}</div>
+          <div class="hud-kpi-value">{data.summary?.usersAffected ?? 0}</div>
+        </div>
+      </div>
+    </HudPanel>
 
-    <SectionCard title={$t('admin.errorsTableTitle')} noPad
-      href={`https://${data.sentryOrg}.sentry.io/issues/?project=${data.sentryProject}&query=is%3Aunresolved`}
-      actionLabel={$t('admin.errorsOpenInSentry')}>
+    <HudPanel title={$t('admin.errorsTableTitle')}>
+      <div class="flex justify-end px-3 pt-2">
+        <a href={`https://${data.sentryOrg}.sentry.io/issues/?project=${data.sentryProject}&query=is%3Aunresolved`}
+          target="_blank" rel="noopener noreferrer" class="text-acc no-underline text-[12px]">{$t('admin.errorsOpenInSentry')}</a>
+      </div>
       <AdminTableScroll>
-        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <table class="hud-table">
           <thead>
-            <tr style="border-bottom:1px solid var(--mep-divider);">
-              <th scope="col" style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colIssue')}</th>
-              <th scope="col" style="padding:10px 16px;text-align:center;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colLevel')}</th>
-              <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colEvents')}</th>
-              <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colUsers')}</th>
-              <th scope="col" style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colLastSeen')}</th>
+            <tr>
+              <th scope="col" class="l">{$t('admin.colIssue')}</th>
+              <th scope="col" class="l">{$t('admin.colLevel')}</th>
+              <th scope="col" class="r">{$t('admin.colEvents')}</th>
+              <th scope="col" class="r">{$t('admin.colUsers')}</th>
+              <th scope="col" class="l">{$t('admin.colLastSeen')}</th>
             </tr>
           </thead>
           <tbody>
             {#each data.issues ?? [] as issue (issue.id)}
-              <tr style="border-bottom:1px solid var(--mep-divider);">
-                <td style="padding:9px 16px;">
-                  <a href={issue.permalink} target="_blank" rel="noopener noreferrer"
-                    style="color:var(--mep-fg);text-decoration:none;font-weight:500;">{issue.title}</a>
+              <tr>
+                <td>
+                  <a href={issue.permalink} target="_blank" rel="noopener noreferrer" class="no-underline" style="color:#e7edf5;font-weight:500;">{issue.title}</a>
                   {#if issue.culprit}
-                    <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:2px;">{issue.culprit}</div>
+                    <div class="dim" style="margin-top:2px;">{issue.culprit}</div>
                   {/if}
                 </td>
-                <td style="padding:9px 16px;text-align:center;"><AdminStatusBadge status={LEVEL_STATUS[issue.level] ?? 'warn'} /></td>
-                <td style="padding:9px 16px;text-align:right;color:var(--mep-fg-2);" class="num">{issue.count.toLocaleString('en-US')}</td>
-                <td style="padding:9px 16px;text-align:right;color:var(--mep-fg-2);" class="num">{issue.userCount.toLocaleString('en-US')}</td>
-                <td style="padding:9px 16px;color:var(--mep-fg-2);font-size:12px;white-space:nowrap;">{new Date(issue.lastSeen).toLocaleString('en-GB')}</td>
+                <td><AdminStatusBadge status={LEVEL_STATUS[issue.level] ?? 'warn'} /></td>
+                <td class="num r dim">{issue.count.toLocaleString('en-US')}</td>
+                <td class="num r dim">{issue.userCount.toLocaleString('en-US')}</td>
+                <td class="dim nowrap">{new Date(issue.lastSeen).toLocaleString('en-GB')}</td>
               </tr>
             {:else}
-              <tr><td colspan="5" style="padding:16px;text-align:center;color:var(--mep-fg-3);">{$t('admin.errorsNone')}</td></tr>
+              <tr><td colspan="5" class="empty">{$t('admin.errorsNone')}</td></tr>
             {/each}
           </tbody>
         </table>
       </AdminTableScroll>
-    </SectionCard>
+    </HudPanel>
   {/if}
 
-  <a href="/admin" style="font-size:13px;color:var(--mep-acc);text-decoration:none;">{$t('admin.backToOverview')}</a>
+  <a href="/admin" class="text-[13px] text-acc no-underline">{$t('admin.backToOverview')}</a>
 
 </div>

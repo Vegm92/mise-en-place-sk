@@ -2,20 +2,9 @@
   import type { PageData } from './$types';
   import { t, ti } from '$lib/i18n';
   import AdminPageHead from '$lib/components/admin/AdminPageHead.svelte';
-  import SectionCard from '$lib/components/mep/SectionCard.svelte';
+  import HudPanel from '$lib/components/admin/HudPanel.svelte';
   import AdminTableScroll from '$lib/components/admin/AdminTableScroll.svelte';
   let { data }: { data: PageData } = $props();
-
-  const STATUS_COLOR: Record<string, string> = {
-    pending:  'var(--mep-warn)',
-    resolved: 'var(--mep-pos)',
-    dismissed: 'var(--mep-fg-3)',
-  };
-  const STATUS_BG: Record<string, string> = {
-    pending:  'var(--mep-warn-soft)',
-    resolved: 'var(--mep-pos-soft)',
-    dismissed: 'var(--mep-hover)',
-  };
 
   function buildUrl(params: Record<string, string | number>) {
     const sp = new URLSearchParams();
@@ -30,7 +19,7 @@
   {/snippet}
 </AdminPageHead>
 
-<div class="px-3 md:px-6" style="padding-bottom:24px;display:flex;flex-direction:column;gap:16px;">
+<div class="hud-page px-3 md:px-6 pb-6 flex flex-col gap-2.5">
 
   <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
     <span style="font-size:12px;color:var(--mep-fg-3);">{$t('admin.typeLabel')}</span>
@@ -46,44 +35,38 @@
     {/each}
   </div>
 
-  <SectionCard title={$t('admin.events')} noPad>
+  <HudPanel title={$t('admin.events')}>
     <AdminTableScroll>
-      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <table class="hud-table">
         <thead>
-          <tr style="border-bottom:1px solid var(--mep-divider);">
-            <th scope="col" style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colType')}</th>
-            <th scope="col" style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colMessage')}</th>
-            <th scope="col" style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colRestaurant')}</th>
-            <th scope="col" style="padding:10px 16px;text-align:center;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colStatus')}</th>
-            <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colDate')}</th>
+          <tr>
+            <th scope="col" class="l">{$t('admin.colType')}</th>
+            <th scope="col" class="l">{$t('admin.colMessage')}</th>
+            <th scope="col" class="l">{$t('admin.colRestaurant')}</th>
+            <th scope="col" class="l">{$t('admin.colStatus')}</th>
+            <th scope="col" class="r">{$t('admin.colDate')}</th>
           </tr>
         </thead>
         <tbody>
           {#each data.events as ev}
-            <tr style="border-bottom:1px solid var(--mep-divider);">
-              <td style="padding:9px 16px;">
-                <code style="font-size:11px;background:var(--mep-surface-2);padding:2px 6px;border-radius:3px;color:var(--mep-fg-2);">{ev.notification_type}</code>
-              </td>
-              <td style="padding:9px 16px;color:var(--mep-fg);max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{ev.message}</td>
-              <td style="padding:9px 16px;color:var(--mep-fg-2);font-size:12px;">{ev.restaurant_name ?? '—'}</td>
-              <td style="padding:9px 16px;text-align:center;">
-                <span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:{STATUS_BG[ev.status] ?? 'var(--mep-hover)'};color:{STATUS_COLOR[ev.status] ?? 'var(--mep-fg-3)'};">
-                  {ev.status}
-                </span>
-              </td>
-              <td style="padding:9px 16px;text-align:right;color:var(--mep-fg-3);font-size:12px;white-space:nowrap;">
+            <tr>
+              <td class="mono dim">{ev.notification_type}</td>
+              <td class="nowrap" style="max-width:360px;overflow:hidden;text-overflow:ellipsis;">{ev.message}</td>
+              <td class="dim">{ev.restaurant_name ?? '—'}</td>
+              <td class="mono" class:good={ev.status === 'resolved'} class:warn={ev.status === 'pending'} class:dim={ev.status === 'dismissed'}>{ev.status}</td>
+              <td class="num r dim nowrap">
                 {new Date(ev.created_at).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
               </td>
             </tr>
           {:else}
             <tr>
-              <td colspan="5" style="padding:32px 16px;text-align:center;color:var(--mep-fg-4);">{$t('admin.noEvents')}</td>
+              <td colspan="5" class="empty">{$t('admin.noEvents')}</td>
             </tr>
           {/each}
         </tbody>
       </table>
     </AdminTableScroll>
-  </SectionCard>
+  </HudPanel>
 
   {#if data.totalPages > 1}
     <div style="display:flex;gap:6px;align-items:center;justify-content:center;">
