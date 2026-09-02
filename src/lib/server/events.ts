@@ -7,8 +7,8 @@ export function trackEvent(
 	restaurantId: string,
 	payload?: Record<string, unknown>,
 	invoiceId?: number | null,
-): void {
-	db.insert(systemNotifications)
+): Promise<void> {
+	return db.insert(systemNotifications)
 		.values({
 			restaurantId,
 			notificationType: event,
@@ -17,6 +17,7 @@ export function trackEvent(
 			invoiceId: invoiceId ?? null,
 			status: 'logged',
 		})
+		.then(() => {})
 		.catch((e) => {
 			console.error('[trackEvent] insert failed', e);
 			Sentry.captureException(e);

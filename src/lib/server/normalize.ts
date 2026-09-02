@@ -1,10 +1,28 @@
+const DIACRITICS_RE = /[\u0300-\u036f]/g;
+const WHITESPACE_RE = /\s+/g;
+const DOTS_SPACES_RE = /[.\s]/g;
+const PUNCT_RE = /[.,]/g;
+const TRAILING_DOTS_RE = /(?<!\.)\.+$/;
+
+const NORM_KEY_CACHE_MAX = 4000;
+const normKeyCache = new Map<string, string>();
+
 export function normalizeProductKey(raw: string): string {
-	return raw
+	let cached = normKeyCache.get(raw);
+	if (cached !== undefined) return cached;
+
+	cached = raw
 		.normalize('NFD')
-		.replace(/[\u0300-\u036f]/g, '')
+		.replace(DIACRITICS_RE, '')
 		.toLowerCase()
-		.replace(/\s+/g, ' ')
+		.replace(WHITESPACE_RE, ' ')
 		.trim();
+
+	if (normKeyCache.size >= NORM_KEY_CACHE_MAX) {
+		normKeyCache.clear();
+	}
+	normKeyCache.set(raw, cached);
+	return cached;
 }
 
 const SPANISH_LEGAL_FORM_TOKENS: string[][] = [
@@ -35,18 +53,13 @@ export interface ParsedSupplierName {
 }
 
 export function parseSupplierName(raw: string): ParsedSupplierName {
-	const cleaned = raw
-		.normalize('NFD')
-		.replace(/[\u0300-\u036f]/g, '')
-		.toLowerCase()
-		.replace(/\s+/g, ' ')
-		.trim();
+	const cleaned = normalizeProductKey(raw);
 	const match = cleaned.match(SPANISH_LEGAL_FORM_RE);
-	const legalForm = match ? match[1].replace(/[.\s]/g, '') : null;
+	const legalForm = match ? match[1].replace(DOTS_SPACES_RE, '') : null;
 	const base = cleaned
 		.replace(SPANISH_LEGAL_FORM_RE, '')
-		.replace(/[.,]/g, ' ')
-		.replace(/\s+/g, ' ')
+		.replace(PUNCT_RE, ' ')
+		.replace(WHITESPACE_RE, ' ')
 		.trim();
 	return { base, legalForm };
 }
@@ -114,7 +127,7 @@ for (const [canonical, variants] of Object.entries(UNIT_GROUPS)) {
 
 export function canonicalizeUnit(raw: string | null | undefined): string | null {
 	if (!raw) return null;
-	const key = normalizeProductKey(String(raw)).replace(/(?<!\.)\.+$/, '');
+	const key = normalizeProductKey(String(raw)).replace(TRAILING_DOTS_RE, '');
 	if (!key) return null;
 	return UNIT_SYNONYMS.get(key) ?? null;
 }
