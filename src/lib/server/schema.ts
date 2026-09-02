@@ -46,8 +46,22 @@ export const suppliers = pgTable('suppliers', {
 	paymentTerms:       text('payment_terms'),
 	notes:              text('notes'),
 	outstandingBalance: numeric('outstanding_balance', { precision: 12, scale: 2 }),
+	normalizedCif:      text('normalized_cif'),
 }, (t) => [
 	uniqueIndex('uq_suppliers_rid_name').on(t.restaurantId, sql`lower(${t.name})`),
+	index('suppliers_rid_normalized_cif_idx').on(t.restaurantId, t.normalizedCif).where(sql`${t.normalizedCif} IS NOT NULL`),
+]);
+
+export const supplierAliases = pgTable('supplier_aliases', {
+	id:             serial('id').primaryKey(),
+	restaurantId:   uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
+	supplierId:     integer('supplier_id').notNull().references(() => suppliers.id, { onDelete: 'cascade' }),
+	name:           text('name').notNull(),
+	normalizedName: text('normalized_name').notNull(),
+	createdAt:      timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (t) => [
+	uniqueIndex('uq_supplier_aliases_rid_normalized_name').on(t.restaurantId, t.normalizedName),
+	index('supplier_aliases_supplier_idx').on(t.restaurantId, t.supplierId),
 ]);
 
 export const invoices = pgTable('invoices', {

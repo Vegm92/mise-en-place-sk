@@ -470,6 +470,13 @@
       "when": 1788354261024,
       "tag": "0066_loud_edwin_jarvis",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1788362653499,
+      "tag": "0067_supplier_identity",
+      "breakpoints": true
     }
   ]
 }
