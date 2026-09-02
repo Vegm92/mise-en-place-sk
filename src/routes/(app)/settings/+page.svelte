@@ -109,6 +109,9 @@
     { key: 'billing.settings.link', section: 'cuenta' },
     { key: 'set.profile.restaurant', section: 'negocio' },
     { key: 'set.business.currencyLabel', section: 'negocio' },
+    { key: 'set.fiscal.legalName', section: 'negocio' },
+    { key: 'set.fiscal.cifNif', section: 'negocio' },
+    { key: 'set.fiscal.address', section: 'negocio' },
     ...(showLocations ? [{ key: 'set.locations.title', section: 'negocio' }] : []),
     { key: 'set.fields.title', section: 'campos' },
     ...data.optionalFields.map((field) => ({ key: `set.fields.label.${field}`, section: 'campos' })),
@@ -323,6 +326,78 @@
               <span class="badge badge-neutral">{$t('set.business.currencyFixed')}</span>
             </div>
           </div>
+        </SectionCard>
+
+        <SectionCard title={$t('set.fiscal.title')} sub={$t('set.fiscal.sub')} noPad>
+          {#if data.canRenameRestaurant}
+            <div class="set-row">
+              <label for="{idp}-fiscal-legal-name" class="set-lbl">
+                <span class="set-lbl-name">{$t('set.fiscal.legalName')}</span>
+                <span class="set-lbl-hint">{$t('set.fiscal.legalNameHint')}</span>
+              </label>
+              <div>
+                <input id="{idp}-fiscal-legal-name" name="legalName" type="text" maxlength="200"
+                  form="{idp}-form-fiscal" value={data.fiscalIdentity.legalName} class="input set-input" />
+              </div>
+            </div>
+
+            <div class="set-row">
+              <label for="{idp}-fiscal-cif" class="set-lbl">
+                <span class="set-lbl-name">{$t('set.fiscal.cifNif')}</span>
+                <span class="set-lbl-hint">{$t('set.fiscal.cifNifHint')}</span>
+              </label>
+              <div>
+                <input id="{idp}-fiscal-cif" name="cifNif" type="text" maxlength="20" autocapitalize="characters"
+                  form="{idp}-form-fiscal" value={data.fiscalIdentity.cifNif} class="input set-input" />
+              </div>
+            </div>
+
+            <div class="set-row">
+              <label for="{idp}-fiscal-address" class="set-lbl">
+                <span class="set-lbl-name">{$t('set.fiscal.address')}</span>
+                <span class="set-lbl-hint">{$t('set.fiscal.addressHint')}</span>
+              </label>
+              <div>
+                <input id="{idp}-fiscal-address" name="fiscalAddress" type="text" maxlength="300"
+                  form="{idp}-form-fiscal" value={data.fiscalIdentity.fiscalAddress} class="input set-input" />
+              </div>
+            </div>
+
+            <div class="set-row">
+              <span class="set-lbl"></span>
+              <div>
+                <button type="submit" class="btn btn-primary" form="{idp}-form-fiscal">{$t('set.fiscal.save')}</button>
+                {@render feedbackLine('fiscal')}
+              </div>
+            </div>
+          {:else}
+            <div class="set-row">
+              <span class="set-lbl">
+                <span class="set-lbl-name">{$t('set.fiscal.legalName')}</span>
+                <span class="set-lbl-hint">{$t('set.fiscal.legalNameHint')}</span>
+              </span>
+              <div>
+                <span class="set-value">{data.fiscalIdentity.legalName || $t('set.fiscal.empty')}</span>
+                <p class="set-lbl-hint set-msg">{$t('set.business.nameReadonlyHint')}</p>
+              </div>
+            </div>
+
+            <div class="set-row">
+              <span class="set-lbl">
+                <span class="set-lbl-name">{$t('set.fiscal.cifNif')}</span>
+                <span class="set-lbl-hint">{$t('set.fiscal.cifNifHint')}</span>
+              </span>
+              <div><span class="set-value">{data.fiscalIdentity.cifNif || $t('set.fiscal.empty')}</span></div>
+            </div>
+
+            <div class="set-row">
+              <span class="set-lbl">
+                <span class="set-lbl-name">{$t('set.fiscal.address')}</span>
+                <span class="set-lbl-hint">{$t('set.fiscal.addressHint')}</span>
+              </span>
+              <div><span class="set-value">{data.fiscalIdentity.fiscalAddress || $t('set.fiscal.empty')}</span></div>
+            </div>
+          {/if}
         </SectionCard>
 
         {#if showLocations}
@@ -769,10 +844,12 @@
 
 <form method="POST" action="?/saveName" id="d-form-cuenta"></form>
 <form method="POST" action="?/renameRestaurant" id="d-form-negocio"></form>
+<form method="POST" action="?/saveFiscalIdentity" id="d-form-fiscal"></form>
 <form method="POST" action="?/saveFieldVisibility" id="d-form-campos"></form>
 <form method="POST" action="?/saveAlertPreferences" id="d-form-alertas"></form>
 <form method="POST" action="?/saveName" id="m-form-cuenta"></form>
 <form method="POST" action="?/renameRestaurant" id="m-form-negocio"></form>
+<form method="POST" action="?/saveFiscalIdentity" id="m-form-fiscal"></form>
 <form method="POST" action="?/saveFieldVisibility" id="m-form-campos"></form>
 <form method="POST" action="?/saveAlertPreferences" id="m-form-alertas"></form>
 
