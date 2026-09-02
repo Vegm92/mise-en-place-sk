@@ -37,13 +37,24 @@ describe('fmtSize', () => {
     expect(fmtSize(512)).toBe('512 B');
   });
   it('formats kilobytes', () => {
-    expect(fmtSize(2048)).toBe('2.0 KB');
+    expect(fmtSize(2048)).toBe('2,0 KB');
   });
   it('formats megabytes', () => {
-    expect(fmtSize(1024 * 1024 * 2.5)).toBe('2.5 MB');
+    expect(fmtSize(1024 * 1024 * 2.5)).toBe('2,5 MB');
   });
   it('boundary: exactly 1024 bytes is 1.0 KB', () => {
-    expect(fmtSize(1024)).toBe('1.0 KB');
+    expect(fmtSize(1024)).toBe('1,0 KB');
+  });
+  // The bug this replaced: toFixed(1) emitted an English decimal point in both
+  // locales. Spanish gets a comma, en-GB keeps the point.
+  it('uses the locale decimal separator', () => {
+    expect(fmtSize(1536 * 1024, 'es')).toBe('1,5 MB');
+    expect(fmtSize(1536 * 1024, 'en')).toBe('1.5 MB');
+  });
+  // Magnitudes stay binary so a file at MAX_UPLOAD_BYTES reads as the same
+  // "20 MB" the limit message quotes.
+  it('keeps binary magnitudes', () => {
+    expect(fmtSize(20 * 1024 * 1024, 'en')).toBe('20.0 MB');
   });
 });
 

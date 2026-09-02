@@ -27,16 +27,12 @@ import { previewLineProducts, listProductOptions } from '$lib/server/products';
 import { releaseMonthlyExtraction } from '$lib/server/llm-quota';
 import type { ProductMatch, ProductOption } from '$lib/server/products';
 import { loadFieldVisibility } from '$lib/server/field-visibility';
+import { fmtSize, type Locale } from '$lib/formatters';
+import { LOCALE_COOKIE, resolveLocale } from '$lib/server/locale';
 
 async function refundIfNeverExtracted(item: BatchItem, reason: string): Promise<void> {
 	if (!isRefundableOnCancel(item.status)) return;
 	await releaseMonthlyExtraction(item.restaurantId, item.id, reason);
-}
-
-function humanSize(bytes: number): string {
-	if (bytes < 1024) return `${bytes} B`;
-	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-	return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
 function fileType(ext: string): string {
@@ -44,11 +40,11 @@ function fileType(ext: string): string {
 	return (e === 'jpeg' ? 'jpg' : e).toUpperCase();
 }
 
-function statSize(fileKey: string): string {
+function statSize(fileKey: string, locale: Locale): string {
 	if (STORAGE_DRIVER !== 'local') return '—';
 	try {
 		const fp = localFilePath(fileKey);
-		if (fs.existsSync(fp)) return humanSize(fs.statSync(fp).size);
+		if (fs.existsSync(fp)) return fmtSize(fs.statSync(fp).size, locale);
 	} catch {
 	}
 	return '—';
@@ -159,10 +155,11 @@ async function loadProductMatches(
 	}
 }
 
-export const load: PageServerLoad = async ({ params, locals, url }) => {
+export const load: PageServerLoad = async ({ params, locals, url, cookies }) => {
 	return handleLoad('batch', async () => {
 		const items = await reapedItems(params.id, locals);
 		const fieldVisibility = await loadFieldVisibility(locals.restaurantId!);
+		const { locale } = resolveLocale(url, cookies.get(LOCALE_COOKIE));
 
 		const open = items.filter(i => i.status !== 'confirmed' && i.status !== 'discarded');
 		if (!open.length) redirect(303, '/');
@@ -172,7 +169,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 			.map(i => ({
 				id: i.id,
 				name: i.displayName,
-				size: statSize(i.fileKey),
+				size: statSize(i.fileKey, locale),
 				type: fileType(path.extname(i.displayName)),
 				status: i.status,
 				error: i.extractError ?? null,

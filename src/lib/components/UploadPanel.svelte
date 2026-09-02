@@ -31,7 +31,7 @@
   import Camera from '@lucide/svelte/icons/camera';
   import WifiOff from '@lucide/svelte/icons/wifi-off';
   import Lock from '@lucide/svelte/icons/lock';
-  import { t, ti, tp } from '$lib/i18n';
+  import { t, ti, tp, locale } from '$lib/i18n';
   import FlowSteps from '$lib/components/mep/FlowSteps.svelte';
   import FileTypeBadge from '$lib/components/FileTypeBadge.svelte';
   import ConfirmDialog from '$lib/components/mep/ConfirmDialog.svelte';
@@ -499,7 +499,7 @@
               <FileTypeBadge kind={kind === 'pdf' ? 'pdf' : 'other'} label={kind === 'pdf' ? 'PDF' : kind === 'zip' ? 'ZIP' : 'IMG'} size="sm" />
               <div style="flex:1;min-width:0;">
                 <div style="font-size:12.5px;font-weight:500;color:var(--mep-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{f.name}</div>
-                <div class="num" style="font-size:11px;color:var(--mep-fg-3);">{fmtSize(f.size)}</div>
+                <div class="num" style="font-size:11px;color:var(--mep-fg-3);">{fmtSize(f.size, $locale)}</div>
                 {#if isLikelyDuplicate(f.name)}
                   <div style="font-size:11px;color:var(--mep-neg);">{$t('upload.possibleDuplicate')}</div>
                 {/if}
@@ -695,7 +695,7 @@
               <FileTypeBadge kind={kind === 'pdf' ? 'pdf' : 'other'} label={kind === 'pdf' ? 'PDF' : kind === 'zip' ? 'ZIP' : 'IMG'} size="lg" />
               <div style="flex:1;min-width:0;">
                 <div style="font-size:12.5px;font-weight:500;color:var(--mep-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{f.name}</div>
-                <div class="num" style="font-size:11px;color:var(--mep-fg-3);">{fmtSize(f.size)}</div>
+                <div class="num" style="font-size:11px;color:var(--mep-fg-3);">{fmtSize(f.size, $locale)}</div>
                 {#if isLikelyDuplicate(f.name)}
                   <div style="font-size:11px;color:var(--mep-neg);">{$t('upload.possibleDuplicate')}</div>
                 {/if}
@@ -805,7 +805,7 @@
       </div>
       {#if previewFile}
         <div style="font-size:12px;color:var(--mep-fg-3);text-align:center;">
-          {previewFile.name} · {fmtSize(previewFile.size)}
+          {previewFile.name} · {fmtSize(previewFile.size, $locale)}
         </div>
       {/if}
       <button

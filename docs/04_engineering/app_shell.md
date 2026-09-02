@@ -373,6 +373,25 @@ the inventory template, issue #885) is a different route entirely.
 
 **`const numberFormatters` / `const dateTimeFormatters`**
 - Module-level `Map` caches for `Intl.NumberFormat` and `Intl.DateTimeFormat` instances, avoiding repeated expensive object construction on thousands of format calls across list and dashboard renders (~30-50x speedup).
+**`function fmtSize`**
+- A file size for display: "512 B", "1,5 MB".
+- Magnitudes are **binary** (1 KB = 1024 B) deliberately. The upload limits this
+  renders next to are declared in binary as well — `MAX_UPLOAD_BYTES = 20 * 1024 * 1024`
+  in `src/lib/upload-formats.ts`, surfaced to the user as "20 MB" by
+  `upload.imageTooLarge`. Decimal magnitudes (issue #852's other option) would print a
+  file sitting exactly on the limit as "21.0 MB" next to a "máx. 20 MB" error, which
+  reads as a bug. The labels stay `KB`/`MB` rather than `KiB`/`MiB` for the same
+  reason: they have to match the limit messages.
+- The **separator is locale-aware**, which is the part that was wrong (issue #852). The
+  previous implementation ended in `.toFixed(1)`, so Spanish sessions saw an
+  English-formatted "1.5 MB" where the locale requires "1,5 MB" — every other number in
+  the UI already went through `Intl`. It now formats through the shared
+  `numberFormatters` cache and takes a `locale`, defaulting to `es` like the rest of
+  this module.
+- Callers must pass the active locale: `$locale` in components (`UploadPanel.svelte`),
+  the resolved request locale on the server (`(app)/batch/[id]/+page.server.ts`, which
+  had a second hand-rolled copy of this function carrying the same bug).
+
 **`function fmtEur`**
 - Full precision EUR: 1234.56 → "1.234,56 €".
 **`function fmtEurCompact`**
