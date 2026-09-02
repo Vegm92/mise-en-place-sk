@@ -659,7 +659,7 @@ function relatedDocumentAlert(params: {
 				matchedTotalAmount: match.totalAmount,
 				totalAmount,
 				...(isRelated ? { lineOverlapRatio: overlapRatio } : {}),
-				messageKey,
+				messageKey: messageKey,
 				messageVars: vars,
 			},
 		}],
