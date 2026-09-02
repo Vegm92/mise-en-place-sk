@@ -329,24 +329,55 @@ describe('resolveTaxBreakdown (the form is authoritative once it posts bands)', 
 });
 
 describe('resolveTotalsBreakdown (gross/discount/retention, issue #916)', () => {
+  function form(entries: Array<[string, string]>): FormData {
+    const fd = new FormData();
+    for (const [k, v] of entries) fd.append(k, v);
+    return fd;
+  }
+
   it('reads gross, discount and retention straight from the extraction', () => {
     const extracted = {
       gross_amount: 1000, discount_amount: 50, retention_rate: 0.15, retention_amount: 142.5,
     };
-    expect(resolveTotalsBreakdown(extracted)).toEqual({
+    expect(resolveTotalsBreakdown(form([]), extracted)).toEqual({
       grossAmount: '1000.00', discountAmount: '50.00', retentionRate: 0.15, retentionAmount: '142.50',
     });
   });
 
   it('yields nulls when the extraction carries none of these fields', () => {
-    expect(resolveTotalsBreakdown({ tax_base: 500 })).toEqual({
+    expect(resolveTotalsBreakdown(form([]), { tax_base: 500 })).toEqual({
       grossAmount: null, discountAmount: null, retentionRate: null, retentionAmount: null,
     });
   });
 
   it('yields nulls when there is no extraction at all', () => {
-    expect(resolveTotalsBreakdown(undefined)).toEqual({
+    expect(resolveTotalsBreakdown(form([]), undefined)).toEqual({
       grossAmount: null, discountAmount: null, retentionRate: null, retentionAmount: null,
+    });
+  });
+
+  it('prefers a reviewer-submitted correction over the extraction (issue #916 review fix)', () => {
+    const extracted = {
+      gross_amount: 1000, discount_amount: 50, retention_rate: 0.15, retention_amount: 142.5,
+    };
+    const fd = form([
+      ['discount_amount', '75.00'],
+      ['retention_rate', '0.19'],
+      ['retention_amount', '190.00'],
+    ]);
+    expect(resolveTotalsBreakdown(fd, extracted)).toEqual({
+      grossAmount: '1000.00', discountAmount: '75.00', retentionRate: 0.19, retentionAmount: '190.00',
+    });
+  });
+
+  it('lets a reviewer enter these fields for a manually-entered invoice with no extraction at all', () => {
+    const fd = form([
+      ['discount_amount', '10.00'],
+      ['retention_rate', '0.07'],
+      ['retention_amount', '20.00'],
+    ]);
+    expect(resolveTotalsBreakdown(fd, undefined)).toEqual({
+      grossAmount: null, discountAmount: '10.00', retentionRate: 0.07, retentionAmount: '20.00',
     });
   });
 });
