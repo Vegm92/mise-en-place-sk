@@ -8,7 +8,7 @@ import { computeAndCacheReliabilityScore } from '$lib/server/supplier-reliabilit
 import { resolveSupplierCategoryAlerts } from '$lib/server/alerts';
 import { toCents, moneyToNumber, moneyToNullableNumber } from '$lib/server/money';
 import { requirePositiveIntId } from '$lib/server/route-params';
-import { normalizeIban } from '$lib/iban';
+import { normalizeIban, isValidIban } from '$lib/iban';
 
 const VALID_TABS = ['resumen', 'albaranes', 'productos', 'conversiones'] as const;
 type Tab = typeof VALID_TABS[number];
@@ -153,6 +153,7 @@ export const actions: Actions = {
 		const notes        = String(data.get('notes') ?? '').trim() || null;
 
 		if (!name) error(400, 'Name is required');
+		if (iban && !isValidIban(iban)) error(400, 'Invalid IBAN');
 
 		const cat = (await selectableCategoryNames(rid)).includes(category) ? category : null;
 

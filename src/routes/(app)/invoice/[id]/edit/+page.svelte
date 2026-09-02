@@ -4,6 +4,7 @@
   import { initRows, addRow, removeRow, updateRow, calcTotal } from '$lib/invoice-items';
   import type { Row } from '$lib/invoice-items';
   import { t } from '$lib/i18n';
+  import { PAYMENT_METHODS } from '$lib/constants';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -84,6 +85,20 @@
           <label class="label" for="edit-total">{$t('field.totalAmount')}</label>
           <input id="edit-total" type="text" name="total_amount" value={totalAmountDisplay != null ? totalAmountDisplay.toFixed(2) : ''}
             class="input" style="height:36px;" />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="label" for="edit-payment-method">{$t('field.paymentMethod')}</label>
+          <select id="edit-payment-method" name="payment_method" class="input" style="height:36px;">
+            <option value="" selected={!invoice.payment_method}>{$t('field.paymentMethod.unknown')}</option>
+            {#each PAYMENT_METHODS as method}
+              <option value={method} selected={invoice.payment_method === method}>{$t(`field.paymentMethod.${method}`)}</option>
+            {/each}
+          </select>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="label" for="edit-payment-terms">{$t('field.paymentTerms')}</label>
+          <input id="edit-payment-terms" type="text" name="payment_terms" maxlength={100}
+            value={invoice.payment_terms ?? ''} class="input" style="height:36px;" />
         </div>
         <div class="col-span-1 md:col-span-2 flex flex-col gap-1">
           <label class="label" for="edit-notes">

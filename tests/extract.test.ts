@@ -466,3 +466,43 @@ describe('sanitizeExtractedInvoice — free-text field sanitation (issue #466)',
     expect(result.supplier_name!.length).toBeLessThanOrEqual(200);
   });
 });
+
+// Issue #915: a document that prints forma de pago, IBAN and vencimiento
+// (due date) together — the three payment fields sanitizeExtractedInvoice
+// must carry through (or flag) as a set, not just individually.
+describe('sanitizeExtractedInvoice — payment fields fixture (issue #915)', () => {
+  const PAYMENT_FIXTURE = {
+    ...MOCK_INVOICE_DATA,
+    payment_method: 'transferencia',
+    iban: 'ES91 2100 0418 4502 0005 1332',
+    payment_terms: '30 días',
+    due_date: '2024-02-15',
+    field_confidences: { iban: 0.95 },
+  };
+
+  it('keeps a valid IBAN, payment method and due date at full confidence', () => {
+    const result = sanitizeExtractedInvoice(PAYMENT_FIXTURE);
+    expect(result.payment_method).toBe('transferencia');
+    expect(result.iban).toBe('ES9121000418450200051332');
+    expect(result.payment_terms).toBe('30 días');
+    expect(result.due_date).toBe('2024-02-15');
+    expect(result.field_confidences?.iban).toBe(0.95);
+  });
+
+  it('discards an unrecognised payment method rather than storing a free-text guess', () => {
+    const result = sanitizeExtractedInvoice({ ...PAYMENT_FIXTURE, payment_method: 'bizum' });
+    expect(result.payment_method).toBeNull();
+  });
+
+  it('keeps a malformed IBAN but downgrades its field confidence to flag it for review', () => {
+    const result = sanitizeExtractedInvoice({ ...PAYMENT_FIXTURE, iban: 'ES0021000418450200051332' });
+    expect(result.iban).toBe('ES0021000418450200051332');
+    expect(result.field_confidences?.iban).toBe(0.5);
+  });
+
+  it('leaves iban and its confidence untouched when not printed', () => {
+    const result = sanitizeExtractedInvoice({ ...PAYMENT_FIXTURE, iban: null });
+    expect(result.iban).toBeNull();
+    expect(result.field_confidences?.iban).toBe(0.95);
+  });
+});

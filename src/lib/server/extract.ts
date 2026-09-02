@@ -158,7 +158,7 @@ scores high; a guess from two ambiguous line items on a crisp scan scores low.
 
 QR code: If you can see and decode a QR code on the document, return the full decoded URL in the "qr_url" field. Spanish VERI*FACTU invoices carry an AEAT verification URL (e.g. https://www2.agenciatributaria.es/wlpl/TIKE-CONT/ValidarQR?nif=...&numserie=...&fecha=...&importe=...). If no QR is visible or decodable, set qr_url to null.`;
 
-export const EXTRACTION_PROMPT_REVISION = 'v2';
+export const EXTRACTION_PROMPT_REVISION = 'v3';
 
 export const EXTRACTION_PROMPT_VERSION =
 	`${EXTRACTION_PROMPT_REVISION}-${createHash('sha256').update(EXTRACTION_PROMPT).digest('hex').slice(0, 12)}`;

@@ -45,6 +45,7 @@ const BASELINE = {
 	supplier_nif: 'B12345678',
 	supplier_email: 'pedidos@frutasgarcia.es',
 	supplier_phone: '600123456',
+	iban: 'ES9121000418450200051332',
 	invoice_number: 'F-2026-118',
 	document_type: 'factura',
 	invoice_date: '2026-08-14',
@@ -107,9 +108,11 @@ describe('anonymizeExtraction', () => {
 		expect(anonymized.supplier_email).toBe('[redacted]');
 		expect(anonymized.supplier_phone).toBe('[redacted]');
 		expect(anonymized.supplier_nif).toBe('[redacted]');
+		expect(anonymized.iban).toBe('[redacted]');
 		expect(anonymized.supplier_name).toBe(BASELINE.supplier_name);
 		expect(anonymized.line_items).toEqual(BASELINE.line_items);
 		expect(BASELINE.supplier_email).toBe('pedidos@frutasgarcia.es');
+		expect(BASELINE.iban).toBe('ES9121000418450200051332');
 	});
 });
 

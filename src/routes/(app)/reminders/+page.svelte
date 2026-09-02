@@ -6,7 +6,7 @@
   import MobileAlerts from '$lib/components/mobile/MobileAlerts.svelte';
   import IncidenceKindBadge from '$lib/components/mep/IncidenceKindBadge.svelte';
   import Check from '@lucide/svelte/icons/check';
-  import { groupNotifications, type Notif } from '$lib/notification-display';
+  import { groupNotifications, paymentLine, type Notif } from '$lib/notification-display';
 
   let { data }: { data: PageData } = $props();
 
@@ -88,13 +88,6 @@
     !data.incidencias.length && notifItems.length === 0
   );
 
-  function paymentLine(method: string | null, iban: string | null): string | null {
-    const label = method ? $t(`field.paymentMethod.${method}`) : null;
-    const ibanShort = iban ? `${iban.slice(0, 4)} …` : null;
-    if (label && ibanShort) return `${$t('rem.payBy')} ${label} · ${ibanShort}`;
-    if (label) return `${$t('rem.payBy')} ${label}`;
-    return ibanShort;
-  }
 </script>
 
 <div class="md:hidden" style="height:100%;overflow:hidden;">
@@ -135,8 +128,8 @@
               <div class="min-w-0">
               <p class="body-strong overflow-hidden text-ellipsis whitespace-nowrap">{r.supplier_name ?? '—'}</p>
               <p class="body text-fg-3" style="font-size:12px;margin-top:2px;">{r.invoice_number ?? '—'}</p>
-              {#if paymentLine(r.payment_method, r.iban)}
-                <p class="body text-fg-3" style="margin-top:2px;">{paymentLine(r.payment_method, r.iban)}</p>
+              {#if paymentLine(r.payment_method, r.iban, $t)}
+                <p class="body text-fg-3" style="margin-top:2px;">{paymentLine(r.payment_method, r.iban, $t)}</p>
               {/if}
             </div>
             <p class="num font-semibold text-right" style="font-size:13px;">{Math.round(r.display_amount)} EUR</p>

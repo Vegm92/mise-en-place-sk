@@ -11,6 +11,7 @@ import { isBlankOrIsoDate, toIsoDate } from '$lib/server/dates';
 import { parseLineInputs, enrichLineItems, computeFormContentHash, linkProductsToInvoice, findInvalidMonetaryField } from '$lib/server/invoice-save';
 import { reevaluateInvoiceAlerts } from '$lib/server/alerts';
 import { requirePositiveIntId } from '$lib/server/route-params';
+import { isValidPaymentMethod } from '$lib/constants';
 import type { TaxBand } from '$lib/tax';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -49,7 +50,8 @@ async function executeEditTransaction(
 	tx: Tx, tdb: TenantDb, id: number, rid: string, uid: string,
 	idemKey: string | null, supplierName: string, invoiceNumber: string | null,
 	invoiceDate: string | null, dueDate: string | null, totalAmount: string | null,
-	notes: string | null, contentHash: string, expectedVersion: number,
+	notes: string | null, paymentMethod: string | null, paymentTerms: string | null,
+	contentHash: string, expectedVersion: number,
 	enrichedLines: Awaited<ReturnType<typeof enrichLineItems>>,
 ): Promise<{ conflict: EditConflict; savedSupplierId: number | null; documentType: 'factura' | 'albaran' | null }> {
 	if (idemKey && !(await claimRequest(idemKey, rid, tx))) {
@@ -68,7 +70,10 @@ async function executeEditTransaction(
 		return { conflict: 'duplicate', savedSupplierId: null, documentType };
 	}
 	const updated = await tx.update(invoices)
-		.set({ supplierId, invoiceNumber, invoiceDate, dueDate, totalAmount, notes, contentHash, version: sql`${invoices.version} + 1` })
+		.set({
+			supplierId, invoiceNumber, invoiceDate, dueDate, totalAmount, notes,
+			paymentMethod, paymentTerms, contentHash, version: sql`${invoices.version} + 1`,
+		})
 		.where(and(tdb.scope(invoices.restaurantId, eq(invoices.id, id)), eq(invoices.version, expectedVersion)))
 		.returning({ id: invoices.id });
 	if (updated.length === 0) {
@@ -107,6 +112,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				status:         invoices.status,
 				source_file:    invoices.sourceFile,
 				notes:          invoices.notes,
+				payment_method: invoices.paymentMethod,
+				payment_terms:  invoices.paymentTerms,
 				created_at:     invoices.createdAt,
 				version:        invoices.version,
 			})
@@ -165,6 +172,9 @@ export const actions: Actions = {
 		const dueDate       = toIsoDate(dueDateRaw);
 		const totalAmount   = toMoneyString(data.get('total_amount') as string | null);
 		const notes         = String(data.get('notes') ?? '').slice(0, 250) || null;
+		const paymentMethodRaw = data.get('payment_method');
+		const paymentMethod = isValidPaymentMethod(paymentMethodRaw) ? paymentMethodRaw : null;
+		const paymentTerms  = String(data.get('payment_terms') ?? '').trim().slice(0, 100) || null;
 
 		const expectedVersion = Number(data.get('version'));
 		if (!Number.isInteger(expectedVersion) || expectedVersion < 1) {
@@ -188,7 +198,8 @@ export const actions: Actions = {
 		await db.transaction(async (tx) => {
 			({ conflict, savedSupplierId, documentType } = await executeEditTransaction(
 				tx, tdb, id, rid, uid, idemKey, supplierName, invoiceNumber,
-				invoiceDate, dueDate, totalAmount, notes, contentHash, expectedVersion, enrichedLines,
+				invoiceDate, dueDate, totalAmount, notes, paymentMethod, paymentTerms,
+				contentHash, expectedVersion, enrichedLines,
 			));
 		});
 

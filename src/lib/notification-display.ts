@@ -17,6 +17,18 @@ export type Notif = {
   createdAt: Date | null;
 };
 
+export function paymentLine(
+	method: string | null,
+	iban: string | null,
+	tt: (key: string) => string,
+): string | null {
+	const label = method ? tt(`field.paymentMethod.${method}`) : null;
+	const ibanShort = iban ? `${iban.slice(0, 4)} …` : null;
+	if (label && ibanShort) return `${tt('rem.payBy')} ${label} · ${ibanShort}`;
+	if (label) return `${tt('rem.payBy')} ${label}`;
+	return ibanShort;
+}
+
 export function notificationMessage(
   n: { message: string; payload: unknown },
   tiv: (key: string, vars: Record<string, string | number>) => string,

@@ -1,8 +1,9 @@
 const IBAN_RE = /^[A-Z]{2}\d{2}[A-Z0-9]{1,30}$/;
+const LABEL_PREFIX_RE = /^(IBAN|CCC)/;
 
 export function normalizeIban(raw: string | null | undefined): string | null {
 	if (!raw) return null;
-	const stripped = raw.toUpperCase().replace(/[^0-9A-Z]/g, '');
+	const stripped = raw.toUpperCase().replace(/[^0-9A-Z]/g, '').replace(LABEL_PREFIX_RE, '');
 	return stripped || null;
 }
 

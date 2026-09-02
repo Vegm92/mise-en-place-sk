@@ -278,7 +278,7 @@ Quota, access, classification, JSON shape, error classification.
 
 **`function parseFacturae322`**
 
-- Payment terms live in PaymentDetails, omitted for Phase 1.
+- Payment method and IBAN come from `PaymentDetails/Installment` (`PaymentMeans` code, `AccountToBeCredited/IBAN`). Payment terms (a free-text due-date/schedule description) have no dedicated Facturae element and stay omitted — `einvoiceResult` hardcodes `payment_terms: null` for both e-invoice formats (issue #915).
 
 **`function parseUbl21Invoice`**
 
@@ -316,6 +316,7 @@ Quota, access, classification, JSON shape, error classification.
 - Category the model proposes (#315) — raw output, never trusted; run through `resolveCategory` before `suppliers.category`. e-invoicing extensions (optional): `supplier_nif`, `qr_url` (AEAT/TicketBAI verification URL), `qr_mismatch` (QR vs AI conflict), `e_invoice_format` ('facturae_322' | 'ubl_21').
 - `receiver_name` / `receiver_nif` / `receiver_address` (issue #905) are the *other* party, the one being billed. The prompt used to name the cliente only to tell the model to ignore it, which made "which of these two is the supplier?" a decision taken inside the model with no way to check it — and on a document with no emisor/cliente labels it picked wrong, storing the restaurant itself as a new supplier. Reporting both parties moves that decision to `party.ts`, where the restaurant's own tax id can settle it.
 - `field_confidences` now scores `supplier_nif`, `receiver_name` and `receiver_nif` as well. The receiver scores are what a swap carries onto the supplier fields, so without them a corrected pair would land with confidences describing the wrong party.
+- `payment_method` / `iban` / `payment_terms` (issue #915) describe how and where to pay the supplier — `payment_method` is one of `PAYMENT_METHODS` (`$lib/constants`) or null, `iban` is normalized (`$lib/iban`) but not rejected when the mod-97 checksum fails: `sanitizeExtractedInvoice` keeps the printed value and drops `field_confidences.iban` to 0.5 so a bad read stays visible instead of vanishing. `payment_terms` is free text, capped like the other free-text fields.
 
 **`type GenerateFn`**
 

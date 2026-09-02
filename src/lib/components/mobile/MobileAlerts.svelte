@@ -5,7 +5,7 @@
   import { fmtEurCompact } from '$lib/formatters';
   import NotificationItem from '$lib/components/mep/NotificationItem.svelte';
   import IncidenceKindBadge from '$lib/components/mep/IncidenceKindBadge.svelte';
-  import { groupNotifications, type Notif } from '$lib/notification-display';
+  import { groupNotifications, paymentLine, type Notif } from '$lib/notification-display';
 
   interface Incidencia {
     id: number;
@@ -40,14 +40,6 @@
 
   function fmtAmount(n: number) {
     return fmtEurCompact(n, $locale);
-  }
-
-  function paymentLine(method: string | null, iban: string | null): string | null {
-    const label = method ? $t(`field.paymentMethod.${method}`) : null;
-    const ibanShort = iban ? `${iban.slice(0, 4)} …` : null;
-    if (label && ibanShort) return `${$t('rem.payBy')} ${label} · ${ibanShort}`;
-    if (label) return `${$t('rem.payBy')} ${label}`;
-    return ibanShort;
   }
 
   const notifGroupList = $derived([
@@ -89,9 +81,9 @@
                       <div class="num" style="font-size: 11.5px; color: var(--mep-fg-3); margin-top: 2px;">
                         {r.invoice_number ?? '—'}
                       </div>
-                      {#if paymentLine(r.payment_method, r.iban)}
+                      {#if paymentLine(r.payment_method, r.iban, $t)}
                         <div class="text-fg-3" style="font-size: 11px; margin-top: 2px;">
-                          {paymentLine(r.payment_method, r.iban)}
+                          {paymentLine(r.payment_method, r.iban, $t)}
                         </div>
                       {/if}
                     </div>
