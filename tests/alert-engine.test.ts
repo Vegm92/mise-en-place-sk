@@ -43,7 +43,7 @@ vi.mock('../src/lib/server/db', () => {
 });
 
 import { db } from '../src/lib/server/db';
-import { runPriceShock, runStockForecast } from '../src/lib/server/alert-engine';
+import { runPriceShock, runStockForecast } from '../src/lib/server/alerts';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 

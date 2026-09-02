@@ -1,3 +1,8 @@
+---
+tags: [mep, operations]
+related: "[[CONTEXT]]"
+---
+
 # Orchestrator backlog state — mise-en-place-sk
 
 Maintained by the autonomous issue orchestrator. Statuses: PENDING | IN_PROGRESS | DONE | BLOCKED | OBSOLETE | DEFERRED.

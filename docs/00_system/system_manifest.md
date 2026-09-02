@@ -1,3 +1,8 @@
+---
+tags: [mep, system]
+related: "[[CONTEXT]]"
+---
+
 # System Manifest — Mise en Place
 
 The AI's map of the repository. Read this first to locate any subsystem; it is a

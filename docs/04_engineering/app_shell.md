@@ -1,3 +1,8 @@
+---
+tags: [mep, engineering]
+related: "[[CONTEXT]]"
+---
+
 # App Shell
 
 The authenticated app shell (`(app)` route group), the public waitlist page, and the

@@ -10,17 +10,9 @@
  */
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 
-vi.mock('../src/lib/server/db', async () => {
-	const { testDb } = await import('./helpers/test-db');
-	const { forTenant } = await import('../src/lib/server/tenant');
-	return { db: testDb, forTenant };
-});
+vi.mock('../src/lib/server/db', () => import('./helpers/mock-db'));
 
-import {
-	testSql, closeDb,
-	createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
-} from './helpers/test-db';
-import { runPriceShock } from '../src/lib/server/alert-engine';
+import { runPriceShock, hasDbEnv, testSql, closeDb, createTestRestaurant, cleanupTestRestaurant } from './helpers/alert-engine-fixtures';
 import { parsePack, normalizedUnitPrice, type EnrichedLineItem } from '../src/lib/server/products';
 import { normalizeProductKey } from '../src/lib/server/normalize';
 

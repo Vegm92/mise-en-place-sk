@@ -1,3 +1,8 @@
+---
+tags: [mep, engineering]
+related: "[[CONTEXT]]"
+---
+
 # Testing Strategy
 
 What exists today (verified on `main`), what CI runs, and where coverage is

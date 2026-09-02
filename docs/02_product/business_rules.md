@@ -1,3 +1,8 @@
+---
+tags: [mep, product]
+related: "[[CONTEXT]]"
+---
+
 # Business Rules
 
 The product rules the implementation actually enforces. Thresholds are exact and

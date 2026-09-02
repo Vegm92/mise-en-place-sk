@@ -1,3 +1,8 @@
+---
+tags: [mep, features]
+related: "[[CONTEXT]]"
+---
+
 # Feature Spec — WhatsApp (invoice ingestion channel)
 
 ## Purpose

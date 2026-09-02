@@ -1,3 +1,8 @@
+---
+tags: [mep, features]
+related: "[[CONTEXT]]"
+---
+
 # Ajustes y Ayuda
 
 Fuentes de diseño de `/settings` y `/help`. Cada `.dc.html` es una lámina

@@ -1,3 +1,8 @@
+---
+tags: [mep, ai]
+related: "[[CONTEXT]]"
+---
+
 # Specification Audit
 
 How to decide what a doc/code mismatch means. When a document and the code
