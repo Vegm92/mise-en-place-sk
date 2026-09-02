@@ -16,6 +16,7 @@ export async function getOrCreateSupplierId(
 	exec: BatchDb = db,
 	category: string = UNCATEGORIZED_CATEGORY,
 	contact: SupplierContactInfo = {},
+	contactTrusted: boolean = true,
 ): Promise<number> {
 	const trimmed = name.trim();
 	const resolved = VALID_CATEGORIES.includes(category) ? category : UNCATEGORIZED_CATEGORY;
@@ -23,6 +24,10 @@ export async function getOrCreateSupplierId(
 	const email = contact.email?.trim() || null;
 	const phone = contact.phone?.trim() || null;
 	const address = contact.address?.trim() || null;
+	const mergeCif = contactTrusted ? cif : null;
+	const mergeEmail = contactTrusted ? email : null;
+	const mergePhone = contactTrusted ? phone : null;
+	const mergeAddress = contactTrusted ? address : null;
 	const rows = await exec.execute<{ id: number }>(sql`
 		INSERT INTO suppliers (restaurant_id, name, category, cif, contact_email, contact_phone, address)
 		VALUES (${restaurantId}, ${trimmed}, ${resolved}, ${cif}, ${email}, ${phone}, ${address})
@@ -30,10 +35,10 @@ export async function getOrCreateSupplierId(
 		DO UPDATE SET
 			name = suppliers.name,
 			category = CASE WHEN suppliers.category IS NULL THEN EXCLUDED.category ELSE suppliers.category END,
-			cif = COALESCE(suppliers.cif, EXCLUDED.cif),
-			contact_email = COALESCE(suppliers.contact_email, EXCLUDED.contact_email),
-			contact_phone = COALESCE(suppliers.contact_phone, EXCLUDED.contact_phone),
-			address = COALESCE(suppliers.address, EXCLUDED.address)
+			cif = COALESCE(suppliers.cif, ${mergeCif}),
+			contact_email = COALESCE(suppliers.contact_email, ${mergeEmail}),
+			contact_phone = COALESCE(suppliers.contact_phone, ${mergePhone}),
+			address = COALESCE(suppliers.address, ${mergeAddress})
 		RETURNING id
 	`);
 	return rows[0].id;
