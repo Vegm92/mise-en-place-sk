@@ -12,7 +12,9 @@ import {
 } from './helpers/test-db';
 import {
 	resolveLineProducts, confirmProductAlias, rejectProductAlias, mergeIntoProduct, FUZZY_THRESHOLD,
+	loadCatalogYoyChangeMap,
 } from '../src/lib/server/products';
+import { sortProducts } from '../src/lib/product-filters';
 
 let rid = '';
 let supplierId: number | null = null;
@@ -261,5 +263,47 @@ describe.skipIf(!hasDbEnv)('mergeIntoProduct (issue #300)', () => {
 		await resolveLineProducts(testDb, rid, supplierId, [{ description: 'Sardina', unit: 'kg' }]);
 		const res = await mergeIntoProduct(testDb, rid, 'Sardina', 2_000_000_000);
 		expect(res).toEqual({ ok: false, reason: 'not_found' });
+	});
+});
+
+describe.skipIf(!hasDbEnv)('loadCatalogYoyChangeMap — current vs previous calendar year (issue #884)', () => {
+	it('computes yoy_change_pct per product and feeds sort=yoy_desc (largest move first)', async () => {
+		const thisYear = new Date().getFullYear();
+		const lastYear = thisYear - 1;
+
+		const up = await resolveLineProducts(testDb, rid, supplierId, [{ description: 'Aceite de oliva 884', unit: 'L' }]);
+		const upPid = up.get('Aceite de oliva 884')!.productId;
+		const down = await resolveLineProducts(testDb, rid, supplierId, [{ description: 'Harina de trigo 884', unit: 'kg' }]);
+		const downPid = down.get('Harina de trigo 884')!.productId;
+		const onlyThisYear = await resolveLineProducts(testDb, rid, supplierId, [{ description: 'Sal fina 884', unit: 'kg' }]);
+		const onlyThisYearPid = onlyThisYear.get('Sal fina 884')!.productId;
+
+		async function seedYearlyPrice(year: number, productId: number, unitPrice: number, unit: string) {
+			const [inv] = await testSql`
+				INSERT INTO invoices (restaurant_id, status, invoice_date)
+				VALUES (${rid}, 'pending', ${`${year}-03-15`}) RETURNING id`;
+			await testSql`
+				INSERT INTO invoice_line_items (invoice_id, restaurant_id, description, unit, unit_price, normalized_unit_price, product_id)
+				VALUES (${inv.id}, ${rid}, 'x', ${unit}, ${unitPrice}, ${unitPrice}, ${productId})`;
+		}
+
+		await seedYearlyPrice(lastYear, upPid, 8, 'L');
+		await seedYearlyPrice(thisYear, upPid, 10, 'L'); // +25%
+		await seedYearlyPrice(lastYear, downPid, 10, 'kg');
+		await seedYearlyPrice(thisYear, downPid, 6, 'kg'); // -40%
+		await seedYearlyPrice(thisYear, onlyThisYearPid, 4, 'kg'); // no previous year → null
+
+		const yoyMap = await loadCatalogYoyChangeMap(testDb, rid, thisYear);
+		expect(yoyMap.get(upPid)).toBe(25);
+		expect(yoyMap.get(downPid)).toBe(-40);
+		expect(yoyMap.get(onlyThisYearPid)).toBeNull();
+
+		const products = [
+			{ id: upPid,           yoyChangePct: yoyMap.get(upPid) ?? null },
+			{ id: downPid,         yoyChangePct: yoyMap.get(downPid) ?? null },
+			{ id: onlyThisYearPid, yoyChangePct: yoyMap.get(onlyThisYearPid) ?? null },
+		];
+		expect(sortProducts(products, 'yoy_desc').map(p => p.id)).toEqual([downPid, upPid, onlyThisYearPid]);
+		expect(sortProducts(products, 'name').map(p => p.id)).toEqual([upPid, downPid, onlyThisYearPid]);
 	});
 });

@@ -5,9 +5,10 @@ import { periodRange } from '$lib/server/period-range';
 import { db } from '$lib/server/db';
 import { sql } from 'drizzle-orm';
 import { normalizeProductKey } from '$lib/server/normalize';
-import { loadConversionPrompts } from '$lib/server/products';
+import { loadConversionPrompts, loadCatalogYoyChangeMap } from '$lib/server/products';
 import { VALID_CATEGORIES } from '$lib/constants';
 import { rateLimitScoped } from '$lib/server/rate-limit-scope';
+import { parseProductSort, sortProducts } from '$lib/product-filters';
 
 type ProductRow = {
 	id: number;
@@ -29,9 +30,11 @@ type SuggestionRow = {
 export const load: PageServerLoad = async ({ url, locals, parent }) => {
 	const rid = locals.restaurantId!;
 	const { rangeFrom, rangeTo } = await parent?.() ?? periodRange(url);
+	const sort = parseProductSort(url.searchParams);
+	const currentYear = new Date().getFullYear();
 
 	return handleLoad('products', async () => {
-		const [products, suggestionRows, trendRows, conversionPrompts] = await Promise.all([
+		const [products, suggestionRows, trendRows, conversionPrompts, yoyByProduct] = await Promise.all([
 			db.execute<ProductRow>(sql`
 				SELECT p.id, p.canonical_name, p.category, p.canonical_unit, p.units_per_pack, p.base_unit,
 				       (SELECT count(DISTINCT a.supplier_id) FROM product_aliases a
@@ -60,6 +63,7 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 			`),
 
 			loadConversionPrompts(db, rid),
+			loadCatalogYoyChangeMap(db, rid, currentYear),
 		]);
 
 		const suggestions = suggestionRows.map((row) => {
@@ -83,20 +87,24 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 			}],
 		};
 
+		const mappedProducts = products.map((p) => ({
+			id:            p.id,
+			canonicalName: p.canonical_name,
+			category:      p.category,
+			canonicalUnit: p.canonical_unit,
+			unitsPerPack:  p.units_per_pack,
+			baseUnit:      p.base_unit,
+			supplierCount: p.supplier_count,
+			aliasCount:    p.alias_count,
+			needsConversion: p.canonical_unit != null && p.units_per_pack == null,
+			yoyChangePct:  yoyByProduct.get(p.id) ?? null,
+		}));
+
 		return {
 			title: 'nav.products',
 			trendData,
-			products: products.map((p) => ({
-				id:            p.id,
-				canonicalName: p.canonical_name,
-				category:      p.category,
-				canonicalUnit: p.canonical_unit,
-				unitsPerPack:  p.units_per_pack,
-				baseUnit:      p.base_unit,
-				supplierCount: p.supplier_count,
-				aliasCount:    p.alias_count,
-				needsConversion: p.canonical_unit != null && p.units_per_pack == null,
-			})),
+			products: sortProducts(mappedProducts, sort),
+			sort,
 			suggestions,
 			conversionPrompts,
 			categories: VALID_CATEGORIES,

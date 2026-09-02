@@ -54,6 +54,19 @@ time (normalized units, pack-aware prices) and the catalog is user-curatable.
 - **User actions** (`products.ts:404-458`): confirm/reject alias (reject splits
   product), merge (deletes orphan), unlink supplier, delete (refuses while
   linked to line items).
+- **Year-over-year price comparison** (issue #884): both the product detail
+  page and the catalog show how a product's price moved against the same
+  calendar year a year earlier, so whoever runs the season-start inventory
+  can renegotiate with hard numbers instead of memory. The comparison prefers
+  `normalizedUnitPrice` (€/base unit, ADR-009) so packs of different sizes
+  stay comparable; it falls back to the raw `unitPrice` only when *both*
+  years lack a normalized price and share the same raw unit, and is left
+  `null` (shown as "—") for a single year, a gap year, a zero previous price,
+  or genuinely mixed units — it never compares a normalized price with a raw
+  one. The catalog additionally exposes `sort=yoy_desc`, ordering by the
+  largest absolute change first (an increase or a decrease is equally worth a
+  supplier conversation) with `null` last; the default order is untouched
+  when `sort` is absent.
 - **Category** (ADR-027): a product's category is its own, not the supplier's.
   A product is created with `category = NULL` and the async
   `categorize-product` job (`processCategorizeJob`) proposes one value from
@@ -90,9 +103,11 @@ n/a for products (rows/aliases mutate); notifications go `pending → sent`.
 
 `products/+page.svelte` (catalog warning + suggestions-tab conversion prompts),
 `products/[id]/+page.svelte`, `NotificationItem.svelte`
-(product suggestion CTAs). The Products list page is a single responsive
-component built on `ListPageTemplate` — it has no separate Mobile*/Desktop*
-variants (ADR-020).
+(product suggestion CTAs). The product *list* has a dedicated mobile
+component (`MobileProducts.svelte`, ADR-020) rendered alongside the desktop
+`ListPageTemplate` layout — CSS picks which shows. The product *detail* page
+(`products/[id]/+page.svelte`) has no separate Mobile*/Desktop* variant: one
+template covers both.
 
 ## Background dependencies
 
@@ -150,12 +165,18 @@ candidates (never arbitrary ids).
   `unit_conversion_needed` alert; defining one from there stores a tenant-scoped
   `unit_conversions` row, closes the alert, and is consulted by the next
   extraction (`annotateLineItems`).
+- From the product detail page, "Precio por año" shows every calendar year
+  this product was bought, its latest price, the previous year's price and
+  the % change. From the catalog, a product's row shows the same current vs
+  previous year % change, and sorting by `sort=yoy_desc` surfaces the
+  products whose price moved the most first.
 - Tests: `tests/product-catalog.test.ts`, `tests/product-crud.test.ts`,
   `tests/product-conversion-suggestions.test.ts`,
   `tests/product-dictionary.test.ts`, `tests/product-normalizer.test.ts`,
   `tests/product-categorizer.test.ts`, `tests/norm-key-parity.test.ts`,
   `tests/pack-parser.test.ts`, `tests/unit-bridge.test.ts`,
-  `tests/backfill.test.ts`, `tests/category-attribution.test.ts`.
+  `tests/backfill.test.ts`, `tests/category-attribution.test.ts`,
+  `tests/price-yoy.test.ts`, `tests/product-filters.test.ts`.
 
 ## Code notes
 
@@ -220,3 +241,24 @@ candidates (never arbitrary ids).
 - Unit-bridge (issue #296): rules keyed by `normalizeProductKey(ingredient)` + `normalizeProductKey(unit)` via `conversionKey`, so casing/accent/spacing drift doesn't miss rules. `loadConversionMap` fetches per-supplier rules and matches in memory (few rules per supplier). `resolveUnitFromMap` falls through to recognized spellings of canonical units ("Kgs", "KILO", "KGM" → kg) with factor 1. `loadConversionMap`/`resolveUnit`/`annotateLineItems` take an optional trailing `database` argument defaulting to the app pool — the seam DB-backed tests use to run against the test connection instead of the module-level singleton. The supplier-name branch matches on `mep_norm_key(supplier_name)` (issue #582): the extraction worker and `enrichLineItems` look rules up by name only (no `supplier_id`), while every writer stores the supplier's real name, so a plain lowercase comparison silently missed every rule saved for a supplier whose name is not already lowercase.
 - Conversion prompts (issue #582): `loadConversionPrompts` reads the pending `unit_conversion_needed` alerts, parses each JSON payload defensively (a legacy or non-JSON payload is skipped rather than aborting the page load), keys them by `supplierConversionKey` = normalized supplier + `conversionKey`, drops the ones a `unit_conversions` row already answers and keeps only the newest alert per key — the same supplier re-billing the same unit must not produce N identical prompts. `defineUnitConversion` is the single write path behind both the API route and the suggestions tab: validate → upsert on the `(rid, supplier_name, ingredient, purchase_unit)` unique index → clear `requires_unit_conversion` (+ set `canonical_unit`) on this tenant's matching line items for that supplier → flip matching pending alerts to `sent`, returning how many it closed. Normalized keys are computed in TS and compared against `mep_norm_key(...)` in SQL, which the norm-key-parity test keeps in lockstep.
 - Output contract (issue #842): `processNormalizeJob`/`processCategorizeJob` pass `NORMALIZE_VERDICT_SCHEMA`/`CATEGORIZE_VERDICT_SCHEMA` to `provider.generate` (`responseMimeType`/`responseSchema`) instead of relying on prompt prose ("Responde SOLO con JSON: …") alone. `parseNormalizeResponse`/`parseCategorizeResponse` already returned a safe default rather than throwing on a bad reply, so their behaviour is unchanged — they now go through the shared `parseJsonResponse` (`llm-json.ts`) for the parse step, with `isRawNormalizeVerdict`/`isRawCategorizeVerdict` narrowing only "is this an object" (the existing `typeof` field checks below still do the real per-field validation). `stripJsonFence` (`llm-json.ts`) is kept as `parseJsonResponse`'s fallback for a fenced reply, not the primary path.
+- Year-over-year price (issue #884): `loadProductYearlyPrices` (one product, every year, via `SELECT DISTINCT ON (year) … ORDER BY year, invoice_date DESC, id DESC`) and `loadCatalogYoyChangeMap` (whole catalog, current + previous year only, via a `ROW_NUMBER() OVER (PARTITION BY product_id, year …)` window so only the latest line per product per year survives) both read `invoice_line_items`/`invoices` directly — tenant-scoped by `restaurant_id = ${restaurantId}` in the SQL text rather than `forTenant().scope()`, matching every other raw-`sql` query already in this file (`loadConversionPrompts`, `loadConversionMap`). Neither writes anything, so both take a `database` argument the same way the rest of the module does, no default. The two rows always carry the same shape (`YearlyPriceInput` from `$lib/price-yoy`) via the shared `toYearlyPriceInput`/`YearlyPriceDbRow` conversion, so the actual "pair years, prefer normalized, fall back to raw only same-unit" math lives once, in `price-yoy.ts`, and both this module and the two route `load()`s just call it.
+
+### `src/lib/price-yoy.ts`
+
+- Pure module (issue #884), no DB/Svelte imports, so both `products/[id]/+page.server.ts` (one product, full year series) and `products/+page.server.ts` (whole catalog, current vs previous year only via `loadCatalogYoyChangeMap`) share one comparison rule. `pairYearlyPrices` pairs year *N* with year *N-1* specifically (a `Map` keyed by year, looked up at `year - 1`) — not "the previous data point" — so a gap year (no purchase at all the year before) correctly yields `changePct: null` rather than comparing across the gap. `comparablePrevPrice` is the ADR-009 rule: both years normalized → compare those; both lacking a normalized price and sharing the same raw `unit` → compare `unitPrice`; anything else (one normalized and the other not, or different raw units) → `null`, never a cross-comparison. `prevPrice` itself can still surface as `0` (a real, if unusual, previous price) while `changePct` stays `null` — the div-by-zero guard is on the percentage, not on showing what the previous price actually was. Formatting the resulting `changePct` for display is not in this module: `formatYoyPct(pct, locale)` lives in `src/lib/formatters.ts` next to `fmtEurSigned`, since it needs `Locale`/`toIntlLocale` — `Intl.NumberFormat(…, { maximumFractionDigits: 1, signDisplay: 'exceptZero' })` for a locale-correct decimal separator (`,` es / `.` en) and sign, the same pattern `fmtEurSigned` already used for money.
+
+### `src/lib/product-filters.ts`
+
+- Mirrors `src/lib/invoice-filters.ts`'s shape (issue #884) but only for the one thing the catalog's `sort` param needs: `PRODUCT_SORT_KEYS`/`isProductSortKey`/`parseProductSort` (unknown or absent → `DEFAULT_PRODUCT_SORT = 'name'`, which also means "leave the SQL's `ORDER BY canonical_name` alone" — `sortProducts` returns the input array untouched for anything but `'yoy_desc'`, it does not re-sort by name in TS). `sortProductsByYoy` sorts by `Math.abs(changePct)` descending, `null` last — a big drop is exactly as worth a supplier call as a big rise, so the sign is discarded for ordering (still shown, and colored, in the row itself).
+
+### `src/routes/(app)/products/+page.server.ts`
+
+**`const load`**
+
+- `currentYear`/`loadCatalogYoyChangeMap` join into `mappedProducts` by `p.id` in TS rather than joining in SQL, same "second query joined in TS" shape the file already used for `needsConversion`/`conversionPrompts`. `sortProducts(mappedProducts, sort)` is applied last, after the map — the catalog's own `SELECT … ORDER BY p.canonical_name` still owns the default order.
+
+### `src/routes/(app)/products/[id]/+page.server.ts`
+
+**`const load`**
+
+- `priceByYear` is `pairYearlyPrices(yearlyPrices)` over *every* year `loadProductYearlyPrices` returns for this one product (unlike the catalog, which only ever needs two years) — the detail page's "Precio por año" card shows the full series.
