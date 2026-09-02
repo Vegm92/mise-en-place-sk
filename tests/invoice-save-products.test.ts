@@ -6,7 +6,9 @@
  * DB-backed; the db singleton is swapped for the test client (ssl:'require'
  * in db.ts does not speak to local Postgres). Skipped without DATABASE_URL.
  */
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
+
+const { sendEmailMock } = vi.hoisted(() => ({ sendEmailMock: vi.fn().mockResolvedValue(undefined) }));
 
 vi.mock('../src/lib/server/db', async () => {
 	const { testDb } = await import('./helpers/test-db');
@@ -14,11 +16,17 @@ vi.mock('../src/lib/server/db', async () => {
 	return { db: testDb, forTenant };
 });
 
+vi.mock('../src/lib/server/email', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('../src/lib/server/email')>();
+	return { ...actual, sendEmail: sendEmailMock };
+});
+
 import {
 	testSql, closeDb,
 	createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
 import { saveReviewedInvoice } from '../src/lib/server/invoice-save';
+import { actions } from '../src/routes/(app)/invoice/[id]/+page.server';
 
 let rid = '';
 
@@ -168,5 +176,119 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → product linking (issue #298)
 		expect(suggestions.length).toBeGreaterThanOrEqual(1);
 		const payloads = suggestions.map((s) => s.payload);
 		expect(payloads.some((p) => p.description === 'Merluza fresca grande')).toBe(true);
+	});
+});
+
+async function claimSupplier(email: string | null): Promise<number> {
+	const [row] = await testSql`
+		INSERT INTO suppliers (restaurant_id, name, contact_email)
+		VALUES (${rid}, ${`__claim_sup_${Math.random().toString(36).slice(2, 8)}__`}, ${email})
+		RETURNING id`;
+	return row.id as number;
+}
+
+async function claimInvoice(
+	supplierId: number,
+	opts: { reviewState?: string; incidenceKind?: string | null } = {},
+): Promise<number> {
+	const [row] = await testSql`
+		INSERT INTO invoices (restaurant_id, supplier_id, invoice_number, invoice_date, review_state, incidence_kind)
+		VALUES (
+			${rid}, ${supplierId}, ${`CLAIM-${Math.random().toString(36).slice(2, 8)}`}, '2026-07-20',
+			${opts.reviewState ?? 'incidencia'}, ${opts.incidenceKind === undefined ? 'documento' : opts.incidenceKind}
+		)
+		RETURNING id`;
+	return row.id as number;
+}
+
+function claimFormData(subject = 'Falta producto', body = 'Revisad el envío, por favor.'): FormData {
+	const fd = new FormData();
+	fd.append('subject', subject);
+	fd.append('body', body);
+	return fd;
+}
+
+function claimEvent(invoiceId: number, formData: FormData, restaurantId = rid) {
+	return {
+		params: { id: String(invoiceId) },
+		request: { formData: async () => formData },
+		locals: { restaurantId, user: { id: 'test-user' }, locale: 'es' },
+	} as never;
+}
+
+async function expectRedirect(action: unknown): Promise<void> {
+	let caught: unknown;
+	try {
+		await action;
+	} catch (e) {
+		caught = e;
+	}
+	expect((caught as { status?: number } | undefined)?.status).toBe(303);
+}
+
+describe.skipIf(!hasDbEnv)('requestCorrection action (issue #887)', () => {
+	beforeEach(() => {
+		sendEmailMock.mockClear();
+	});
+
+	it('refuses a document without a real document incidence and sends no email', async () => {
+		const supplierId = await claimSupplier('proveedor@example.com');
+		const invoiceId = await claimInvoice(supplierId, { reviewState: 'revisado' });
+
+		const result = await actions.requestCorrection(claimEvent(invoiceId, claimFormData()));
+		expect(result).toMatchObject({ status: 422, data: { claim: 'notEligible' } });
+		expect(sendEmailMock).not.toHaveBeenCalled();
+	});
+
+	it('sends the claim email and writes the audit log for an eligible document incidence', async () => {
+		const supplierId = await claimSupplier('proveedor2@example.com');
+		const invoiceId = await claimInvoice(supplierId);
+
+		await expectRedirect(actions.requestCorrection(claimEvent(invoiceId, claimFormData('Falta caja', 'Nos falta una caja.'))));
+
+		expect(sendEmailMock).toHaveBeenCalledOnce();
+		expect(sendEmailMock.mock.calls[0][0]).toMatchObject({
+			kind: 'supplier_claim',
+			to: 'proveedor2@example.com',
+			subject: 'Falta caja',
+		});
+
+		const rows = await testSql`
+			SELECT action, reason, snapshot FROM invoice_audit_log
+			WHERE restaurant_id = ${rid} AND invoice_id = ${invoiceId} AND action = 'claim_email_sent'`;
+		expect(rows).toHaveLength(1);
+		expect(rows[0].reason).toBe('Falta caja');
+		const snapshot = JSON.parse(rows[0].snapshot);
+		expect(snapshot).toMatchObject({ to: 'proveedor2@example.com', subject: 'Falta caja' });
+	});
+
+	it('refuses a second claim with 409 and does not send a second email', async () => {
+		const supplierId = await claimSupplier('proveedor3@example.com');
+		const invoiceId = await claimInvoice(supplierId);
+
+		await expectRedirect(actions.requestCorrection(claimEvent(invoiceId, claimFormData())));
+		sendEmailMock.mockClear();
+
+		const second = await actions.requestCorrection(claimEvent(invoiceId, claimFormData()));
+		expect(second).toMatchObject({ status: 409, data: { claim: 'alreadySent' } });
+		expect(sendEmailMock).not.toHaveBeenCalled();
+
+		const rows = await testSql`
+			SELECT id FROM invoice_audit_log
+			WHERE restaurant_id = ${rid} AND invoice_id = ${invoiceId} AND action = 'claim_email_sent'`;
+		expect(rows).toHaveLength(1);
+	});
+
+	it('refuses a foreign-tenant invoice id and sends no email', async () => {
+		const otherRestaurant = await createTestRestaurant('inv-claim-foreign');
+		try {
+			const supplierId = await claimSupplier('proveedor4@example.com');
+			const invoiceId = await claimInvoice(supplierId);
+
+			await expectRedirect(actions.requestCorrection(claimEvent(invoiceId, claimFormData(), otherRestaurant.id)));
+			expect(sendEmailMock).not.toHaveBeenCalled();
+		} finally {
+			await cleanupTestRestaurant(otherRestaurant.id);
+		}
 	});
 });
