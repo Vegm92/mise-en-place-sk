@@ -118,7 +118,7 @@
             <a href="/" style="font-size:12px;color:var(--mep-acc);text-decoration:none;margin-top:4px;">{$t('spend.uploadFirst')}</a>
           </div>
         {:else}
-          <div style="display:flex;gap:24px;align-items:center;" role="group" aria-label={$t('spend.donut.topItemsAria')}>
+          <div class="flex items-center gap-6" role="group" aria-label={$t('spend.donut.topItemsAria')}>
             <DonutChart
               slices={topItemInputs}
               radius={DONUT_RADIUS}
@@ -134,11 +134,11 @@
                   role="group" aria-label={slice.label}
                   onmouseenter={() => hoveredSpendSlice = i} onmouseleave={() => hoveredSpendSlice = null}>
                   <span style="width:9px;height:9px;border-radius:2px;background:{slice.color};flex-shrink:0;"></span>
-                  <span class="body" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title={slice.label}>
+                  <span class="body flex-1 min-w-0 truncate" title={slice.label}>
                     {slice.label}
                   </span>
-                  <span class="num" style="font-size:11px;color:var(--mep-fg-3);flex-shrink:0;width:34px;text-align:right;">{Math.round(slice.pct * 100)}%</span>
-                  <span class="num body-strong" style="flex-shrink:0;width:80px;text-align:right;">{fmtEur(slice.value)}</span>
+                  <span class="num text-[11px] text-fg-3 shrink-0 w-[34px] text-right">{Math.round(slice.pct * 100)}%</span>
+                  <span class="num body-strong shrink-0 w-20 text-right">{fmtEur(slice.value)}</span>
                 </div>
                 {#if hoveredSpendSlice === i && slice.itemCount != null}
                   <div style="margin:-2px 0 2px 23px;font-size:11px;color:var(--mep-fg-3);">
@@ -160,7 +160,7 @@
             <a href="/suppliers" style="font-size:12px;color:var(--mep-acc);text-decoration:none;">{$t('spend.viewSuppliers')}</a>
           </div>
         {:else}
-          <div style="display:flex;gap:18px;align-items:center;" role="group" aria-label={$t('spend.donut.categoryAria')}>
+          <div class="flex items-center gap-[18px]" role="group" aria-label={$t('spend.donut.categoryAria')}>
             <DonutChart
               slices={categoryInputs}
               radius={DONUT_RADIUS}
@@ -169,18 +169,17 @@
               bind:hovered={hoveredCategorySlice}
             />
 
-            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:7px;">
+            <div class="flex-1 min-w-0 flex flex-col gap-[7px]">
               {#each categoryDonut.slices as slice, i}
-                <div style="display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:6px;cursor:default;
-                  background:{hoveredCategorySlice === i ? 'var(--mep-surface-2)' : 'transparent'};"
+                <div class="flex items-center gap-2 py-1 px-1.5 rounded-md cursor-default {hoveredCategorySlice === i ? 'bg-surface-2' : ''}"
                   role="group" aria-label={slice.label}
                   onmouseenter={() => hoveredCategorySlice = i} onmouseleave={() => hoveredCategorySlice = null}>
-                  <span style="width:9px;height:9px;border-radius:2px;background:{slice.color};flex-shrink:0;"></span>
-                  <span class="body" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title={slice.label}>
+                  <span class="w-[9px] h-[9px] rounded-sm shrink-0" style="background:{slice.color};"></span>
+                  <span class="body flex-1 min-w-0 truncate" title={slice.label}>
                     {slice.label}
                   </span>
-                  <span class="num" style="font-size:11px;color:var(--mep-fg-3);flex-shrink:0;width:34px;text-align:right;">{Math.round(slice.pct * 100)}%</span>
-                  <span class="num body-strong" style="flex-shrink:0;width:80px;text-align:right;">{fmtEur(slice.value)}</span>
+                  <span class="num text-[11px] text-fg-3 shrink-0 w-[34px] text-right">{Math.round(slice.pct * 100)}%</span>
+                  <span class="num body-strong shrink-0 w-20 text-right">{fmtEur(slice.value)}</span>
                 </div>
               {/each}
             </div>
@@ -190,9 +189,9 @@
 
     </div>
 
-    <div class="card" style="padding:16px;">
-      <div class="subtitle" style="margin-bottom:4px;">{$t('spend.yearly.title')}</div>
-      <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:10px;">{$t('spend.yearly.sub')}</div>
+    <div class="card p-4">
+      <div class="subtitle mb-1">{$t('spend.yearly.title')}</div>
+      <div class="text-[12px] text-fg-3 mb-2.5">{$t('spend.yearly.sub')}</div>
       <TrendLineChart
         xLabels={yearlyLabels}
         series={yearlySeries}

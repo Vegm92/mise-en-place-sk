@@ -32,8 +32,8 @@
   const center = $derived(size / 2);
 </script>
 
-<div class="donut-chart" style="position:relative;width:{size}px;height:{size}px;flex-shrink:0;">
-  <svg width={size} height={size} viewBox="0 0 {size} {size}" style="overflow:visible;transform:rotate(-90deg);">
+<div class="donut-chart relative shrink-0" style="width:{size}px;height:{size}px;">
+  <svg width={size} height={size} viewBox="0 0 {size} {size}" class="overflow-visible -rotate-90">
     {#each computed.slices as slice, i}
       <circle cx={center} cy={center} r={radius} fill="none"
         stroke={slice.color}
@@ -41,7 +41,7 @@
         stroke-dasharray="{Math.max(slice.dash - gap, 0)} {circumference - slice.dash + gap}"
         stroke-dashoffset={-slice.offset}
         opacity={hovered === null || hovered === i ? 1 : 0.35}
-        style="cursor:pointer;transition:stroke-width 120ms,opacity 120ms;"
+        class="cursor-pointer transition-[stroke-width,opacity] duration-[120ms]"
         role="img"
         aria-label="{slice.label}: {valueFormatter(slice.value)} ({Math.round(slice.pct * 100)}%)"
         onmouseenter={() => hovered = i}
@@ -57,14 +57,14 @@
       {/each}
     {/if}
   </svg>
-  <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;">
+  <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
     {#if hovered !== null && computed.slices[hovered]}
-      <span class="num" style="font-size:16px;font-weight:600;color:var(--mep-fg);">{Math.round(computed.slices[hovered].pct * 100)}%</span>
-      <span style="font-size:11px;color:var(--mep-fg-3);max-width:{Math.round(size * 0.65)}px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{computed.slices[hovered].label}</span>
+      <span class="num subtitle">{Math.round(computed.slices[hovered].pct * 100)}%</span>
+      <span class="text-[11px] text-fg-3 text-center truncate" style="max-width:{Math.round(size * 0.65)}px;">{computed.slices[hovered].label}</span>
     {:else}
-      <span class="num" style="font-size:16px;font-weight:600;color:var(--mep-fg);">{valueFormatter(grandTotal)}</span>
+      <span class="num subtitle">{valueFormatter(grandTotal)}</span>
       {#if centerLabel}
-        <span style="font-size:11px;color:var(--mep-fg-3);">{centerLabel}</span>
+        <span class="text-[11px] text-fg-3">{centerLabel}</span>
       {/if}
     {/if}
   </div>
