@@ -46,12 +46,11 @@ async function invoiceDetailRow(tdb: ReturnType<typeof forTenant>, id: number) {
 async function pendingMismatchPayload(tdb: ReturnType<typeof forTenant>, invoiceId: number) {
 	const [row] = await db.select({ payload: systemNotifications.payload })
 		.from(systemNotifications)
-		.where(and(
-			tdb.scope(systemNotifications.restaurantId),
+		.where(tdb.scope(systemNotifications.restaurantId, and(
 			eq(systemNotifications.invoiceId, invoiceId),
 			eq(systemNotifications.notificationType, 'line_item_mismatch'),
 			eq(systemNotifications.status, 'pending'),
-		))
+		)!))
 		.orderBy(desc(systemNotifications.createdAt))
 		.limit(1);
 	return parseMismatchPayload(row?.payload ?? null);
@@ -60,14 +59,19 @@ async function pendingMismatchPayload(tdb: ReturnType<typeof forTenant>, invoice
 async function latestClaimSentAt(tdb: ReturnType<typeof forTenant>, invoiceId: number): Promise<Date | null> {
 	const [row] = await db.select({ createdAt: invoiceAuditLog.createdAt })
 		.from(invoiceAuditLog)
-		.where(and(
-			tdb.scope(invoiceAuditLog.restaurantId),
+		.where(tdb.scope(invoiceAuditLog.restaurantId, and(
 			eq(invoiceAuditLog.invoiceId, invoiceId),
 			eq(invoiceAuditLog.action, CLAIM_AUDIT_ACTION),
-		))
+		)!))
 		.orderBy(desc(invoiceAuditLog.createdAt))
 		.limit(1);
 	return row?.createdAt ?? null;
+}
+
+async function restaurantName(rid: string): Promise<string> {
+	const [row] = await db.select({ name: restaurants.name }).from(restaurants)
+		.where(eq(restaurants.id, rid)).limit(1);
+	return row?.name ?? '';
 }
 
 const ClaimForm = v.object({
@@ -82,7 +86,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		const tdb = forTenant(rid);
 		const locale = locals.locale ?? 'es';
 
-		const [row, lineItems, restaurantRows] = await Promise.all([
+		const [row, lineItems, rName] = await Promise.all([
 			invoiceDetailRow(tdb, id),
 
 			db.select({
@@ -98,7 +102,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				.where(tdb.scope(invoiceLineItems.restaurantId, eq(invoiceLineItems.invoiceId, id)))
 				.orderBy(asc(invoiceLineItems.id)),
 
-			db.select({ name: restaurants.name }).from(restaurants).where(eq(restaurants.id, rid)).limit(1),
+			restaurantName(rid),
 		]);
 
 		if (!row) redirect(303, '/invoices');
@@ -122,7 +126,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		const claimDraft = defaultClaimDraft({
 			locale,
 			supplierName:   row.supplier_name ?? '',
-			restaurantName: restaurantRows[0]?.name ?? '',
+			restaurantName: rName,
 			documentLabel:  row.invoice_number ?? `#${row.id}`,
 			documentDate:   formatClaimDate(row.invoice_date, locale),
 			lines:          claimLines,
@@ -223,8 +227,7 @@ export const actions: Actions = {
 		}
 
 		const to = row.contact_email!;
-		const [restaurantRow] = await db.select({ name: restaurants.name })
-			.from(restaurants).where(eq(restaurants.id, rid)).limit(1);
+		const rName = await restaurantName(rid);
 		const mismatch = await pendingMismatchPayload(tdb, id);
 		const lines = buildClaimLines(locale, mismatch.missingInInvoice, mismatch.quantityMismatches);
 		const documentLabel = row.invoice_number ?? `#${id}`;
@@ -235,11 +238,10 @@ export const actions: Actions = {
 			await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`claim:${rid}:${id}`}))`);
 			const [existing] = await tx.select({ id: invoiceAuditLog.id })
 				.from(invoiceAuditLog)
-				.where(and(
-					tdb.scope(invoiceAuditLog.restaurantId),
+				.where(tdb.scope(invoiceAuditLog.restaurantId, and(
 					eq(invoiceAuditLog.invoiceId, id),
 					eq(invoiceAuditLog.action, CLAIM_AUDIT_ACTION),
-				))
+				)!))
 				.limit(1);
 			if (existing) {
 				alreadySent = true;
@@ -258,7 +260,7 @@ export const actions: Actions = {
 
 		const payload = supplierClaimEmail({
 			to, subject, bodyText: body,
-			restaurantName: restaurantRow?.name ?? '',
+			restaurantName: rName,
 			supplierName:   row.supplier_name ?? '',
 			documentNumber: documentLabel,
 			documentDate,
