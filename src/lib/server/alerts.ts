@@ -6,7 +6,8 @@ import { invoiceLineItems, invoices, products, suppliers, stockLevels, categoryB
 import { users } from './schema';
 import { renderTemplate } from '$lib/i18n-messages';
 import { toMonthStr } from '$lib/formatters';
-import { UNCATEGORIZED_CATEGORY, VALID_CATEGORIES } from '$lib/constants';
+import { UNCATEGORIZED_CATEGORY } from '$lib/constants';
+import { visibleCategoryNames } from './categories';
 import { normalizeProductKey } from './normalize';
 import { parsePack, normalizedUnitPrice, type EnrichedLineItem } from './products';
 import { moneyToNumber, moneyToNullableNumber } from './money';
@@ -404,7 +405,7 @@ export async function dominantSupplierLineCategory(
 	}
 	if (!best || total <= 0) return null;
 	if (best.category === UNCATEGORIZED_CATEGORY) return null;
-	if (!VALID_CATEGORIES.includes(best.category)) return null;
+	if (!(await visibleCategoryNames(restaurantId)).has(best.category)) return null;
 	return best.amount / total >= DOMINANT_CATEGORY_SHARE ? best.category : null;
 }
 
@@ -418,7 +419,7 @@ export async function runCategorySuggestion(
 	const { tdb, supplier } = found;
 	const fromExtraction = Boolean(proposedCategory)
 		&& proposedCategory !== UNCATEGORIZED_CATEGORY
-		&& VALID_CATEGORIES.includes(proposedCategory);
+		&& (await visibleCategoryNames(restaurantId)).has(proposedCategory);
 	const category = fromExtraction
 		? proposedCategory
 		: await dominantSupplierLineCategory(supplierId, restaurantId);

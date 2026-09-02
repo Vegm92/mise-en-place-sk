@@ -16,11 +16,12 @@ vi.mock('../src/lib/server/db', async () => {
 });
 
 import {
-	testSql, closeDb,
+	testDb, testSql, closeDb,
 	createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
 import { saveReviewedInvoice } from '../src/lib/server/invoice-save';
 import { UNCATEGORIZED_CATEGORY } from '../src/lib/constants';
+import { createCategory, listCategories, setCategoryHidden } from '../src/lib/server/categories';
 
 let rid = '';
 
@@ -44,6 +45,27 @@ function form(supplier: string, lines: Array<{ desc: string; unit: string; price
 
 function extractedItem(data: Record<string, unknown>) {
 	return { extractedData: data } as unknown as Parameters<typeof saveReviewedInvoice>[0];
+}
+
+function proposedItem(supplierName: string, category: string, confidence = 0.9) {
+	return extractedItem({
+		supplier_name: supplierName,
+		supplier_category: category,
+		field_confidences: { supplier_category: confidence },
+		confidence,
+	});
+}
+
+/** Saves a reviewed invoice and returns the resulting supplier category, asserting the save itself succeeded. */
+async function savedCategoryFor(
+	item: Parameters<typeof saveReviewedInvoice>[0],
+	supplierName: string,
+	lines: Array<{ desc: string; unit: string; price: string }>,
+): Promise<string | null> {
+	const out = await saveReviewedInvoice(item, form(supplierName, lines), rid);
+	expect(out.type).toBe('saved');
+	if (out.type !== 'saved') return null;
+	return categoryFor(out.invoiceId);
 }
 
 async function categoryFor(invoiceId: number): Promise<string | null> {
@@ -194,5 +216,30 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → supplier category (issue #38
 		if (secondOut.type !== 'saved') return;
 
 		expect(await categoryFor(secondOut.invoiceId)).toBe('Vinos y Cavas');
+	});
+
+	it('accepts a custom category the restaurant created, when extraction proposes exactly its name (issue #881 part 2)', async () => {
+		const supplierName = 'Agencia de Marketing Norte';
+		await createCategory(rid, 'Marketing', testDb);
+
+		const category = await savedCategoryFor(
+			proposedItem(supplierName, 'Marketing'), supplierName, [{ desc: 'Campaña redes', unit: 'ud', price: '1' }],
+		);
+		expect(category).toBe('Marketing');
+	});
+
+	it('degrades to the uncategorised bucket when extraction proposes a category this restaurant has hidden (issue #881 part 2)', async () => {
+		const supplierName = 'Frutería Escondida';
+		const rows = await listCategories(rid, {}, testDb);
+		const fruit = rows.find((c) => c.name === 'Frutas y Verduras')!;
+		await setCategoryHidden(rid, fruit.id, true, testDb);
+		try {
+			const category = await savedCategoryFor(
+				proposedItem(supplierName, 'Frutas y Verduras'), supplierName, [{ desc: 'Tomate pera', unit: 'kg', price: '1' }],
+			);
+			expect(category).toBe(UNCATEGORIZED_CATEGORY);
+		} finally {
+			await setCategoryHidden(rid, fruit.id, false, testDb);
+		}
 	});
 });

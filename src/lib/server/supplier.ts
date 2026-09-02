@@ -1,7 +1,8 @@
 ﻿import { sql } from 'drizzle-orm';
 import { db } from './db';
 import type { BatchDb } from './batch';
-import { VALID_CATEGORIES, UNCATEGORIZED_CATEGORY } from '$lib/constants';
+import { UNCATEGORIZED_CATEGORY } from '$lib/constants';
+import { resolveCategoryFor } from './categories';
 
 export interface SupplierContactInfo {
 	cif?: string | null;
@@ -19,7 +20,7 @@ export async function getOrCreateSupplierId(
 	contactTrusted: boolean = true,
 ): Promise<number> {
 	const trimmed = name.trim();
-	const resolved = VALID_CATEGORIES.includes(category) ? category : UNCATEGORIZED_CATEGORY;
+	const resolved = await resolveCategoryFor(restaurantId, category, undefined, exec);
 	const cif = contact.cif?.trim() || null;
 	const email = contact.email?.trim() || null;
 	const phone = contact.phone?.trim() || null;

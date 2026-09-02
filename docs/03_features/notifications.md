@@ -223,6 +223,7 @@ Type ∈ known set; payload shape per type; tenant scope.
 **`function runCategorySuggestion`**
 
 - Offer a category for a supplier still in the uncategorised bucket (#315). Suppliers are tagged only when *created*, so older/sparse ones stay in the bucket forever; rather than silently reclassify (can't tell "never categorised" from a deliberate "leave in Other"), surface the guess for one-tap accept. One per supplier, ever; supersedes the plain nudge. Nothing to offer when the resolver collapsed an unusable guess; a human-classified supplier is never second-guessed; deduped across both statuses so a dismissed suggestion doesn't return.
+- The extraction-proposed category only counts (`fromExtraction`) when it is one of the restaurant's own visible `categories` (`visibleCategoryNames(rid)`, ADR-037 part 2, issue #881) — not the fixed `VALID_CATEGORIES` — so a restaurant that hid a default category is never offered it back. `dominantSupplierLineCategory`'s own line-spend guess is scoped the same way.
 
 **`function runBudgetCheck`**
 

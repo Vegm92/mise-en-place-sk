@@ -5,6 +5,7 @@ import { requireFeature } from '$lib/server/billing';
 import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import { listCatalogForExport } from '$lib/server/products';
 import { buildInventoryWorkbook } from '$lib/server/inventory-template';
+import { selectableCategoryNames } from '$lib/server/categories';
 import { currentLocale } from '$lib/server/locale';
 import { contentDispositionHeader } from '$lib/server/content-disposition';
 
@@ -17,9 +18,12 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 	await requireFeature('inventoryTemplate', locals);
 
-	const rows = await listCatalogForExport(db, rid);
+	const [rows, categoryOrder] = await Promise.all([
+		listCatalogForExport(db, rid),
+		selectableCategoryNames(rid),
+	]);
 	const { locale } = currentLocale();
-	const workbook = buildInventoryWorkbook(rows, locale);
+	const workbook = buildInventoryWorkbook(rows, locale, categoryOrder);
 	const buffer = await workbook.xlsx.writeBuffer();
 
 	const filename = `inventario-${new Date().toISOString().slice(0, 10)}.xlsx`;

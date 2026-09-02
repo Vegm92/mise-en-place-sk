@@ -7,11 +7,11 @@ import type { CatalogExportRow } from './products';
 const SUBTOTAL_FILL: ExcelJS.Fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F0F0' } };
 const QUANTITY_FILL: ExcelJS.Fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF3CD' } };
 
-const CATEGORY_ORDER = [...VALID_CATEGORIES.filter((c) => c !== UNCATEGORIZED_CATEGORY), UNCATEGORIZED_CATEGORY];
+const DEFAULT_CATEGORY_ORDER = [...VALID_CATEGORIES.filter((c) => c !== UNCATEGORIZED_CATEGORY), UNCATEGORIZED_CATEGORY];
 
-function categoryRank(category: string | null): number {
-	const rank = CATEGORY_ORDER.indexOf(category ?? UNCATEGORIZED_CATEGORY);
-	return rank === -1 ? CATEGORY_ORDER.length : rank;
+function categoryRank(category: string | null, categoryOrder: readonly string[]): number {
+	const rank = categoryOrder.indexOf(category ?? UNCATEGORIZED_CATEGORY);
+	return rank === -1 ? categoryOrder.length : rank;
 }
 
 function categoryLabel(category: string | null, locale: Locale): string {
@@ -21,17 +21,21 @@ function categoryLabel(category: string | null, locale: Locale): string {
 	return rendered === key ? (category ?? UNCATEGORIZED_CATEGORY) : rendered;
 }
 
-function groupByCategory(rows: CatalogExportRow[]): Map<string | null, CatalogExportRow[]> {
+function groupByCategory(rows: CatalogExportRow[], categoryOrder: readonly string[]): Map<string | null, CatalogExportRow[]> {
 	const groups = new Map<string | null, CatalogExportRow[]>();
 	for (const row of rows) {
 		const list = groups.get(row.category) ?? [];
 		list.push(row);
 		groups.set(row.category, list);
 	}
-	return new Map([...groups.entries()].sort((a, b) => categoryRank(a[0]) - categoryRank(b[0])));
+	return new Map([...groups.entries()].sort((a, b) => categoryRank(a[0], categoryOrder) - categoryRank(b[0], categoryOrder)));
 }
 
-export function buildInventoryWorkbook(rows: CatalogExportRow[], locale: Locale): ExcelJS.Workbook {
+export function buildInventoryWorkbook(
+	rows: CatalogExportRow[],
+	locale: Locale,
+	categoryOrder: readonly string[] = DEFAULT_CATEGORY_ORDER,
+): ExcelJS.Workbook {
 	const workbook = new ExcelJS.Workbook();
 	workbook.creator = 'Mise en Place';
 	workbook.created = new Date();
@@ -49,7 +53,7 @@ export function buildInventoryWorkbook(rows: CatalogExportRow[], locale: Locale)
 
 	const subtotalRows: number[] = [];
 
-	for (const [category, items] of groupByCategory(rows)) {
+	for (const [category, items] of groupByCategory(rows, categoryOrder)) {
 		const label = categoryLabel(category, locale);
 		const firstDataRow = sheet.rowCount + 1;
 
