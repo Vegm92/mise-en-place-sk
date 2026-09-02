@@ -11,7 +11,7 @@ import { maybeSendQuotaWarning } from './quota-warning';
 import { trackEvent } from './events';
 import { claimRequest, releaseRequest, isValidKey } from './idempotency';
 import { getOrCreateSupplierId, type SupplierContactInfo } from './supplier';
-import { UNCATEGORIZED_CATEGORY } from '$lib/constants';
+import { UNCATEGORIZED_CATEGORY, isValidPaymentMethod } from '$lib/constants';
 import { resolveCategoryFor } from './categories';
 import type { EnrichedLineItem, PackInfo } from './products';
 import type { ExtractedInvoice } from './extract';
@@ -598,6 +598,8 @@ async function resolveSupplierInfo(rid: string, extracted: ExtractedInvoice | un
 			email: extracted?.supplier_email ?? null,
 			phone: extracted?.supplier_phone ?? null,
 			address: extracted?.supplier_address ?? null,
+			iban: extracted?.iban ?? null,
+			paymentTerms: extracted?.payment_terms ?? null,
 		},
 		contactTrusted: sameSupplier,
 	};
@@ -822,6 +824,11 @@ export async function saveReviewedInvoice(
 	const documentType = rawDocumentType === 'factura' || rawDocumentType === 'albaran' ? rawDocumentType : null;
 	const primaryFile = item?.fileKey ?? null;
 
+	const rawPaymentMethod = formData.has('payment_method') ? formData.get('payment_method') : extractedData?.payment_method;
+	const paymentMethod = isValidPaymentMethod(rawPaymentMethod) ? rawPaymentMethod : null;
+	const rawPaymentTerms = formData.has('payment_terms') ? formData.get('payment_terms') : extractedData?.payment_terms;
+	const paymentTerms = typeof rawPaymentTerms === 'string' ? (rawPaymentTerms.trim().slice(0, 100) || null) : null;
+
 	const rawQrUrl = typeof extractedData?.qr_url === 'string' ? extractedData.qr_url : null;
 	const qrResult = rawQrUrl ? parseQrUrl(rawQrUrl) : null;
 	const qrMismatches = detectVerifactuMismatch(qrResult, {
@@ -885,6 +892,8 @@ export async function saveReviewedInvoice(
 				totalAmount,
 				taxBase,
 				taxBreakdown,
+				paymentMethod,
+				paymentTerms,
 				status: 'pending',
 				reviewState,
 				incidenceKind,

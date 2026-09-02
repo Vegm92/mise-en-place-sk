@@ -1,6 +1,7 @@
 import { XMLParser } from 'fast-xml-parser';
 import { canonicalizeUnit } from './normalize';
 import type { ExtractedInvoice } from './extract';
+import type { PaymentMethod } from '$lib/constants';
 
 export type EinvoiceFormat = 'facturae_322' | 'ubl_21';
 
@@ -27,7 +28,7 @@ const parser = new XMLParser({
 	parseAttributeValue: false,
 	parseTagValue: true,
 	isArray: (name) =>
-		['InvoiceLine', 'Tax', 'TaxSubtotal', 'TaxTotal', 'AllowanceCharge'].includes(name),
+		['InvoiceLine', 'Tax', 'TaxSubtotal', 'TaxTotal', 'AllowanceCharge', 'Installment', 'PaymentMeans'].includes(name),
 	numberParseOptions: { leadingZeros: true, hex: false, skipLike: /^0\d|^\+/ },
 });
 
@@ -77,6 +78,40 @@ const FACTURAE_UNIT_CODES: Record<string, string | null> = {
 	'36': 'kWh',
 };
 
+// Facturae "MedioPago" code list — codes without a clear match in our enum
+// (cheque, letra de cambio, compensación, …) fall back to 'otro'.
+const FACTURAE_PAYMENT_MEANS: Record<string, PaymentMethod> = {
+	'01': 'efectivo',
+	'02': 'domiciliacion',
+	'04': 'transferencia',
+	'09': 'pagare',
+	'10': 'pagare',
+	'15': 'giro',
+	'19': 'tarjeta',
+};
+
+function facturaePaymentMethod(code: string | null): PaymentMethod | null {
+	if (!code) return null;
+	return FACTURAE_PAYMENT_MEANS[code] ?? 'otro';
+}
+
+// UBL PaymentMeansCode uses the UNCL4461 code list — only the subset commonly
+// seen on Spanish invoices is mapped, the rest fall back to 'otro'.
+const UBL_PAYMENT_MEANS: Record<string, PaymentMethod> = {
+	'10': 'efectivo',
+	'30': 'transferencia',
+	'42': 'transferencia',
+	'48': 'tarjeta',
+	'49': 'domiciliacion',
+	'58': 'transferencia',
+	'59': 'domiciliacion',
+};
+
+function ublPaymentMethod(code: string | null): PaymentMethod | null {
+	if (!code) return null;
+	return UBL_PAYMENT_MEANS[code] ?? 'otro';
+}
+
 interface PartyFields {
 	name: string | null;
 	nif: string | null;
@@ -125,6 +160,8 @@ interface EinvoiceParts {
 	receiver: PartyFields;
 	supplierEmail: string | null;
 	supplierPhone: string | null;
+	paymentMethod: PaymentMethod | null;
+	iban: string | null;
 	invoiceNumber: string | null;
 	invoiceDate: string | null;
 	dueDate: string | null;
@@ -147,6 +184,9 @@ function einvoiceResult(parts: EinvoiceParts): ParsedEinvoice {
 		receiver_name: receiver.name,
 		receiver_nif: receiver.nif,
 		receiver_address: receiver.address,
+		payment_method: parts.paymentMethod,
+		iban: parts.iban,
+		payment_terms: null,
 		invoice_number: invoiceNumber,
 		document_type: 'factura',
 		invoice_date: invoiceDate,
@@ -165,6 +205,7 @@ function einvoiceResult(parts: EinvoiceParts): ParsedEinvoice {
 			document_type: 1.0,
 			invoice_date: invoiceDate ? 1.0 : 0,
 			total_amount: totalAmount != null ? 1.0 : 0,
+			iban: parts.iban ? 1.0 : 0,
 		},
 		line_items: parts.lineItems,
 		e_invoice_format: parts.format,
@@ -200,6 +241,12 @@ export function parseFacturae322(xml: string): ExtractedInvoice & { e_invoice_fo
 	const invoiceDate = getText(issueData['IssueDate']);
 	const currency = getText(issueData['InvoiceCurrencyCode']) ?? 'EUR';
 
+	const paymentDetails = invoice['PaymentDetails'] as Record<string, unknown> | undefined;
+	const installments = getArr(paymentDetails, 'Installment');
+	const firstInstallment = (installments[0] ?? {}) as Record<string, unknown>;
+	const paymentMethod = facturaePaymentMethod(getText(firstInstallment['PaymentMeans']));
+	const iban = getText(getChild(firstInstallment, 'AccountToBeCredited', 'IBAN'));
+
 	const totals = (invoice['InvoiceTotals'] ?? {}) as Record<string, unknown>;
 	const totalAmount =
 		getNum(totals['TotalInvoiceAmount']) ??
@@ -231,7 +278,7 @@ export function parseFacturae322(xml: string): ExtractedInvoice & { e_invoice_fo
 	});
 
 	return einvoiceResult({
-		supplier, receiver, supplierEmail, supplierPhone,
+		supplier, receiver, supplierEmail, supplierPhone, paymentMethod, iban,
 		invoiceNumber: fullNumber, invoiceDate, dueDate: null,
 		totalAmount, currency, taxBase, taxBreakdown,
 		lineItems: line_items, format: 'facturae_322',
@@ -255,6 +302,11 @@ export function parseUbl21Invoice(xml: string): ExtractedInvoice & { e_invoice_f
 	const invoiceNumber = getText(inv['ID']);
 	const invoiceDate = getText(inv['IssueDate']);
 	const dueDate = getText(inv['DueDate']);
+
+	const paymentMeansList = getArr(inv, 'PaymentMeans');
+	const firstPaymentMeans = (paymentMeansList[0] ?? {}) as Record<string, unknown>;
+	const paymentMethod = ublPaymentMethod(getText(firstPaymentMeans['PaymentMeansCode']));
+	const iban = getText(getChild(firstPaymentMeans, 'PayeeFinancialAccount', 'ID'));
 
 	const totals = inv['LegalMonetaryTotal'] as Record<string, unknown> | undefined;
 	const totalAmount =
@@ -300,7 +352,7 @@ export function parseUbl21Invoice(xml: string): ExtractedInvoice & { e_invoice_f
 	});
 
 	return einvoiceResult({
-		supplier, receiver, supplierEmail, supplierPhone,
+		supplier, receiver, supplierEmail, supplierPhone, paymentMethod, iban,
 		invoiceNumber, invoiceDate, dueDate,
 		totalAmount, currency, taxBase, taxBreakdown,
 		lineItems: line_items, format: 'ubl_21',
