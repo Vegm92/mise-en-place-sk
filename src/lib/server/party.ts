@@ -40,6 +40,9 @@ function swapParties(invoice: ExtractedInvoice): ExtractedInvoice {
 		receiver_name: invoice.supplier_name ?? null,
 		receiver_nif: invoice.supplier_nif ?? null,
 		receiver_address: invoice.supplier_address ?? null,
+		iban: null,
+		payment_method: null,
+		payment_terms: null,
 		field_confidences: confidences && {
 			...confidences,
 			supplier_name: confidences.receiver_name,
@@ -47,6 +50,7 @@ function swapParties(invoice: ExtractedInvoice): ExtractedInvoice {
 			supplier_category: undefined,
 			receiver_name: confidences.supplier_name,
 			receiver_nif: confidences.supplier_nif,
+			iban: undefined,
 		},
 	};
 }

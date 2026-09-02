@@ -8,6 +8,7 @@ import { computeAndCacheReliabilityScore } from '$lib/server/supplier-reliabilit
 import { resolveSupplierCategoryAlerts } from '$lib/server/alerts';
 import { toCents, moneyToNumber, moneyToNullableNumber } from '$lib/server/money';
 import { requirePositiveIntId } from '$lib/server/route-params';
+import { normalizeIban } from '$lib/iban';
 
 const VALID_TABS = ['resumen', 'albaranes', 'productos', 'conversiones'] as const;
 type Tab = typeof VALID_TABS[number];
@@ -145,6 +146,7 @@ export const actions: Actions = {
 		const contactEmail = String(data.get('contact_email') ?? '').trim() || null;
 		const contactPhone = String(data.get('contact_phone') ?? '').trim() || null;
 		const cif          = String(data.get('cif') ?? '').trim() || null;
+		const iban         = normalizeIban(String(data.get('iban') ?? '').trim() || null);
 		const address      = String(data.get('address') ?? '').trim() || null;
 		const deliveryDays = String(data.get('delivery_days') ?? '').trim() || null;
 		const paymentTermms = String(data.get('payment_terms') ?? '').trim() || null;
@@ -155,7 +157,7 @@ export const actions: Actions = {
 		const cat = (await selectableCategoryNames(rid)).includes(category) ? category : null;
 
 		await db.update(suppliers)
-			.set({ name, category: cat, contactEmail, contactPhone, cif, address, deliveryDays, paymentTerms: paymentTermms, notes })
+			.set({ name, category: cat, contactEmail, contactPhone, cif, iban, address, deliveryDays, paymentTerms: paymentTermms, notes })
 			.where(tdb.scope(suppliers.restaurantId, eq(suppliers.id, id)));
 
 		if (cat != null) {
