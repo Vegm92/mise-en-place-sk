@@ -68,7 +68,7 @@ reason, and it is greppable. Every current one is cited from an ADR.
 
 ### Explanatory comments are banned from `src/`
 
-`lint:no-comments` (and a `.githooks/pre-commit` hook) rejects prose comments in
+`lint:no-comments` rejects prose comments in
 source. Only machine-directed pragmas survive: `@ts-*`, `eslint*`,
 `svelte-ignore`, `prettier-ignore`, `@vite-ignore`, coverage ignores,
 `/// <reference`, `@license`/`@preserve`.

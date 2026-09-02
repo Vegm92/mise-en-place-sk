@@ -18,7 +18,7 @@
 //   --width=390                    viewport width (390 = iPhone 12/13/14)
 //   --tag=before                   screenshot filename prefix
 //   --out=shots                    screenshot directory
-//   --report=shots/admin-mobile-audit.json   report path ('' to skip)
+//   --report=tests/fixtures/admin-mobile-audit.json   report path ('' to skip)
 //   --email= / --password=         admin credentials (default: .env values)
 import { chromium } from 'playwright';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -50,7 +50,7 @@ const HEIGHT = Number(args.height ?? 844);
 const TAG = args.tag ?? 'audit';
 const OUT = path.resolve(ROOT, args.out ?? 'shots');
 const REPORT = args.report === undefined
-	? path.resolve(ROOT, 'shots/admin-mobile-audit.json')
+	? path.resolve(ROOT, 'tests/fixtures/admin-mobile-audit.json')
 	: (args.report ? path.resolve(ROOT, args.report) : '');
 const EMAIL = args.email ?? process.env.AUTH_ADMIN_EMAIL ?? 'admin@mep.test';
 const PASSWORD = args.password ?? process.env.AUTH_ADMIN_PASSWORD ?? 'Test1234!';
