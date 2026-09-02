@@ -46,7 +46,8 @@ For per-feature rules see `docs/03_features/`; for change procedure see
 
 | Table | Purpose | Notable columns | Notes |
 |---|---|---|---|
-| `suppliers` | Vendor | `name`, `alias`, `category`, `contactEmail`/`contactPhone`, `cif`, `address`, `deliveryDays`, `paymentTerms`, `notes` | Unique `(rid, lower(name))`; category ∈ 14 canonical |
+| `suppliers` | Vendor | `name`, `alias`, `category`, `contactEmail`/`contactPhone`, `cif`, `normalizedCif`, `address`, `deliveryDays`, `paymentTerms`, `notes` | Unique `(rid, lower(name))`; partial index `(rid, normalized_cif)` WHERE NOT NULL; category ∈ 14 canonical |
+| `supplier_aliases` | Extra trade name a supplier's tax id carries | `supplierId` (CASCADE), `name`, `normalizedName` | Unique `(rid, normalized_name)`; index `(rid, supplier_id)` |
 | `supplier_metrics` | Reliability scores | 1:1 `supplierId`, `score`, `priceStability`, `frequency`, `timeliness`, `priceStabilityCv` | Computed + cached |
 | `products` | Normalized product identity | `canonicalName`, `nameKey`, `category`, `canonicalUnit`, `unitsPerPack`, `baseUnit`, `allergens` jsonb, `allergensSource` `manual\|extracted`, `kcal100`/`protein100`/`carbs100`/`fat100`, `nutritionSource` `manual\|extracted` | Unique `(rid, name_key)` + GIN trgm index; allergens/nutrition declared once per product and inherited by escandallo lines (migration 0056) |
 | `product_aliases` | Raw invoice string → product | `productId`, `supplierId` (SET NULL), `rawKey`, `rawText`, `source` `exact\|fuzzy\|llm`, `confirmedAt` | Unique `(rid, raw_key)`; partial index WHERE confirmedAt NULL |
