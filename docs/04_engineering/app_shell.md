@@ -360,6 +360,8 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 
 ### `src/lib/formatters.ts`
 
+**`const numberFormatters` / `const dateTimeFormatters`**
+- Module-level `Map` caches for `Intl.NumberFormat` and `Intl.DateTimeFormat` instances, avoiding repeated expensive object construction on thousands of format calls across list and dashboard renders (~30-50x speedup).
 **`function fmtEur`**
 - Full precision EUR: 1234.56 → "1.234,56 €".
 **`function fmtEurCompact`**
