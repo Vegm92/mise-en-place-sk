@@ -7,6 +7,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import { contentDispositionHeader } from '../src/lib/server/content-disposition';
 
 // ── MIME map (copied from the endpoint) ─────────────────────────────────────
 const MIME: Record<string, string> = {
@@ -14,6 +15,8 @@ const MIME: Record<string, string> = {
 	'.jpg':  'image/jpeg',
 	'.jpeg': 'image/jpeg',
 	'.png':  'image/png',
+	'.webp': 'image/webp',
+	'.xml':  'application/xml',
 };
 
 function resolveMime(filename: string): string {
@@ -122,7 +125,7 @@ describe('upload guard chain', () => {
 	function simulateRequest(
 		sessionFiles: string[],
 		requestedFile: string
-	): { status: number; contentType?: string; bodyLength?: number } {
+	): { status: number; contentType?: string; contentDisposition?: string; bodyLength?: number } {
 		// 1. session membership check
 		if (!isFileInSession(sessionFiles, requestedFile)) return { status: 403 };
 
@@ -135,15 +138,23 @@ describe('upload guard chain', () => {
 
 		// 4. serve
 		const buf = fs.readFileSync(fp);
-		return { status: 200, contentType: resolveMime(requestedFile), bodyLength: buf.length };
+		return {
+			status: 200,
+			contentType: resolveMime(requestedFile),
+			contentDisposition: contentDispositionHeader('inline', requestedFile),
+			bodyLength: buf.length,
+		};
 	}
 
-	it('returns 200 with correct MIME for a valid PDF in session', () => {
-		const filename = 'invoice_abc.pdf';
+	it('returns 200 with correct MIME and sanitized Content-Disposition for a valid PDF in session', () => {
+		const filename = 'factura_año_2024.pdf';
 		fs.writeFileSync(path.join(tmpDir, filename), '%PDF-1.4 fake content');
 		const result = simulateRequest([filename], filename);
 		expect(result.status).toBe(200);
 		expect(result.contentType).toBe('application/pdf');
+		expect(result.contentDisposition).toBe(
+			`inline; filename="factura_a_o_2024.pdf"; filename*=UTF-8''factura_a%C3%B1o_2024.pdf`
+		);
 		expect(result.bodyLength).toBeGreaterThan(0);
 	});
 
