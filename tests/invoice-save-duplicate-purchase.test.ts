@@ -59,12 +59,14 @@ function form(opts: {
 	lineDescription?: string;
 	lines?: FormLine[];
 	lowConfidenceAck?: boolean;
+	purchaseOrder?: string;
 }): FormData {
 	const fd = new FormData();
 	fd.append('supplier_name', opts.supplier);
 	fd.append('invoice_number', opts.invoiceNumber);
 	fd.append('invoice_date', opts.invoiceDate);
 	fd.append('total_amount', opts.totalAmount);
+	if (opts.purchaseOrder) fd.append('purchase_order', opts.purchaseOrder);
 	if (opts.lowConfidenceAck ?? true) fd.append('low_confidence_ack', 'true');
 	const lines = opts.lines ?? [{
 		description: opts.lineDescription ?? 'Producto de prueba',
@@ -285,6 +287,39 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → possible duplicate / related
 		if (second.type !== 'saved') return;
 
 		expect(await duplicateNotifications(second.invoiceId)).toHaveLength(0);
+	});
+
+	it('links via matching purchase_order even when date and amount fall outside the normal window', async () => {
+		const supplier = '__inv_dupe_po__';
+
+		const albaran = await saveReviewedInvoice(
+			fakeItem('albaran'),
+			form({
+				invoiceNumber: 'ALB-2024-500', invoiceDate: '2024-01-01', totalAmount: '80.00', supplier,
+				purchaseOrder: 'PO-7788',
+			}),
+			rid,
+		);
+		expect(albaran.type).toBe('saved');
+		if (albaran.type !== 'saved') return;
+
+		const factura = await saveReviewedInvoice(
+			fakeItem('factura'),
+			form({
+				invoiceNumber: 'FAC-2024-500', invoiceDate: '2024-05-01', totalAmount: '900.00', supplier,
+				purchaseOrder: 'po-7788',
+			}),
+			rid,
+		);
+		expect(factura.type).toBe('saved');
+		if (factura.type !== 'saved') return;
+
+		const related = await notificationsByType(factura.invoiceId, 'related_document_found');
+		expect(related).toHaveLength(1);
+		expect(related[0].payload.matchedInvoiceId).toBe(albaran.invoiceId);
+
+		expect(await linkedInvoiceId(factura.invoiceId)).toBe(albaran.invoiceId);
+		expect(await linkedInvoiceId(albaran.invoiceId)).toBe(factura.invoiceId);
 	});
 
 	it('does not flag (and does not block the save) when document_type is unknown', async () => {

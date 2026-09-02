@@ -45,12 +45,21 @@ async function checkDuplicateInvoice(
 	return hashMatch.length > 0;
 }
 
+interface DocumentReferenceFields {
+	purchaseOrder: string | null;
+	sellerName: string | null;
+	deliveryDate: string | null;
+	deliveryAddress: string | null;
+	printedNotes: string | null;
+}
+
 async function executeEditTransaction(
 	tx: Tx, tdb: TenantDb, id: number, rid: string, uid: string,
 	idemKey: string | null, supplierName: string, invoiceNumber: string | null,
 	invoiceDate: string | null, dueDate: string | null, totalAmount: string | null,
 	notes: string | null, contentHash: string, expectedVersion: number,
 	enrichedLines: Awaited<ReturnType<typeof enrichLineItems>>,
+	documentReferences: DocumentReferenceFields,
 ): Promise<{ conflict: EditConflict; savedSupplierId: number | null; documentType: 'factura' | 'albaran' | null }> {
 	if (idemKey && !(await claimRequest(idemKey, rid, tx))) {
 		return { conflict: null, savedSupplierId: null, documentType: null };
@@ -68,7 +77,15 @@ async function executeEditTransaction(
 		return { conflict: 'duplicate', savedSupplierId: null, documentType };
 	}
 	const updated = await tx.update(invoices)
-		.set({ supplierId, invoiceNumber, invoiceDate, dueDate, totalAmount, notes, contentHash, version: sql`${invoices.version} + 1` })
+		.set({
+			supplierId, invoiceNumber, invoiceDate, dueDate, totalAmount, notes, contentHash,
+			version: sql`${invoices.version} + 1`,
+			purchaseOrder: documentReferences.purchaseOrder,
+			sellerName: documentReferences.sellerName,
+			deliveryDate: documentReferences.deliveryDate,
+			deliveryAddress: documentReferences.deliveryAddress,
+			printedNotes: documentReferences.printedNotes,
+		})
 		.where(and(tdb.scope(invoices.restaurantId, eq(invoices.id, id)), eq(invoices.version, expectedVersion)))
 		.returning({ id: invoices.id });
 	if (updated.length === 0) {
@@ -109,6 +126,11 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				notes:          invoices.notes,
 				created_at:     invoices.createdAt,
 				version:        invoices.version,
+				purchase_order:   invoices.purchaseOrder,
+				seller_name:      invoices.sellerName,
+				delivery_date:    invoices.deliveryDate,
+				delivery_address: invoices.deliveryAddress,
+				printed_notes:    invoices.printedNotes,
 			})
 				.from(invoices)
 				.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
@@ -158,13 +180,23 @@ export const actions: Actions = {
 		const invoiceNumber = String(data.get('invoice_number') ?? '').trim() || null;
 		const invoiceDateRaw = data.get('invoice_date');
 		const dueDateRaw     = data.get('due_date');
+		const deliveryDateRaw = data.get('delivery_date');
 		if (!isBlankOrIsoDate(invoiceDateRaw)) return fail(400, { errorKey: 'error.invalidInvoiceDate' });
 		if (!isBlankOrIsoDate(dueDateRaw))     return fail(400, { errorKey: 'error.invalidDueDate' });
+		if (!isBlankOrIsoDate(deliveryDateRaw)) return fail(400, { errorKey: 'error.invalidDeliveryDate' });
 		if (findInvalidMonetaryField(data))    return fail(400, { errorKey: 'error.invalidAmount' });
 		const invoiceDate   = toIsoDate(invoiceDateRaw);
 		const dueDate       = toIsoDate(dueDateRaw);
+		const deliveryDate  = toIsoDate(deliveryDateRaw);
 		const totalAmount   = toMoneyString(data.get('total_amount') as string | null);
 		const notes         = String(data.get('notes') ?? '').slice(0, 250) || null;
+		const documentReferences: DocumentReferenceFields = {
+			purchaseOrder:   String(data.get('purchase_order') ?? '').trim().slice(0, 100) || null,
+			sellerName:      String(data.get('seller_name') ?? '').trim().slice(0, 200) || null,
+			deliveryDate,
+			deliveryAddress: String(data.get('delivery_address') ?? '').trim().slice(0, 300) || null,
+			printedNotes:    String(data.get('printed_notes') ?? '').trim().slice(0, 500) || null,
+		};
 
 		const expectedVersion = Number(data.get('version'));
 		if (!Number.isInteger(expectedVersion) || expectedVersion < 1) {
@@ -189,6 +221,7 @@ export const actions: Actions = {
 			({ conflict, savedSupplierId, documentType } = await executeEditTransaction(
 				tx, tdb, id, rid, uid, idemKey, supplierName, invoiceNumber,
 				invoiceDate, dueDate, totalAmount, notes, contentHash, expectedVersion, enrichedLines,
+				documentReferences,
 			));
 		});
 
@@ -217,6 +250,7 @@ export const actions: Actions = {
 				lineItems: enrichedLines.map((line) => line.item),
 				lineDescriptions: lineInputs.map((li) => li.desc),
 				productByKey,
+				purchaseOrder: documentReferences.purchaseOrder,
 			});
 		}
 

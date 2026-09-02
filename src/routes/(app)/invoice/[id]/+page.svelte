@@ -151,6 +151,30 @@
               <span class="body-strong">{invoice.iban}</span>
             </div>
           {/if}
+          {#if invoice.purchase_order}
+            <div style="display:flex;flex-direction:column;gap:2px;">
+              <span class="label">{$t('field.purchaseOrder')}</span>
+              <span class="body-strong">{invoice.purchase_order}</span>
+            </div>
+          {/if}
+          {#if invoice.seller_name}
+            <div style="display:flex;flex-direction:column;gap:2px;">
+              <span class="label">{$t('field.sellerName')}</span>
+              <span class="body-strong">{invoice.seller_name}</span>
+            </div>
+          {/if}
+          {#if invoice.delivery_date}
+            <div style="display:flex;flex-direction:column;gap:2px;">
+              <span class="label">{$t('field.deliveryDate')}</span>
+              <span class="body-strong">{fmtDate(invoice.delivery_date)}</span>
+            </div>
+          {/if}
+          {#if invoice.delivery_address}
+            <div style="display:flex;flex-direction:column;gap:2px;">
+              <span class="label">{$t('field.deliveryAddress')}</span>
+              <span class="body-strong">{invoice.delivery_address}</span>
+            </div>
+          {/if}
         </div>
 
         {#if invoice.gross_amount != null || invoice.discount_amount != null || invoice.retention_amount != null}
@@ -179,6 +203,13 @@
           <div style="display:flex;flex-direction:column;gap:2px;">
             <span class="label">{$t('inv.detail.notes')}</span>
             <span class="body" style="line-height:1.5;">{invoice.notes}</span>
+          </div>
+        {/if}
+
+        {#if invoice.printed_notes}
+          <div style="display:flex;flex-direction:column;gap:2px;">
+            <span class="label">{$t('field.printedNotes')}</span>
+            <span class="body" style="line-height:1.5;">{invoice.printed_notes}</span>
           </div>
         {/if}
 

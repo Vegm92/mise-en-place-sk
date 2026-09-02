@@ -85,6 +85,32 @@
           <input id="edit-total" type="text" name="total_amount" value={totalAmountDisplay != null ? totalAmountDisplay.toFixed(2) : ''}
             class="input" style="height:36px;" />
         </div>
+        <div class="flex flex-col gap-1">
+          <label class="label" for="edit-purchase-order">{$t('field.purchaseOrder')}</label>
+          <input id="edit-purchase-order" type="text" name="purchase_order" value={invoice.purchase_order ?? ''}
+            maxlength={100} class="input" style="height:36px;" />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="label" for="edit-seller-name">{$t('field.sellerName')}</label>
+          <input id="edit-seller-name" type="text" name="seller_name" value={invoice.seller_name ?? ''}
+            maxlength={200} class="input" style="height:36px;" />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="label" for="edit-delivery-date">{$t('field.deliveryDate')}</label>
+          <input id="edit-delivery-date" type="date" name="delivery_date" value={invoice.delivery_date ?? ''}
+            class="input" style="height:36px;" />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="label" for="edit-delivery-address">{$t('field.deliveryAddress')}</label>
+          <input id="edit-delivery-address" type="text" name="delivery_address" value={invoice.delivery_address ?? ''}
+            maxlength={300} class="input" style="height:36px;" />
+        </div>
+        <div class="col-span-1 md:col-span-2 flex flex-col gap-1">
+          <label class="label" for="edit-printed-notes">{$t('field.printedNotes')}</label>
+          <textarea id="edit-printed-notes" name="printed_notes" maxlength={500} rows={2}
+            class="input resize-y" style="padding:8px 10px;"
+            value={invoice.printed_notes ?? ''}></textarea>
+        </div>
         <div class="col-span-1 md:col-span-2 flex flex-col gap-1">
           <label class="label" for="edit-notes">
             {$t('edit.notes')} <span class="text-fg-3 font-normal">({$t('edit.notesHint')})</span>
