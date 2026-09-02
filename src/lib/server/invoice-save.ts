@@ -345,6 +345,23 @@ export function resolveTaxBreakdown(
 	};
 }
 
+export function resolveTotalsBreakdown(
+	extractedData: Record<string, unknown> | undefined,
+): {
+	grossAmount: string | null;
+	discountAmount: string | null;
+	retentionRate: number | null;
+	retentionAmount: string | null;
+} {
+	const retentionRateRaw = extractedData?.retention_rate;
+	return {
+		grossAmount: toMoneyString(extractedData?.gross_amount as string | number | null | undefined),
+		discountAmount: toMoneyString(extractedData?.discount_amount as string | number | null | undefined),
+		retentionRate: typeof retentionRateRaw === 'number' ? retentionRateRaw : null,
+		retentionAmount: toMoneyString(extractedData?.retention_amount as string | number | null | undefined),
+	};
+}
+
 export function parseLineInputs(formData: FormData): LineFormInput[] {
 	const descriptions = formData.getAll('line_descriptions').map(String);
 	const quantities   = formData.getAll('line_quantities').map(String);
@@ -560,8 +577,9 @@ export function detectTotalMismatch(
 	lineInputs: LineFormInput[],
 	taxBands: TaxBand[] | null,
 	totalAmount: string | null,
+	extras?: { discountAmount?: string | null; retentionAmount?: string | null },
 ): boolean {
-	return detectAmountMismatch(lineInputs.map((li) => li.totalPriceVal), taxBands, totalAmount);
+	return detectAmountMismatch(lineInputs.map((li) => li.totalPriceVal), taxBands, totalAmount, extras);
 }
 
 export function resolveReviewState(signals: {
@@ -812,6 +830,9 @@ export async function saveReviewedInvoice(
 		formData,
 		item?.extractedData ?? undefined,
 	);
+	const { grossAmount, discountAmount, retentionRate, retentionAmount } = resolveTotalsBreakdown(
+		item?.extractedData ?? undefined,
+	);
 
 	const contentHash = computeFormContentHash(
 		{ supplierName, invoiceNumber, invoiceDate, dueDate, totalAmount },
@@ -842,7 +863,8 @@ export async function saveReviewedInvoice(
 
 	const { reviewState, incidenceKind } = resolveReviewState({
 		lowConfidenceAcked: formData.get('low_confidence_ack') === 'true',
-		totalMismatch: detectTotalMismatch(lineInputs, taxBands, totalAmount) || extractedData?.total_mismatch === true,
+		totalMismatch: detectTotalMismatch(lineInputs, taxBands, totalAmount, { discountAmount, retentionAmount })
+			|| extractedData?.total_mismatch === true,
 		conversionNeeded: enrichedLines.some((l) => l.requiresUnitConversion),
 		qrMismatch: qrMismatches.length > 0,
 	});
@@ -892,6 +914,10 @@ export async function saveReviewedInvoice(
 				totalAmount,
 				taxBase,
 				taxBreakdown,
+				grossAmount,
+				discountAmount,
+				retentionRate,
+				retentionAmount,
 				paymentMethod,
 				paymentTerms,
 				status: 'pending',

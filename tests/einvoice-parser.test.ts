@@ -10,6 +10,19 @@ import {
 	parseEinvoice,
 } from '../src/lib/server/einvoice-parser';
 
+// issue #916 — shared by the Facturae and UBL "no discount/retention printed" cases below.
+function expectNoTotalsChain(result: {
+	gross_amount?: number | null;
+	discount_amount?: number | null;
+	retention_rate?: number | null;
+	retention_amount?: number | null;
+}) {
+	expect(result.gross_amount).toBeNull();
+	expect(result.discount_amount).toBeNull();
+	expect(result.retention_rate).toBeNull();
+	expect(result.retention_amount).toBeNull();
+}
+
 // ── Sample XML fixtures ───────────────────────────────────────────────────────
 
 const FACTURAE_322_XML = `<?xml version="1.0" encoding="UTF-8"?>
@@ -368,6 +381,38 @@ describe('parseFacturae322', () => {
 	it('sets currency to EUR', () => {
 		expect(parseFacturae322(FACTURAE_322_XML).currency).toBe('EUR');
 	});
+
+	it('leaves gross_amount/discount_amount/retention null when the totals carry no discount or withholding (issue #916)', () => {
+		expectNoTotalsChain(parseFacturae322(FACTURAE_322_XML));
+	});
+
+	it('extracts TotalGeneralDiscounts as discount_amount and derives tax_base as gross minus discount (issue #916)', () => {
+		const xml = FACTURAE_322_XML
+			.replace('<TotalGrossAmount>1295.62</TotalGrossAmount>', '<TotalGrossAmount>1345.62</TotalGrossAmount>')
+			.replace('<TotalGeneralDiscounts>0.00</TotalGeneralDiscounts>', '<TotalGeneralDiscounts>50.00</TotalGeneralDiscounts>');
+		const result = parseFacturae322(xml);
+		expect(result.gross_amount).toBeCloseTo(1345.62, 2);
+		expect(result.discount_amount).toBeCloseTo(50.00, 2);
+		expect(result.tax_base).toBeCloseTo(1295.62, 2);
+	});
+
+	it('extracts TaxesWithheld/Tax as retention_rate and retention_amount (issue #916)', () => {
+		const xml = FACTURAE_322_XML.replace(
+			'</TaxesOutputs>',
+			`</TaxesOutputs>
+			<TaxesWithheld>
+				<Tax>
+					<TaxTypeCode>04</TaxTypeCode>
+					<TaxRate>15.00</TaxRate>
+					<TaxableBase><TotalAmount>1295.62</TotalAmount></TaxableBase>
+					<TaxAmount><TotalAmount>194.34</TotalAmount></TaxAmount>
+				</Tax>
+			</TaxesWithheld>`,
+		);
+		const result = parseFacturae322(xml);
+		expect(result.retention_rate).toBeCloseTo(0.15, 5);
+		expect(result.retention_amount).toBeCloseTo(194.34, 2);
+	});
 });
 
 // ── parseUbl21Invoice ─────────────────────────────────────────────────────────
@@ -484,6 +529,59 @@ describe('parseUbl21Invoice', () => {
 		const result = parseUbl21Invoice(UBL_21_XML);
 		expect(result.document_type).toBe('factura');
 		expect(result.field_confidences?.document_type).toBe(1.0);
+	});
+
+	it('leaves gross_amount/discount_amount/retention null when there is no AllowanceCharge or WithholdingTaxTotal (issue #916)', () => {
+		expectNoTotalsChain(parseUbl21Invoice(UBL_21_XML));
+	});
+
+	it('extracts an AllowanceCharge with ChargeIndicator=false as a discount (issue #916)', () => {
+		const xml = UBL_21_XML.replace(
+			'<cac:LegalMonetaryTotal>',
+			`<cac:AllowanceCharge>
+				<cbc:ChargeIndicator>false</cbc:ChargeIndicator>
+				<cbc:AllowanceChargeReason>Dto. pronto pago</cbc:AllowanceChargeReason>
+				<cbc:Amount currencyID="EUR">12.50</cbc:Amount>
+			</cac:AllowanceCharge>
+			<cac:LegalMonetaryTotal>`,
+		);
+		const result = parseUbl21Invoice(xml);
+		expect(result.discount_amount).toBeCloseTo(12.50, 2);
+		expect(result.gross_amount).toBeCloseTo(250.00, 2);
+	});
+
+	it('ignores an AllowanceCharge with ChargeIndicator=true (a surcharge, not a discount) (issue #916)', () => {
+		const xml = UBL_21_XML.replace(
+			'<cac:LegalMonetaryTotal>',
+			`<cac:AllowanceCharge>
+				<cbc:ChargeIndicator>true</cbc:ChargeIndicator>
+				<cbc:Amount currencyID="EUR">5.00</cbc:Amount>
+			</cac:AllowanceCharge>
+			<cac:LegalMonetaryTotal>`,
+		);
+		const result = parseUbl21Invoice(xml);
+		expect(result.discount_amount).toBeNull();
+		expect(result.gross_amount).toBeNull();
+	});
+
+	it('extracts a WithholdingTaxTotal as retention_rate and retention_amount (issue #916)', () => {
+		const xml = UBL_21_XML.replace(
+			'<cac:LegalMonetaryTotal>',
+			`<cac:WithholdingTaxTotal>
+				<cbc:TaxAmount currencyID="EUR">37.50</cbc:TaxAmount>
+				<cac:TaxSubtotal>
+					<cbc:TaxableAmount currencyID="EUR">250.00</cbc:TaxableAmount>
+					<cbc:TaxAmount currencyID="EUR">37.50</cbc:TaxAmount>
+					<cac:TaxCategory>
+						<cbc:Percent>15</cbc:Percent>
+					</cac:TaxCategory>
+				</cac:TaxSubtotal>
+			</cac:WithholdingTaxTotal>
+			<cac:LegalMonetaryTotal>`,
+		);
+		const result = parseUbl21Invoice(xml);
+		expect(result.retention_rate).toBeCloseTo(0.15, 5);
+		expect(result.retention_amount).toBeCloseTo(37.50, 2);
 	});
 });
 

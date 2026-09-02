@@ -484,6 +484,13 @@
       "when": 1788373768412,
       "tag": "0068_quick_rictor",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1788376311707,
+      "tag": "0069_late_blindfold",
+      "breakpoints": true
     }
   ]
 }

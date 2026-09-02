@@ -217,21 +217,21 @@ describe.skipIf(!hasDbEnv)('/invoices/export/download — issue #493', () => {
 });
 
 describe.skipIf(!hasDbEnv)('/invoices/export/download — issue #883 taxable base + selected download', () => {
-	it('includes the tax_base column right before total_amount, header "Base imponible (€)"', async () => {
+	it('includes the tax_base column, header "Base imponible (€)", before total_amount', async () => {
 		await insertInvoice({ invoiceNumber: 'INV-883-1', taxBase: '82.50', totalAmount: '99.83' });
 
 		const sheet = await parseSheet(await runGet(''));
-		expect(sheet.getRow(1).getCell(6).value).toBe('Base imponible (€)');
-		expect(sheet.getRow(1).getCell(7).value).toBe('Importe (€)');
-		expect(sheet.getRow(2).getCell(6).value).toBeCloseTo(82.5);
-		expect(sheet.getRow(2).getCell(7).value).toBeCloseTo(99.83);
+		expect(sheet.getRow(1).getCell(8).value).toBe('Base imponible (€)');
+		expect(sheet.getRow(1).getCell(11).value).toBe('Importe (€)');
+		expect(sheet.getRow(2).getCell(8).value).toBeCloseTo(82.5);
+		expect(sheet.getRow(2).getCell(11).value).toBeCloseTo(99.83);
 	});
 
 	it('leaves the tax_base cell null-safe when the invoice has no tax_base', async () => {
 		await insertInvoice({ invoiceNumber: 'INV-883-2', totalAmount: '10.00' });
 
 		const sheet = await parseSheet(await runGet(''));
-		expect(sheet.getRow(2).getCell(6).value).toBeNull();
+		expect(sheet.getRow(2).getCell(8).value).toBeNull();
 	});
 
 	it('ids= returns only the selected invoices, replacing the status/supplier/date filters', async () => {
