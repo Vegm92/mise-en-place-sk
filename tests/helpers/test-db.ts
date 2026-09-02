@@ -40,10 +40,12 @@ const _realDb = hasDbEnv ? drizzle(_client!, { schema }) : null;
 export const testDb  = _realDb as NonNullable<typeof _realDb>;
 export const testSql = _client as NonNullable<typeof _client>;
 
-export async function closeDb() {
-	// timeout:5 force-closes after 5s so afterAll hooks never hang
-	if (_client) await _client.end({ timeout: 5 });
-}
+// Intentionally a no-op: under `isolate: false` one worker runs many files
+// against this single client, so ending it in one file's afterAll breaks
+// every later file (write CONNECTION_ENDED). idle_timeout above closes the
+// socket by itself, and vitest kills workers on teardown.
+// ponytail: kept as a no-op so 89 afterAll call sites need no edit; drop them when touching those files.
+export async function closeDb() {}
 
 const DEFAULT_CATEGORY_SEED = VALID_CATEGORIES.filter((name) => name !== UNCATEGORIZED_CATEGORY);
 

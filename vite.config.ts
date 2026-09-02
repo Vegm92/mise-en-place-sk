@@ -4,6 +4,18 @@ import { defineConfig, loadEnv } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { fileURLToPath } from 'node:url';
+import { readdirSync, readFileSync } from 'node:fs';
+
+// Files that never touch the module mocker or process.env can share one
+// module graph per worker (isolate: false), which is where most of the
+// suite's wall time goes (collect phase). Anything that mocks stays isolated:
+// vi.mock state and module singletons leak between files in a worker.
+const MOCKS_OR_ENV = /vi\.(mock|doMock|stubEnv|stubGlobal|hoisted)\(|process\.env\.[A-Z_]+ *=[^=]/;
+const testFiles = readdirSync('tests', { recursive: true })
+	.map((f) => `tests/${String(f).replace(/\\/g, '/')}`)
+	.filter((f) => f.endsWith('.test.ts'));
+const isolatedTests = testFiles.filter((f) => MOCKS_OR_ENV.test(readFileSync(f, 'utf8')));
+const sharedTests = testFiles.filter((f) => !isolatedTests.includes(f));
 
 // Uploads source maps and creates a release on build when SENTRY_AUTH_TOKEN is
 // set; a silent no-op otherwise. Registered before sveltekit() below.
@@ -92,7 +104,13 @@ export default defineConfig(({ mode }) => {
 			allowedHosts: true,
 		},
 		test: {
-			include: ['tests/**/*.test.ts'],
+			// vitest 3.2.7 ignores a project-level `isolate` for the forks pool,
+			// so the `shared` project is run with `--no-isolate` from the CLI
+			// (see the `test` script) as a second invocation.
+			projects: [
+				{ extends: true, test: { name: 'shared', include: sharedTests } },
+				{ extends: true, test: { name: 'isolated', include: isolatedTests } },
+			],
 			alias: { '@sentry/sveltekit': fileURLToPath(new URL('./tests/helpers/sentry-stub.ts', import.meta.url)) },
 			globalSetup: ['tests/setup/global-setup.ts'],
 			// Default reporter first; the skip summary prints below its
