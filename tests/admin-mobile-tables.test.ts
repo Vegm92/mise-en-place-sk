@@ -35,6 +35,7 @@ const ADMIN_ROUTES = [
 	'/admin/errors',
 	'/admin/learning',
 	'/admin/health',
+	'/admin/feature-flags',
 ];
 
 const SCROLLER = 'AdminTableScroll';
