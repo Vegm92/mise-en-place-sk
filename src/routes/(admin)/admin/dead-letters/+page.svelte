@@ -2,7 +2,7 @@
   import type { PageData } from './$types';
   import { t, ti } from '$lib/i18n';
   import AdminPageHead from '$lib/components/admin/AdminPageHead.svelte';
-  import SectionCard from '$lib/components/mep/SectionCard.svelte';
+  import HudPanel from '$lib/components/admin/HudPanel.svelte';
   import AdminTableScroll from '$lib/components/admin/AdminTableScroll.svelte';
   let { data }: { data: PageData } = $props();
 
@@ -49,7 +49,7 @@
   {/snippet}
 </AdminPageHead>
 
-<div class="px-3 md:px-6 pb-6 flex flex-col gap-4">
+<div class="hud-page px-3 md:px-6 pb-6 flex flex-col gap-2.5">
 
   <div class="flex gap-1.5 flex-wrap items-center">
     <span class="text-xs text-fg-3">{$t('admin.dlq.statusLabel')}</span>
@@ -81,48 +81,44 @@
     </div>
   {/if}
 
-  <SectionCard title={$t('admin.dlq.title')} noPad>
+  <HudPanel title={$t('admin.dlq.title')}>
     <AdminTableScroll>
-      <table class="w-full border-collapse text-[13px]">
+      <table class="hud-table">
         <thead>
-          <tr class="border-b border-divider">
-            <th scope="col" class="py-2.5 px-4 text-left text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.dlq.colQueue')}</th>
-            <th scope="col" class="py-2.5 px-4 text-left text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.dlq.colError')}</th>
-            <th scope="col" class="py-2.5 px-4 text-left text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.colRestaurant')}</th>
-            <th scope="col" class="py-2.5 px-4 text-center text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.dlq.colOccurrences')}</th>
-            <th scope="col" class="py-2.5 px-4 text-center text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.colStatus')}</th>
-            <th scope="col" class="py-2.5 px-4 text-right text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.dlq.colLastSeen')}</th>
-            <th scope="col" class="py-2.5 px-4 text-right text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.dlq.colActions')}</th>
+          <tr>
+            <th scope="col" class="l">{$t('admin.dlq.colQueue')}</th>
+            <th scope="col" class="l">{$t('admin.dlq.colError')}</th>
+            <th scope="col" class="l">{$t('admin.colRestaurant')}</th>
+            <th scope="col" class="r">{$t('admin.dlq.colOccurrences')}</th>
+            <th scope="col" class="l">{$t('admin.colStatus')}</th>
+            <th scope="col" class="r">{$t('admin.dlq.colLastSeen')}</th>
+            <th scope="col" class="r">{$t('admin.dlq.colActions')}</th>
           </tr>
         </thead>
         <tbody>
           {#each data.entries as entry}
-            <tr class="border-b border-divider">
-              <td class="py-[9px] px-4">
-                <code class="text-[11px] bg-surface-2 px-1.5 py-0.5 rounded-[3px] text-fg-2">{entry.queue}</code>
-              </td>
-              <td class="py-[9px] px-4 max-w-[340px]">
+            <tr>
+              <td class="mono dim">{entry.queue}</td>
+              <td style="max-width:340px;">
                 <button
                   type="button"
                   onclick={() => (expanded = expanded === entry.id ? null : entry.id)}
                   class="[all:unset] cursor-pointer block max-w-full"
                 >
-                  <code class="text-[11px] text-neg">{entry.errorClass}</code>
-                  <div class="text-fg-2 text-xs overflow-hidden text-ellipsis whitespace-nowrap">{entry.errorMessage}</div>
+                  <span style="display:block;font-family:ui-monospace, monospace;color:#f87171;">{entry.errorClass}</span>
+                  <div style="font-size:11px;color:#5b6472;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{entry.errorMessage}</div>
                 </button>
               </td>
-              <td class="py-[9px] px-4 text-fg-2 text-xs">{entry.restaurantName ?? '—'}</td>
-              <td class="num py-[9px] px-4 text-center text-fg-2 text-xs">{entry.occurrences}</td>
-              <td class="py-[9px] px-4 text-center">
-                <span class="inline-block px-2 py-0.5 rounded-[10px] text-[11px] font-semibold {STATUS_CLASS[entry.status] ?? STATUS_CLASS_FALLBACK}">
-                  {$t(`admin.dlq.status.${entry.status}`)}
-                </span>
+              <td class="dim">{entry.restaurantName ?? '—'}</td>
+              <td class="num r">{entry.occurrences}</td>
+              <td class:good={entry.status === 'replayed'} class:warn={entry.status === 'reviewed'} class:bad={entry.status === 'pending'} class:dim={entry.status === 'discarded'}>
+                {$t(`admin.dlq.status.${entry.status}`)}
               </td>
-              <td class="num py-[9px] px-4 text-right text-fg-3 text-xs whitespace-nowrap">
+              <td class="num r dim nowrap">
                 {new Date(entry.lastSeenAt).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
               </td>
-              <td class="py-[9px] px-4 text-right whitespace-nowrap">
-                <div class="inline-flex gap-1.5">
+              <td class="r nowrap">
+                <div style="display:inline-flex;gap:6px;">
                   {#if entry.replayable && entry.status !== 'replayed'}
                     <form method="POST" action="?/replay" class="inline">
                       <input type="hidden" name="id" value={entry.id} />
@@ -145,9 +141,9 @@
               </td>
             </tr>
             {#if expanded === entry.id}
-              <tr class="border-b border-divider bg-surface-2">
-                <td colspan="7" class="py-3 px-4">
-                  <div class="num text-[11.5px] text-fg-2 mb-2">
+              <tr>
+                <td colspan="7" style="background:rgba(255,255,255,0.02);padding:12px 14px;">
+                  <div style="font:11px/1.4 ui-monospace, monospace;color:#5b6472;margin-bottom:8px;">
                     {$ti('admin.dlq.detailMeta', {
                       source: entry.sourceId ?? '—',
                       job: entry.jobId ?? '—',
@@ -155,20 +151,18 @@
                       first: new Date(entry.firstSeenAt).toLocaleString('en-GB'),
                     })}
                   </div>
-                  <div class="text-xs text-fg mb-2 whitespace-pre-wrap break-words">{entry.errorMessage}</div>
-                  <pre class="m-0 text-[11px] text-fg-2 bg-surface p-2.5 rounded-[4px] overflow-auto max-h-[280px]">{payloadText(entry.payload)}</pre>
+                  <div style="font-size:12px;color:#e7edf5;margin-bottom:8px;white-space:pre-wrap;word-break:break-word;">{entry.errorMessage}</div>
+                  <pre style="margin:0;font:11px/1.4 ui-monospace, monospace;color:#e7edf5;background:#05070a;padding:10px;border-radius:4px;overflow:auto;max-height:280px;">{payloadText(entry.payload)}</pre>
                 </td>
               </tr>
             {/if}
           {:else}
-            <tr>
-              <td colspan="7" class="py-8 px-4 text-center text-fg-4">{$t('admin.dlq.empty')}</td>
-            </tr>
+            <tr><td colspan="7" class="empty">{$t('admin.dlq.empty')}</td></tr>
           {/each}
         </tbody>
       </table>
     </AdminTableScroll>
-  </SectionCard>
+  </HudPanel>
 
   {#if data.totalPages > 1}
     <div class="flex gap-1.5 items-center justify-center">
