@@ -5,7 +5,7 @@ import { db, forTenant } from '$lib/server/db';
 import { invoices, invoiceLineItems, suppliers, categoryBudgets, settings, systemNotifications } from '$lib/server/schema';
 import { describedLine, lineAmountExpr, lineCategoryExpr, lineProductJoin } from '$lib/server/category-spend';
 import { desc, eq, inArray, isNotNull, isNull, sql, and } from 'drizzle-orm';
-import { VALID_CATEGORIES } from '$lib/constants';
+import { selectableCategoryNames } from '$lib/server/categories';
 import { getTrendDataByRange } from '$lib/server/trend';
 import { detectMissingInvoices } from '$lib/server/supplier-cadence';
 import { moneyToNumber } from '$lib/server/money';
@@ -405,7 +405,7 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 			review,
 			supplier_count: supplierCount, suppliers: supps, category_spend: categorySpend,
 			recent_invoices: recentRows as unknown as InvRow[],
-			valid_categories: VALID_CATEGORIES, budgets,
+			valid_categories: await selectableCategoryNames(rid), budgets,
 			budget_threshold: threshold, category_spend_map: categorySpendMap,
 			total_budget: totalBudget, total_spent: totalSpent,
 			total_pct_bar: totalPctBar, total_pct_actual: totalPctActual,

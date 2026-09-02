@@ -3,7 +3,8 @@ import type { RequestHandler } from './$types';
 import { db, forTenant } from '$lib/server/db';
 import { suppliers, systemNotifications } from '$lib/server/schema';
 import { and, eq, isNull, or, sql } from 'drizzle-orm';
-import { VALID_CATEGORIES, UNCATEGORIZED_CATEGORY } from '$lib/constants';
+import { UNCATEGORIZED_CATEGORY } from '$lib/constants';
+import { visibleCategoryNames } from '$lib/server/categories';
 import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
@@ -26,7 +27,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const tdb = forTenant(rid);
 
 	if (action === 'accept') {
-		if (!VALID_CATEGORIES.includes(category) || category === UNCATEGORIZED_CATEGORY) {
+		if (category === UNCATEGORIZED_CATEGORY || !(await visibleCategoryNames(rid)).has(category)) {
 			return json({ error: 'unknown category' }, { status: 422 });
 		}
 		const updated = await db

@@ -3,7 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
 import { suppliers, invoices, supplierMetrics, unitConversions, invoiceLineItems } from '$lib/server/schema';
 import { eq, desc, and, isNull, or, sql } from 'drizzle-orm';
-import { VALID_CATEGORIES } from '$lib/constants';
+import { selectableCategoryNames } from '$lib/server/categories';
 import { computeAndCacheReliabilityScore } from '$lib/server/supplier-reliability';
 import { resolveSupplierCategoryAlerts } from '$lib/server/alerts';
 import { toCents, moneyToNumber, moneyToNullableNumber } from '$lib/server/money';
@@ -117,7 +117,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		invoices: supplierInvoices.map(inv => ({ ...inv, totalAmount: moneyToNumber(inv.totalAmount) })),
 		metrics: supplierInvoices.length >= 3 ? metrics ?? null : null,
 		monthly,
-		categories: VALID_CATEGORIES,
+		categories: await selectableCategoryNames(rid),
 		conversions,
 		products: products.map(p => ({
 			...p,
@@ -152,7 +152,7 @@ export const actions: Actions = {
 
 		if (!name) error(400, 'Name is required');
 
-		const cat = VALID_CATEGORIES.includes(category) ? category : null;
+		const cat = (await selectableCategoryNames(rid)).includes(category) ? category : null;
 
 		await db.update(suppliers)
 			.set({ name, category: cat, contactEmail, contactPhone, cif, address, deliveryDays, paymentTerms: paymentTermms, notes })

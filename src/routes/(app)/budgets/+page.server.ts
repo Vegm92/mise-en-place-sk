@@ -5,7 +5,7 @@ import { periodRange } from '$lib/server/period-range';
 import { db, forTenant } from '$lib/server/db';
 import { categoryBudgets } from '$lib/server/schema';
 import { and, eq, sql } from 'drizzle-orm';
-import { VALID_CATEGORIES } from '$lib/constants';
+import { selectableCategoryNames } from '$lib/server/categories';
 import { trackEvent } from '$lib/server/events';
 import { toMonthStr } from '$lib/formatters';
 import { toMoneyString, moneyToNumber } from '$lib/server/money';
@@ -44,10 +44,11 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 		const category_spend: Record<string, number> = {};
 		for (const row of spendRows) category_spend[String(row.category)] = moneyToNumber(row.total);
 
+		const restaurantCategories = await selectableCategoryNames(rid);
 		const storedCats = rows.map(r => r.category);
 		const categories = [
-			...VALID_CATEGORIES,
-			...storedCats.filter(c => !VALID_CATEGORIES.includes(c)),
+			...restaurantCategories,
+			...storedCats.filter(c => !restaurantCategories.includes(c)),
 		];
 
 		return {
@@ -82,9 +83,9 @@ export const actions: Actions = {
 				? parsed
 					.map((c: unknown) => String(c).trim())
 					.filter(c => c.length > 0 && c.length <= 80)
-				: VALID_CATEGORIES;
+				: await selectableCategoryNames(rid);
 		} catch {
-			categories = VALID_CATEGORIES;
+			categories = await selectableCategoryNames(rid);
 		}
 
 		let setCount = 0;

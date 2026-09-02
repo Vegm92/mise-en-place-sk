@@ -1,5 +1,3 @@
-import { VALID_CATEGORIES } from './constants';
-
 export const SUPPLIER_SORT_KEYS = [
 	'spend_desc',
 	'spend_asc',
@@ -40,20 +38,22 @@ export interface SupplierListParams {
 }
 
 const SORT_KEY_SET = new Set<string>(SUPPLIER_SORT_KEYS);
-const CATEGORY_SET = new Set<string>(VALID_CATEGORIES);
 const BADGE_SET = new Set<string>(SUPPLIER_BADGE_VALUES);
 
 export function isSupplierSortKey(value: unknown): value is SupplierSortKey {
 	return typeof value === 'string' && SORT_KEY_SET.has(value);
 }
 
-export function parseSupplierListParams(params: URLSearchParams): SupplierListParams {
+export function parseSupplierListParams(
+	params: URLSearchParams,
+	validCategories: readonly string[],
+): SupplierListParams {
 	const rawSort = params.get('sort');
 	const rawCategory = (params.get('category') ?? '').trim();
 	return {
 		sort: isSupplierSortKey(rawSort) ? rawSort : DEFAULT_SUPPLIER_SORT,
 		search: (params.get('q') ?? '').trim(),
-		category: CATEGORY_SET.has(rawCategory) ? rawCategory : '',
+		category: validCategories.includes(rawCategory) ? rawCategory : '',
 		uncategorizedOnly: params.get('uncategorized') === '1',
 		badge: BADGE_SET.has(params.get('badge') ?? '') ? (params.get('badge') as SupplierBadge) : '',
 	};
