@@ -1,3 +1,8 @@
+---
+tags: [mep, architecture]
+related: "[[CONTEXT]]"
+---
+
 # Feature Specifications — Index
 
 One specification per major product feature. Each file defines the contract an AI

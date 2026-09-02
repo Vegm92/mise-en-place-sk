@@ -1,5 +1,6 @@
 ---
 tags: [mep, seo, geo, marketing, arquitectura]
+related: "[[CONTEXT]]"
 ---
 
 # GEO program — being cited by ChatGPT, Perplexity and AI Overviews

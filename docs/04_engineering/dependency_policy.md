@@ -1,3 +1,8 @@
+---
+tags: [mep, engineering]
+related: "[[CONTEXT]]"
+---
+
 # Dependency Policy
 
 Which third-party libraries exist, what must not change, and how to add new

@@ -1,3 +1,8 @@
+---
+tags: [mep, architecture]
+related: "[[CONTEXT]]"
+---
+
 # Data Schemas and Relations
 
 Source of truth: `src/lib/server/schema.ts` + committed migrations in

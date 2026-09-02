@@ -1,3 +1,8 @@
+---
+tags: [mep, operations]
+related: "[[CONTEXT]]"
+---
+
 # Troubleshooting
 
 Quick triage matrix. For deployment-specific failures, read `DEPLOYMENT.md`.

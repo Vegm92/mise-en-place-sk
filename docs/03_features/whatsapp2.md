@@ -1,3 +1,8 @@
+---
+tags: [mep, features]
+related: "[[CONTEXT]]"
+---
+
 Implementa en el repositorio actual una integración de WhatsApp para que los trabajadores puedan enviar facturas directamente al sistema mediante WhatsApp.
 
 ### Objetivo

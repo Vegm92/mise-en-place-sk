@@ -1,3 +1,8 @@
+---
+tags: [mep, product]
+related: "[[CONTEXT]]"
+---
+
 # Personas
 
 Derived from `docs/02_product/plan_de_negocio.md`, `docs/SPAIN_MARKET_RESEARCH.md` and the

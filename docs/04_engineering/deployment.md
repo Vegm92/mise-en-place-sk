@@ -1,3 +1,8 @@
+---
+tags: [mep, engineering]
+related: "[[CONTEXT]]"
+---
+
 # Deployment
 
 **Canonical runbook: `DEPLOYMENT.md` at the repo root.** It holds the full

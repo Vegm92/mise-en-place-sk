@@ -1,3 +1,8 @@
+---
+tags: [mep, engineering]
+related: "[[CONTEXT]]"
+---
+
 # Database Change Procedure
 
 How to change the schema safely. The migration is the artifact of record, not

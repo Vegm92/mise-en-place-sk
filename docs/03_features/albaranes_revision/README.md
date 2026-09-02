@@ -1,3 +1,8 @@
+---
+tags: [mep, features]
+related: "[[CONTEXT]]"
+---
+
 # Albaranes · revisión
 
 Fuentes de diseño de la pantalla `/invoices` rehecha como **bandeja de revisión**:

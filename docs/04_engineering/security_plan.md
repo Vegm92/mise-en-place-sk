@@ -1,3 +1,8 @@
+---
+tags: [mep, engineering]
+related: "[[CONTEXT]]"
+---
+
 # Plan Integral de Seguridad — Mise en Place
 
 Auditoría de las 20 directrices de seguridad contra el código real del proyecto

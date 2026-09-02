@@ -1,3 +1,8 @@
+---
+tags: [mep, operations]
+related: "[[CONTEXT]]"
+---
+
 # Beta-readiness review — 2026-08-27
 
 Hands-on QA pass over the full running app (local Postgres, seeded data, Playwright at 390×844 and 1280×800, es-ES). Every public, authenticated, Pro and admin surface was driven in a real browser; 157 screenshots captured. Verdict: **go for private beta after the two High fixes below.**

@@ -1,3 +1,8 @@
+---
+tags: [mep, architecture]
+related: "[[CONTEXT]]"
+---
+
 # Integrations and State
 
 How external systems connect, and how state flows through the app. External

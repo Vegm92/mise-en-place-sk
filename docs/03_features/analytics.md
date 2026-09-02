@@ -1,3 +1,8 @@
+---
+tags: [mep, features]
+related: "[[CONTEXT]]"
+---
+
 # Feature Spec — Analytics
 
 ## Purpose

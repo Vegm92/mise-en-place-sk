@@ -1,3 +1,8 @@
+---
+tags: [mep, operations]
+related: "[[CONTEXT]]"
+---
+
 # Monitoring
 
 How to know the system is healthy and where to look first. Sentry is the

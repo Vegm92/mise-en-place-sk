@@ -1,3 +1,8 @@
+---
+tags: [mep, features]
+related: "[[CONTEXT]]"
+---
+
 # Plantillas de informe
 
 Fuentes de diseño de la pantalla `/reports` y de los cuatro informes que genera.

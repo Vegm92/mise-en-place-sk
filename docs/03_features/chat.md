@@ -1,3 +1,8 @@
+---
+tags: [mep, features]
+related: "[[CONTEXT]]"
+---
+
 # Feature Spec — Chat (assistant over the restaurant's own data)
 
 ## Purpose

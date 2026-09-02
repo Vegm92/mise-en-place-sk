@@ -1,3 +1,8 @@
+---
+tags: [mep, product]
+related: "[[CONTEXT]]"
+---
+
 # Plans and Entitlements
 
 How subscription tiers, quotas and feature access work. Canonical source of the

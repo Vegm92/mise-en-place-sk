@@ -1,3 +1,8 @@
+---
+tags: [mep, features]
+related: "[[CONTEXT]]"
+---
+
 # Feature Spec — Multi-location (Business-tier restaurant groups)
 
 ## Purpose
