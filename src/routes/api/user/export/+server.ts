@@ -5,6 +5,7 @@ import { userRestaurants } from '$lib/server/schema';
 import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import { exportableEntries } from '$lib/server/tenant-data-map';
 import { eq, and, inArray } from 'drizzle-orm';
+import { contentDispositionHeader } from '$lib/server/content-disposition';
 
 export const GET: RequestHandler = async ({ locals }) => {
 	const user = locals.user;
@@ -45,7 +46,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 	return new Response(JSON.stringify(export_data, null, 2), {
 		headers: {
 			'Content-Type':        'application/json',
-			'Content-Disposition': `attachment; filename="mise-en-place-data-${user.id}.json"`,
+			'Content-Disposition': contentDispositionHeader('attachment', `mise-en-place-data-${user.id}.json`),
 		},
 	});
 };
