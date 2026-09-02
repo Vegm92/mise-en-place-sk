@@ -153,7 +153,7 @@
           {/if}
         </div>
 
-        {#if invoice.gross_amount != null || invoice.retention_amount != null}
+        {#if invoice.gross_amount != null || invoice.discount_amount != null || invoice.retention_amount != null}
           <div class="divider"></div>
           <div class="flex flex-wrap items-baseline gap-1.5 text-[11px] text-fg-3">
             {#if invoice.gross_amount != null}

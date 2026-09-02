@@ -54,7 +54,6 @@ Return ONLY valid JSON with this exact structure:
   "tax_base": total taxable amount before tax (sum of all line totals, or gross_amount minus discount_amount when a global discount is printed), or null if not present,
   "gross_amount": importe bruto / total bruto — the total before a global discount is applied — or null unless a discount is printed,
   "discount_amount": descuento, dto., pronto pago — the global discount amount — or null if none is printed,
-  "discount_rate": the discount rate as a decimal (e.g. 0.05 for "Dto. 5%") — or null if none is printed,
   "retention_rate": retención, IRPF, ret. — the withholding rate as a decimal (0.07, 0.15, 0.19, 0.21) — or null if none is printed,
   "retention_amount": the withheld amount (retención, IRPF) subtracted from the total — or null if none is printed,
   "tax_breakdown": [
@@ -92,7 +91,7 @@ Return ONLY valid JSON with this exact structure:
 Rules:
 - total_amount must be the final amount INCLUDING all taxes (total a pagar), not the pre-tax base.
 - If tax is shown separately, sum tax_base + all tax_amount values to get total_amount (include both IVA and REC amounts), then subtract retention_amount if the document withholds IRPF.
-- When a global discount (descuento, dto., pronto pago) is printed: tax_base = gross_amount − discount_amount. Report gross_amount and discount_amount, and derive discount_rate when a percentage is printed.
+- When a global discount (descuento, dto., pronto pago) is printed: tax_base = gross_amount − discount_amount. Report gross_amount and discount_amount.
 - When an IRPF retention is printed (retención, IRPF, ret. — typically 7%, 15%, 19% or 21% on professional-services invoices such as consultoría, gestoría, freelance cocineros, música): total_amount = tax_base + Σ tax_amount − retention_amount. Report retention_rate and retention_amount.
 - tax_breakdown must reflect what is printed on the document or arithmetically inferred (see Tax fallback below) — do not guess rates you cannot derive.
 - If a document shows both IVA and Recargo de Equivalencia (REC) columns, emit two separate entries in tax_breakdown: one with type "iva" and one with type "rec".
@@ -103,7 +102,7 @@ Bottom totals table — scan this first: Spanish albaranes and facturas almost a
 Tax fallback — use arithmetic only when neither a discount nor a retention is printed on the document, and OCR is otherwise uncertain: After reading all line items, compute line_sum = sum of all line_item total_price values (skip nulls). If line_sum > 0 AND tax_breakdown is null or its tax_amount sum does not account for the difference between total_amount and line_sum:
   1. gap = round(total_amount − line_sum, 2).
   2. If gap is positive, it is almost certainly tax: derive rate = gap / line_sum, snap to the nearest standard Spanish rate (0.04, 0.10, 0.21) if within 2%, and emit a tax_breakdown entry: { rate, base: line_sum, tax_amount: gap, type: "iva" }.
-  3. If gap is negative, it is almost certainly an unlabelled IRPF retention, NOT a wrong total and NOT an invented tax band: set retention_amount = −gap, derive retention_rate = −gap / tax_base (or −gap / line_sum when tax_base is unknown) snapped to the nearest IRPF rate (0.07, 0.15, 0.19, 0.21) if within 2%, and leave total_amount as printed.
+  3. If gap is negative, it is an unlabelled IRPF retention OR an unlabelled global discount — NOT a wrong total and NOT an invented tax band. Compute rate = −gap / tax_base (or −gap / line_sum when tax_base is unknown). If rate snaps to a standard IRPF rate (0.07, 0.15, 0.19, 0.21) within 2%, treat it as a retention: set retention_amount = −gap and retention_rate to the snapped rate. Otherwise it is an unlabelled discount, not a retention: set discount_amount = −gap and gross_amount = line_sum (or tax_base), and do NOT report a retention_rate. Leave total_amount as printed either way.
   Do NOT lower the document-level confidence field for either branch alone.
   Skip this fallback entirely when a discount or retention is already printed, when total_amount equals line_sum (no gap), or when total_amount is null.
 - Normalise unit values to lowercase abbreviations (kg, L, ud, caja, etc.).
@@ -195,7 +194,6 @@ export interface ExtractedInvoice {
 	tax_base: number | null;
 	gross_amount?: number | null;
 	discount_amount?: number | null;
-	discount_rate?: number | null;
 	retention_rate?: number | null;
 	retention_amount?: number | null;
 	tax_breakdown: Array<{ rate: number; base: number; tax_amount: number; type?: 'iva' | 'rec' }> | null;
@@ -300,7 +298,6 @@ export const INVOICE_RESPONSE_SCHEMA: Schema = {
 		tax_base: { type: Type.NUMBER, nullable: true },
 		gross_amount: { type: Type.NUMBER, nullable: true },
 		discount_amount: { type: Type.NUMBER, nullable: true },
-		discount_rate: { type: Type.NUMBER, nullable: true },
 		retention_rate: { type: Type.NUMBER, nullable: true },
 		retention_amount: { type: Type.NUMBER, nullable: true },
 		tax_breakdown: { type: Type.ARRAY, items: TAX_BAND_SCHEMA, nullable: true },
@@ -315,7 +312,7 @@ export const INVOICE_RESPONSE_SCHEMA: Schema = {
 		'supplier_phone', 'receiver_name', 'receiver_nif', 'receiver_address',
 		'payment_method', 'iban', 'payment_terms',
 		'invoice_number', 'document_type', 'invoice_date', 'due_date', 'total_amount',
-		'currency', 'tax_base', 'gross_amount', 'discount_amount', 'discount_rate',
+		'currency', 'tax_base', 'gross_amount', 'discount_amount',
 		'retention_rate', 'retention_amount', 'tax_breakdown', 'outstanding_balance', 'qr_url',
 		'field_confidences', 'line_items', 'confidence',
 	],

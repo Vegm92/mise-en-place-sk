@@ -257,7 +257,8 @@ export function parseFacturae322(xml: string): ExtractedInvoice & { e_invoice_fo
 		getNum(totals['TotalExecutableAmount']);
 	const grossAmount = getNum(totals['TotalGrossAmount']);
 	const discountAmount = getNum(totals['TotalGeneralDiscounts']) || null;
-	const taxBase = grossAmount !== null ? grossAmount - (discountAmount ?? 0) : null;
+	const taxBaseBeforeTaxes = getNum(totals['TotalGrossAmountBeforeTaxes']);
+	const taxBase = taxBaseBeforeTaxes ?? (grossAmount !== null ? grossAmount - (discountAmount ?? 0) : null);
 
 	const taxesOutputs = invoice['TaxesOutputs'] as Record<string, unknown> | undefined;
 	const taxes = getArr(taxesOutputs, 'Tax');
@@ -271,10 +272,12 @@ export function parseFacturae322(xml: string): ExtractedInvoice & { e_invoice_fo
 
 	const taxesWithheld = invoice['TaxesWithheld'] as Record<string, unknown> | undefined;
 	const withheldTaxes = getArr(taxesWithheld, 'Tax');
-	const retentionRate = withheldTaxes.length ? (getNum(getChild(withheldTaxes[0], 'TaxRate')) ?? 0) / 100 : null;
-	const retentionAmount = withheldTaxes.length
+	const withheldRate = withheldTaxes.length ? getNum(getChild(withheldTaxes[0], 'TaxRate')) : null;
+	const retentionRate = withheldRate !== null ? withheldRate / 100 : null;
+	const totalTaxesWithheld = getNum(totals['TotalTaxesWithheld']) || null;
+	const retentionAmount = totalTaxesWithheld ?? (withheldTaxes.length
 		? withheldTaxes.reduce((sum: number, tax) => sum + (getNum(getChild(tax, 'TaxAmount', 'TotalAmount')) ?? 0), 0)
-		: null;
+		: null);
 
 	const items = invoice['Items'] as Record<string, unknown> | undefined;
 	const lines = getArr(items, 'InvoiceLine');
@@ -355,9 +358,10 @@ export function parseUbl21Invoice(xml: string): ExtractedInvoice & { e_invoice_f
 	const withholdingTotals = getArr(inv, 'WithholdingTaxTotal');
 	const firstWithholding = withholdingTotals[0] as Record<string, unknown> | undefined;
 	const withholdingSubtotals = getArr(firstWithholding, 'TaxSubtotal');
-	const retentionRate = withholdingSubtotals.length
-		? (getNum(getChild(withholdingSubtotals[0], 'TaxCategory', 'Percent')) ?? 0) / 100
+	const withholdingRate = withholdingSubtotals.length
+		? getNum(getChild(withholdingSubtotals[0], 'TaxCategory', 'Percent'))
 		: null;
+	const retentionRate = withholdingRate !== null ? withholdingRate / 100 : null;
 	const retentionAmount = firstWithholding ? getNum(getChild(firstWithholding, 'TaxAmount')) : null;
 
 	const lineNodes = getArr(inv, 'InvoiceLine');

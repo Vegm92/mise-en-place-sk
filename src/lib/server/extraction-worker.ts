@@ -388,6 +388,7 @@ export async function processExtractionJob(
 			enriched.map((li) => li.totalPrice),
 			taxBands,
 			result.total_amount,
+			{ discountAmount: result.discount_amount, retentionAmount: result.retention_amount },
 		);
 
 		const extractedData: Record<string, unknown> = {

@@ -541,6 +541,11 @@ const TOTAL_MISMATCH_CASES = [
 	{ label: 'the extracted lines reconcile with the extracted total', invoice: invoiceFor(100, [60, 40]), expected: false },
 	{ label: 'a printed tax breakdown accounts for the gap', invoice: invoiceFor(121, [100], [{ rate: 0.21, base: 100, tax_amount: 21 }]), expected: false },
 	{ label: 'there is no usable extracted total to reconcile against', invoice: invoiceFor(null, [40]), expected: false },
+	{
+		label: 'a gestoría invoice with a discount and IRPF retention reconciles once extras are subtracted (#916)',
+		invoice: { ...invoiceFor(106, [100], [{ rate: 0.21, base: 100, tax_amount: 21 }]), discount_amount: 10, retention_amount: 5 },
+		expected: false,
+	},
 ] as const;
 
 describe('processExtractionJob — total mismatch is detected at extraction time (#808)', () => {
