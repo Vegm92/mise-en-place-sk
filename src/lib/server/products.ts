@@ -15,6 +15,8 @@ import { recordDeadLetter } from './dead-letter';
 import { CATEGORIZE_QUEUE, NORMALIZE_QUEUE } from './queue';
 import { renderTemplate } from '$lib/i18n-messages';
 import { toAllergenList } from '$lib/recipes';
+import { moneyToNullableNumber } from './money';
+import { yoyChangeForYear, type YearlyPriceInput } from '$lib/price-yoy';
 
 type Database = PostgresJsDatabase<typeof schema>;
 
@@ -238,6 +240,88 @@ export async function loadConversionPrompts(
 	}
 
 	return prompts;
+}
+
+type YearlyPriceDbRow = {
+	year: number;
+	unit_price: string | number | null;
+	normalized_unit_price: string | number | null;
+	unit: string | null;
+};
+
+function toYearlyPriceInput(row: YearlyPriceDbRow): YearlyPriceInput {
+	return {
+		year: Number(row.year),
+		unitPrice: moneyToNullableNumber(row.unit_price),
+		normalizedUnitPrice: moneyToNullableNumber(row.normalized_unit_price),
+		unit: row.unit,
+	};
+}
+
+export async function loadProductYearlyPrices(
+	database: Database,
+	restaurantId: string,
+	productId: number,
+): Promise<YearlyPriceInput[]> {
+	const rows = await database.execute<YearlyPriceDbRow>(sql`
+		SELECT DISTINCT ON (EXTRACT(YEAR FROM i.invoice_date))
+			EXTRACT(YEAR FROM i.invoice_date)::int AS year,
+			ili.unit_price,
+			ili.normalized_unit_price,
+			ili.unit
+		FROM invoice_line_items ili
+		JOIN invoices i ON i.id = ili.invoice_id
+		WHERE ili.restaurant_id = ${restaurantId}
+		  AND ili.product_id = ${productId}
+		  AND i.invoice_date IS NOT NULL
+		  AND i.deleted_at IS NULL
+		ORDER BY EXTRACT(YEAR FROM i.invoice_date), i.invoice_date DESC, i.id DESC
+	`);
+
+	return rows.map(toYearlyPriceInput);
+}
+
+export async function loadCatalogYoyChangeMap(
+	database: Database,
+	restaurantId: string,
+	currentYear: number,
+): Promise<Map<number, number | null>> {
+	const rows = await database.execute<YearlyPriceDbRow & { product_id: number }>(sql`
+		SELECT product_id, year, unit_price, normalized_unit_price, unit FROM (
+			SELECT
+				ili.product_id AS product_id,
+				EXTRACT(YEAR FROM i.invoice_date)::int AS year,
+				ili.unit_price,
+				ili.normalized_unit_price,
+				ili.unit,
+				ROW_NUMBER() OVER (
+					PARTITION BY ili.product_id, EXTRACT(YEAR FROM i.invoice_date)
+					ORDER BY i.invoice_date DESC, i.id DESC
+				) AS rn
+			FROM invoice_line_items ili
+			JOIN invoices i ON i.id = ili.invoice_id
+			WHERE ili.restaurant_id = ${restaurantId}
+			  AND ili.product_id IS NOT NULL
+			  AND i.invoice_date IS NOT NULL
+			  AND i.deleted_at IS NULL
+			  AND EXTRACT(YEAR FROM i.invoice_date) IN (${currentYear}, ${currentYear - 1})
+		) yearly
+		WHERE rn = 1
+	`);
+
+	const byProduct = new Map<number, YearlyPriceInput[]>();
+	for (const row of rows) {
+		const productId = Number(row.product_id);
+		const list = byProduct.get(productId) ?? [];
+		list.push(toYearlyPriceInput(row));
+		byProduct.set(productId, list);
+	}
+
+	const result = new Map<number, number | null>();
+	for (const [productId, list] of byProduct) {
+		result.set(productId, yoyChangeForYear(list, currentYear));
+	}
+	return result;
 }
 
 export async function defineUnitConversion(

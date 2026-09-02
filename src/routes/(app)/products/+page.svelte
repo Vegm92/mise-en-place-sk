@@ -2,12 +2,14 @@
   import type { PageData, ActionData } from './$types';
   import { categoryColor, categoryTint, seriesColor } from '$lib/colors';
   import { page } from '$app/state';
-  import { t, tcat, ti } from '$lib/i18n';
-  import { invalidateAll } from '$app/navigation';
+  import { t, tcat, ti, locale } from '$lib/i18n';
+  import { invalidateAll, goto } from '$app/navigation';
   import ListPageTemplate from '$lib/components/mep/ListPageTemplate.svelte';
   import MobileProducts from '$lib/components/mobile/MobileProducts.svelte';
   import PeriodPills from '$lib/components/mep/PeriodPills.svelte';
   import { PERIOD_PILLS } from '$lib/constants';
+  import { PRODUCT_SORT_KEYS, productSortHref, type ProductSortKey } from '$lib/product-filters';
+  import { formatYoyPct } from '$lib/formatters';
   import Plus from '@lucide/svelte/icons/plus';
   import Search from '@lucide/svelte/icons/search';
   import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
@@ -17,7 +19,11 @@
   type ConversionPrompt = PageData['conversionPrompts'][number];
 
   const { data, form }: { data: PageData; form: ActionData } = $props();
-  const { products, suggestions, conversionPrompts, categories } = $derived(data);
+  const { products, suggestions, conversionPrompts, categories, sort } = $derived(data);
+
+  function setSort(next: string) {
+    goto(productSortHref(next as ProductSortKey, page.url.searchParams), { keepFocus: true, noScroll: true });
+  }
 
   const UNCATEGORIZED_FILTER = '__uncategorized__';
 
@@ -110,6 +116,8 @@
     suggestions={suggestions}
     conversionPrompts={conversionPrompts}
     categories={categories}
+    sort={sort}
+    onSortChange={setSort}
     onRespondSuggestion={respondSuggestion}
     onSaveConversion={saveConversion}
   />
@@ -189,16 +197,27 @@
                   bind:value={search} />
               </div>
 
-              <div style="position:relative;">
-                <select class="btn btn-secondary"
-                  style="appearance:none;padding:0 28px 0 10px;cursor:pointer;min-width:140px;"
+              <div class="relative">
+                <select class="btn btn-secondary appearance-none pl-2.5 pr-7 cursor-pointer min-w-[140px]"
                   aria-label={$t('prod.new.category')}
                   bind:value={catFilter}>
                   <option value="">—</option>
                   <option value={UNCATEGORIZED_FILTER}>{$t('prod.filter.uncategorized')}</option>
                   {#each categories as c}<option value={c}>{$tcat(c)}</option>{/each}
                 </select>
-                <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:11px;">▾</span>
+                <span class="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-fg-3 text-[11px]">▾</span>
+              </div>
+
+              <div class="relative">
+                <select class="btn btn-secondary appearance-none pl-2.5 pr-7 cursor-pointer min-w-[170px]"
+                  aria-label={$t('prod.sort.label')}
+                  value={sort}
+                  onchange={(e) => setSort((e.target as HTMLSelectElement).value)}>
+                  {#each PRODUCT_SORT_KEYS as key}
+                    <option value={key}>{$t(`prod.sort.${key}`)}</option>
+                  {/each}
+                </select>
+                <span class="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-fg-3 text-[11px]">▾</span>
               </div>
             </div>
           {/if}
@@ -258,6 +277,7 @@
                 <th>{$t('prod.col.unit')}</th>
                 <th class="num">{$t('prod.col.suppliers')}</th>
                 <th class="num">{$t('prod.col.aliases')}</th>
+                <th class="num">{$t('prod.col.yoy')}</th>
                 <th></th>
               </tr>
             </thead>
@@ -277,6 +297,11 @@
                   <td class="body text-fg-3" style="font-size:12px;" data-label={$t('prod.col.unit')}>{p.canonicalUnit ?? '—'}</td>
                   <td class="num" data-label={$t('prod.col.suppliers')}>{p.supplierCount}</td>
                   <td class="num" data-label={$t('prod.col.aliases')}>{p.aliasCount}</td>
+                  <td class="num" data-label={$t('prod.col.yoy')}
+                    class:text-neg={p.yoyChangePct != null && p.yoyChangePct > 0}
+                    class:text-pos={p.yoyChangePct != null && p.yoyChangePct < 0}>
+                    {formatYoyPct(p.yoyChangePct, $locale)}
+                  </td>
                   <td data-label={p.needsConversion ? $t('prod.badge.needsConversion') : null}>
                     {#if p.needsConversion}
                       <span class="body text-warn flex items-center gap-1" style="font-size:11px;" title={$t('prod.badge.needsConversion')}>

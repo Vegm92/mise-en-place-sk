@@ -49,6 +49,11 @@ export function fmtEurSigned(n: number, locale: Locale = 'es'): string {
 	return sign + fmtEurCompact(Math.abs(rounded), locale);
 }
 
+export function formatYoyPct(pct: number | null, locale: Locale = 'es'): string {
+	if (pct === null || !Number.isFinite(pct)) return '—';
+	return new Intl.NumberFormat(toIntlLocale(locale), { maximumFractionDigits: 1, signDisplay: 'exceptZero' }).format(pct) + ' %';
+}
+
 const BUDGET_WARN_PCT = 80;
 const BUDGET_OVER_PCT = 100;
 
