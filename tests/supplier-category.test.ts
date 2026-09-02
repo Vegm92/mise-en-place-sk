@@ -421,6 +421,12 @@ describe.skipIf(!hasDbEnv)('#315 extraction-proposed category on supplier creati
 });
 
 describe.skipIf(!hasDbEnv)('per-restaurant categories (issue #881)', () => {
+	async function createOk(rid: string, name: string) {
+		const result = await createCategory(rid, name, testDb);
+		if (!result.ok) throw new Error(`setup failed: ${result.reason}`);
+		return result.category;
+	}
+
 	it('seeds the default taxonomy, minus Other, and is idempotent', async () => {
 		const r = await createTestRestaurant('cat-seed');
 		try {
@@ -460,9 +466,8 @@ describe.skipIf(!hasDbEnv)('per-restaurant categories (issue #881)', () => {
 		const r = await createTestRestaurant('cat-rename');
 		const other = await createTestRestaurant('cat-rename-other');
 		try {
-			const created = await createCategory(r.id, 'Marketing', testDb);
-			if (!created.ok) throw new Error('setup failed');
-			const categoryId = created.category.id;
+			const category = await createOk(r.id, 'Marketing');
+			const categoryId = category.id;
 
 			const supplierId = await getOrCreateSupplierId(r.id, 'Agencia Norte', testDb);
 			await testDb.update(suppliers).set({ category: 'Marketing' }).where(eq(suppliers.id, supplierId));
@@ -503,15 +508,14 @@ describe.skipIf(!hasDbEnv)('per-restaurant categories (issue #881)', () => {
 	it('excludes hidden categories from listCategories by default, but includeHidden surfaces them', async () => {
 		const r = await createTestRestaurant('cat-hidden');
 		try {
-			const created = await createCategory(r.id, 'Marketing', testDb);
-			if (!created.ok) throw new Error('setup failed');
-			await setCategoryHidden(r.id, created.category.id, true, testDb);
+			const category = await createOk(r.id, 'Marketing');
+			await setCategoryHidden(r.id, category.id, true, testDb);
 
 			const visible = await listCategories(r.id, {}, testDb);
-			expect(visible.find((c) => c.id === created.category.id)).toBeUndefined();
+			expect(visible.find((c) => c.id === category.id)).toBeUndefined();
 
 			const all = await listCategories(r.id, { includeHidden: true }, testDb);
-			const hiddenRow = all.find((c) => c.id === created.category.id);
+			const hiddenRow = all.find((c) => c.id === category.id);
 			expect(hiddenRow?.hidden).toBe(true);
 		} finally {
 			await cleanupTestRestaurant(r.id);
@@ -532,9 +536,8 @@ describe.skipIf(!hasDbEnv)('per-restaurant categories (issue #881)', () => {
 	it('resolveCategoryFor: a hidden custom category falls back to the sentinel', async () => {
 		const r = await createTestRestaurant('cat-resolve-hidden');
 		try {
-			const created = await createCategory(r.id, 'Marketing', testDb);
-			if (!created.ok) throw new Error('setup failed');
-			await setCategoryHidden(r.id, created.category.id, true, testDb);
+			const category = await createOk(r.id, 'Marketing');
+			await setCategoryHidden(r.id, category.id, true, testDb);
 			expect(await resolveCategoryFor(r.id, 'Marketing', 1, testDb)).toBe(UNCATEGORIZED_CATEGORY);
 		} finally {
 			await cleanupTestRestaurant(r.id);
@@ -580,13 +583,12 @@ describe.skipIf(!hasDbEnv)('per-restaurant categories (issue #881)', () => {
 		const a = await createTestRestaurant('cat-tenant-a');
 		const b = await createTestRestaurant('cat-tenant-b');
 		try {
-			const created = await createCategory(a.id, 'Marketing', testDb);
-			if (!created.ok) throw new Error('setup failed');
+			const category = await createOk(a.id, 'Marketing');
 
 			expect(await listCategories(b.id, { includeHidden: true }, testDb)).toEqual([]);
 			expect(await resolveCategoryFor(b.id, 'Marketing', 1, testDb)).toBe(UNCATEGORIZED_CATEGORY);
 
-			const renamedFromB = await renameCategory(b.id, created.category.id, 'Marketing B', testDb);
+			const renamedFromB = await renameCategory(b.id, category.id, 'Marketing B', testDb);
 			expect(renamedFromB).toEqual({ ok: false, reason: 'invalid' });
 		} finally {
 			await cleanupTestRestaurant(a.id);

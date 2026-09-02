@@ -21,6 +21,23 @@ function isUniqueViolation(err: unknown): boolean {
 	return typeof err === 'object' && err !== null && (err as { code?: string }).code === '23505';
 }
 
+async function runUniqueSafe<T extends CreateCategoryResult>(fn: () => Promise<T>): Promise<T | CreateCategoryResult> {
+	try {
+		return await fn();
+	} catch (err) {
+		if (isUniqueViolation(err)) return { ok: false, reason: 'duplicate' };
+		throw err;
+	}
+}
+
+async function hasNameKey(rid: string, key: string, exec: BatchDb): Promise<boolean> {
+	const tenant = forTenant(rid);
+	const [existing] = await exec.select({ id: categories.id }).from(categories)
+		.where(tenant.scope(categories.restaurantId, eq(categories.nameKey, key)))
+		.limit(1);
+	return existing !== undefined;
+}
+
 function validateName(raw: string):
 	| { ok: true; name: string; key: string }
 	| { ok: false; reason: 'invalid' | 'reserved' } {
@@ -67,14 +84,9 @@ export async function listCategories(
 export async function createCategory(rid: string, name: string, exec: BatchDb = db): Promise<CreateCategoryResult> {
 	const validated = validateName(name);
 	if (!validated.ok) return validated;
-	const tenant = forTenant(rid);
+	if (await hasNameKey(rid, validated.key, exec)) return { ok: false, reason: 'duplicate' };
 
-	const [existing] = await exec.select({ id: categories.id }).from(categories)
-		.where(tenant.scope(categories.restaurantId, eq(categories.nameKey, validated.key)))
-		.limit(1);
-	if (existing) return { ok: false, reason: 'duplicate' };
-
-	try {
+	return runUniqueSafe(async () => {
 		const [created] = await exec.insert(categories)
 			.values({
 				restaurantId: rid,
@@ -86,10 +98,7 @@ export async function createCategory(rid: string, name: string, exec: BatchDb = 
 			})
 			.returning();
 		return { ok: true, category: created };
-	} catch (err) {
-		if (isUniqueViolation(err)) return { ok: false, reason: 'duplicate' };
-		throw err;
-	}
+	});
 }
 
 export async function renameCategory(
@@ -108,24 +117,19 @@ export async function renameCategory(
 			.limit(1);
 		if (!current) return { ok: false, reason: 'invalid' };
 
-		if (current.nameKey !== validated.key) {
-			const [existing] = await tx.select({ id: categories.id }).from(categories)
-				.where(tenant.scope(categories.restaurantId, eq(categories.nameKey, validated.key)))
-				.limit(1);
-			if (existing) return { ok: false, reason: 'duplicate' };
+		if (current.nameKey !== validated.key && await hasNameKey(rid, validated.key, tx)) {
+			return { ok: false, reason: 'duplicate' };
 		}
 
 		const oldName = current.name;
-		let updated: CategoryRow;
-		try {
-			[updated] = await tx.update(categories)
+		const result = await runUniqueSafe(async () => {
+			const [updated] = await tx.update(categories)
 				.set({ name: validated.name, nameKey: validated.key, slug: categorySlug(validated.name) })
 				.where(tenant.scope(categories.restaurantId, eq(categories.id, id)))
 				.returning();
-		} catch (err) {
-			if (isUniqueViolation(err)) return { ok: false, reason: 'duplicate' };
-			throw err;
-		}
+			return { ok: true, category: updated };
+		});
+		if (!result.ok) return result;
 
 		if (oldName !== validated.name) {
 			await tx.update(suppliers).set({ category: validated.name })
@@ -136,7 +140,7 @@ export async function renameCategory(
 				.where(tenant.scope(categoryBudgets.restaurantId, eq(categoryBudgets.category, oldName)));
 		}
 
-		return { ok: true, category: updated };
+		return result;
 	});
 }
 
