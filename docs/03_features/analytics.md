@@ -188,7 +188,7 @@ Range/granularity normalization; tenant scope on every MV read.
 **`markup`**
 - Mobile/desktop variants; header + period picker, KPI row, charts row (top items donut + legend, category donut + legend), yearly spend card.
 - Top items and category both build a `{label, value, color}[]` input array, then call `computeDonutSlices()` once for the legend's own `pct`/ordering — the same pure function `DonutChart.svelte` calls internally for the arcs, so the two never disagree on which slice is which.
-- `seriesColor()` covers top items (issue-free categorical hue), `categoryColor()` covers the category donut — never a locally-declared color array (`design-tokens-accent-discipline.test.ts` bans that).
+- `seriesColor()` covers top items (issue-free categorical hue), `categoryColor()` covers the category donut — never a locally-declared color array (`design-tokens-accent-discipline.test.ts` bans that). A slice for a restaurant's custom category (ADR-037 part 2, issue #881) gets a deterministic `--mep-series-*` colour from `categoryColor()` rather than the "Other" token, same as everywhere else a category renders.
 
 ### `src/lib/components/mep/DonutChart.svelte` / `src/lib/donut-math.ts`
 

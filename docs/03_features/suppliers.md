@@ -39,9 +39,14 @@ price-shock history.
 
 - **Upsert** (`supplier.ts:13-44`): `ON CONFLICT (restaurant_id, lower(name))`
   fills missing contact via `COALESCE(suppliers.x, <merge value>)`; category
-  validated against `VALID_CATEGORIES` else `'Other'`.
-- **Category resolution** (`constants.ts:36`): diacritic-stripped name match;
-  `'Other'` unless extraction confidence ≥ `MIN_CATEGORY_CONFIDENCE` (0.6).
+  validated against the restaurant's own `categories` (`resolveCategoryFor`,
+  ADR-037 part 2, issue #881) else `'Other'`.
+- **Category resolution** (`categories.ts`'s `resolveCategoryFor`, the
+  per-restaurant successor to `constants.ts`'s `resolveCategory`): matches the
+  proposal against the restaurant's own visible categories first
+  (diacritic-stripped name match), then the global default taxonomy; `'Other'`
+  either way when confidence is below `MIN_CATEGORY_CONFIDENCE` (0.6) or the
+  match isn't currently visible to this restaurant (ADR-037).
 - **Contact fields**: `cif`, `contactEmail`, `contactPhone`, `address` persisted
   from extraction and edits.
 - **Name normalization** (`normalize.ts`): Spanish legal forms (SLU, SCP, SA…)
@@ -61,8 +66,9 @@ price-shock history.
     key never reaches SQL.
   - `q` matches supplier name OR resolved category, case-insensitively; `%`,
     `_` and `\` are escaped so a wildcard typed by the user stays literal.
-  - `category` must be one of `VALID_CATEGORIES`; anything else is ignored
-    (no filter) rather than returning an empty list.
+  - `category` must be one of the restaurant's own `categories` (plus
+    `'Other'`, ADR-037 part 2, issue #881); anything else is ignored (no
+    filter) rather than returning an empty list.
   - `uncategorized=1` keeps only suppliers with at least one line-item product
     whose category is NULL or `'Other'`.
   - Every predicate composes onto `forTenant().scope(suppliers.restaurantId, …)`,
@@ -104,8 +110,9 @@ None.
 
 ## Validation
 
-Category ∈ `VALID_CATEGORIES`; name non-empty; tenant scope. List search params
-validated by `parseSupplierListParams` before any of them reaches a query.
+Category ∈ the restaurant's own `categories` plus `'Other'` (ADR-037 part 2,
+issue #881); name non-empty; tenant scope. List search params validated by
+`parseSupplierListParams` before any of them reaches a query.
 
 ## Error states
 
@@ -163,7 +170,7 @@ validated by `parseSupplierListParams` before any of them reaches a query.
 
 **`const POST`**
 - Accept or decline a suggested supplier category (issue #315), posted from the bell. Accept writes the category; dismiss clears the suggestion without touching the supplier. The suggestion comes from extraction when it has one, otherwise from the category carrying ≥50% of that supplier's line spend (`dominantSupplierLineCategory`, ADR-027) — the payload's `source` says which.
-- Category re-validated against `VALID_CATEGORIES` here — the endpoint can't write an arbitrary string into the column the budgets page groups on. Accepting only moves a supplier *out* of the uncategorised bucket, so a stale notification can't overwrite a newer manual choice.
+- Category re-validated against `visibleCategoryNames(rid)` (ADR-037 part 2, issue #881) — the restaurant's own non-hidden `categories`, not the fixed `VALID_CATEGORIES` — and `'Other'` is explicitly excluded: accepting a suggestion always moves a supplier *out* of the uncategorised bucket into one of the restaurant's real categories, so a stale notification can't overwrite a newer manual choice.
 
 **`const updated`**
 - Bucket or legacy NULL only — never overwrite a real category (`or(isNull(...), eq(..., UNCATEGORIZED_CATEGORY))`).
@@ -180,8 +187,11 @@ validated by `parseSupplierListParams` before any of them reaches a query.
 - Builds 7-month spend history for the chart.
 - The `products` aggregate groups line items by `(description, unit)` over this supplier's non-deleted invoices; `totalSpend` sums `total_price` and `totalQty` sums `quantity` (issue #575). `SUM(numeric)` comes back as a string, so `totalSpend` goes through `moneyToNullableNumber` (null stays null — "no priced line" is not "€0"), and `totalQty` through `Number(...)`; neither is trusted as a JS number straight from the driver.
 
+- `categories` handed to the page (both the mobile edit form here and `DesktopSupplierDetail.svelte`'s) is `selectableCategoryNames(rid)` — the restaurant's own `categories` plus `'Other'` — not the fixed `VALID_CATEGORIES` (ADR-037 part 2, issue #881); the two UI variants render the same options (ADR-020).
+
 **`property update`**
 - Backfill (issue #307): products from this supplier's invoices only ever get a category at creation time (usually the 'Other' default). Editing the supplier here is the one moment a user expresses a real category, so carry it onto still-uncategorized products instead of leaving them on 'Other' forever.
+- The submitted category is validated against `selectableCategoryNames(rid)`, same list the dropdown offered — anything else is dropped to `null` rather than written.
 
 **`property delete`**
 - One transaction — a crash between statements must not leave invoices detached from a supplier that still exists (issue #247).
@@ -202,11 +212,14 @@ validated by `parseSupplierListParams` before any of them reaches a query.
 
 **`const load`**
 - Refreshes stale reliability scores (>24h old) for suppliers with enough invoices.
-- `parseSupplierListParams(url.searchParams)` is the only door the list's view state comes through (issue #580); the parsed value — never the raw param — feeds `supplierListFilter` and `supplierListOrderBy`, so an unknown `sort` degrades to the default instead of reaching SQL.
+- `parseSupplierListParams(url.searchParams, categoryNames)` is the only door the list's view state comes through (issue #580); the parsed value — never the raw param — feeds `supplierListFilter` and `supplierListOrderBy`, so an unknown `sort` degrades to the default instead of reaching SQL. `categoryNames` (`selectableCategoryNames(rid)`, ADR-037 part 2, issue #881) is the restaurant's own list, not the fixed `VALID_CATEGORIES` — a `category` param naming a category this restaurant doesn't have degrades to "no filter" exactly like an unknown one always did.
 - The filter predicate is composed *inside* `tdb.scope(suppliers.restaurantId, …)` rather than beside it, so no future filter can be added without the tenant predicate travelling with it.
 - `supplier_metrics` is LEFT JOINed purely so reliability can be ordered in SQL. `supplier_metrics.supplier_id` is UNIQUE, so the join adds no rows and the invoice aggregates are unaffected. The ordering reads the *cached* score: right after a recompute the order can lag by one page load, which is why the score itself is still merged from `metricsRows` for display.
 - The parsed params are echoed back in the payload so both UI variants can rebuild the URL without re-parsing it.
-- `categories` is `VALID_CATEGORIES` ordered by how many of *this tenant's* suppliers sit in each, with `categoryCounts` alongside it (issue #658). The count query is scoped like every other, and it is deliberately separate from the list query: reading the counts off the filtered rows would shrink the filter UI the moment a filter was applied.
+- `categories` is the restaurant's own `selectableCategoryNames(rid)` ordered by how many of *this tenant's* suppliers sit in each, with `categoryCounts` alongside it (issue #658). The count query is scoped like every other, and it is deliberately separate from the list query: reading the counts off the filtered rows would shrink the filter UI the moment a filter was applied.
+
+**`property create`**
+- The submitted category is validated against `selectableCategoryNames(rid)` — the same list the "Add supplier" dropdown offered — anything else is dropped to `null` rather than written.
 
 ### `src/lib/supplier-list.ts`
 
@@ -215,6 +228,7 @@ validated by `parseSupplierListParams` before any of them reaches a query.
 
 **`function parseSupplierListParams`**
 - Validates every list search param: unknown `sort` → `DEFAULT_SUPPLIER_SORT`, unknown `category` → no category filter (an empty list would read as "this tenant has no such suppliers", which is a different and wrong answer), `q` trimmed, `uncategorized` strictly `'1'`.
+- `category` validity is a caller-supplied `validCategories` list (ADR-037 part 2, issue #881), not a module constant — the module holds no `$lib/server` import (Drizzle/schema) on purpose, so the restaurant's own category names have to come from the caller, which is the server load reading `selectableCategoryNames(rid)`.
 
 **`const SUPPLIER_SEARCH_DEBOUNCE_MS`**
 - One debounce interval for both variants — the search box navigates rather than filtering locally, so each keystroke would otherwise be a round trip.
@@ -256,7 +270,7 @@ validated by `parseSupplierListParams` before any of them reaches a query.
 **`function getOrCreateSupplierId`**
 - Atomic supplier get-or-create (issue #238), replacing the select-then-insert pattern in invoice-save, the edit action and the WhatsApp bot. Backed by `uq_suppliers_rid_name` on `(restaurant_id, lower(name))`; the no-op DO UPDATE makes RETURNING yield the existing row on conflict (bare DO NOTHING returns nothing).
 - Case-insensitive, whitespace-trimmed name match; pass a transaction as `exec` to run inside an enclosing save.
-- Category only ever applied at creation; new suppliers default to the 'Other' bucket (issue #307). Products no longer inherit it — since ADR-027 a product is born uncategorised and the `categorize-product` job gives it its own verdict — so the bucket is now only the fallback arm of `COALESCE(products.category, suppliers.category, 'Other')`. Callers may pass an extraction-proposed category (issue #315) already passed through `resolveCategory`. A conflict never overwrites an existing supplier's category — later invoices can't reclassify behind the user's back.
+- Category only ever applied at creation; new suppliers default to the 'Other' bucket (issue #307). Products no longer inherit it — since ADR-027 a product is born uncategorised and the `categorize-product` job gives it its own verdict — so the bucket is now only the fallback arm of `COALESCE(products.category, suppliers.category, 'Other')`. The proposed category (issue #315) is re-validated here through `resolveCategoryFor(restaurantId, category, undefined, exec)` (ADR-037 part 2, issue #881) — the restaurant's own visible `categories` rows plus the global-taxonomy fallback, degrading to `'Other'` for anything that isn't currently one of the restaurant's own categories — rather than the fixed `VALID_CATEGORIES` list. A conflict never overwrites an existing supplier's category — later invoices can't reclassify behind the user's back.
 
 **`interface SupplierContactInfo`**
 - Supplier-level contact fields lifted from an extracted invoice (CIF/NIF, address, email, phone); any may be null/undefined when the source document doesn't print them — never fabricated.
