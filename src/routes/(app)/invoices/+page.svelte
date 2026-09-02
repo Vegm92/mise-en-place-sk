@@ -406,7 +406,7 @@
               </button>
               <a href={bulkDownloadHref} data-sveltekit-reload
                 title={$t('inv.export.selected.tooltip')}
-                class="btn btn-ghost" style="height:26px;font-size:12px;padding:0 8px;gap:4px;text-decoration:none;">
+                class="btn btn-ghost h-[26px] text-[13px] px-2 gap-1 no-underline">
                 <FileDown size={12} />
                 {$t('inv.export.selected.button')}
               </a>
