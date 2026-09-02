@@ -12,6 +12,7 @@ import { toIntlLocale } from '$lib/formatters';
 import { getStorage } from '$lib/server/storage';
 import { contentDispositionHeader } from '$lib/server/content-disposition';
 import { buildInvoiceExportZip, zipEntryName } from '$lib/server/invoice-export-zip';
+import { styleHeaderRow, styleBandedRows } from '$lib/server/xlsx-style';
 
 const POSITIVE_INT = /^[1-9]\d*$/;
 const MAX_EXPORT_IDS = 500;
@@ -20,13 +21,6 @@ const REVIEW_STATE_LABELS: Record<string, string> = {
 	revisado:    'Revisado',
 	por_revisar: 'Por revisar',
 	incidencia:  'Incidencia',
-};
-
-const HEADER_FILL: ExcelJS.Fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8871E' } };
-const BAND_FILL: ExcelJS.Fill    = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7F7F7' } };
-const THIN_BORDER: Partial<ExcelJS.Borders> = {
-	top:    { style: 'thin', color: { argb: 'FFE5E5E5' } },
-	bottom: { style: 'thin', color: { argb: 'FFE5E5E5' } },
 };
 
 export const GET: RequestHandler = async ({ url, locals }) => {
@@ -130,20 +124,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	sheet.getColumn('tax_base').numFmt = '#,##0.00';
 	sheet.getColumn('total_amount').numFmt = '#,##0.00';
 
-	const headerRow = sheet.getRow(1);
-	headerRow.height = 22;
-	headerRow.eachCell((cell) => {
-		cell.font   = { bold: true, color: { argb: 'FFFFFFFF' } };
-		cell.fill   = HEADER_FILL;
-		cell.alignment = { vertical: 'middle' };
-	});
-
-	sheet.eachRow((row, rowNumber) => {
-		row.eachCell({ includeEmpty: true }, (cell) => {
-			cell.border = THIN_BORDER;
-			if (rowNumber > 1 && rowNumber % 2 === 0) cell.fill = BAND_FILL;
-		});
-	});
+	styleHeaderRow(sheet.getRow(1));
+	styleBandedRows(sheet);
 
 	sheet.autoFilter = { from: 'A1', to: `I${rows.length + 1}` };
 
