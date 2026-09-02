@@ -32,6 +32,45 @@ const ALERT_PREFERENCE_KEY_PREFIX = 'alert_pref_';
 const DISABLED = 'false';
 const ENABLED = 'true';
 
+export async function loadPrefixedBooleans<K extends string>(
+	restaurantId: string,
+	prefix: string,
+	keys: readonly K[],
+	defaultEnabled: boolean,
+): Promise<Record<K, boolean>> {
+	const tdb = forTenant(restaurantId);
+	const rows = await db
+		.select({ key: settings.key, value: settings.value })
+		.from(settings)
+		.where(tdb.scope(settings.restaurantId, inArray(settings.key, keys.map((key) => `${prefix}${key}`))));
+
+	const result = Object.fromEntries(keys.map((key) => [key, defaultEnabled])) as Record<K, boolean>;
+	for (const row of rows) {
+		const key = row.key.slice(prefix.length) as K;
+		if (key in result) result[key] = row.value !== DISABLED;
+	}
+	return result;
+}
+
+export async function savePrefixedBooleans<K extends string>(
+	restaurantId: string,
+	prefix: string,
+	keys: readonly K[],
+	prefs: Partial<Record<K, boolean>>,
+): Promise<void> {
+	const entries = keys
+		.filter((key) => prefs[key] !== undefined)
+		.map((key) => ({ restaurantId, key: `${prefix}${key}`, value: prefs[key] ? ENABLED : DISABLED }));
+
+	await Promise.all(entries.map((entry) =>
+		db.insert(settings)
+			.values(entry)
+			.onConflictDoUpdate({
+				target: [settings.restaurantId, settings.key],
+				set: { value: entry.value },
+			})));
+}
+
 const NOTIFICATION_TYPE_PREFERENCE: Readonly<Record<string, AlertPreferenceType>> = {
 	price_shock: 'price_shock',
 	budget_overage: 'budget_overage',
@@ -55,18 +94,7 @@ export function defaultAlertPreferences(): AlertPreferences {
 }
 
 export async function loadAlertPreferences(restaurantId: string): Promise<AlertPreferences> {
-	const tdb = forTenant(restaurantId);
-	const rows = await db
-		.select({ key: settings.key, value: settings.value })
-		.from(settings)
-		.where(tdb.scope(settings.restaurantId, inArray(settings.key, ALERT_PREFERENCE_TYPES.map(alertPreferenceKey))));
-
-	const prefs = defaultAlertPreferences();
-	for (const row of rows) {
-		const type = row.key.slice(ALERT_PREFERENCE_KEY_PREFIX.length) as AlertPreferenceType;
-		if (type in prefs) prefs[type] = row.value !== DISABLED;
-	}
-	return prefs;
+	return loadPrefixedBooleans(restaurantId, ALERT_PREFERENCE_KEY_PREFIX, ALERT_PREFERENCE_TYPES, true);
 }
 
 export async function isAlertEnabled(restaurantId: string, type: AlertPreferenceType): Promise<boolean> {
@@ -83,17 +111,7 @@ export async function saveAlertPreferences(
 	restaurantId: string,
 	prefs: Partial<AlertPreferences>,
 ): Promise<void> {
-	const entries = ALERT_PREFERENCE_TYPES
-		.filter((type) => prefs[type] !== undefined)
-		.map((type) => ({ restaurantId, key: alertPreferenceKey(type), value: prefs[type] ? ENABLED : DISABLED }));
-
-	await Promise.all(entries.map((entry) =>
-		db.insert(settings)
-			.values(entry)
-			.onConflictDoUpdate({
-				target: [settings.restaurantId, settings.key],
-				set: { value: entry.value },
-			})));
+	return savePrefixedBooleans(restaurantId, ALERT_PREFERENCE_KEY_PREFIX, ALERT_PREFERENCE_TYPES, prefs);
 }
 
 export async function filterEnabledAlerts<T extends { notificationType: string }>(
