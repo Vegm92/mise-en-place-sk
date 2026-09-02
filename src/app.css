@@ -1192,6 +1192,21 @@
     gap: 10px;
     margin-bottom: 6px;
   }
+  .rev-totals-chain {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px;
+    font-size: 11.5px;
+    color: var(--mep-fg-3);
+    padding-bottom: 8px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid var(--mep-divider);
+  }
+  .rev-totals-chain-sep {
+    color: var(--mep-fg-3);
+    opacity: 0.6;
+  }
   .rev-tax-stale {
     display: inline-flex;
     align-items: center;

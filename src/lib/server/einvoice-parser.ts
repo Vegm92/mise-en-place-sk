@@ -131,6 +131,10 @@ interface EinvoiceParts {
 	totalAmount: number | null;
 	currency: string;
 	taxBase: number | null;
+	grossAmount: number | null;
+	discountAmount: number | null;
+	retentionRate: number | null;
+	retentionAmount: number | null;
 	taxBreakdown: ExtractedInvoice['tax_breakdown'];
 	lineItems: ExtractedInvoice['line_items'];
 	format: EinvoiceFormat;
@@ -154,6 +158,10 @@ function einvoiceResult(parts: EinvoiceParts): ParsedEinvoice {
 		total_amount: totalAmount,
 		currency: parts.currency,
 		tax_base: parts.taxBase,
+		gross_amount: parts.grossAmount,
+		discount_amount: parts.discountAmount,
+		retention_rate: parts.retentionRate,
+		retention_amount: parts.retentionAmount,
 		tax_breakdown: parts.taxBreakdown,
 		confidence: 1.0,
 		field_confidences: {
@@ -204,7 +212,9 @@ export function parseFacturae322(xml: string): ExtractedInvoice & { e_invoice_fo
 	const totalAmount =
 		getNum(totals['TotalInvoiceAmount']) ??
 		getNum(totals['TotalExecutableAmount']);
-	const taxBase = getNum(totals['TotalGrossAmount']);
+	const grossAmount = getNum(totals['TotalGrossAmount']);
+	const discountAmount = getNum(totals['TotalGeneralDiscounts']) || null;
+	const taxBase = grossAmount !== null ? grossAmount - (discountAmount ?? 0) : null;
 
 	const taxesOutputs = invoice['TaxesOutputs'] as Record<string, unknown> | undefined;
 	const taxes = getArr(taxesOutputs, 'Tax');
@@ -214,6 +224,13 @@ export function parseFacturae322(xml: string): ExtractedInvoice & { e_invoice_fo
 			base: getNum(getChild(tax, 'TaxableBase', 'TotalAmount')) ?? 0,
 			tax_amount: getNum(getChild(tax, 'TaxAmount', 'TotalAmount')) ?? 0,
 		}))
+		: null;
+
+	const taxesWithheld = invoice['TaxesWithheld'] as Record<string, unknown> | undefined;
+	const withheldTaxes = getArr(taxesWithheld, 'Tax');
+	const retentionRate = withheldTaxes.length ? (getNum(getChild(withheldTaxes[0], 'TaxRate')) ?? 0) / 100 : null;
+	const retentionAmount = withheldTaxes.length
+		? withheldTaxes.reduce((sum: number, tax) => sum + (getNum(getChild(tax, 'TaxAmount', 'TotalAmount')) ?? 0), 0)
 		: null;
 
 	const items = invoice['Items'] as Record<string, unknown> | undefined;
@@ -233,8 +250,10 @@ export function parseFacturae322(xml: string): ExtractedInvoice & { e_invoice_fo
 	return einvoiceResult({
 		supplier, receiver, supplierEmail, supplierPhone,
 		invoiceNumber: fullNumber, invoiceDate, dueDate: null,
-		totalAmount, currency, taxBase, taxBreakdown,
-		lineItems: line_items, format: 'facturae_322',
+		totalAmount, currency, taxBase,
+		grossAmount: discountAmount ? grossAmount : null,
+		discountAmount, retentionRate, retentionAmount,
+		taxBreakdown, lineItems: line_items, format: 'facturae_322',
 	});
 }
 
@@ -260,12 +279,19 @@ export function parseUbl21Invoice(xml: string): ExtractedInvoice & { e_invoice_f
 	const totalAmount =
 		getNum(getChild(totals, 'PayableAmount')) ??
 		getNum(getChild(totals, 'TaxInclusiveAmount'));
+	const grossAmount = getNum(getChild(totals, 'LineExtensionAmount'));
 	const taxBase =
 		getNum(getChild(totals, 'TaxExclusiveAmount')) ??
-		getNum(getChild(totals, 'LineExtensionAmount'));
+		grossAmount;
 
 	const payableNode = getChild(totals, 'PayableAmount') as Record<string, unknown> | undefined;
 	const currency = (payableNode?.['@_currencyID'] as string | undefined) ?? 'EUR';
+
+	const allowanceCharges = getArr(inv, 'AllowanceCharge');
+	const discounts = allowanceCharges.filter((ac) => getText(getChild(ac, 'ChargeIndicator')) === 'false');
+	const discountAmount = discounts.length
+		? discounts.reduce((sum: number, ac) => sum + (getNum(getChild(ac, 'Amount')) ?? 0), 0)
+		: null;
 
 	const taxTotals = getArr(inv, 'TaxTotal');
 	const firstTaxTotal = taxTotals[0] as Record<string, unknown> | undefined;
@@ -277,6 +303,14 @@ export function parseUbl21Invoice(xml: string): ExtractedInvoice & { e_invoice_f
 			tax_amount: getNum(getChild(sub, 'TaxAmount')) ?? 0,
 		}))
 		: null;
+
+	const withholdingTotals = getArr(inv, 'WithholdingTaxTotal');
+	const firstWithholding = withholdingTotals[0] as Record<string, unknown> | undefined;
+	const withholdingSubtotals = getArr(firstWithholding, 'TaxSubtotal');
+	const retentionRate = withholdingSubtotals.length
+		? (getNum(getChild(withholdingSubtotals[0], 'TaxCategory', 'Percent')) ?? 0) / 100
+		: null;
+	const retentionAmount = firstWithholding ? getNum(getChild(firstWithholding, 'TaxAmount')) : null;
 
 	const lineNodes = getArr(inv, 'InvoiceLine');
 	const line_items = lineNodes.map((line) => {
@@ -302,8 +336,10 @@ export function parseUbl21Invoice(xml: string): ExtractedInvoice & { e_invoice_f
 	return einvoiceResult({
 		supplier, receiver, supplierEmail, supplierPhone,
 		invoiceNumber, invoiceDate, dueDate,
-		totalAmount, currency, taxBase, taxBreakdown,
-		lineItems: line_items, format: 'ubl_21',
+		totalAmount, currency, taxBase,
+		grossAmount: discountAmount ? grossAmount : null,
+		discountAmount, retentionRate, retentionAmount,
+		taxBreakdown, lineItems: line_items, format: 'ubl_21',
 	});
 }
 

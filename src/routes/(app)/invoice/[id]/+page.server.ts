@@ -29,6 +29,10 @@ async function invoiceDetailRow(tdb: ReturnType<typeof forTenant>, id: number) {
 		invoice_date:     invoices.invoiceDate,
 		due_date:         invoices.dueDate,
 		total_amount:     invoices.totalAmount,
+		gross_amount:     invoices.grossAmount,
+		discount_amount:  invoices.discountAmount,
+		retention_rate:   invoices.retentionRate,
+		retention_amount: invoices.retentionAmount,
 		source_file:      invoices.sourceFile,
 		review_state:     invoices.reviewState,
 		incidence_kind:   invoices.incidenceKind,
@@ -135,7 +139,14 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		return {
 			title: 'inv.detail.pageTitle',
 			titleParams: { number: row.invoice_number ?? row.id },
-			invoice: { ...row, total_amount: moneyToNullableNumber(row.total_amount), linked_invoice: linkedInvoice },
+			invoice: {
+				...row,
+				total_amount: moneyToNullableNumber(row.total_amount),
+				gross_amount: moneyToNullableNumber(row.gross_amount),
+				discount_amount: moneyToNullableNumber(row.discount_amount),
+				retention_amount: moneyToNullableNumber(row.retention_amount),
+				linked_invoice: linkedInvoice,
+			},
 			unlinkedLineCount: lineItems.filter(li => li.product_id == null && (li.description ?? '').trim() !== '').length,
 			lineItems: lineItems.map(li => ({
 				...li,

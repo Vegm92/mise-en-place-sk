@@ -12,7 +12,7 @@ import {
   bandsFromLines,
   detectTotalMismatch,
 } from '../src/lib/tax';
-import { resolveTaxBreakdown } from '../src/lib/server/invoice-save';
+import { resolveTaxBreakdown, resolveTotalsBreakdown } from '../src/lib/server/invoice-save';
 
 describe('percentToFraction (the UI always speaks percent)', () => {
   it('reads a plain percentage', () => {
@@ -254,6 +254,28 @@ describe('detectTotalMismatch (issue #808 — the reconciliation check itself)',
   it('treats a missing line total as zero rather than throwing', () => {
     expect(detectTotalMismatch([null, '50.00'], null, '50.00')).toBe(false);
   });
+
+  it('does not flag a correct IRPF retention invoice (issue #916)', () => {
+    const bands = bandsFromInputs([{ rate: '21', type: 'iva', base: '1000.00', amount: '210.00' }]);
+    expect(detectTotalMismatch(['1000.00'], bands, '1060.00', { retentionAmount: '150.00' })).toBe(false);
+  });
+
+  it('still flags a genuine mismatch once retention is accounted for (issue #916)', () => {
+    const bands = bandsFromInputs([{ rate: '21', type: 'iva', base: '1000.00', amount: '210.00' }]);
+    expect(detectTotalMismatch(['1000.00'], bands, '1000.00', { retentionAmount: '150.00' })).toBe(true);
+  });
+
+  it('does not flag a correct global-discount invoice (issue #916)', () => {
+    const bands = bandsFromInputs([{ rate: '21', type: 'iva', base: '95.00', amount: '19.95' }]);
+    expect(detectTotalMismatch(['100.00'], bands, '114.95', { discountAmount: '5.00' })).toBe(false);
+  });
+
+  it('reconciles a discount and a retention together (issue #916)', () => {
+    const bands = bandsFromInputs([{ rate: '21', type: 'iva', base: '950.00', amount: '199.50' }]);
+    expect(detectTotalMismatch(
+      ['1000.00'], bands, '1006.75', { discountAmount: '50.00', retentionAmount: '142.75' },
+    )).toBe(false);
+  });
 });
 
 describe('resolveTaxBreakdown (the form is authoritative once it posts bands)', () => {
@@ -303,5 +325,28 @@ describe('resolveTaxBreakdown (the form is authoritative once it posts bands)', 
 
   it('yields nulls when there is neither a form nor an extraction', () => {
     expect(resolveTaxBreakdown(form([]), undefined)).toEqual({ taxBase: null, taxBreakdown: null, bands: null });
+  });
+});
+
+describe('resolveTotalsBreakdown (gross/discount/retention, issue #916)', () => {
+  it('reads gross, discount and retention straight from the extraction', () => {
+    const extracted = {
+      gross_amount: 1000, discount_amount: 50, retention_rate: 0.15, retention_amount: 142.5,
+    };
+    expect(resolveTotalsBreakdown(extracted)).toEqual({
+      grossAmount: '1000.00', discountAmount: '50.00', retentionRate: 0.15, retentionAmount: '142.50',
+    });
+  });
+
+  it('yields nulls when the extraction carries none of these fields', () => {
+    expect(resolveTotalsBreakdown({ tax_base: 500 })).toEqual({
+      grossAmount: null, discountAmount: null, retentionRate: null, retentionAmount: null,
+    });
+  });
+
+  it('yields nulls when there is no extraction at all', () => {
+    expect(resolveTotalsBreakdown(undefined)).toEqual({
+      grossAmount: null, discountAmount: null, retentionRate: null, retentionAmount: null,
+    });
   });
 });
