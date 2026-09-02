@@ -141,7 +141,7 @@
           </div>
           <div>
             <label for="m-edit-iban" class="label" style="display:block;margin-bottom:4px;">{$t('sup.field.iban')}</label>
-            <input id="m-edit-iban" class="input" name="iban" value={s.iban ?? ''} style="width:100%;" placeholder="ES00 0000 0000 0000 0000 0000" />
+            <input id="m-edit-iban" class="input" name="iban" value={s.iban ?? ''} style="width:100%;" placeholder={$t('sup.ph.iban')} />
           </div>
           <div>
             <label for="m-edit-address" class="label" style="display:block;margin-bottom:4px;">{$t('sup.field.address')}</label>

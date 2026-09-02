@@ -6,8 +6,6 @@ export function normalizeIban(raw: string | null | undefined): string | null {
 	return stripped || null;
 }
 
-// Mod-97 check per ISO 7064: move the first 4 chars to the end, convert
-// letters to numbers (A=10 … Z=35), and the result mod 97 must equal 1.
 export function isValidIban(value: string | null | undefined): boolean {
 	const iban = normalizeIban(value);
 	if (!iban || !IBAN_RE.test(iban)) return false;

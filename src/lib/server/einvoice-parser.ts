@@ -78,8 +78,6 @@ const FACTURAE_UNIT_CODES: Record<string, string | null> = {
 	'36': 'kWh',
 };
 
-// Facturae "MedioPago" code list — codes without a clear match in our enum
-// (cheque, letra de cambio, compensación, …) fall back to 'otro'.
 const FACTURAE_PAYMENT_MEANS: Record<string, PaymentMethod> = {
 	'01': 'efectivo',
 	'02': 'domiciliacion',
@@ -95,8 +93,6 @@ function facturaePaymentMethod(code: string | null): PaymentMethod | null {
 	return FACTURAE_PAYMENT_MEANS[code] ?? 'otro';
 }
 
-// UBL PaymentMeansCode uses the UNCL4461 code list — only the subset commonly
-// seen on Spanish invoices is mapped, the rest fall back to 'otro'.
 const UBL_PAYMENT_MEANS: Record<string, PaymentMethod> = {
 	'10': 'efectivo',
 	'30': 'transferencia',
