@@ -10,6 +10,19 @@ import {
 	parseEinvoice,
 } from '../src/lib/server/einvoice-parser';
 
+// issue #916 — shared by the Facturae and UBL "no discount/retention printed" cases below.
+function expectNoTotalsChain(result: {
+	gross_amount?: number | null;
+	discount_amount?: number | null;
+	retention_rate?: number | null;
+	retention_amount?: number | null;
+}) {
+	expect(result.gross_amount).toBeNull();
+	expect(result.discount_amount).toBeNull();
+	expect(result.retention_rate).toBeNull();
+	expect(result.retention_amount).toBeNull();
+}
+
 // ── Sample XML fixtures ───────────────────────────────────────────────────────
 
 const FACTURAE_322_XML = `<?xml version="1.0" encoding="UTF-8"?>
@@ -370,11 +383,7 @@ describe('parseFacturae322', () => {
 	});
 
 	it('leaves gross_amount/discount_amount/retention null when the totals carry no discount or withholding (issue #916)', () => {
-		const result = parseFacturae322(FACTURAE_322_XML);
-		expect(result.gross_amount).toBeNull();
-		expect(result.discount_amount).toBeNull();
-		expect(result.retention_rate).toBeNull();
-		expect(result.retention_amount).toBeNull();
+		expectNoTotalsChain(parseFacturae322(FACTURAE_322_XML));
 	});
 
 	it('extracts TotalGeneralDiscounts as discount_amount and derives tax_base as gross minus discount (issue #916)', () => {
@@ -523,11 +532,7 @@ describe('parseUbl21Invoice', () => {
 	});
 
 	it('leaves gross_amount/discount_amount/retention null when there is no AllowanceCharge or WithholdingTaxTotal (issue #916)', () => {
-		const result = parseUbl21Invoice(UBL_21_XML);
-		expect(result.gross_amount).toBeNull();
-		expect(result.discount_amount).toBeNull();
-		expect(result.retention_rate).toBeNull();
-		expect(result.retention_amount).toBeNull();
+		expectNoTotalsChain(parseUbl21Invoice(UBL_21_XML));
 	});
 
 	it('extracts an AllowanceCharge with ChargeIndicator=false as a discount (issue #916)', () => {
