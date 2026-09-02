@@ -1,4 +1,5 @@
 import { renderTemplate, type Locale } from '$lib/i18n-messages';
+import { toIntlLocale } from '$lib/formatters';
 
 export const CLAIM_AUDIT_ACTION = 'claim_email_sent';
 export const CLAIM_SUBJECT_MAX_LENGTH = 200;
@@ -80,7 +81,7 @@ export function formatClaimDate(iso: string | null | undefined, locale: Locale):
 	if (!iso) return '';
 	const d = new Date(`${iso}T00:00:00`);
 	if (Number.isNaN(d.getTime())) return iso;
-	return d.toLocaleDateString(locale === 'en' ? 'en-GB' : 'es-ES', {
+	return d.toLocaleDateString(toIntlLocale(locale), {
 		day: '2-digit', month: '2-digit', year: 'numeric',
 	});
 }

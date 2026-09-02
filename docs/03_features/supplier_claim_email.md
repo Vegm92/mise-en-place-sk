@@ -59,14 +59,16 @@ for the supplier to fix in that case.
   'claim_email_sent'`, `reason` = the sent subject, `snapshot` = `{ to,
   subject, body }`. `requestCorrection` takes a Postgres advisory
   transaction lock (`pg_advisory_xact_lock(hashtext('claim:<rid>:<id>'))` —
-  the same pattern as `billing.ts`/`llm-quota.ts`/`onboarding`) around the
-  existence check + insert, so two concurrent submits cannot both pass the
-  check; the second gets `fail(409, { claim: 'alreadySent' })`. The insert
-  happens *before* `sendEmail` is awaited: the audit row is the claim, and a
-  transport failure after it is recorded returns `fail(502, { claim:
-  'sendFailed' })` without retrying or rolling the row back — the safer
-  failure mode is "user might resubmit and get a false alreadySent" rather
-  than "silently claim twice."
+  the same pattern as `billing.ts`/`llm-quota.ts`/`onboarding`) and, while
+  still holding it, re-checks for an existing row, awaits `sendEmail`, and
+  only then inserts the audit row — all inside the one transaction. Two
+  concurrent submits still cannot both pass the check (the lock is held for
+  the whole operation, not released after the check), so the second always
+  gets `fail(409, { claim: 'alreadySent' })`; and because the insert comes
+  *after* the send, a transport exception rolls the transaction back with no
+  audit row written, so `fail(502, { claim: 'sendFailed' })` is genuinely
+  retriable rather than leaving a false "already sent" that blocks the
+  invoice forever.
 - **Rate limit**: `rateLimitScoped({ scope: 'tenant', name: 'invoice-claim',
   max: 20 })`, same shape as `invoice-relink`.
 - **Email**: `supplierClaimEmail(...)` (`src/lib/server/email.ts`) adds
@@ -111,9 +113,12 @@ for the supplier to fix in that case.
 
 **`formatClaimDate`**
 
-- `es`/non-`en` render `es-ES`, `en` renders `en-GB` (`dd/mm/yyyy` either way)
-  — deliberately not `en-US`, so the date reads unambiguously regardless of
-  which locale rendered it.
+- Reuses `toIntlLocale` from `src/lib/formatters.ts` rather than naming
+  `es-ES`/`en-GB` itself (`tests/formatters.test.ts` enforces that only
+  `formatters.ts` may hardcode those Intl locale tags) — `es` renders
+  `es-ES`, `en` renders `en-GB` (`dd/mm/yyyy` either way, deliberately not
+  `en-US`, so the date reads unambiguously regardless of which locale
+  rendered it).
 
 **`parseMismatchPayload`**
 
@@ -127,9 +132,9 @@ for the supplier to fix in that case.
 
 - Reads the invoice + supplier tenant-scoped, checks `claimEligibility`, then
   opens one transaction that takes the advisory lock, re-checks for an
-  existing `claim_email_sent` row, and inserts it — all before the email is
-  sent. See "Dedup / audit" above for why the insert precedes the send rather
-  than the other way round.
+  existing `claim_email_sent` row, sends the email, and only then inserts the
+  row — all inside the same transaction/lock. See "Dedup / audit" above for
+  why the send precedes the insert.
 - `pendingMismatchPayload`/`latestClaimSentAt` are shared between `load` and
   the action so the eligibility/prefill data the user saw and the data the
   action re-derives never diverge.
