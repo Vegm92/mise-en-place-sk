@@ -104,6 +104,7 @@ describe('alert preference registry (issue #577)', () => {
 		expect([...ALERT_PREFERENCE_TYPES].sort()).toEqual([
 			'budget_overage',
 			'invoice_reminders',
+			'line_item_mismatch',
 			'low_stock_forecast',
 			'possible_duplicate_purchase',
 			'price_shock',
@@ -131,6 +132,7 @@ describe('alert preference registry (issue #577)', () => {
 		expect(preferenceForNotificationType('budget_overage')).toBe('budget_overage');
 		expect(preferenceForNotificationType('low_stock_forecast')).toBe('low_stock_forecast');
 		expect(preferenceForNotificationType('possible_duplicate_purchase')).toBe('possible_duplicate_purchase');
+		expect(preferenceForNotificationType('line_item_mismatch')).toBe('line_item_mismatch');
 		expect(preferenceForNotificationType('supplier_uncategorized')).toBe('supplier_uncategorized');
 		expect(preferenceForNotificationType('supplier_category_suggested')).toBe('supplier_uncategorized');
 	});

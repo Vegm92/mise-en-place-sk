@@ -43,25 +43,41 @@ let rid = '';
 const fakeItem = (documentType: 'factura' | 'albaran' | null): BatchItem =>
 	fakeBatchItem({ restaurantId: rid, extractedData: { document_type: documentType, confidence: 1 } });
 
+interface FormLine {
+	description: string;
+	quantity: string;
+	unit: string;
+	unitPrice: string;
+	totalPrice: string;
+}
+
 function form(opts: {
 	invoiceNumber: string;
 	invoiceDate: string;
 	totalAmount: string;
 	supplier: string;
 	lineDescription?: string;
+	lines?: FormLine[];
+	lowConfidenceAck?: boolean;
 }): FormData {
 	const fd = new FormData();
 	fd.append('supplier_name', opts.supplier);
 	fd.append('invoice_number', opts.invoiceNumber);
 	fd.append('invoice_date', opts.invoiceDate);
 	fd.append('total_amount', opts.totalAmount);
-	fd.append('low_confidence_ack', 'true');
-	fd.append('line_descriptions', opts.lineDescription ?? 'Producto de prueba');
-	fd.append('line_quantities', '1');
-	fd.append('line_units', 'ud');
-	fd.append('line_unit_prices', opts.totalAmount);
-	fd.append('line_total_prices', opts.totalAmount);
-	fd.append('line_tax_rates', '');
+	if (opts.lowConfidenceAck ?? true) fd.append('low_confidence_ack', 'true');
+	const lines = opts.lines ?? [{
+		description: opts.lineDescription ?? 'Producto de prueba',
+		quantity: '1', unit: 'ud', unitPrice: opts.totalAmount, totalPrice: opts.totalAmount,
+	}];
+	for (const l of lines) {
+		fd.append('line_descriptions', l.description);
+		fd.append('line_quantities', l.quantity);
+		fd.append('line_units', l.unit);
+		fd.append('line_unit_prices', l.unitPrice);
+		fd.append('line_total_prices', l.totalPrice);
+		fd.append('line_tax_rates', '');
+	}
 	return fd;
 }
 
@@ -79,6 +95,21 @@ async function duplicateNotifications(invoiceId: number) {
 async function linkedInvoiceId(invoiceId: number): Promise<number | null> {
 	const rows = await testSql`SELECT linked_invoice_id FROM invoices WHERE id = ${invoiceId}`;
 	return rows[0]?.linked_invoice_id ?? null;
+}
+
+async function reviewState(invoiceId: number): Promise<{ reviewState: string; incidenceKind: string | null }> {
+	const rows = await testSql`SELECT review_state, incidence_kind FROM invoices WHERE id = ${invoiceId}`;
+	return { reviewState: rows[0]?.review_state, incidenceKind: rows[0]?.incidence_kind ?? null };
+}
+
+async function saveOrThrow(
+	documentType: 'factura' | 'albaran',
+	opts: Parameters<typeof form>[0],
+): Promise<number> {
+	const result = await saveReviewedInvoice(fakeItem(documentType), form(opts), rid);
+	expect(result.type).toBe('saved');
+	if (result.type !== 'saved') throw new Error('save failed');
+	return result.invoiceId;
 }
 
 beforeAll(async () => {
@@ -275,5 +306,57 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → possible duplicate / related
 		if (unknown.type !== 'saved') return;
 
 		expect(await duplicateNotifications(unknown.invoiceId)).toHaveLength(0);
+	});
+});
+
+describe.skipIf(!hasDbEnv)('saveReviewedInvoice → line item reconciliation on the linked pair (issue #886)', () => {
+	it('flags a missing line item and marks both linked documents as a document incidencia', async () => {
+		const supplier = '__inv_dupe_recon_a__';
+
+		const albaranId = await saveOrThrow('albaran', {
+			invoiceNumber: 'ALB-2024-900', invoiceDate: '2024-08-01', totalAmount: '188.00', supplier, lowConfidenceAck: false,
+			lines: [
+				{ description: 'Aceite de oliva', quantity: '2', unit: 'ud', unitPrice: '90.00', totalPrice: '180.00' },
+				{ description: 'Servilletas', quantity: '1', unit: 'ud', unitPrice: '8.00', totalPrice: '8.00' },
+			],
+		});
+		const facturaId = await saveOrThrow('factura', {
+			invoiceNumber: 'FAC-2024-900', invoiceDate: '2024-08-10', totalAmount: '180.00', supplier, lowConfidenceAck: false,
+			lines: [
+				{ description: 'Aceite de oliva', quantity: '2', unit: 'ud', unitPrice: '90.00', totalPrice: '180.00' },
+			],
+		});
+
+		expect(await linkedInvoiceId(facturaId)).toBe(albaranId);
+
+		const mismatchRows = await notificationsByType(facturaId, 'line_item_mismatch');
+		expect(mismatchRows).toHaveLength(1);
+		const payload = mismatchRows[0].payload;
+		expect(payload.linkedInvoiceId).toBe(albaranId);
+		expect(payload.missingInInvoice).toHaveLength(1);
+		expect(payload.missingInInvoice[0].description).toBe('Servilletas');
+		expect(payload.missingInDeliveryNote).toEqual([]);
+		expect(payload.quantityMismatches).toEqual([]);
+
+		expect(await reviewState(facturaId)).toEqual({ reviewState: 'incidencia', incidenceKind: 'documento' });
+		expect(await reviewState(albaranId)).toEqual({ reviewState: 'incidencia', incidenceKind: 'documento' });
+	});
+
+	it('does not flag a line-item mismatch when the linked documents match line for line', async () => {
+		const supplier = '__inv_dupe_recon_b__';
+		const lines = [
+			{ description: 'Tomate frito', quantity: '3', unit: 'ud', unitPrice: '4.00', totalPrice: '12.00' },
+		];
+
+		const albaranId = await saveOrThrow('albaran', {
+			invoiceNumber: 'ALB-2024-901', invoiceDate: '2024-08-15', totalAmount: '12.00', supplier, lines, lowConfidenceAck: false,
+		});
+		const facturaId = await saveOrThrow('factura', {
+			invoiceNumber: 'FAC-2024-901', invoiceDate: '2024-08-16', totalAmount: '12.00', supplier, lines, lowConfidenceAck: false,
+		});
+
+		expect(await linkedInvoiceId(facturaId)).toBe(albaranId);
+		expect(await notificationsByType(facturaId, 'line_item_mismatch')).toHaveLength(0);
+		expect((await reviewState(facturaId)).reviewState).toBe('revisado');
 	});
 });
