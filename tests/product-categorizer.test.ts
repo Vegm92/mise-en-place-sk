@@ -35,8 +35,9 @@ import {
 import type { createGeminiProvider } from '../src/lib/server/llm-provider';
 type LLMProvider = ReturnType<typeof createGeminiProvider>;
 import { MIN_CATEGORY_CONFIDENCE, VALID_CATEGORIES } from '../src/lib/constants';
+import { listCategories, setCategoryHidden } from '../src/lib/server/categories';
 import {
-	testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
+	testDb, testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
 import { expectProviderSchemaForwarded } from './helpers/schema-capturing-generate';
 
@@ -178,6 +179,31 @@ describe.skipIf(!hasDbEnv)('processCategorizeJob', () => {
 				{ restaurantId: other.id, productId: id, canonicalName: 'Tomate pera' },
 				{ provider: fakeProvider('{"category": "Frutas y Verduras", "confidence": 0.99}'), recordUsage: vi.fn(async () => {}) },
 			);
+			expect(await categoryOf(id)).toBeNull();
+		} finally {
+			await cleanupTestRestaurant(other.id);
+		}
+	});
+
+	it('leaves the product uncategorised (not stamped "Other") when the verdict names a category this restaurant has hidden (issue #881 part 2)', async () => {
+		const other = await createTestRestaurant('categorizer-hidden');
+		try {
+			const rows = await listCategories(other.id, {}, testDb);
+			const fruit = rows.find((c) => c.name === 'Frutas y Verduras')!;
+			await setCategoryHidden(other.id, fruit.id, true, testDb);
+
+			const [row] = await testSql`
+				INSERT INTO products (restaurant_id, canonical_name, name_key, category)
+				VALUES (${other.id}, 'Tomate pera', 'tomate pera', NULL)
+				RETURNING id
+			`;
+			const id = Number(row.id);
+
+			await processCategorizeJob(
+				{ restaurantId: other.id, productId: id, canonicalName: 'Tomate pera' },
+				{ provider: fakeProvider('{"category": "Frutas y Verduras", "confidence": 0.92}'), recordUsage: vi.fn(async () => {}) },
+			);
+
 			expect(await categoryOf(id)).toBeNull();
 		} finally {
 			await cleanupTestRestaurant(other.id);
