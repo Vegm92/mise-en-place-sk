@@ -21,7 +21,7 @@ import {
 	resolveCategory,
 } from '../src/lib/constants';
 import { getOrCreateSupplierId } from '../src/lib/server/supplier';
-import { runCategorySuggestion } from '../src/lib/server/alert-engine';
+import { runCategorySuggestion } from '../src/lib/server/alerts';
 import { invoiceLineItems, invoices, products, suppliers, systemNotifications } from '../src/lib/server/schema';
 import {
 	testDb,

@@ -20,7 +20,7 @@ import {
 	testSql, closeDb,
 	createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
-import { runPriceShock } from '../src/lib/server/alert-engine';
+import { runPriceShock } from '../src/lib/server/alerts';
 import { parsePack, normalizedUnitPrice, type EnrichedLineItem } from '../src/lib/server/products';
 import { normalizeProductKey } from '../src/lib/server/normalize';
 
