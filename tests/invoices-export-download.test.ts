@@ -15,6 +15,7 @@
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach, afterAll } from 'vitest';
 import ExcelJS from 'exceljs';
 import { extractZip } from '../src/lib/server/zip-extract';
+import { zipEntryName } from '../src/lib/server/invoice-export-zip';
 import {
 	testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
@@ -271,7 +272,7 @@ describe.skipIf(!hasDbEnv)('/invoices/export/download — issue #883 taxable bas
 		expect(await statusOf(runGet(`?ids=${many}`))).toBe(400);
 	});
 
-	it('format=zip returns a zip containing facturas.xlsx and each invoice\'s source file', async () => {
+	it('format=zip returns a zip containing facturas.xlsx and each invoice\'s source file, named via zipEntryName', async () => {
 		const withFile = await insertInvoice({ invoiceNumber: 'INV-883-Z1', sourceFile: 'ns/inv-z1.pdf' });
 		const noFile = await insertInvoice({ invoiceNumber: 'INV-883-Z2' });
 
@@ -283,10 +284,11 @@ describe.skipIf(!hasDbEnv)('/invoices/export/download — issue #883 taxable bas
 		const buf = Buffer.from(await res.arrayBuffer());
 		const { files, errors } = await extractZip(buf);
 		expect(errors).toEqual([]);
+		const expectedName = zipEntryName(withFile, 'INV-883-Z1', 'ns/inv-z1.pdf');
 		const names = files.map((f) => f.name).sort();
-		expect(names).toEqual(['INV-883-Z1.pdf', 'facturas.xlsx']);
+		expect(names).toEqual([expectedName, 'facturas.xlsx'].sort());
 
-		const dataFile = files.find((f) => f.name === 'INV-883-Z1.pdf')!;
+		const dataFile = files.find((f) => f.name === expectedName)!;
 		expect(dataFile.buffer.toString()).toBe('stub-bytes:ns/inv-z1.pdf');
 	});
 
@@ -296,5 +298,48 @@ describe.skipIf(!hasDbEnv)('/invoices/export/download — issue #883 taxable bas
 		const res = await runGet(`?ids=${withMissingFile}&format=zip`);
 		const { files } = await extractZip(Buffer.from(await res.arrayBuffer()));
 		expect(files.map((f) => f.name)).toEqual(['facturas.xlsx']);
+	});
+});
+
+describe('zipEntryName — issue #883 review fix', () => {
+	it('keeps a plain invoice number as-is, prefixed by id', () => {
+		expect(zipEntryName(7, 'INV-2026-001', 'ns/a.pdf')).toBe('7-INV-2026-001.pdf');
+	});
+
+	it('replaces a slash so the invoice number cannot escape into a nested path', () => {
+		expect(zipEntryName(7, 'A/2026/123', 'ns/a.pdf')).toBe('7-A_2026_123.pdf');
+	});
+
+	it('gives two invoices sharing the same number distinct entry names', () => {
+		const a = zipEntryName(1, 'DUP-1', 'ns/a.pdf');
+		const b = zipEntryName(2, 'DUP-1', 'ns/b.pdf');
+		expect(a).not.toBe(b);
+		expect(a).toBe('1-DUP-1.pdf');
+		expect(b).toBe('2-DUP-1.pdf');
+	});
+
+	it('falls back to just the id when the invoice number is empty or null', () => {
+		expect(zipEntryName(9, '', 'ns/a.pdf')).toBe('9.pdf');
+		expect(zipEntryName(9, null, 'ns/a.pdf')).toBe('9.pdf');
+		expect(zipEntryName(9, undefined, 'ns/a.pdf')).toBe('9.pdf');
+	});
+
+	it('folds accented and unicode characters to underscores', () => {
+		expect(zipEntryName(3, 'Factoría/Núm 42€', 'ns/a.pdf')).toBe('3-Factor_a_N_m_42.pdf');
+	});
+
+	it('collapses runs of unsafe characters and trims leading/trailing underscores', () => {
+		expect(zipEntryName(4, '  //weird!!number//  ', 'ns/a.pdf')).toBe('4-weird_number.pdf');
+	});
+
+	it('caps the sanitized number length at 80 characters', () => {
+		const long = 'A'.repeat(120);
+		const name = zipEntryName(5, long, 'ns/a.pdf');
+		expect(name).toBe(`5-${'A'.repeat(80)}.pdf`);
+	});
+
+	it('keeps the extension from the source file, including no-extension files', () => {
+		expect(zipEntryName(6, 'X-1', 'ns/a.pdf')).toBe('6-X-1.pdf');
+		expect(zipEntryName(6, 'X-1', 'ns/a')).toBe('6-X-1');
 	});
 });

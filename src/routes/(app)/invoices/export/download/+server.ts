@@ -1,5 +1,4 @@
 import { error } from '@sveltejs/kit';
-import path from 'path';
 import type { RequestHandler } from './$types';
 import { db, forTenant } from '$lib/server/db';
 import { invoices, suppliers } from '$lib/server/schema';
@@ -12,7 +11,7 @@ import { EXPORT_ROW_CAP } from '$lib/server/env';
 import { toIntlLocale } from '$lib/formatters';
 import { getStorage } from '$lib/server/storage';
 import { contentDispositionHeader } from '$lib/server/content-disposition';
-import { buildInvoiceExportZip } from '$lib/server/invoice-export-zip';
+import { buildInvoiceExportZip, zipEntryName } from '$lib/server/invoice-export-zip';
 
 const POSITIVE_INT = /^[1-9]\d*$/;
 const MAX_EXPORT_IDS = 500;
@@ -171,8 +170,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			} catch {
 				continue;
 			}
-			const ext = path.extname(r.source_file);
-			entries.push({ name: `${r.invoice_number || r.id}${ext}`, data });
+			entries.push({ name: zipEntryName(r.id, r.invoice_number, r.source_file), data });
 		}
 
 		const zipBuffer = await buildInvoiceExportZip(entries);

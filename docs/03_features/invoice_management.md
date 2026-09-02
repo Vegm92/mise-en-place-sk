@@ -325,6 +325,18 @@ Tenant scope on every read; version check on edit; status-transition guards.
   (`yauzl`) on the read side, but this module never reads a zip, only writes
   one.
 
+**`function zipEntryName`**
+- Builds a safe, unique per-invoice archive entry name from `id`,
+  `invoiceNumber` and the stored file's extension: `<id>-<sanitized number>.<ext>`,
+  or just `<id>.<ext>` when the sanitized number is empty. `id` always leads
+  so two invoices sharing the same number (or one with no number at all)
+  never collide — `yazl` does not reject a duplicate entry path, it would
+  silently write two entries at the same name. The invoice number is never
+  trusted as a path component on its own: it routinely contains `/`
+  (`"A/2026/123"`), which `yazl` would otherwise turn into nested folders.
+  Sanitizing replaces every character outside `[A-Za-z0-9._-]` with `_`,
+  collapses runs of `_`, trims the ends, and caps the result at 80 chars.
+
 ### `src/lib/server/working-days.ts`
 
 **`const FIXED_HOLIDAYS`**
