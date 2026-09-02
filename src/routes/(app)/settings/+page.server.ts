@@ -30,6 +30,11 @@ import {
 	loadAlertPreferences,
 	saveAlertPreferences as persistAlertPreferences,
 } from '$lib/server/alert-preferences';
+import {
+	OPTIONAL_FIELDS,
+	loadFieldVisibility,
+	saveFieldVisibility as persistFieldVisibility,
+} from '$lib/server/field-visibility';
 
 const THRESHOLD_KEY   = 'budget_warning_threshold';
 const PRICE_ALERT_KEY = 'price_alert_threshold';
@@ -55,7 +60,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
 	return handleLoad('settings', async () => {
-		const [row, priceRow, restaurantRow, membership, locationRows, entitlements, whatsappContactRows, pairingCode, userRow, alertPreferences, multiLocationFlag] = await Promise.all([
+		const [row, priceRow, restaurantRow, membership, locationRows, entitlements, whatsappContactRows, pairingCode, userRow, alertPreferences, multiLocationFlag, fieldVisibility] = await Promise.all([
 			db.select({ value: settings.value })
 				.from(settings)
 				.where(tdb.scope(settings.restaurantId, eq(settings.key, THRESHOLD_KEY))),
@@ -83,6 +88,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				.limit(1),
 			loadAlertPreferences(rid),
 			isBetaFeatureEnabled('multiLocation'),
+			loadFieldVisibility(rid),
 		]);
 
 		const features     = entitlements?.features     ?? TIERS.trial.features;
@@ -94,6 +100,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 			priceThreshold: priceRow[0] ? Math.round(parseFloat(priceRow[0].value) * 100) : 15,
 			alertPreferences,
 			alertGroups: ALERT_PREFERENCE_GROUPS.map(group => ({ id: group.id, types: [...group.types] })),
+			fieldVisibility,
+			optionalFields: [...OPTIONAL_FIELDS],
 			profile: {
 				name:  userRow[0]?.name ?? '',
 				email: locals.user!.email,
@@ -142,6 +150,16 @@ export const actions: Actions = {
 		}
 
 		redirect(303, '/settings');
+	},
+	saveFieldVisibility: async ({ request, locals }) => {
+		const rid = locals.restaurantId!;
+		const data = await request.formData();
+		const prefs = Object.fromEntries(
+			OPTIONAL_FIELDS.map(field => [field, data.has(`field_${field}`)]),
+		) as Record<(typeof OPTIONAL_FIELDS)[number], boolean>;
+
+		await persistFieldVisibility(rid, prefs);
+		return { section: 'campos', ok: 'set.fields.saved' };
 	},
 	resetTutorial: async ({ locals }) => {
 		const rid = locals.restaurantId!;

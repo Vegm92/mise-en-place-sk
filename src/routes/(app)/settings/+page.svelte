@@ -11,6 +11,7 @@
   import SettingsIcon from '@lucide/svelte/icons/settings';
   import Truck from '@lucide/svelte/icons/truck';
   import Bell from '@lucide/svelte/icons/bell';
+  import Eye from '@lucide/svelte/icons/eye';
   import MessageCircle from '@lucide/svelte/icons/message-circle';
   import CircleHelp from '@lucide/svelte/icons/circle-help';
   import ShieldCheck from '@lucide/svelte/icons/shield-check';
@@ -83,6 +84,7 @@
   const sections = $derived([
     { id: 'cuenta', label: $t('set.nav.account'), sub: $t('set.sub.account'), icon: SettingsIcon },
     { id: 'negocio', label: $t('set.nav.business'), sub: $t('set.sub.business'), icon: Truck },
+    { id: 'campos', label: $t('set.nav.fields'), sub: $t('set.sub.fields'), icon: Eye },
     { id: 'alertas', label: $t('set.nav.alerts'), sub: $t('set.sub.alerts'), icon: Bell },
     ...(data.whatsappEnabled
       ? [{ id: 'whatsapp', label: $t('set.nav.whatsapp'), sub: $t('set.sub.whatsapp'), icon: MessageCircle }]
@@ -108,6 +110,8 @@
     { key: 'set.profile.restaurant', section: 'negocio' },
     { key: 'set.business.currencyLabel', section: 'negocio' },
     ...(showLocations ? [{ key: 'set.locations.title', section: 'negocio' }] : []),
+    { key: 'set.fields.title', section: 'campos' },
+    ...data.optionalFields.map((field) => ({ key: `set.fields.label.${field}`, section: 'campos' })),
     { key: 'set.thresholdTitle', section: 'alertas' },
     { key: 'set.priceThresholdTitle', section: 'alertas' },
     ...alertTypes.map((type) => ({ key: `set.alertPrefs.type.${type}`, section: 'alertas' })),
@@ -150,13 +154,17 @@
   let priceThreshold = $state(data.priceThreshold);
   // svelte-ignore state_referenced_locally
   let alertPrefs = $state<Record<string, boolean>>({ ...data.alertPreferences });
+  // svelte-ignore state_referenced_locally
+  let fieldVisPrefs = $state<Record<string, boolean>>({ ...data.fieldVisibility });
 
   const alertsOn = $derived(alertTypes.filter((type) => alertPrefs[type]).length);
   const groupOn = (types: readonly string[]) => types.filter((type) => alertPrefs[type]).length;
+  const savedFieldVis = $derived(data.fieldVisibility as Record<string, boolean>);
 
   const pendingOf = (section: string | null) => {
     if (section === 'cuenta') return profileName !== data.profile.name ? 1 : 0;
     if (section === 'negocio') return restaurantName !== data.restaurantName ? 1 : 0;
+    if (section === 'campos') return data.optionalFields.filter((field) => fieldVisPrefs[field] !== savedFieldVis[field]).length;
     if (section === 'alertas') {
       return (
         (threshold !== data.threshold ? 1 : 0) +
@@ -170,6 +178,7 @@
   function discard(section: string | null) {
     if (section === 'cuenta') profileName = data.profile.name;
     if (section === 'negocio') restaurantName = data.restaurantName;
+    if (section === 'campos') fieldVisPrefs = { ...data.fieldVisibility };
     if (section === 'alertas') {
       threshold = data.threshold;
       priceThreshold = data.priceThreshold;
@@ -178,7 +187,7 @@
   }
 
   const savableForm = (section: string | null, idp: string) =>
-    section === 'cuenta' || section === 'negocio' || section === 'alertas'
+    section === 'cuenta' || section === 'negocio' || section === 'campos' || section === 'alertas'
       ? `${idp}-form-${section}`
       : '';
 
@@ -355,6 +364,30 @@
             </div>
           </SectionCard>
         {/if}
+      {/if}
+
+      {#if section === 'campos'}
+        <SectionCard title={$t('set.fields.title')} sub={$t('set.fields.sub')} noPad>
+          {#each data.optionalFields as field}
+            <label class="alert-toggle" for={`${idp}-field-vis-${field}`}>
+              <span class="alert-toggle-copy">
+                <span class="set-lbl-name">{$t(`set.fields.label.${field}`)}</span>
+                <span class="set-lbl-hint">{$t(`set.fields.desc.${field}`)}</span>
+              </span>
+              <input
+                id={`${idp}-field-vis-${field}`}
+                class="alert-toggle-input"
+                type="checkbox"
+                form="{idp}-form-campos"
+                name={`field_${field}`}
+                checked={data.fieldVisibility[field]}
+                onchange={(e) => (fieldVisPrefs[field] = e.currentTarget.checked)}
+              />
+              <span class="alert-toggle-track"><span class="alert-toggle-thumb"></span></span>
+            </label>
+          {/each}
+          {@render feedbackLine('campos')}
+        </SectionCard>
       {/if}
 
       {#if section === 'alertas'}
@@ -736,9 +769,11 @@
 
 <form method="POST" action="?/saveName" id="d-form-cuenta"></form>
 <form method="POST" action="?/renameRestaurant" id="d-form-negocio"></form>
+<form method="POST" action="?/saveFieldVisibility" id="d-form-campos"></form>
 <form method="POST" action="?/saveAlertPreferences" id="d-form-alertas"></form>
 <form method="POST" action="?/saveName" id="m-form-cuenta"></form>
 <form method="POST" action="?/renameRestaurant" id="m-form-negocio"></form>
+<form method="POST" action="?/saveFieldVisibility" id="m-form-campos"></form>
 <form method="POST" action="?/saveAlertPreferences" id="m-form-alertas"></form>
 
 <div class="hidden md:flex set-shell">

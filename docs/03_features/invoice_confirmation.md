@@ -72,6 +72,15 @@ gate. **This is THE invoice write path (ADR-008). Do not add another.**
    `qrMismatch` + `verifactu_qr_mismatch` alert). Side-effect failures are
    non-fatal (the invoice is already committed).
 5. **Onboarding**: first confirmed invoice sets `has_completed_onboarding`.
+6. **Per-restaurant optional field visibility** (issue #880): `due_date` and
+   `notes` can be hidden from the review screen per restaurant via
+   `/settings` → "Campos de la revisión" (`field-visibility.ts`). Supplier
+   name, document number, document date and total amount are always
+   extracted and always shown. Hiding a field only changes what
+   `batch/[id]` renders — extraction and the save path below are unaffected,
+   and a hidden field still rides the submission as a hidden input so its
+   extracted (or reviewer-edited) value is saved exactly as if it were
+   visible.
 
 ## State transitions
 
@@ -149,10 +158,14 @@ shapes, `low_confidence_ack` value.
 - Low-confidence without ack is blocked; with ack it saves.
 - A reviewer can reassign a line to a different catalogue product; the line, the
   alias and an `extraction_corrections` row all reflect the choice.
+- A restaurant that hides an optional field (e.g. due date) from Settings no
+  longer sees it on `batch/[id]`; extraction still detects it, the value is
+  still saved on confirm, and other restaurants are unaffected.
 - Tests: `tests/invoice-save-category.test.ts`,
   `tests/invoice-save-products.test.ts`, `tests/invoice-save-verifactu.test.ts`,
   `tests/extraction-corrections.test.ts`,
-  `tests/dedup.test.ts`, `tests/idempotency.test.ts`, `tests/race-idempotency.test.ts`.
+  `tests/dedup.test.ts`, `tests/idempotency.test.ts`, `tests/race-idempotency.test.ts`,
+  `tests/settings-field-visibility.test.ts`.
 
 ## Code notes
 
@@ -327,6 +340,7 @@ shapes, `low_confidence_ack` value.
 - That totals row wraps (issue #658). It is `nowrap` by design so a figure never splits from its label, but on a phone the row measured 667px inside a 390px frame: **Extraído** was pushed off the right edge and the whole review shell scrolled sideways to reach it. `flex-wrap: wrap` on `.rev-foot-totals` breaks it between figures instead of past the frame, and the mobile override no longer spreads the wrapped rows apart.
 - Line-item inputs are bound to `lineItems` state. They were previously one-way `value={…}`, so `lineTotal`, `totalCalc` and the discrepancy indicator never moved when a reviewer corrected a price — the footer reported on the extraction, not on what was about to be saved.
 - A warning banner (`totalMismatch`, issue #808) shows whenever `extracted_data.total_mismatch` is set — independent of the live `hasDiscrepancy` check on the total field above, since the extraction-time flag reflects what Gemini originally handed back and doesn't clear as the reviewer edits.
+- `fieldVisible` (issue #880), derived from the server-loaded `fieldVisibility` map, gates the due-date and notes rows the same way the albarán branch already gated due-date: when a restaurant hid a field from Settings, its visible row is replaced by a single `type="hidden"` input carrying the same value the visible control would have posted, so the form still submits it unchanged and `flagged`/`uncertainHeaderFields` skip a hidden field rather than badge a warning the reviewer cannot act on.
 
 ### `src/routes/(app)/confirm/[id]/+page.server.ts`
 
@@ -427,6 +441,14 @@ shapes, `low_confidence_ack` value.
 
 - `invoices.linked_invoice_id` is a *symmetric pairing*, not a free-form pointer: if A links to B then B links back to A. Writing the two rows blindly breaks that whenever either side was already paired — linking A↔B while C→B still existed left C pointing at a document that no longer points back, and the invoice detail page would then show C a link that B does not reciprocate.
 - So the helper first nulls the `linked_invoice_id` of any row (other than the two being paired) that referenced either side, then writes both directions. Newest evidence wins and the stale partner is released cleanly rather than silently orphaned. All three statements are tenant-scoped through `tdb.scope` (ADR-001).
+
+### `src/lib/server/field-visibility.ts`
+
+**`OPTIONAL_FIELDS`, `loadFieldVisibility`, `saveFieldVisibility` (issue #880)**
+
+- Per-restaurant show/hide for the review screen's non-mandatory header fields — `due_date` and `notes`. Supplier name, document number, document date and total amount stay mandatory (always extracted and always shown) and are never in `OPTIONAL_FIELDS`, so there is no way to hide them from this module's surface.
+- Same shape as `alert-preferences.ts`: one `settings` row per field per restaurant, keyed `field_visible_<field>` (`'true'`/`'false'`), default visible when no row exists. Both modules now share their load/save plumbing through `loadPrefixedBooleans`/`savePrefixedBooleans` (exported from `alert-preferences.ts`) rather than each keeping its own copy of the same upsert-by-prefix logic.
+- Visibility only controls what `batch/[id]` renders. Extraction (`extract.ts`) and the save path (`invoice-save.ts`) are untouched — a hidden field is still detected by Gemini, still submitted (as a hidden input carrying the extracted/edited value) and still saved exactly as before; hiding it changes nothing about what gets written.
 
 ### `src/lib/server/money.ts`
 
