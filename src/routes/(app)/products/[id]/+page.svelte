@@ -1,13 +1,12 @@
 <script lang="ts">
   import type { PageData, ActionData } from './$types';
   import { untrack } from 'svelte';
-  import { t, tcat } from '$lib/i18n';
-  import { fmt } from '$lib/formatters';
+  import { t, tcat, locale } from '$lib/i18n';
+  import { fmt, formatYoyPct } from '$lib/formatters';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
   import ConfirmDialog from '$lib/components/mep/ConfirmDialog.svelte';
   import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   import Trash2 from '@lucide/svelte/icons/trash-2';
-  import { formatYoyPct } from '$lib/price-yoy';
 
   const { data, form }: { data: PageData; form: ActionData } = $props();
   const { product, linkedSuppliers, aliases, priceHistory, priceByYear, categories } = $derived(data);
@@ -201,7 +200,7 @@
               <td class="num">{row.prevPrice != null ? fmt(row.prevPrice) : '—'}</td>
               <td class="num" class:text-neg={row.changePct != null && row.changePct > 0}
                 class:text-pos={row.changePct != null && row.changePct < 0}>
-                {formatYoyPct(row.changePct)}
+                {formatYoyPct(row.changePct, $locale)}
               </td>
             </tr>
           {/each}

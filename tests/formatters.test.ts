@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import {
-	fmt, truncate, fmtSize, str, fmtEur, fmtEurCompact, fmtEurSigned, semColor,
+	fmt, truncate, fmtSize, str, fmtEur, fmtEurCompact, fmtEurSigned, formatYoyPct, semColor,
 	fmtDate, fmtDateShort, fmtMonthShort, toIntlLocale,
 } from '../src/lib/formatters';
 
@@ -151,6 +151,34 @@ describe('fmtEurSigned', () => {
     expect(es).toBe('+' + fmtEurCompact(1234, 'es'));
     expect(en).toBe('+' + fmtEurCompact(1234, 'en'));
     expect(es).not.toBe(en);
+  });
+});
+
+describe('formatYoyPct', () => {
+  it('formats a positive change with a leading plus, Spanish decimal comma by default', () => {
+    expect(formatYoyPct(12.5)).toBe('+12,5 %');
+  });
+
+  it('follows the locale for the decimal separator', () => {
+    expect(formatYoyPct(12.5, 'es')).toBe('+12,5 %');
+    expect(formatYoyPct(12.5, 'en')).toBe('+12.5 %');
+  });
+
+  it('prefixes a negative change with a sign', () => {
+    expect(formatYoyPct(-20, 'es')).toMatch(/^-20/);
+  });
+
+  it('shows no sign for zero (signDisplay: exceptZero)', () => {
+    expect(formatYoyPct(0, 'es')).toBe('0 %');
+  });
+
+  it('formats null as an em dash', () => {
+    expect(formatYoyPct(null)).toBe('—');
+  });
+
+  it('formats a non-finite value as an em dash', () => {
+    expect(formatYoyPct(Infinity)).toBe('—');
+    expect(formatYoyPct(NaN)).toBe('—');
   });
 });
 

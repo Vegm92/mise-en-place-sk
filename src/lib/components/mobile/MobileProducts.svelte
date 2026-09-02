@@ -1,12 +1,12 @@
 <script lang="ts">
   import { categoryColor, categoryTint } from '$lib/colors';
-  import { t, tcat, ti } from '$lib/i18n';
+  import { t, tcat, ti, locale } from '$lib/i18n';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
   import ScrollStrip from '$lib/components/mep/ScrollStrip.svelte';
   import type { ConversionPrompt } from '$lib/server/products';
   import { PRODUCT_SORT_KEYS, type ProductSortKey } from '$lib/product-filters';
-  import { formatYoyPct } from '$lib/price-yoy';
+  import { formatYoyPct } from '$lib/formatters';
 
   interface Product {
     id: number;
@@ -112,10 +112,9 @@
       />
     </div>
 
-    <div style="padding: 0 18px 10px;">
+    <div class="px-[18px] pb-2.5">
       <select
-        class="input"
-        style="width: 100%; height: 36px;"
+        class="input w-full h-9"
         aria-label={$t('prod.sort.label')}
         value={sort}
         onchange={(e) => onSortChange?.((e.target as HTMLSelectElement).value)}
@@ -189,7 +188,7 @@
                   · <span
                     class:text-neg={p.yoyChangePct > 0}
                     class:text-pos={p.yoyChangePct < 0}
-                  >{$t('prod.col.yoy')} {formatYoyPct(p.yoyChangePct)}</span>
+                  >{$t('prod.col.yoy')} {formatYoyPct(p.yoyChangePct, $locale)}</span>
                 {/if}
               </div>
             </div>
