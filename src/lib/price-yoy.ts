@@ -53,9 +53,3 @@ export function pairYearlyPrices(rows: YearlyPriceInput[]): YearlyPricePoint[] {
 export function yoyChangeForYear(rows: YearlyPriceInput[], year: number): number | null {
 	return pairYearlyPrices(rows).find((p) => p.year === year)?.changePct ?? null;
 }
-
-export function formatYoyPct(pct: number | null): string {
-	if (pct === null || !Number.isFinite(pct)) return '—';
-	const sign = pct > 0 ? '+' : pct < 0 ? '−' : '';
-	return `${sign}${Math.abs(pct).toFixed(1).replace('.', ',')} %`;
-}

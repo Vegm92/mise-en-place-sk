@@ -6,7 +6,7 @@
  * both years lack a normalized price and share the same unit.
  */
 import { describe, it, expect } from 'vitest';
-import { pairYearlyPrices, yoyChangeForYear, formatYoyPct, type YearlyPriceInput, type YearlyPricePoint } from '../src/lib/price-yoy';
+import { pairYearlyPrices, yoyChangeForYear, type YearlyPriceInput, type YearlyPricePoint } from '../src/lib/price-yoy';
 
 const row = (year: number, unitPrice: number | null, normalizedUnitPrice: number | null, unit: string | null): YearlyPriceInput => ({
 	year, unitPrice, normalizedUnitPrice, unit,
@@ -69,19 +69,5 @@ describe('yoyChangeForYear', () => {
 	it('returns null when the year is not present at all', () => {
 		const rows = [row(2024, 8, 8, 'kg')];
 		expect(yoyChangeForYear(rows, 2026)).toBeNull();
-	});
-});
-
-describe('formatYoyPct', () => {
-	it('formats a positive change with a leading plus', () => {
-		expect(formatYoyPct(25)).toBe('+25,0 %');
-	});
-
-	it('formats a negative change with a minus sign', () => {
-		expect(formatYoyPct(-20)).toBe('−20,0 %');
-	});
-
-	it('formats null as an em dash', () => {
-		expect(formatYoyPct(null)).toBe('—');
 	});
 });
