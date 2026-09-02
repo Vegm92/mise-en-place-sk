@@ -6,10 +6,6 @@ related: "[[CONTEXT]]"
 # Orchestrator backlog state — mise-en-place-sk
 
 Maintained by the autonomous issue orchestrator. Statuses: PENDING | IN_PROGRESS | DONE | BLOCKED | OBSOLETE | DEFERRED.
-Dispatch prompts and this file's own growth are budgeted per
-`docs/07_ai/dispatch_context_budget.md` — archive prior sessions' narrative
-rows to `docs/05_operations/ORCHESTRATOR_BACKLOG_ARCHIVE.md` at the start of a
-new coordinator session; the table below is the durable record.
 Baseline (main @ 71034ef): 1854 tests pass, 305 skipped. Open PRs: #723 (escandallo engine, unmerged), #625 (draft MVP, do-not-merge).
 
 DEFERRED = not actionable right now (e.g. targets PR #723's unmerged branch); re-check when the blocker clears.

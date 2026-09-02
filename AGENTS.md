@@ -46,7 +46,6 @@ first, bilingual (es/en). WhatsApp is a second ingestion channel; XML e-invoices
 | `README.md` | Product overview + getting started | First contact |
 | `CONTEXT.md` | Obsidian vault hub; project status + open audit items | Current state / open work |
 | `docs/07_ai/parallel_sessions.md` | Working agreement when several sessions run at once — surface ownership, branch lanes, PR size cap, model policy | Starting a session while others are running; opening a PR |
-| `docs/07_ai/dispatch_context_budget.md` | What a coordinator puts in a worker's dispatch prompt and keeps in its own conversation | Running or reviewing an issue orchestrator/coordinator session |
 
 ## How to approach a task
 

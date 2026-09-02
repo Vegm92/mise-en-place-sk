@@ -128,11 +128,6 @@ per worker buys nothing that the gates in `AGENTS.md` do not already enforce.
 Set it with `/model` in a session, or the `model:` field on a subagent definition.
 Model IDs are exact strings — no date suffixes.
 
-What the coordinator puts in a dispatch prompt, and what it keeps in its own
-conversation across dispatches, is governed separately by
-`docs/07_ai/dispatch_context_budget.md` — a coordinator's own turn history is
-what drives its cache-read cost, not the workers it spawns.
-
 ## 7. Closing a PR without merging
 
 Say why, in a comment, before you close it. #685 and #686 disappeared silently with
