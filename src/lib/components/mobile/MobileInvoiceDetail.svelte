@@ -56,6 +56,11 @@
     retention_rate?: number | null;
     retention_amount?: number | null;
     linked_invoice?: LinkedInvoice | null;
+    purchase_order?: string | null;
+    seller_name?: string | null;
+    delivery_date?: Date | string | null;
+    delivery_address?: string | null;
+    printed_notes?: string | null;
   }
 
   let {
@@ -175,6 +180,21 @@
           {#if invoice.payment_method}{$t(`field.paymentMethod.${invoice.payment_method}`)}{/if}
           {#if invoice.payment_terms} · {invoice.payment_terms}{/if}
           {#if invoice.iban} · {invoice.iban}{/if}
+        </div>
+      {/if}
+
+      {#if invoice.purchase_order || invoice.seller_name || invoice.delivery_date || invoice.delivery_address}
+        <div class="border-t border-divider text-fg-2" style="margin-top: 12px; padding-top: 12px; font-size: 11px;">
+          {#if invoice.purchase_order}{$t('field.purchaseOrder')}: {invoice.purchase_order}{/if}
+          {#if invoice.seller_name} · {$t('field.sellerName')}: {invoice.seller_name}{/if}
+          {#if invoice.delivery_date} · {$t('field.deliveryDate')}: {fmtDate(invoice.delivery_date)}{/if}
+          {#if invoice.delivery_address} · {invoice.delivery_address}{/if}
+        </div>
+      {/if}
+
+      {#if invoice.printed_notes}
+        <div class="border-t border-divider text-fg-2" style="margin-top: 12px; padding-top: 12px; font-size: 11px;">
+          {invoice.printed_notes}
         </div>
       {/if}
 

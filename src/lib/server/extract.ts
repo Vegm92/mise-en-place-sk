@@ -15,6 +15,7 @@ const EXTRACTION_PROMPT = `You are an invoice data extraction specialist for Spa
 The document may be a FACTURA (invoice) or an ALBARÁN (delivery note / nota de entrega). Both are common in Spanish restaurant supplier workflows:
 - Facturas include IVA breakdowns (base imponible, cuota IVA, tipo IVA), número de factura, fecha de vencimiento, and CIF/NIF for both parties.
 - Albaranes are delivery notes: they list delivered products with quantities and sometimes unit prices, but may lack a total, IVA breakdown, or formal invoice number. Use the albarán number (nº albarán, nº pedido, referencia) as the invoice_number if no factura number is present.
+- purchase_order is separate from invoice_number: also return the nº pedido / ref. cliente / su referencia / orden de compra whenever printed, even on documents that already have their own invoice_number.
 - Classify which one this document is in "document_type". Base invoice_number's confidence purely on how legibly that number is printed — a clearly printed albarán number deserves the same high confidence as a clearly printed factura number; do not lower it just because the document is an albarán.
 
 Key Spanish field names to look for:
@@ -46,9 +47,14 @@ Return ONLY valid JSON with this exact structure:
   "iban": "the EMISOR's bank account (IBAN / cuenta / nº cuenta / CCC), as printed — or null if not printed",
   "payment_terms": "payment terms exactly as printed (e.g. '30 días', 'contado', '60 días f.f.') — or null if not printed",
   "invoice_number": "string or null",
+  "purchase_order": "nº pedido / ref. cliente / su referencia / orden de compra, exactly as printed — or null if not printed",
+  "seller_name": "the sales rep who issued/attended the document — comercial, vendedor, agente, atendido por — or null if not printed",
   "document_type": "'factura' or 'albaran', or null if you cannot tell which",
   "invoice_date": "YYYY-MM-DD or null",
   "due_date": "YYYY-MM-DD or null",
+  "delivery_date": "fecha de entrega / fecha albarán as YYYY-MM-DD, only when printed separately from invoice_date — or null",
+  "delivery_address": "dirección de entrega / lugar de entrega, only when printed and different from receiver_address — or null",
+  "printed_notes": "observaciones / notas / comentarios block as printed on the document (not user-written), max 500 chars — or null",
   "total_amount": number or null,
   "currency": "3-letter code, almost always EUR for Spanish documents",
   "tax_base": total taxable amount before tax (sum of all line totals, or gross_amount minus discount_amount when a global discount is printed), or null if not present,
@@ -186,9 +192,14 @@ export interface ExtractedInvoice {
 	iban?: string | null;
 	payment_terms?: string | null;
 	invoice_number: string | null;
+	purchase_order?: string | null;
+	seller_name?: string | null;
 	document_type?: 'factura' | 'albaran' | null;
 	invoice_date: string | null;
 	due_date: string | null;
+	delivery_date?: string | null;
+	delivery_address?: string | null;
+	printed_notes?: string | null;
 	total_amount: number | null;
 	currency: string | null;
 	tax_base: number | null;
@@ -290,9 +301,14 @@ export const INVOICE_RESPONSE_SCHEMA: Schema = {
 		iban: { type: Type.STRING, nullable: true },
 		payment_terms: { type: Type.STRING, nullable: true },
 		invoice_number: { type: Type.STRING, nullable: true },
+		purchase_order: { type: Type.STRING, nullable: true },
+		seller_name: { type: Type.STRING, nullable: true },
 		document_type: { type: Type.STRING, enum: ['factura', 'albaran'], nullable: true },
 		invoice_date: { type: Type.STRING, nullable: true },
 		due_date: { type: Type.STRING, nullable: true },
+		delivery_date: { type: Type.STRING, nullable: true },
+		delivery_address: { type: Type.STRING, nullable: true },
+		printed_notes: { type: Type.STRING, nullable: true },
 		total_amount: { type: Type.NUMBER, nullable: true },
 		currency: { type: Type.STRING, nullable: true },
 		tax_base: { type: Type.NUMBER, nullable: true },
@@ -311,7 +327,8 @@ export const INVOICE_RESPONSE_SCHEMA: Schema = {
 		'supplier_name', 'supplier_category', 'supplier_nif', 'supplier_address', 'supplier_email',
 		'supplier_phone', 'receiver_name', 'receiver_nif', 'receiver_address',
 		'payment_method', 'iban', 'payment_terms',
-		'invoice_number', 'document_type', 'invoice_date', 'due_date', 'total_amount',
+		'invoice_number', 'purchase_order', 'seller_name', 'document_type', 'invoice_date', 'due_date',
+		'delivery_date', 'delivery_address', 'printed_notes', 'total_amount',
 		'currency', 'tax_base', 'gross_amount', 'discount_amount',
 		'retention_rate', 'retention_amount', 'tax_breakdown', 'outstanding_balance', 'qr_url',
 		'field_confidences', 'line_items', 'confidence',
@@ -360,6 +377,8 @@ const MAX_PHONE_LENGTH = 40;
 const MAX_NIF_LENGTH = 40;
 const MAX_INVOICE_NUMBER_LENGTH = 100;
 const MAX_PAYMENT_TERMS_LENGTH = 100;
+const MAX_PURCHASE_ORDER_LENGTH = 100;
+const MAX_PRINTED_NOTES_LENGTH = 500;
 const MAX_LINE_DESCRIPTION_LENGTH = 300;
 const MAX_PRODUCT_CODE_LENGTH = 100;
 
@@ -403,6 +422,10 @@ export function sanitizeExtractedInvoice(invoice: ExtractedInvoice): ExtractedIn
 		payment_terms: sanitizeFreeText(invoice.payment_terms, MAX_PAYMENT_TERMS_LENGTH),
 		field_confidences: fieldConfidences,
 		invoice_number: sanitizeFreeText(invoice.invoice_number, MAX_INVOICE_NUMBER_LENGTH),
+		purchase_order: sanitizeFreeText(invoice.purchase_order, MAX_PURCHASE_ORDER_LENGTH),
+		seller_name: sanitizeFreeText(invoice.seller_name, MAX_SUPPLIER_NAME_LENGTH),
+		delivery_address: sanitizeFreeText(invoice.delivery_address, MAX_ADDRESS_LENGTH),
+		printed_notes: sanitizeFreeText(invoice.printed_notes, MAX_PRINTED_NOTES_LENGTH),
 		line_items: (invoice.line_items ?? []).map((item) => ({
 			...item,
 			description: sanitizeFreeText(item.description, MAX_LINE_DESCRIPTION_LENGTH) ?? '',

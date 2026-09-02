@@ -23,9 +23,25 @@ import { renderTemplate } from '$lib/i18n-messages';
 import { isBlankOrIsoDate, toIsoDate } from './dates';
 import type { IncidenceKind, ReviewState } from '$lib/status';
 
+export interface DocumentReferenceFields {
+	purchaseOrder: string | null;
+	sellerName: string | null;
+	deliveryDate: string | null;
+	deliveryAddress: string | null;
+	printedNotes: string | null;
+}
+
+export const documentReferenceColumns = {
+	purchase_order: invoices.purchaseOrder,
+	seller_name: invoices.sellerName,
+	delivery_date: invoices.deliveryDate,
+	delivery_address: invoices.deliveryAddress,
+	printed_notes: invoices.printedNotes,
+};
+
 export type SaveOutcome =
 	| { type: 'lowConfidenceBlocked' }
-	| { type: 'invalidDate'; field: 'invoice_date' | 'due_date' }
+	| { type: 'invalidDate'; field: 'invoice_date' | 'due_date' | 'delivery_date' }
 	| { type: 'invalidAmount'; field: string }
 	| { type: 'contentDuplicate'; duplicateId: number }
 	| { type: 'numberDuplicate' }
@@ -669,6 +685,7 @@ async function runPostSaveEffects(params: {
 	dueDate: string | null;
 	totalAmount: string | null;
 	documentType: 'factura' | 'albaran' | null;
+	purchaseOrder: string | null;
 	confidenceRaw: number | null;
 	lineInputs: LineFormInput[];
 	savedItems: EnrichedLineItem[];
@@ -684,7 +701,7 @@ async function runPostSaveEffects(params: {
 	reviewState: ReviewState;
 	tdb: ReturnType<typeof forTenant>;
 }): Promise<boolean> {
-	const { invoiceId, supplierId, rid, supplierName, invoiceNumber, invoiceDate, dueDate, totalAmount, documentType, confidenceRaw, lineInputs, savedItems, unitConversionAlerts, qrMismatches, extractedData, lineDescriptions, lineQuantities, lineUnits, lineUnitPrices, lineTotalPrices, proposedCategory, reviewState, tdb } = params;
+	const { invoiceId, supplierId, rid, supplierName, invoiceNumber, invoiceDate, dueDate, totalAmount, documentType, purchaseOrder, confidenceRaw, lineInputs, savedItems, unitConversionAlerts, qrMismatches, extractedData, lineDescriptions, lineQuantities, lineUnits, lineUnitPrices, lineTotalPrices, proposedCategory, reviewState, tdb } = params;
 
 	const { productByKey, productCorrections } = await isolated(
 		'product linking',
@@ -721,7 +738,7 @@ async function runPostSaveEffects(params: {
 			run: async () => {
 				const duplicatePurchase = await runPossibleDuplicatePurchase({
 					invoiceId, supplierId, supplierName, restaurantId: rid,
-					documentType, invoiceDate, totalAmount, lineDescriptions,
+					documentType, invoiceDate, totalAmount, lineDescriptions, purchaseOrder,
 				});
 				if (duplicatePurchase.linkedInvoiceId) {
 					await linkRelatedDocuments(tdb, invoiceId, duplicatePurchase.linkedInvoiceId);
@@ -811,12 +828,15 @@ export async function saveReviewedInvoice(
 	const invoiceNumber = (formData.get('invoice_number') as string) ?? '';
 	const invoiceDateRaw = formData.get('invoice_date');
 	const dueDateRaw = formData.get('due_date');
+	const deliveryDateRaw = formData.get('delivery_date');
 	if (!isBlankOrIsoDate(invoiceDateRaw)) return { type: 'invalidDate', field: 'invoice_date' };
 	if (!isBlankOrIsoDate(dueDateRaw)) return { type: 'invalidDate', field: 'due_date' };
+	if (!isBlankOrIsoDate(deliveryDateRaw)) return { type: 'invalidDate', field: 'delivery_date' };
 	const invalidAmountField = findInvalidMonetaryField(formData);
 	if (invalidAmountField) return { type: 'invalidAmount', field: invalidAmountField };
 	const invoiceDate = toIsoDate(invoiceDateRaw);
 	const dueDate = toIsoDate(dueDateRaw);
+	const deliveryDate = toIsoDate(deliveryDateRaw);
 	const totalAmount = toMoneyString(formData.get('total_amount') as string | null);
 	const confidenceRaw = parseAmount(formData.get('confidence'));
 	const notesRaw = (formData.get('notes') as string) ?? '';
@@ -857,6 +877,15 @@ export async function saveReviewedInvoice(
 	const paymentMethod = isValidPaymentMethod(rawPaymentMethod) ? rawPaymentMethod : null;
 	const rawPaymentTerms = formData.has('payment_terms') ? formData.get('payment_terms') : extractedData?.payment_terms;
 	const paymentTerms = typeof rawPaymentTerms === 'string' ? (rawPaymentTerms.trim().slice(0, 100) || null) : null;
+
+	const rawPurchaseOrder = formData.has('purchase_order') ? formData.get('purchase_order') : extractedData?.purchase_order;
+	const purchaseOrder = typeof rawPurchaseOrder === 'string' ? (rawPurchaseOrder.trim().slice(0, 100) || null) : null;
+	const rawSellerName = formData.has('seller_name') ? formData.get('seller_name') : extractedData?.seller_name;
+	const sellerName = typeof rawSellerName === 'string' ? (rawSellerName.trim().slice(0, 200) || null) : null;
+	const rawDeliveryAddress = formData.has('delivery_address') ? formData.get('delivery_address') : extractedData?.delivery_address;
+	const deliveryAddress = typeof rawDeliveryAddress === 'string' ? (rawDeliveryAddress.trim().slice(0, 300) || null) : null;
+	const rawPrintedNotes = formData.has('printed_notes') ? formData.get('printed_notes') : extractedData?.printed_notes;
+	const printedNotes = typeof rawPrintedNotes === 'string' ? (rawPrintedNotes.trim().slice(0, 500) || null) : null;
 
 	const rawQrUrl = typeof extractedData?.qr_url === 'string' ? extractedData.qr_url : null;
 	const qrResult = rawQrUrl ? parseQrUrl(rawQrUrl) : null;
@@ -937,6 +966,11 @@ export async function saveReviewedInvoice(
 				notes,
 				qrUrl: qrResult?.url ?? null,
 				qrMismatch: qrMismatches.length > 0,
+				purchaseOrder,
+				sellerName,
+				deliveryDate,
+				deliveryAddress,
+				printedNotes,
 			})
 			.onConflictDoNothing()
 			.returning({ id: invoices.id });
@@ -965,7 +999,7 @@ export async function saveReviewedInvoice(
 
 	const isFirstInvoice = await runPostSaveEffects({
 		invoiceId: invoiceId!, supplierId, rid, supplierName, invoiceNumber, invoiceDate, dueDate,
-		totalAmount, documentType, confidenceRaw, lineInputs, savedItems, unitConversionAlerts,
+		totalAmount, documentType, purchaseOrder, confidenceRaw, lineInputs, savedItems, unitConversionAlerts,
 		qrMismatches, extractedData, lineDescriptions, lineQuantities, lineUnits, lineUnitPrices,
 		lineTotalPrices, proposedCategory, reviewState, tdb,
 	});
