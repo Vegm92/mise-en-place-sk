@@ -171,6 +171,11 @@ interface EinvoiceParts {
 	taxBreakdown: ExtractedInvoice['tax_breakdown'];
 	lineItems: ExtractedInvoice['line_items'];
 	format: EinvoiceFormat;
+	purchaseOrder: string | null;
+	sellerName: string | null;
+	deliveryDate: string | null;
+	deliveryAddress: string | null;
+	printedNotes: string | null;
 }
 
 function einvoiceResult(parts: EinvoiceParts): ParsedEinvoice {
@@ -213,6 +218,11 @@ function einvoiceResult(parts: EinvoiceParts): ParsedEinvoice {
 		},
 		line_items: parts.lineItems,
 		e_invoice_format: parts.format,
+		purchase_order: parts.purchaseOrder,
+		seller_name: parts.sellerName,
+		delivery_date: parts.deliveryDate,
+		delivery_address: parts.deliveryAddress,
+		printed_notes: parts.printedNotes,
 	};
 }
 
@@ -293,6 +303,8 @@ export function parseFacturae322(xml: string): ExtractedInvoice & { e_invoice_fo
 		};
 	});
 
+	const purchaseOrder = getText(getChild(invoice, 'AdditionalData', 'RelatedDocuments', 'ReceiverTransactionReference'));
+
 	return einvoiceResult({
 		supplier, receiver, supplierEmail, supplierPhone, paymentMethod, iban,
 		invoiceNumber: fullNumber, invoiceDate, dueDate: null,
@@ -300,6 +312,7 @@ export function parseFacturae322(xml: string): ExtractedInvoice & { e_invoice_fo
 		grossAmount: discountAmount ? grossAmount : null,
 		discountAmount, retentionRate, retentionAmount,
 		taxBreakdown, lineItems: line_items, format: 'facturae_322',
+		purchaseOrder, sellerName: null, deliveryDate: null, deliveryAddress: null, printedNotes: null,
 	});
 }
 
@@ -385,6 +398,21 @@ export function parseUbl21Invoice(xml: string): ExtractedInvoice & { e_invoice_f
 		};
 	});
 
+	const purchaseOrder = getText(getChild(inv, 'OrderReference', 'ID'));
+
+	const delivery = getArr(inv, 'Delivery')[0] as Record<string, unknown> | undefined;
+	const deliveryDate = getText(delivery?.['ActualDeliveryDate']);
+	const deliveryLocationAddress = getChild(delivery, 'DeliveryLocation', 'Address') as Record<string, unknown> | undefined;
+	const deliveryAddress = deliveryLocationAddress
+		? joinAddress([
+			getText(deliveryLocationAddress['StreetName']),
+			getText(deliveryLocationAddress['CityName']),
+			getText(deliveryLocationAddress['PostalZone']),
+		])
+		: null;
+
+	const printedNotes = joinAddress(getArr(inv, 'Note').map(getText));
+
 	return einvoiceResult({
 		supplier, receiver, supplierEmail, supplierPhone, paymentMethod, iban,
 		invoiceNumber, invoiceDate, dueDate,
@@ -392,6 +420,7 @@ export function parseUbl21Invoice(xml: string): ExtractedInvoice & { e_invoice_f
 		grossAmount: discountAmount ? grossAmount : null,
 		discountAmount, retentionRate, retentionAmount,
 		taxBreakdown, lineItems: line_items, format: 'ubl_21',
+		purchaseOrder, sellerName: null, deliveryDate, deliveryAddress, printedNotes,
 	});
 }
 

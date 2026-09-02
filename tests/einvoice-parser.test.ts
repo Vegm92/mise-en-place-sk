@@ -148,6 +148,11 @@ const FACTURAE_322_XML = `<?xml version="1.0" encoding="UTF-8"?>
           <GrossAmount>45.62</GrossAmount>
         </InvoiceLine>
       </Items>
+      <AdditionalData>
+        <RelatedDocuments>
+          <ReceiverTransactionReference>PO-2024-778</ReceiverTransactionReference>
+        </RelatedDocuments>
+      </AdditionalData>
     </Invoice>
   </Invoices>
 </fe:Facturae>`;
@@ -162,6 +167,20 @@ const UBL_21_XML = `<?xml version="1.0" encoding="UTF-8"?>
   <cbc:DueDate>2024-04-20</cbc:DueDate>
   <cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>
   <cbc:DocumentCurrencyCode>EUR</cbc:DocumentCurrencyCode>
+  <cbc:Note>Entregar en muelle de carga trasero</cbc:Note>
+  <cac:OrderReference>
+    <cbc:ID>PO-UBL-9001</cbc:ID>
+  </cac:OrderReference>
+  <cac:Delivery>
+    <cbc:ActualDeliveryDate>2024-03-19</cbc:ActualDeliveryDate>
+    <cac:DeliveryLocation>
+      <cac:Address>
+        <cbc:StreetName>Polígono Cantabria, Nave 3</cbc:StreetName>
+        <cbc:CityName>Logroño</cbc:CityName>
+        <cbc:PostalZone>26007</cbc:PostalZone>
+      </cac:Address>
+    </cac:DeliveryLocation>
+  </cac:Delivery>
   <cac:AccountingSupplierParty>
     <cac:Party>
       <cac:PartyName>
@@ -306,6 +325,21 @@ describe('parseFacturae322', () => {
 	it('extracts invoice number with series code', () => {
 		const result = parseFacturae322(FACTURAE_322_XML);
 		expect(result.invoice_number).toBe('FAC-2024-001');
+	});
+
+	it('extracts purchase_order from AdditionalData/RelatedDocuments/ReceiverTransactionReference', () => {
+		const result = parseFacturae322(FACTURAE_322_XML);
+		expect(result.purchase_order).toBe('PO-2024-778');
+	});
+
+	it('yields null purchase_order/seller_name/delivery_date/delivery_address/printed_notes when AdditionalData is absent', () => {
+		const xmlNoAdditionalData = FACTURAE_322_XML.replace(/<AdditionalData>[\s\S]*?<\/AdditionalData>/, '');
+		const result = parseFacturae322(xmlNoAdditionalData);
+		expect(result.purchase_order).toBeNull();
+		expect(result.seller_name).toBeNull();
+		expect(result.delivery_date).toBeNull();
+		expect(result.delivery_address).toBeNull();
+		expect(result.printed_notes).toBeNull();
 	});
 
 	it('extracts invoice date', () => {
@@ -459,6 +493,34 @@ describe('parseUbl21Invoice', () => {
 	it('extracts invoice number (ID)', () => {
 		const result = parseUbl21Invoice(UBL_21_XML);
 		expect(result.invoice_number).toBe('2024-UBL-0042');
+	});
+
+	it('extracts purchase_order from OrderReference/ID', () => {
+		const result = parseUbl21Invoice(UBL_21_XML);
+		expect(result.purchase_order).toBe('PO-UBL-9001');
+	});
+
+	it('extracts delivery_date and delivery_address from Delivery', () => {
+		const result = parseUbl21Invoice(UBL_21_XML);
+		expect(result.delivery_date).toBe('2024-03-19');
+		expect(result.delivery_address).toBe('Polígono Cantabria, Nave 3, Logroño, 26007');
+	});
+
+	it('extracts printed_notes from Note', () => {
+		const result = parseUbl21Invoice(UBL_21_XML);
+		expect(result.printed_notes).toBe('Entregar en muelle de carga trasero');
+	});
+
+	it('yields null purchase_order/delivery fields when OrderReference/Delivery/Note are absent', () => {
+		const xmlBare = UBL_21_XML
+			.replace(/<cbc:Note>[\s\S]*?<\/cbc:Note>/, '')
+			.replace(/<cac:OrderReference>[\s\S]*?<\/cac:OrderReference>/, '')
+			.replace(/<cac:Delivery>[\s\S]*?<\/cac:Delivery>/, '');
+		const result = parseUbl21Invoice(xmlBare);
+		expect(result.purchase_order).toBeNull();
+		expect(result.delivery_date).toBeNull();
+		expect(result.delivery_address).toBeNull();
+		expect(result.printed_notes).toBeNull();
 	});
 
 	it('extracts issue date', () => {

@@ -42,6 +42,11 @@ async function invoiceDetailRow(tdb: ReturnType<typeof forTenant>, id: number) {
 		notes:            invoices.notes,
 		created_at:       invoices.createdAt,
 		linked_invoice_id: invoices.linkedInvoiceId,
+		purchase_order:   invoices.purchaseOrder,
+		seller_name:      invoices.sellerName,
+		delivery_date:    invoices.deliveryDate,
+		delivery_address: invoices.deliveryAddress,
+		printed_notes:    invoices.printedNotes,
 	})
 		.from(invoices)
 		.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
