@@ -139,7 +139,7 @@
           <a href="/" style="font-size: 13px; color: var(--mep-acc); text-decoration: none; display: inline-flex; align-items: center; min-height: 44px;">{$t('spend.uploadFirst')}</a>
         </div>
       {:else}
-        <div style="display: flex; flex-direction: column; align-items: center; gap: 14px;" role="group" aria-label={$t('spend.donut.topItemsAria')}>
+        <div class="flex flex-col items-center gap-3.5" role="group" aria-label={$t('spend.donut.topItemsAria')}>
           <DonutChart
             slices={topItemInputs}
             radius={DONUT_RADIUS}
@@ -153,9 +153,9 @@
             {#each spendDonut.slices as slice}
               <div style="display: flex; align-items: center; gap: 8px;">
                 <span style="width: 9px; height: 9px; border-radius: 2px; background: {slice.color}; flex-shrink: 0;"></span>
-                <span class="body" style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{slice.label}</span>
-                <span class="num" style="font-size: 11px; color: var(--mep-fg-3); flex-shrink: 0;">{Math.round(slice.pct * 100)}%</span>
-                <span class="num body-strong" style="flex-shrink: 0; width: 70px; text-align: right;">{fmtEur(slice.value)}</span>
+                <span class="body flex-1 min-w-0 truncate">{slice.label}</span>
+                <span class="num text-[11px] text-fg-3 shrink-0">{Math.round(slice.pct * 100)}%</span>
+                <span class="num body-strong shrink-0 w-[70px] text-right">{fmtEur(slice.value)}</span>
               </div>
             {/each}
           </div>
@@ -172,7 +172,7 @@
           <a href="/suppliers" style="font-size: 13px; color: var(--mep-acc); text-decoration: none; display: inline-flex; align-items: center; min-height: 44px;">{$t('spend.viewSuppliers')}</a>
         </div>
       {:else}
-        <div style="display: flex; flex-direction: column; align-items: center; gap: 14px; padding-bottom: 6px;" role="group" aria-label={$t('spend.donut.categoryAria')}>
+        <div class="flex flex-col items-center gap-3.5 pb-1.5" role="group" aria-label={$t('spend.donut.categoryAria')}>
           <DonutChart
             slices={categoryInputs}
             radius={DONUT_RADIUS}
@@ -182,13 +182,13 @@
             centerLabel={$t('spend.totalSpend')}
             valueFormatter={fmtEur}
           />
-          <div style="display: flex; flex-direction: column; gap: 7px; width: 100%;">
+          <div class="flex flex-col gap-[7px] w-full">
             {#each categoryDonut.slices as slice}
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="width: 9px; height: 9px; border-radius: 2px; background: {slice.color}; flex-shrink: 0;"></span>
-                <span class="body" style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{slice.label}</span>
-                <span class="num" style="font-size: 11px; color: var(--mep-fg-3); flex-shrink: 0;">{Math.round(slice.pct * 100)}%</span>
-                <span class="num body-strong" style="flex-shrink: 0; width: 70px; text-align: right;">{fmtEur(slice.value)}</span>
+              <div class="flex items-center gap-2">
+                <span class="w-[9px] h-[9px] rounded-sm shrink-0" style="background:{slice.color};"></span>
+                <span class="body flex-1 min-w-0 truncate">{slice.label}</span>
+                <span class="num text-[11px] text-fg-3 shrink-0">{Math.round(slice.pct * 100)}%</span>
+                <span class="num body-strong shrink-0 w-[70px] text-right">{fmtEur(slice.value)}</span>
               </div>
             {/each}
           </div>
@@ -196,9 +196,9 @@
       {/if}
     </div>
 
-    <div class="card" style="padding: 14px;">
-      <div class="subtitle" style="font-size: 15px; margin-bottom: 2px;">{$t('spend.yearly.title')}</div>
-      <div style="font-size: 11px; color: var(--mep-fg-3); margin-bottom: 10px;">{$t('spend.yearly.sub')}</div>
+    <div class="card p-3.5">
+      <div class="subtitle text-[15px] mb-0.5">{$t('spend.yearly.title')}</div>
+      <div class="text-[11px] text-fg-3 mb-2.5">{$t('spend.yearly.sub')}</div>
       <TrendLineChart
         xLabels={yearlyLabels}
         series={yearlySeries}
