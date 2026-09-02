@@ -105,6 +105,7 @@ describe('writer source files — no reintroduced machine-enum message template 
 			'`supplier_category_suggested: ',
 			'`budget_overage: ',
 			'`possible_duplicate_purchase: ',
+			'`line_item_mismatch: ',
 		] },
 		{ file: 'src/lib/server/billing.ts', forbidden: ['location(s) locked by the'] },
 		{ file: 'src/lib/server/products.ts', forbidden: ['`product_suggestion: '] },

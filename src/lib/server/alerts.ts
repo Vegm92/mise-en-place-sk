@@ -10,6 +10,7 @@ import { UNCATEGORIZED_CATEGORY, VALID_CATEGORIES } from '$lib/constants';
 import { normalizeProductKey } from './normalize';
 import { parsePack, normalizedUnitPrice, type EnrichedLineItem } from './products';
 import { moneyToNumber, moneyToNullableNumber } from './money';
+import { reconcileLineItems, type ReconLine, type LineReconciliation } from './line-reconciliation';
 import { describedLine, lineAmountExpr, lineCategoryExpr, lineProductJoinOn } from './category-spend';
 import { sendEmail, weeklyDigestEmail, incidenciaDigestEmail, trialExpiryEmail, trialExpiredEmail } from './email';
 import { parseQrUrl, detectVerifactuMismatch } from './qr';
@@ -717,6 +718,164 @@ export async function runPossibleDuplicatePurchase(
 	};
 }
 
+async function loadReconLines(tdb: ReturnType<typeof forTenant>, docInvoiceId: number): Promise<ReconLine[]> {
+	const rows = await db
+		.select({
+			id: invoiceLineItems.id,
+			description: invoiceLineItems.description,
+			productId: invoiceLineItems.productId,
+			quantity: invoiceLineItems.quantity,
+			unit: invoiceLineItems.unit,
+			unitPrice: invoiceLineItems.unitPrice,
+			normalizedUnitPrice: invoiceLineItems.normalizedUnitPrice,
+		})
+		.from(invoiceLineItems)
+		.where(tdb.scope(invoiceLineItems.restaurantId, eq(invoiceLineItems.invoiceId, docInvoiceId)));
+
+	return rows.map((row) => {
+		const pack = parsePack(row.description, row.unit);
+		const baseQuantity = pack && row.quantity != null ? row.quantity * pack.baseQuantity : null;
+		return {
+			id: row.id,
+			description: row.description,
+			productId: row.productId,
+			quantity: row.quantity,
+			unit: row.unit,
+			unitPrice: moneyToNullableNumber(row.unitPrice),
+			normalizedUnitPrice: moneyToNullableNumber(row.normalizedUnitPrice),
+			baseQuantity,
+		};
+	});
+}
+
+function reconLinePayload(line: ReconLine): { description: string | null; quantity: number | null; unit: string | null } {
+	return { description: line.description, quantity: line.quantity, unit: line.unit };
+}
+
+async function hasExistingLineItemMismatch(
+	tdb: ReturnType<typeof forTenant>,
+	invoiceId: number,
+	linkedInvoiceId: number,
+): Promise<boolean> {
+	const rows = await notificationsForType(
+		tdb, 'line_item_mismatch',
+		eq(systemNotifications.status, 'pending'),
+		inArray(systemNotifications.invoiceId, [invoiceId, linkedInvoiceId]),
+	);
+	return rows.length > 0;
+}
+
+async function flipBothToDocumentIncidence(
+	tdb: ReturnType<typeof forTenant>,
+	states: Map<number, string>,
+): Promise<void> {
+	const toFlip = [...states.entries()].filter(([, reviewState]) => reviewState !== 'incidencia').map(([id]) => id);
+	if (toFlip.length === 0) return;
+	await db.update(invoices)
+		.set({ reviewState: 'incidencia', incidenceKind: 'documento' })
+		.where(tdb.scope(invoices.restaurantId, inArray(invoices.id, toFlip)));
+}
+
+interface LinkedDocumentPair {
+	linkedInvoiceId: number;
+	states: Map<number, string>;
+	deliveryNoteId: number;
+	deliveryNoteNumber: string | null;
+	invoiceDocId: number;
+	invoiceDocNumber: string | null;
+}
+
+async function resolveLinkedDocumentPair(
+	tdb: ReturnType<typeof forTenant>,
+	invoiceId: number,
+): Promise<LinkedDocumentPair | null> {
+	const [current] = await db
+		.select({
+			linkedInvoiceId: invoices.linkedInvoiceId, documentType: invoices.documentType,
+			reviewState: invoices.reviewState, invoiceNumber: invoices.invoiceNumber,
+		})
+		.from(invoices)
+		.where(tdb.scope(invoices.restaurantId, eq(invoices.id, invoiceId)))
+		.limit(1);
+	if (!current?.linkedInvoiceId) return null;
+
+	const [linked] = await db
+		.select({
+			documentType: invoices.documentType, reviewState: invoices.reviewState, invoiceNumber: invoices.invoiceNumber,
+		})
+		.from(invoices)
+		.where(tdb.scope(invoices.restaurantId, eq(invoices.id, current.linkedInvoiceId)))
+		.limit(1);
+	if (!linked) return null;
+
+	const states = new Map([[invoiceId, current.reviewState], [current.linkedInvoiceId, linked.reviewState]]);
+	if (current.documentType === 'albaran' && linked.documentType === 'factura') {
+		return {
+			linkedInvoiceId: current.linkedInvoiceId, states,
+			deliveryNoteId: invoiceId, deliveryNoteNumber: current.invoiceNumber,
+			invoiceDocId: current.linkedInvoiceId, invoiceDocNumber: linked.invoiceNumber,
+		};
+	}
+	if (current.documentType === 'factura' && linked.documentType === 'albaran') {
+		return {
+			linkedInvoiceId: current.linkedInvoiceId, states,
+			deliveryNoteId: current.linkedInvoiceId, deliveryNoteNumber: linked.invoiceNumber,
+			invoiceDocId: invoiceId, invoiceDocNumber: current.invoiceNumber,
+		};
+	}
+	return null;
+}
+
+async function reconcileLinkedDocuments(
+	tdb: ReturnType<typeof forTenant>,
+	pair: LinkedDocumentPair,
+): Promise<{ recon: LineReconciliation; vars: Record<string, string> }> {
+	const [deliveryLines, invoiceLines] = await Promise.all([
+		loadReconLines(tdb, pair.deliveryNoteId),
+		loadReconLines(tdb, pair.invoiceDocId),
+	]);
+	const recon = reconcileLineItems(deliveryLines, invoiceLines);
+	const vars = {
+		albaran: pair.deliveryNoteNumber ?? `#${pair.deliveryNoteId}`,
+		factura: pair.invoiceDocNumber ?? `#${pair.invoiceDocId}`,
+		missing: String(recon.missingInInvoice.length),
+		qty: String(recon.quantityMismatches.length),
+	};
+	return { recon, vars };
+}
+
+export async function runLineItemReconciliation(invoiceId: number, restaurantId: string): Promise<Alert[]> {
+	const tdb = forTenant(restaurantId);
+	const pair = await resolveLinkedDocumentPair(tdb, invoiceId);
+	if (!pair) return [];
+
+	const { recon, vars } = await reconcileLinkedDocuments(tdb, pair);
+	if (!recon.hasDocumentIssue) return [];
+	if (await hasExistingLineItemMismatch(tdb, invoiceId, pair.linkedInvoiceId)) return [];
+
+	const alert: Alert = {
+		notificationType: 'line_item_mismatch',
+		message: renderTemplate('es', 'notif.msg.lineItemMismatch', vars),
+		payload: {
+			linkedInvoiceId: pair.linkedInvoiceId,
+			missingInInvoice: recon.missingInInvoice.map(reconLinePayload),
+			missingInDeliveryNote: recon.missingInDeliveryNote.map(reconLinePayload),
+			quantityMismatches: recon.quantityMismatches.map(({ a, b }) => ({
+				description: a.description ?? b.description,
+				deliveryQty: a.quantity,
+				invoiceQty: b.quantity,
+				unit: a.unit,
+			})),
+			messageKey: 'notif.msg.lineItemMismatch',
+			messageVars: vars,
+		},
+	};
+
+	await flipBothToDocumentIncidence(tdb, pair.states);
+
+	return [alert];
+}
+
 export async function saveAlerts(invoiceId: number | null, restaurantId: string, alerts: Alert[]): Promise<void> {
 	if (alerts.length === 0) return;
 	const enabled = await filterEnabledAlerts(restaurantId, alerts);
@@ -854,6 +1013,25 @@ async function reevaluateDuplicatePurchaseAlerts(input: DuplicatePurchaseInput):
 	await resolveNotifications(tdb, toResolve);
 }
 
+async function reevaluateLineItemMismatchAlerts(invoiceId: number, restaurantId: string): Promise<void> {
+	const tdb = forTenant(restaurantId);
+	const pending = await selectPending(
+		tdb, { id: systemNotifications.id, invoiceId: systemNotifications.invoiceId, payload: systemNotifications.payload },
+		'line_item_mismatch',
+	);
+	const relevant = pending.filter((row) => {
+		const payload = row.payload as { linkedInvoiceId?: number } | null;
+		return row.invoiceId === invoiceId || payload?.linkedInvoiceId === invoiceId;
+	});
+	if (relevant.length === 0) return;
+
+	const pair = await resolveLinkedDocumentPair(tdb, invoiceId);
+	const stillHolds = pair ? (await reconcileLinkedDocuments(tdb, pair)).recon.hasDocumentIssue : false;
+	if (stillHolds) return;
+
+	await resolveNotifications(tdb, relevant.map((row) => row.id));
+}
+
 async function reevaluateVerifactuAlerts(
 	invoiceId: number,
 	restaurantId: string,
@@ -922,9 +1100,14 @@ export async function reevaluateInvoiceAlerts(input: InvoiceReevaluationInput): 
 
 	await safely('budget overage', () =>
 		reevaluateBudgetAlertsForInvoice(invoiceId, supplierId, restaurantId));
+
+	await safely('line item reconciliation', () =>
+		reevaluateLineItemMismatchAlerts(invoiceId, restaurantId));
 }
 
-const INVOICE_BOUND_ALERT_TYPES = ['price_shock', 'possible_duplicate_purchase', 'related_document_found', 'verifactu_qr_mismatch'];
+const INVOICE_BOUND_ALERT_TYPES = [
+	'price_shock', 'possible_duplicate_purchase', 'related_document_found', 'verifactu_qr_mismatch', 'line_item_mismatch',
+];
 
 export async function orphanInvoiceAlerts(invoiceId: number, restaurantId: string): Promise<void> {
 	const tdb = forTenant(restaurantId);
