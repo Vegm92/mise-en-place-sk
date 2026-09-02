@@ -29,9 +29,9 @@ async function invoiceDetailRow(tdb: ReturnType<typeof forTenant>, id: number) {
 		invoice_date:     invoices.invoiceDate,
 		due_date:         invoices.dueDate,
 		total_amount:     invoices.totalAmount,
+		source_file:      invoices.sourceFile,
 		review_state:     invoices.reviewState,
 		incidence_kind:   invoices.incidenceKind,
-		source_file:      invoices.sourceFile,
 		notes:            invoices.notes,
 		created_at:       invoices.createdAt,
 		linked_invoice_id: invoices.linkedInvoiceId,
@@ -202,11 +202,12 @@ export const actions: Actions = {
 	requestCorrection: async ({ params, request, locals }) => {
 		const id  = requirePositiveIntId(params.id, 'invoice');
 		const rid = locals.restaurantId!;
+		const locale = locals.locale ?? 'es';
 		const uid = locals.user!.id;
 		const tdb = forTenant(rid);
-		const locale = locals.locale ?? 'es';
 
-		if (!(await rateLimitScoped({ scope: 'tenant', name: 'invoice-claim', max: 20 }, { restaurantId: rid }))) {
+		const claimRateLimitOk = await rateLimitScoped({ scope: 'tenant', name: 'invoice-claim', max: 20 }, { restaurantId: rid });
+		if (!claimRateLimitOk) {
 			return fail(429, { error: 'Too many requests' });
 		}
 
