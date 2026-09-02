@@ -1151,6 +1151,7 @@ export default {
   'billing.upgrade.prices':       'Price shock & supplier score alerts are a paid feature. Subscribe to unlock them.',
   'billing.upgrade.stock':        'Stock tracking is a paid feature. Subscribe to unlock it.',
   'billing.upgrade.assistant':    "The AI assistant isn't available on your current plan. Upgrade your plan to turn it on.",
+  'billing.upgrade.inventario':   'The inventory template is a paid feature. Subscribe to download it.',
   'billing.upgrade.trial':        'Your free trial has ended. Subscribe to upload invoices again — your data is untouched.',
   'billing.upgrade.inactive':     'Your subscription is not active, so uploads are paused. Reactivate to continue — your data is untouched.',
   'billing.activated':            'Subscription activated! Thank you.',
@@ -2071,6 +2072,8 @@ export default {
   'prod.detail.delete':            'Delete product',
   'prod.detail.deleteConfirm':     'This cannot be undone. Delete this product?',
   'prod.detail.deleteBlockedHint': 'Unlink every supplier first to delete this product.',
+  'prod.inventoryTemplate.link':    'Inventory template',
+  'prod.inventoryTemplate.tooltip': 'Download an Excel physical-inventory template from your products, grouped by category, with the totals already worked out.',
 
   'period.7d':                     '7 days',
   'period.30d':                    '30 days',
