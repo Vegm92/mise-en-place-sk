@@ -46,6 +46,7 @@ vi.mock('../src/lib/server/db', () => {
 					(state.inserts[name] ??= []).push(...rows);
 					return {
 						returning: () => Promise.resolve(rows.map((row, i) => ({ id: `${name}-${i}`, founder: false, ...row }))),
+						onConflictDoNothing: () => Promise.resolve(undefined),
 					};
 				},
 			};
