@@ -35,8 +35,8 @@ describe('truncate', () => {
 
 describe('fmtSize', () => {
 	it('formats bytes', () => expect(fmtSize(500)).toBe('500 B'));
-	it('formats kilobytes', () => expect(fmtSize(2048)).toBe('2.0 KB'));
-	it('formats megabytes', () => expect(fmtSize(2 * 1024 * 1024)).toBe('2.0 MB'));
+	it('formats kilobytes', () => expect(fmtSize(2048)).toBe('2,0 KB'));
+	it('formats megabytes', () => expect(fmtSize(2 * 1024 * 1024)).toBe('2,0 MB'));
 });
 
 describe('str', () => {

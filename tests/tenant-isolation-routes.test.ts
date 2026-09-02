@@ -170,6 +170,7 @@ describe('/batch/[id] — batch contents must belong to the caller', () => {
 			params: { id: 'batch-1' },
 			locals: { restaurantId: RID_A },
 			url: new URL('http://x/batch/batch-1'),
+			cookies: { get: () => undefined },
 		} as never)) as { queue: unknown[] };
 
 		expect(result.queue).toHaveLength(1);

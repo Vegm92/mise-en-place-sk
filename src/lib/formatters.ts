@@ -9,12 +9,6 @@ export function truncate(str: string, len: number): string {
 	return str.length > len ? str.slice(0, len) + '…' : str;
 }
 
-export function fmtSize(bytes: number): string {
-	if (bytes < 1024) return bytes + ' B';
-	if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-	return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-}
-
 export function str(val: unknown): string {
 	if (val === null || val === undefined) return '';
 	return String(val);
@@ -28,6 +22,12 @@ const INTL_LOCALE: Record<Locale, string> = {
 export function toIntlLocale(locale: Locale): string {
 	return INTL_LOCALE[locale] ?? INTL_LOCALE.es;
 }
+
+const INTEGER_OPTS: Intl.NumberFormatOptions = { maximumFractionDigits: 0 };
+const ONE_DECIMAL_OPTS: Intl.NumberFormatOptions = {
+	minimumFractionDigits: 1,
+	maximumFractionDigits: 1,
+};
 
 const numberFormatters = new Map<string, Intl.NumberFormat>();
 const dateTimeFormatters = new Map<string, Intl.DateTimeFormat>();
@@ -52,6 +52,13 @@ function getDateTimeFormatter(locale: Locale, options: Intl.DateTimeFormatOption
 		dateTimeFormatters.set(key, fmtInstance);
 	}
 	return fmtInstance;
+}
+
+export function fmtSize(bytes: number, locale: Locale = 'es'): string {
+	if (bytes < 1024) return getNumberFormatter(locale, INTEGER_OPTS).format(bytes) + ' B';
+	if (bytes < 1024 * 1024)
+		return getNumberFormatter(locale, ONE_DECIMAL_OPTS).format(bytes / 1024) + ' KB';
+	return getNumberFormatter(locale, ONE_DECIMAL_OPTS).format(bytes / (1024 * 1024)) + ' MB';
 }
 
 export function fmtEur(n: number, locale: Locale = 'es'): string {
