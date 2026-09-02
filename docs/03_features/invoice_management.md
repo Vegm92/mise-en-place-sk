@@ -69,6 +69,20 @@ Browse, inspect, edit and export confirmed invoices; manage the review state
   retention cron after `DELETED_FILE_RETENTION_DAYS`.
 - **Export** (`invoices/export/download/+server.ts`) streams `.xlsx` via exceljs
   (styled header, banded rows, autofilter); marks exported where applicable.
+  The sheet carries both `invoices.tax_base` ("Base imponible (€)") and
+  `invoices.total_amount` ("Importe (€)") — the deductible expense is the
+  amount excluding VAT, not the invoice total (issue #883).
+- **Selected-document export**: the same route accepts `ids` (comma-separated
+  positive ints, capped at 500) which replaces the status/supplier/date
+  filters with `inArray(invoices.id, ids)` inside the tenant scope — a foreign
+  id is silently excluded, never a leak (ADR-001). With `format=zip` the
+  response is a `facturas.zip` containing `facturas.xlsx` plus each selected
+  invoice's original file (`<invoice_number or id>.<ext>`, read via
+  `getStorage().read()` — ADR-016); an invoice with no stored file, or whose
+  file cannot be read, is skipped rather than failing the whole export
+  (issue #883). The desktop and mobile invoice lists both drive this from
+  their existing multi-select via a full-page navigation to
+  `/invoices/export/download?ids=…&format=zip` (ADR-020 — mobile parity).
 - **File preview**: `/invoice/[id]/file` serves via `getStorage()`, tenant-
   scoped; X-Frame-Options `SAMEORIGIN` carve-out applies.
 - **List filters** (issue #579): the `/invoices` filter bar is collapsible and
@@ -208,7 +222,12 @@ Tenant scope on every read; version check on edit; status-transition guards.
 - Save confirmation (issue #235): saving the last invoice of a batch lands here with a toast instead of an interstitial page; alerts raised during the save ride along. A toast with alerts stays until dismissed; a plain "saved" fades on its own.
 
 **`const checkedIds`**
-- Selection.
+- Selection. `bulkDownloadHref` (issue #883) derives
+  `/invoices/export/download?ids=…&format=zip` from the same set the two
+  existing bulk-form actions read, so "Descargar seleccionados" is a third
+  bulk action next to mark-reviewed/delete — a plain `<a data-sveltekit-reload>`
+  full navigation rather than a form post, since the response is a file
+  download, not a redirect.
 
 **`const openIds`**
 - Row expansion.
@@ -240,7 +259,10 @@ Tenant scope on every read; version check on edit; status-transition guards.
 ### `src/routes/(app)/invoices/export/download/+server.ts`
 
 **`const GET`**
-- Styled header row; borders + banded rows for the data.
+- Styled header row; borders + banded rows for the data. Columns: id,
+  supplier, invoice number, invoice date, due date, tax base, total, review
+  state, created — in that order, so the autofilter range and the
+  truncation-marker merge span `A:I` (issue #883 added the tax-base column).
 - Rate-limited (`export:<restaurantId>`, 5/min); `supplier_id` must be a
   positive integer and `date_from`/`date_to` must be ISO `yyyy-mm-dd` — any of
   the three reject 400 rather than being silently coerced away (issue #493).
@@ -248,6 +270,19 @@ Tenant scope on every read; version check on edit; status-transition guards.
   `src/lib/server/env.ts`, default 10 000) to detect truncation without an
   unbounded scan; a truncated export gets one appended, merged marker row
   instead of silently dropping the rest (issue #493).
+- `ids` (issue #883): when present it takes over query building entirely —
+  the status/supplier/date params are not even parsed — and becomes
+  `inArray(invoices.id, ids)` alongside the same `tdb.scope()` predicate every
+  other branch uses, so a ids list mixing tenants just comes back short. Bad
+  input (non-positive-int entries, more than 500 ids) is a 400, matching the
+  existing `supplier_id`/date validation style.
+- `format=zip` (issue #883): builds the same workbook, then for every row with
+  a `source_file` reads it via `getStorage().read()` (ADR-016) and adds it to
+  a zip built by `$lib/server/invoice-export-zip.ts`; a missing or unreadable
+  file is skipped (`catch { continue }`) rather than failing the request. The
+  zip's `Content-Disposition` goes through the same
+  `$lib/server/content-disposition.ts` helper as the plain `.xlsx` response
+  and `/invoice/[id]/file`.
 
 ### `src/routes/(app)/reminders/+page.server.ts`
 
@@ -278,6 +313,29 @@ Tenant scope on every read; version check on edit; status-transition guards.
 
 **`function invoiceReviewFilter`**
 - Turns a review-state filter value from the URL into a `review_state` equality. A value outside the vocabulary compiles to `false` instead of being passed through to SQL (issue #520 pattern).
+
+### `src/lib/server/invoice-export-zip.ts`
+
+**`function buildInvoiceExportZip`**
+- Streaming zip builder (issue #883) for the selected-invoice download: takes
+  `{name, data: Buffer}[]` and returns a `Buffer`, built with `yazl` the same
+  way `tests/helpers/zip.ts` builds zip fixtures for `zip-extract.test.ts` —
+  a production version of that test helper's shape, so a future consumer of
+  either one recognises the pattern. Pairs with `$lib/server/zip-extract.ts`
+  (`yauzl`) on the read side, but this module never reads a zip, only writes
+  one.
+
+**`function zipEntryName`**
+- Builds a safe, unique per-invoice archive entry name from `id`,
+  `invoiceNumber` and the stored file's extension: `<id>-<sanitized number>.<ext>`,
+  or just `<id>.<ext>` when the sanitized number is empty. `id` always leads
+  so two invoices sharing the same number (or one with no number at all)
+  never collide — `yazl` does not reject a duplicate entry path, it would
+  silently write two entries at the same name. The invoice number is never
+  trusted as a path component on its own: it routinely contains `/`
+  (`"A/2026/123"`), which `yazl` would otherwise turn into nested folders.
+  Sanitizing replaces every character outside `[A-Za-z0-9._-]` with `_`,
+  collapses runs of `_`, trims the ends, and caps the result at 80 chars.
 
 ### `src/lib/server/working-days.ts`
 
@@ -324,6 +382,16 @@ Tenant scope on every read; version check on edit; status-transition guards.
 - The search box is a controlled input driven by the page's `q` filter (issue #579): it goes through the same debounced URL update as the desktop bar, so mobile search covers every invoice instead of only the 50 on the current page. The status chips stay client-side over the loaded page.
 - The filter chips ride the shared `ScrollStrip` (issue #658). The row measured 516px against a 390px viewport with the scrollbar hidden, so "Por categoría" sat entirely off-screen and nothing on the screen said the row scrolled.
 - Each row's status badge is followed by `IncidenceKindBadge` (issue #879) — same placement as the desktop list.
+- **Selection (issue #883, ADR-020 parity)**: every row carries a checkbox
+  (wrapped in its own `<label>` sibling to the row's `<a>`, not nested inside
+  it, so the tap target stays a real 44px control and the anchor keeps
+  navigating on a normal tap) and a select-all bar sits above the list
+  whenever there is at least one row. Once something is checked, the bar also
+  shows the same three bulk actions as the desktop toolbar — mark reviewed
+  and delete post the existing `?/bulkReviewed` / `?/bulkDelete` actions
+  through local hidden forms, and "Descargar seleccionados" is the same
+  full-navigation `ids=…&format=zip` link as desktop, reusing the
+  `inv.export.selected.*` i18n keys.
 
 ### `src/lib/invoice-filters.ts`
 
