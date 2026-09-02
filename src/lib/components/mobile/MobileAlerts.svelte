@@ -14,6 +14,8 @@
     display_amount: number;
     invoice_date: string | null;
     incidence_kind: string | null;
+    payment_method: string | null;
+    iban: string | null;
   }
 
   type NotifGroups = ReturnType<typeof groupNotifications>;
@@ -38,6 +40,14 @@
 
   function fmtAmount(n: number) {
     return fmtEurCompact(n, $locale);
+  }
+
+  function paymentLine(method: string | null, iban: string | null): string | null {
+    const label = method ? $t(`field.paymentMethod.${method}`) : null;
+    const ibanShort = iban ? `${iban.slice(0, 4)} …` : null;
+    if (label && ibanShort) return `${$t('rem.payBy')} ${label} · ${ibanShort}`;
+    if (label) return `${$t('rem.payBy')} ${label}`;
+    return ibanShort;
   }
 
   const notifGroupList = $derived([
@@ -79,6 +89,11 @@
                       <div class="num" style="font-size: 11.5px; color: var(--mep-fg-3); margin-top: 2px;">
                         {r.invoice_number ?? '—'}
                       </div>
+                      {#if paymentLine(r.payment_method, r.iban)}
+                        <div class="text-fg-3" style="font-size: 11px; margin-top: 2px;">
+                          {paymentLine(r.payment_method, r.iban)}
+                        </div>
+                      {/if}
                     </div>
                     <div style="text-align: right; flex-shrink: 0;">
                       <div class="num" style="font-size: 14px; font-weight: 600; color: var(--mep-fg);">{fmtAmount(r.display_amount)}</div>

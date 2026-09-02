@@ -140,6 +140,10 @@
             <input id="m-edit-cif" class="input" name="cif" value={s.cif ?? ''} style="width:100%;" placeholder="B12345678" />
           </div>
           <div>
+            <label for="m-edit-iban" class="label" style="display:block;margin-bottom:4px;">{$t('sup.field.iban')}</label>
+            <input id="m-edit-iban" class="input" name="iban" value={s.iban ?? ''} style="width:100%;" placeholder={$t('sup.ph.iban')} />
+          </div>
+          <div>
             <label for="m-edit-address" class="label" style="display:block;margin-bottom:4px;">{$t('sup.field.address')}</label>
             <input id="m-edit-address" class="input" name="address" value={s.address ?? ''} style="width:100%;" placeholder={$t('sup.ph.address')} />
           </div>
@@ -202,7 +206,7 @@
 
       <div class="card" style="padding:14px;">
         <div class="subtitle" style="margin-bottom:10px;">{$t('sup.info')}</div>
-        {#if !s.contactEmail && !s.contactPhone && !s.cif && !s.address && !s.deliveryDays && !s.paymentTerms}
+        {#if !s.contactEmail && !s.contactPhone && !s.cif && !s.iban && !s.address && !s.deliveryDays && !s.paymentTerms}
           <p style="font-size:12.5px;color:var(--mep-fg-3);font-style:italic;">{$t('sup.infoEmpty')}</p>
         {:else}
           <div style="display:flex;flex-direction:column;gap:8px;">
@@ -222,6 +226,12 @@
               <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--mep-fg-2);">
                 <CreditCard size={13} style="color:var(--mep-fg-3);flex-shrink:0;" />
                 <span>{$t('sup.field.cif')}: {s.cif}</span>
+              </div>
+            {/if}
+            {#if s.iban}
+              <div class="text-fg-2" style="display:flex;align-items:center;gap:10px;font-size:11px;">
+                <CreditCard size={13} class="text-fg-3 shrink-0" />
+                <span>{$t('sup.field.iban')}: {s.iban}</span>
               </div>
             {/if}
             {#if s.address}
