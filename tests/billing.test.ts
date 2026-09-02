@@ -272,6 +272,7 @@ describe('TIERS configuration', () => {
 			expect(f.multiLocation).toBe(false);
 			expect(f.prioritySupport).toBe(false);
 			expect(f.aiAssistant).toBe(false);
+			expect(f.inventoryTemplate).toBe(false);
 		}
 	});
 
@@ -283,6 +284,7 @@ describe('TIERS configuration', () => {
 		expect(f.multiLocation).toBe(false);
 		expect(f.prioritySupport).toBe(false);
 		expect(f.aiAssistant).toBe(true);
+		expect(f.inventoryTemplate).toBe(true);
 	});
 
 	it('business unlocks every feature', () => {
