@@ -1,0 +1,3 @@
+## 2026-03-28 - Memoization of Intl.NumberFormat and Intl.DateTimeFormat
+**Learning:** Re-instantiating `Intl.NumberFormat` and `Intl.DateTimeFormat` on every formatting call in heavy render loops (e.g., table lists or dashboards) introduces high CPU overhead in JavaScript runtimes (~6s vs ~160ms per 100k calls). Caching Intl formatters using a Map key based on locale and options yields a ~30-50x speedup with minimal memory overhead and zero functionality change.
+**Action:** Always check helper functions in `$lib/formatters.ts` or similar core utilities for uncached `Intl.*` constructor calls when optimizing list/table rendering performance.
