@@ -67,6 +67,7 @@ export interface TierConfig {
 		multiLocation:     boolean;
 		prioritySupport:   boolean;
 		aiAssistant:       boolean;
+		inventoryTemplate: boolean;
 	};
 }
 
@@ -78,7 +79,7 @@ export const TIERS: Record<PlanTier, TierConfig> = {
 		stripePriceId: '',
 		maxLocations: 1,
 		maxRecipes: 3,
-		features: { weeklyDigest: false, stockTracking: false, supplierScores: false, multiLocation: false, prioritySupport: false, aiAssistant: false },
+		features: { weeklyDigest: false, stockTracking: false, supplierScores: false, multiLocation: false, prioritySupport: false, aiAssistant: false, inventoryTemplate: false },
 	},
 	starter: {
 		name: 'Starter',
@@ -87,7 +88,7 @@ export const TIERS: Record<PlanTier, TierConfig> = {
 		stripePriceId: STRIPE_PRICE_ID_STARTER || STRIPE_PRICE_ID,
 		maxLocations: 1,
 		maxRecipes: 3,
-		features: { weeklyDigest: false, stockTracking: false, supplierScores: false, multiLocation: false, prioritySupport: false, aiAssistant: false },
+		features: { weeklyDigest: false, stockTracking: false, supplierScores: false, multiLocation: false, prioritySupport: false, aiAssistant: false, inventoryTemplate: false },
 	},
 	pro: {
 		name: 'Pro',
@@ -96,7 +97,7 @@ export const TIERS: Record<PlanTier, TierConfig> = {
 		stripePriceId: STRIPE_PRICE_ID_PRO,
 		maxLocations: 1,
 		maxRecipes: null,
-		features: { weeklyDigest: true, stockTracking: true, supplierScores: true, multiLocation: false, prioritySupport: false, aiAssistant: true },
+		features: { weeklyDigest: true, stockTracking: true, supplierScores: true, multiLocation: false, prioritySupport: false, aiAssistant: true, inventoryTemplate: true },
 	},
 	business: {
 		name: 'Business',
@@ -105,7 +106,7 @@ export const TIERS: Record<PlanTier, TierConfig> = {
 		stripePriceId: STRIPE_PRICE_ID_BUSINESS,
 		maxLocations: 5,
 		maxRecipes: null,
-		features: { weeklyDigest: true, stockTracking: true, supplierScores: true, multiLocation: true, prioritySupport: true, aiAssistant: true },
+		features: { weeklyDigest: true, stockTracking: true, supplierScores: true, multiLocation: true, prioritySupport: true, aiAssistant: true, inventoryTemplate: true },
 	},
 };
 

@@ -30,6 +30,11 @@ time (normalized units, pack-aware prices) and the catalog is user-curatable.
 - `products` rows (unique `(rid, name_key)`), `product_aliases` rows
   (`source: exact|fuzzy|llm`), `product_suggestion` notifications,
   line items back-linked (`product_id`), normalized prices.
+- `(app)/products/inventory-template` (Pro, issue #885): a physical-inventory
+  `.xlsx` workbook generated from the tenant's own catalog — no upload, no
+  manual template. One row per product, grouped by category, with the total
+  formula already in the cell; the user only has to fill in counted
+  quantities.
 
 ## Business rules
 
@@ -81,6 +86,20 @@ time (normalized units, pack-aware prices) and the catalog is user-curatable.
   fills a NULL, so a category a human set is never overwritten. This is what
   the money is split by: `COALESCE(products.category, suppliers.category,
   'Other')`.
+- **Inventory template** (ADR-013/ADR-023, issue #885): a Pro-gated
+  (`features.inventoryTemplate`) download that turns the tenant's own catalog
+  into a ready-to-count Excel sheet — the same "generate a template from data
+  already on file" idea `/invoices/export` uses for invoices, applied to
+  products. `listCatalogForExport` (`products.ts`) reads one row per product
+  with its latest price (normalized preferred, else raw, else blank — same
+  preference `loadCatalogYoyChangeMap` uses); `buildInventoryWorkbook`
+  (`inventory-template.ts`) is a pure function that groups those rows by
+  category (in `VALID_CATEGORIES` order, uncategorized last), writes a `Total
+  (€)` formula per product row, a `SUM` subtotal row per category and a grand
+  total summing the subtotals, and leaves `Cantidad contada` empty for the
+  user to fill in. Category labels go through the server-side translator
+  (`renderTemplate`) so the sheet matches the request locale; the column
+  headers themselves stay Spanish, same as the invoices export.
 
 ## State transitions
 
@@ -102,17 +121,18 @@ n/a for products (rows/aliases mutate); notifications go `pending → sent`.
 ## API dependencies
 
 `(app)/api/product-aliases`, `(app)/api/unit-conversions`, `(app)/api/stock-levels`,
-`products` routes.
+`(app)/products/inventory-template` (Pro-gated GET, issue #885), `products` routes.
 
 ## UI dependencies
 
-`products/+page.svelte` (catalog warning + suggestions-tab conversion prompts),
-`products/[id]/+page.svelte`, `NotificationItem.svelte`
-(product suggestion CTAs). The product *list* has a dedicated mobile
-component (`MobileProducts.svelte`, ADR-020) rendered alongside the desktop
-`ListPageTemplate` layout — CSS picks which shows. The product *detail* page
-(`products/[id]/+page.svelte`) has no separate Mobile*/Desktop* variant: one
-template covers both.
+`products/+page.svelte` (catalog warning + suggestions-tab conversion prompts +
+the "Plantilla de inventario" download link), `products/[id]/+page.svelte`,
+`NotificationItem.svelte` (product suggestion CTAs). The product *list* has a
+dedicated mobile component (`MobileProducts.svelte`, ADR-020) rendered
+alongside the desktop `ListPageTemplate` layout — CSS picks which shows,
+and both carry the inventory-template link (issue #885). The product
+*detail* page (`products/[id]/+page.svelte`) has no separate Mobile*/Desktop*
+variant: one template covers both.
 
 ## Background dependencies
 
@@ -175,13 +195,21 @@ candidates (never arbitrary ids).
   the % change. From the catalog, a product's row shows the same current vs
   previous year % change, and sorting by `sort=yoy_desc` surfaces the
   products whose price moved the most first.
+- A restaurant on Pro can download a real inventory template generated from
+  its own products at `/products/inventory-template`: one `.xlsx` row per
+  product, grouped by category, unit and latest price already filled in,
+  `Cantidad contada` empty for counting, and a `Total (€)` formula per row
+  plus subtotal/grand-total rows. A trial/starter tenant hitting the route is
+  refused (`requireFeature('inventoryTemplate', …)`, 403 in-handler; 303 to
+  `/billing?upgrade=inventario` when reached through the entitlement gate).
 - Tests: `tests/product-catalog.test.ts`, `tests/product-crud.test.ts`,
   `tests/product-conversion-suggestions.test.ts`,
   `tests/product-dictionary.test.ts`, `tests/product-normalizer.test.ts`,
   `tests/product-categorizer.test.ts`, `tests/norm-key-parity.test.ts`,
   `tests/pack-parser.test.ts`, `tests/unit-bridge.test.ts`,
   `tests/backfill.test.ts`, `tests/category-attribution.test.ts`,
-  `tests/price-yoy.test.ts`, `tests/product-filters.test.ts`.
+  `tests/price-yoy.test.ts`, `tests/product-filters.test.ts`,
+  `tests/xlsx-export.test.ts` (`buildInventoryWorkbook`).
 
 ## Code notes
 
@@ -200,6 +228,10 @@ candidates (never arbitrary ids).
 **`const pendingCount`**
 
 - The suggestions tab badge and its empty state count product suggestions *and* conversion prompts; the tab is "sugerencias pendientes", and a pending conversion is one.
+
+**`hasInventoryTemplate` / the "Plantilla de inventario" link**
+
+- Reads `data.features.inventoryTemplate` — already on the page's `data` because `(app)/+layout.server.ts` puts `features: tierConfig.features` in the layout load, and SvelteKit merges ancestor layout data into `PageData` automatically. The link is always rendered (issue #885's design decision): a non-Pro tenant sees the same link plus a neutral `nav.badge.pro` chip, and `/products/inventory-template`'s own `ROUTE_POLICY` entry is what actually turns the click into a redirect to `/billing?upgrade=inventario` — the page never duplicates that gating logic, it just signals it visually. `data-sveltekit-reload` forces a full navigation for the same reason `/invoices/export`'s download form does (issue #747): it is a file download, not a route the client router should try to render. `MobileProducts.svelte` carries the same link/chip behind a `features` prop for the same reason (ADR-020).
 
 ### `src/routes/(app)/products/[id]/+page.server.ts`
 
@@ -246,7 +278,20 @@ candidates (never arbitrary ids).
 - Unit-bridge (issue #296): rules keyed by `normalizeProductKey(ingredient)` + `normalizeProductKey(unit)` via `conversionKey`, so casing/accent/spacing drift doesn't miss rules. `loadConversionMap` fetches per-supplier rules and matches in memory (few rules per supplier). `resolveUnitFromMap` falls through to recognized spellings of canonical units ("Kgs", "KILO", "KGM" → kg) with factor 1. `loadConversionMap`/`resolveUnit`/`annotateLineItems` take an optional trailing `database` argument defaulting to the app pool — the seam DB-backed tests use to run against the test connection instead of the module-level singleton. The supplier-name branch matches on `mep_norm_key(supplier_name)` (issue #582): the extraction worker and `enrichLineItems` look rules up by name only (no `supplier_id`), while every writer stores the supplier's real name, so a plain lowercase comparison silently missed every rule saved for a supplier whose name is not already lowercase.
 - Conversion prompts (issue #582): `loadConversionPrompts` reads the pending `unit_conversion_needed` alerts, parses each JSON payload defensively (a legacy or non-JSON payload is skipped rather than aborting the page load), keys them by `supplierConversionKey` = normalized supplier + `conversionKey`, drops the ones a `unit_conversions` row already answers and keeps only the newest alert per key — the same supplier re-billing the same unit must not produce N identical prompts. `defineUnitConversion` is the single write path behind both the API route and the suggestions tab: validate → upsert on the `(rid, supplier_name, ingredient, purchase_unit)` unique index → clear `requires_unit_conversion` (+ set `canonical_unit`) on this tenant's matching line items for that supplier → flip matching pending alerts to `sent`, returning how many it closed. Normalized keys are computed in TS and compared against `mep_norm_key(...)` in SQL, which the norm-key-parity test keeps in lockstep.
 - Output contract (issue #842): `processNormalizeJob`/`processCategorizeJob` pass `NORMALIZE_VERDICT_SCHEMA`/`CATEGORIZE_VERDICT_SCHEMA` to `provider.generate` (`responseMimeType`/`responseSchema`) instead of relying on prompt prose ("Responde SOLO con JSON: …") alone. `parseNormalizeResponse`/`parseCategorizeResponse` already returned a safe default rather than throwing on a bad reply, so their behaviour is unchanged — they now go through the shared `parseJsonResponse` (`llm-json.ts`) for the parse step, with `isRawNormalizeVerdict`/`isRawCategorizeVerdict` narrowing only "is this an object" (the existing `typeof` field checks below still do the real per-field validation). `stripJsonFence` (`llm-json.ts`) is kept as `parseJsonResponse`'s fallback for a fenced reply, not the primary path.
+- Catalog export (issue #885): `listCatalogForExport` reads one row per product — id, name, category, unit — plus its latest price via a `LEFT JOIN LATERAL` on `invoice_line_items`/`invoices` (`ORDER BY invoice_date DESC, id DESC LIMIT 1`, same "latest wins" ordering as the YoY queries below), preferring `normalized_unit_price` over the raw `unit_price` and leaving it `null` for a product never purchased. Feeds `/products/inventory-template`; the SQL text carries `restaurant_id = ${restaurantId}` the same way `loadConversionPrompts`/`loadCatalogYoyChangeMap` do, so it is intentionally not `forTenant().scope()`.
 - Year-over-year price (issue #884): `loadProductYearlyPrices` (one product, every year, via `SELECT DISTINCT ON (year) … ORDER BY year, invoice_date DESC, id DESC`) and `loadCatalogYoyChangeMap` (whole catalog, current + previous year only, via a `ROW_NUMBER() OVER (PARTITION BY product_id, year …)` window so only the latest line per product per year survives) both read `invoice_line_items`/`invoices` directly — tenant-scoped by `restaurant_id = ${restaurantId}` in the SQL text rather than `forTenant().scope()`, matching every other raw-`sql` query already in this file (`loadConversionPrompts`, `loadConversionMap`). Neither writes anything, so both take a `database` argument the same way the rest of the module does, no default. The two rows always carry the same shape (`YearlyPriceInput` from `$lib/price-yoy`) via the shared `toYearlyPriceInput`/`YearlyPriceDbRow` conversion, so the actual "pair years, prefer normalized, fall back to raw only same-unit" math lives once, in `price-yoy.ts`, and both this module and the two route `load()`s just call it.
+
+### `src/lib/server/inventory-template.ts`
+
+- `buildInventoryWorkbook(rows, locale)` (issue #885) is a pure function — no DB, no request — so the workbook shape (grouping, formulas, subtotal/grand-total rows) is unit-tested directly in `tests/xlsx-export.test.ts` instead of only through a route-level round trip. Groups `CatalogExportRow[]` by `category` and orders the groups by `VALID_CATEGORIES` position (an unrecognized/free-text category sorts after every named one, `null` last of all) rather than by first appearance in the input, so the sheet reads the same regardless of the catalog's SQL order. `categoryLabel` renders `category.<slug>` through the same translator the rest of the app uses for category names, falling back to the raw category string when a free-text value has no matching key — never the untranslated key itself. Each product row's `Total (€)` cell is the ExcelJS formula object `{ formula: 'D{row}*E{row}' }` (price × counted quantity); each category's subtotal row sums that category's `Total` cells (`SUM(F{first}:F{last})`); the final row sums the subtotal cells. `Cantidad contada` is the only column left unlocked (`cell.protection = { locked: false }`) and highlighted — everything else is read-only data the user didn't have to type.
+
+### `src/lib/server/xlsx-style.ts`
+
+- Extracted from `invoices/export/download/+server.ts` (issue #885) once `inventory-template.ts` needed the same header/banding look — `HEADER_FILL`/`BAND_FILL`/`THIN_BORDER` plus the `styleHeaderRow`/`styleBandedRows` helpers that applied them are shared rather than copy-pasted so the two xlsx exports can't drift apart in appearance.
+
+### `src/routes/(app)/products/inventory-template/+server.ts`
+
+- GET only (issue #885). Tenant rate limit (`rateLimitScoped({ scope: 'tenant', name: 'inventory-template', max: 10 })`) then `requireFeature('inventoryTemplate', locals)` — the same in-handler guard `(app)/api/stock-levels` uses, on top of the `ROUTE_POLICY` entry that redirects a page-level hit before the handler even runs. `listCatalogForExport` + `buildInventoryWorkbook` do all the real work; this file is the request/response plumbing plus the `inventario-<YYYY-MM-DD>.xlsx` filename via `contentDispositionHeader`.
 
 ### `src/lib/price-yoy.ts`
 

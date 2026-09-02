@@ -5,16 +5,27 @@
  * mep_norm_key, the products/product_aliases tables, and pg_trgm); skipped
  * when DATABASE_URL is absent.
  */
-import { describe, it, expect, beforeAll, afterEach, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll, vi } from 'vitest';
+import ExcelJS from 'exceljs';
 import {
 	testDb, testSql, closeDb,
 	createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
 import {
 	resolveLineProducts, confirmProductAlias, rejectProductAlias, mergeIntoProduct, FUZZY_THRESHOLD,
-	loadCatalogYoyChangeMap,
+	loadCatalogYoyChangeMap, listCatalogForExport,
 } from '../src/lib/server/products';
 import { sortProducts } from '../src/lib/product-filters';
+import { memoizeEntitlements } from '../src/lib/server/billing';
+
+const { rateLimitMock } = vi.hoisted(() => ({ rateLimitMock: vi.fn().mockResolvedValue(true) }));
+vi.mock('$lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock }));
+vi.mock('$lib/server/locale', () => ({ currentLocale: () => ({ locale: 'es', explicit: false }) }));
+vi.mock('$lib/server/db', async () => {
+	const { testDb } = await import('./helpers/test-db');
+	const { forTenant } = await import('../src/lib/server/tenant');
+	return { db: testDb, forTenant, runAsSystem: (fn: () => unknown) => fn(), runWithTenantContext: (_rid: unknown, fn: () => unknown) => fn() };
+});
 
 let rid = '';
 let supplierId: number | null = null;
@@ -305,5 +316,139 @@ describe.skipIf(!hasDbEnv)('loadCatalogYoyChangeMap — current vs previous cale
 		];
 		expect(sortProducts(products, 'yoy_desc').map(p => p.id)).toEqual([downPid, upPid, onlyThisYearPid]);
 		expect(sortProducts(products, 'name').map(p => p.id)).toEqual([upPid, downPid, onlyThisYearPid]);
+	});
+});
+
+describe.skipIf(!hasDbEnv)('listCatalogForExport (issue #885)', () => {
+	let exportRid = '';
+
+	beforeAll(async () => {
+		if (!hasDbEnv) return;
+		const r = await createTestRestaurant('prodexport885');
+		exportRid = r.id;
+	});
+
+	afterEach(async () => {
+		if (!hasDbEnv) return;
+		await testSql`DELETE FROM invoice_line_items WHERE restaurant_id = ${exportRid}`;
+		await testSql`DELETE FROM invoices WHERE restaurant_id = ${exportRid}`;
+		await testSql`DELETE FROM products WHERE restaurant_id = ${exportRid}`;
+	});
+
+	afterAll(async () => {
+		if (!hasDbEnv) return;
+		await cleanupTestRestaurant(exportRid);
+	});
+
+	it('prefers the latest normalized unit price, falls back to the raw price, and leaves it null with no purchase history', async () => {
+		const [normProd] = await testSql`
+			INSERT INTO products (restaurant_id, canonical_name, name_key, category, canonical_unit)
+			VALUES (${exportRid}, 'Aceite de oliva 885', 'aceite de oliva 885', 'Aceites y Conservas', 'L') RETURNING id`;
+		const [rawProd] = await testSql`
+			INSERT INTO products (restaurant_id, canonical_name, name_key, category, canonical_unit)
+			VALUES (${exportRid}, 'Harina 885', 'harina 885', 'Panadería y Bollería', 'kg') RETURNING id`;
+		const [neverBought] = await testSql`
+			INSERT INTO products (restaurant_id, canonical_name, name_key, category, canonical_unit)
+			VALUES (${exportRid}, 'Sal 885', 'sal 885', null, 'kg') RETURNING id`;
+
+		const [inv1] = await testSql`INSERT INTO invoices (restaurant_id, status, invoice_date) VALUES (${exportRid}, 'pending', '2025-01-01') RETURNING id`;
+		await testSql`
+			INSERT INTO invoice_line_items (invoice_id, restaurant_id, description, unit, unit_price, normalized_unit_price, product_id)
+			VALUES (${inv1.id}, ${exportRid}, 'x', 'L', 8, 8, ${normProd.id})`;
+
+		const [inv2] = await testSql`INSERT INTO invoices (restaurant_id, status, invoice_date) VALUES (${exportRid}, 'pending', '2025-06-01') RETURNING id`;
+		await testSql`
+			INSERT INTO invoice_line_items (invoice_id, restaurant_id, description, unit, unit_price, normalized_unit_price, product_id)
+			VALUES (${inv2.id}, ${exportRid}, 'x', 'L', 10, 9.5, ${normProd.id})`;
+
+		const [inv3] = await testSql`INSERT INTO invoices (restaurant_id, status, invoice_date) VALUES (${exportRid}, 'pending', '2025-03-01') RETURNING id`;
+		await testSql`
+			INSERT INTO invoice_line_items (invoice_id, restaurant_id, description, unit, unit_price, normalized_unit_price, product_id)
+			VALUES (${inv3.id}, ${exportRid}, 'x', 'kg', 3.2, null, ${rawProd.id})`;
+
+		const rows = await listCatalogForExport(testDb, exportRid);
+		const byId = new Map(rows.map(r => [r.id, r]));
+
+		expect(byId.get(normProd.id)).toMatchObject({
+			canonicalName: 'Aceite de oliva 885', category: 'Aceites y Conservas', canonicalUnit: 'L', unitPrice: 9.5,
+		}); // 2025-06-01 is the latest purchase — its normalized price wins over the earlier one
+		expect(byId.get(rawProd.id)).toMatchObject({
+			canonicalName: 'Harina 885', category: 'Panadería y Bollería', canonicalUnit: 'kg', unitPrice: 3.2,
+		}); // no normalized price on file — falls back to the raw unit price
+		expect(byId.get(neverBought.id)).toMatchObject({
+			canonicalName: 'Sal 885', category: null, canonicalUnit: 'kg', unitPrice: null,
+		}); // never purchased — no price to show
+	});
+
+	it('is tenant-scoped', async () => {
+		const other = await createTestRestaurant('prodexport885-other');
+		try {
+			await testSql`INSERT INTO products (restaurant_id, canonical_name, name_key) VALUES (${other.id}, 'Otro tenant 885', 'otro tenant 885')`;
+			const rows = await listCatalogForExport(testDb, exportRid);
+			expect(rows.some(r => r.canonicalName === 'Otro tenant 885')).toBe(false);
+		} finally {
+			await cleanupTestRestaurant(other.id);
+		}
+	});
+});
+
+describe.skipIf(!hasDbEnv)('/products/inventory-template — issue #885', () => {
+	let proRid = '';
+	let trialRid = '';
+
+	beforeAll(async () => {
+		if (!hasDbEnv) return;
+		const pro = await createTestRestaurant('invtpl885-pro');
+		proRid = pro.id;
+		await testSql`INSERT INTO subscriptions (restaurant_id, plan_tier, status) VALUES (${proRid}, 'pro', 'active')`;
+		await testSql`
+			INSERT INTO products (restaurant_id, canonical_name, name_key, category, canonical_unit)
+			VALUES (${proRid}, 'Tomate 885', 'tomate 885', 'Frutas y Verduras', 'kg')`;
+
+		const trial = await createTestRestaurant('invtpl885-trial');
+		trialRid = trial.id;
+	});
+
+	afterAll(async () => {
+		if (!hasDbEnv) return;
+		await cleanupTestRestaurant(proRid);
+		await cleanupTestRestaurant(trialRid);
+	});
+
+	beforeEach(() => {
+		rateLimitMock.mockClear().mockResolvedValue(true);
+	});
+
+	function localsFor(restaurantId: string) {
+		return { restaurantId, entitlements: memoizeEntitlements(restaurantId) } as never;
+	}
+
+	it('a pro tenant downloads a real .xlsx built from its own catalog', async () => {
+		const { GET } = await import('../src/routes/(app)/products/inventory-template/+server');
+		const res = (await GET({ locals: localsFor(proRid) } as never)) as Response;
+
+		expect(res.status).toBe(200);
+		expect(res.headers.get('Content-Type')).toBe(
+			'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+		);
+		expect(res.headers.get('Content-Disposition')).toContain('inventario-');
+
+		const buf = Buffer.from(await res.arrayBuffer());
+		const wb = new ExcelJS.Workbook();
+		await wb.xlsx.load(buf as unknown as Parameters<typeof wb.xlsx.load>[0]);
+		const sheet = wb.getWorksheet('Inventario');
+		expect(sheet).toBeDefined();
+		expect(sheet!.getRow(2).getCell(2).value).toBe('Tomate 885');
+	});
+
+	it('a trial tenant is refused (403) per the feature gate', async () => {
+		const { GET } = await import('../src/routes/(app)/products/inventory-template/+server');
+		await expect(GET({ locals: localsFor(trialRid) } as never)).rejects.toMatchObject({ status: 403 });
+	});
+
+	it('rate-limits on the restaurant id (429 when exceeded)', async () => {
+		rateLimitMock.mockResolvedValueOnce(false);
+		const { GET } = await import('../src/routes/(app)/products/inventory-template/+server');
+		await expect(GET({ locals: localsFor(proRid) } as never)).rejects.toMatchObject({ status: 429 });
 	});
 });

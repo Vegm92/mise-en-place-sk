@@ -1149,6 +1149,7 @@ export default {
   'billing.upgrade.prices':       'Las alertas de subidas de precio y puntuación de proveedores son una función de pago. Suscríbete para desbloquearlas.',
   'billing.upgrade.stock':        'El control de stock es una función de pago. Suscríbete para desbloquearlo.',
   'billing.upgrade.assistant':    'El asistente con IA no está disponible en tu plan actual. Mejora tu plan para activarlo.',
+  'billing.upgrade.inventario':   'La plantilla de inventario es una función de pago. Suscríbete para descargarla.',
   'billing.upgrade.trial':        'Tu prueba gratuita ha terminado. Activa una suscripción para volver a subir albaranes — tus datos siguen intactos.',
   'billing.upgrade.inactive':     'Tu suscripción no está activa, así que las subidas están pausadas. Reactívala para continuar — tus datos siguen intactos.',
   'billing.activated':            '¡Suscripción activada! Gracias.',
@@ -2069,6 +2070,8 @@ export default {
   'prod.detail.delete':            'Borrar producto',
   'prod.detail.deleteConfirm':     'Esta acción no se puede deshacer. ¿Borrar este producto?',
   'prod.detail.deleteBlockedHint': 'Desvincula todos los proveedores para poder borrar este producto.',
+  'prod.inventoryTemplate.link':    'Plantilla de inventario',
+  'prod.inventoryTemplate.tooltip': 'Descarga una plantilla Excel del inventario físico con tus productos, agrupados por categoría, con los totales ya calculados.',
 
   'period.7d':                     '7 días',
   'period.30d':                    '30 días',
