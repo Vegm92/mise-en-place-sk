@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { toCsv } from '$lib/reports';
 import { buildRecipeSheet } from '$lib/server/recipes-sheet';
 import { trackEvent } from '$lib/server/events';
+import { contentDispositionHeader } from '$lib/server/content-disposition';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
 	const rid = locals.restaurantId;
@@ -19,7 +20,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	return new Response(toCsv(doc.csv.header, doc.csv.rows), {
 		headers: {
 			'Content-Type': 'text/csv; charset=utf-8',
-			'Content-Disposition': `attachment; filename="${doc.csv.filename}"`,
+			'Content-Disposition': contentDispositionHeader('attachment', doc.csv.filename),
 		},
 	});
 };
