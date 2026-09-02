@@ -307,7 +307,7 @@
                   </div>
                   <div style="display: flex; align-items: center; gap: 6px; margin-top: 3px;">
                     <StatusBadge status={inv.review_state ?? 'revisado'} style="font-size: 11px; padding: 1px 5px;" />
-                    <IncidenceKindBadge kind={inv.incidence_kind} style="font-size: 11px; padding: 1px 5px;" />
+                    <IncidenceKindBadge kind={inv.incidence_kind} small />
                     <span class="num" style="font-size: 11px; color: var(--mep-fg-3);">
                       {inv.invoice_number ?? '—'}
                     </span>
