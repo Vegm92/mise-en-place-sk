@@ -152,6 +152,34 @@ restaurant's own categories is future work, not attempted here.
   taxonomy; DB-backed coverage of the per-restaurant table itself lives in
   `tests/supplier-category.test.ts`.
 
+**Part 2 (this cut, issue #881).** Every consumer `git grep
+VALID_CATEGORIES|resolveCategory|isValidCategory -- src` found is rewired
+onto a restaurant's own `categories` rows: `invoice-save.ts`, `products.ts`'s
+categorize job and `supplier.ts` write through `resolveCategoryFor`;
+`alerts.ts`'s category-suggestion effect, the supplier-category API route,
+and every list/dropdown/filter (suppliers, products, budgets, the inventory
+xlsx export's sheet order, `supplier-list.ts`) read `listCategories(rid)` via
+two new small helpers in `categories.ts` — `visibleCategoryNames(rid)` (a
+`Set` of the restaurant's own non-hidden names, for checks that must exclude
+`'Other'`) and `selectableCategoryNames(rid)` (that list plus `'Other'`
+appended, for anything a dropdown offers or a form action validates against).
+`VALID_CATEGORIES` remains referenced only in `constants.ts` itself,
+`categories.ts` (the seed), `category-guide.ts`/`extract.ts` (the extraction
+prompt, unchanged per the Decision above), `onboarding/+page.svelte` and
+`+page.server.ts` (no restaurant — hence no `categories` rows — exists yet at
+that point), `colors.ts` (`CATEGORY_COLORS`, the fixed default→token map a
+custom category's colour falls back from) and `inventory-template.ts`'s
+default `categoryOrder` parameter (the shape the pure, DB-free unit tests
+exercise; the real route passes the restaurant's own order). `colors.ts` now
+gives a category with no `--mep-cat-*` token a deterministic `--mep-series-*`
+colour instead (a hash of `categorySlug(category)`), so two custom categories
+usually render differently and the same custom name always renders the same
+colour. `resolveCategory` itself is untouched, and `tests/helpers/test-db.ts`'s
+`createTestRestaurant` now seeds the default categories in the same call —
+mirroring every production restaurant-creation path — so the existing
+DB-backed suite continues to exercise real restaurants rather than ones with
+an empty category set.
+
 ## Related
 
 - [ADR-027](./ADR-027-spend-category-comes-from-the-line.md) — `resolveCategory`'s existing contract (product/supplier categorisation) that `resolveCategoryFor` extends per restaurant, and `MIN_CATEGORY_CONFIDENCE`'s origin

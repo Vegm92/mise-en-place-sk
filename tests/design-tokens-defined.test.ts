@@ -88,14 +88,31 @@ describe('MEP design tokens', () => {
 	it('resolves every category to a token, never a literal', () => {
 		// categoryColor() feeds `background`, `color` and SVG fill/stroke alike;
 		// a hex here would be a colour that cannot follow the theme.
-		for (const cat of [...VALID_CATEGORIES, 'Not A Category', '', null, undefined]) {
+		for (const cat of VALID_CATEGORIES) {
 			expect(categoryColor(cat)).toMatch(/^var\(--mep-cat-[a-z0-9-]+\)$/);
+		}
+		// A blank/absent category is "uncategorised", not a custom one — it
+		// still lands on the fixed Other token.
+		for (const cat of ['', null, undefined]) {
+			expect(categoryColor(cat)).toBe('var(--mep-cat-other)');
+		}
+		// A custom category (issue #881) has no --mep-cat-* token of its own —
+		// it gets a deterministic --mep-series-* colour instead.
+		for (const cat of ['Not A Category', 'Marketing']) {
+			expect(categoryColor(cat)).toMatch(/^var\(--mep-series-\d\)$/);
 		}
 		// The tint replaced `background:{color}24`, which produced
 		// `var(--mep-cat-bebidas)24` — not a colour — once the value became a token.
 		expect(categoryTint('Bebidas')).toBe(
 			'color-mix(in oklab, var(--mep-cat-bebidas) 14%, transparent)',
 		);
+	});
+
+	it('gives a custom category a stable colour that differs from another custom category', () => {
+		// issue #881 part 2 — two custom categories should not collide onto the
+		// same swatch, and the same name always renders the same colour.
+		expect(categoryColor('Marketing')).toBe(categoryColor('Marketing'));
+		expect(categoryColor('Marketing')).not.toBe(categoryColor('Logística'));
 	});
 
 	it('keeps colour decisions out of the load functions', () => {

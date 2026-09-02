@@ -589,7 +589,8 @@ describe.skipIf(!hasDbEnv)('per-restaurant categories (issue #881)', () => {
 		try {
 			const category = await createOk(a.id, 'Marketing');
 
-			expect(await listCategories(b.id, { includeHidden: true }, testDb)).toEqual([]);
+			const bCategories = await listCategories(b.id, { includeHidden: true }, testDb);
+			expect(bCategories.find((c) => c.name === 'Marketing')).toBeUndefined();
 			expect(await resolveCategoryFor(b.id, 'Marketing', 1, testDb)).toBe(UNCATEGORIZED_CATEGORY);
 
 			const renamedFromB = await renameCategory(b.id, category.id, 'Marketing B', testDb);
@@ -597,6 +598,34 @@ describe.skipIf(!hasDbEnv)('per-restaurant categories (issue #881)', () => {
 		} finally {
 			await cleanupTestRestaurant(a.id);
 			await cleanupTestRestaurant(b.id);
+		}
+	});
+
+	it('a custom category is accepted by getOrCreateSupplierId (issue #881 part 2 write path)', async () => {
+		const r = await createTestRestaurant('cat-write-custom');
+		try {
+			await createOk(r.id, 'Marketing');
+			const id = await getOrCreateSupplierId(r.id, 'Agencia Norte', testDb, 'Marketing');
+			const [row] = await testDb.select({ category: suppliers.category })
+				.from(suppliers).where(eq(suppliers.id, id));
+			expect(row.category).toBe('Marketing');
+		} finally {
+			await cleanupTestRestaurant(r.id);
+		}
+	});
+
+	it('a hidden default category degrades to the sentinel via getOrCreateSupplierId (issue #881 part 2 write path)', async () => {
+		const r = await createTestRestaurant('cat-write-hidden');
+		try {
+			const rows = await listCategories(r.id, {}, testDb);
+			const bebidas = rows.find((c) => c.name === 'Bebidas')!;
+			await setCategoryHidden(r.id, bebidas.id, true, testDb);
+			const id = await getOrCreateSupplierId(r.id, 'Bodega Sur', testDb, 'Bebidas');
+			const [row] = await testDb.select({ category: suppliers.category })
+				.from(suppliers).where(eq(suppliers.id, id));
+			expect(row.category).toBe(UNCATEGORIZED_CATEGORY);
+		} finally {
+			await cleanupTestRestaurant(r.id);
 		}
 	});
 });

@@ -15,6 +15,7 @@ import {
 } from './helpers/test-db';
 import { categoryBudgets } from '../src/lib/server/schema';
 import { VALID_CATEGORIES } from '../src/lib/constants';
+import { createCategory } from '../src/lib/server/categories';
 
 const MONTH = '2026-01';
 
@@ -156,6 +157,28 @@ describe.skipIf(!hasDbEnv)('categoryBudgets — custom categories', () => {
 			.where(and(eq(categoryBudgets.restaurantId, rid1), eq(categoryBudgets.category, customCat)));
 
 		expect(row.monthlyBudget).toBe('500.00');
+	});
+});
+
+// ── load() merge (issue #881 part 2) ────────────────────────────────────────
+
+describe.skipIf(!hasDbEnv)('budgets load() — merges a restaurant\'s own categories', () => {
+	it('lists a custom category with no budget row alongside the default seed', async () => {
+		const r = await createTestRestaurant('budgets-custom-load');
+		try {
+			await createCategory(r.id, 'Marketing', testDb);
+			const { load } = await import('../src/routes/(app)/budgets/+page.server');
+			const result = await load({
+				url: new URL('http://localhost/budgets'),
+				locals: { restaurantId: r.id },
+			} as never) as unknown as { categories: string[] };
+
+			expect(result.categories).toContain('Marketing');
+			expect(result.categories).toContain('Bebidas');
+			expect(result.categories).toContain('Other');
+		} finally {
+			await cleanupTestRestaurant(r.id);
+		}
 	});
 });
 

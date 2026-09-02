@@ -7,6 +7,7 @@ import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import * as schema from '../../src/lib/server/schema';
 import { resolveDbGate } from './db-gate';
+import { VALID_CATEGORIES, UNCATEGORIZED_CATEGORY, categoryKey, categorySlug } from '../../src/lib/constants';
 
 const _gate = resolveDbGate(process.env);
 const _url = _gate.url;
@@ -44,11 +45,32 @@ export async function closeDb() {
 	if (_client) await _client.end({ timeout: 5 });
 }
 
-/** Creates a uniquely-slugged test restaurant and returns its id. */
+const DEFAULT_CATEGORY_SEED = VALID_CATEGORIES.filter((name) => name !== UNCATEGORIZED_CATEGORY);
+
+/**
+ * Creates a uniquely-slugged test restaurant and returns its id.
+ *
+ * Mirrors every production restaurant-creation path (auth-seed.ts,
+ * onboarding, settings' addLocation), which always seeds the default
+ * `categories` rows in the same transaction (ADR-037 part 2) — a write path
+ * that now validates a category against a restaurant's own `categories` rows
+ * would otherwise reject every default category for a bare test restaurant.
+ */
 export async function createTestRestaurant(suffix: string) {
 	const slug = `test-vitest-${suffix}-${Date.now()}`;
 	const [row] = await testSql`
 		INSERT INTO restaurants (name, slug) VALUES (${'Test Restaurant ' + suffix}, ${slug}) RETURNING id, slug
+	`;
+	await testSql`
+		INSERT INTO categories ${testSql(DEFAULT_CATEGORY_SEED.map((name, sortOrder) => ({
+			restaurant_id: row.id,
+			name,
+			name_key: categoryKey(name),
+			slug: categorySlug(name),
+			sort_order: sortOrder,
+			is_default: true,
+		})))}
+		ON CONFLICT (restaurant_id, name_key) DO NOTHING
 	`;
 	return row as { id: string; slug: string };
 }
