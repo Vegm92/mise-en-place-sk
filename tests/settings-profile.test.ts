@@ -206,3 +206,32 @@ describe('renameRestaurant', () => {
 		expect(result).toMatchObject({ status: 422, data: { error: 'set.profile.err.restaurantRequired' } });
 	});
 });
+
+describe('saveFiscalIdentity', () => {
+	const good = { legalName: '  Casa Lua SL  ', cifNif: 'b-99.999.997', fiscalAddress: '  Carrer Major 3  ' };
+
+	it('stores the tax id normalised and trims the free-text fields (issue #905)', async () => {
+		const result = await actions.saveFiscalIdentity(formEvent({ ...good, cifNif: 'es b99999997' }));
+		expect(result).toEqual({ section: 'fiscal', ok: 'set.fiscal.ok.saved' });
+		expect(updatedRows).toEqual([{ legalName: 'Casa Lua SL', cifNif: 'B99999997', fiscalAddress: 'Carrer Major 3' }]);
+	});
+
+	it('clears the fields when submitted empty', async () => {
+		const result = await actions.saveFiscalIdentity(formEvent({ legalName: '', cifNif: '', fiscalAddress: '' }));
+		expect(result).toEqual({ section: 'fiscal', ok: 'set.fiscal.ok.saved' });
+		expect(updatedRows).toEqual([{ legalName: null, cifNif: null, fiscalAddress: null }]);
+	});
+
+	it('rejects a tax id that fails its checksum, without writing', async () => {
+		const result = await actions.saveFiscalIdentity(formEvent({ ...good, cifNif: 'B99999998' }));
+		expect(result).toMatchObject({ status: 422, data: { error: 'set.fiscal.err.taxId' } });
+		expect(updatedRows).toEqual([]);
+	});
+
+	it('refuses a non-owner member', async () => {
+		state.membershipRole = 'member';
+		const result = await actions.saveFiscalIdentity(formEvent(good));
+		expect(result).toMatchObject({ status: 403, data: { error: 'set.fiscal.err.notOwner' } });
+		expect(updatedRows).toEqual([]);
+	});
+});
