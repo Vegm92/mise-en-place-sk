@@ -265,6 +265,16 @@ validated by `parseSupplierListParams` before any of them reaches a query.
 - Contact fields filled with `COALESCE`, never overwritten — an existing non-null value (user-typed or earlier capture) always beats a new extraction.
 - `contactTrusted` (issue #905) says whether the reviewed supplier name still matches the one the document printed. Untrusted contact data is applied on INSERT but withheld from the DO UPDATE arm: a row created by this save is the document's issuer whatever name the reviewer gave it, while an existing row may be an unrelated supplier the reviewer retargeted to, and must not inherit another document's CIF. Without the split, correcting a printed trade name to the legal name discarded the NIF for exactly the entities whose names vary between documents.
 
+### `src/lib/tax-id.ts`
+
+**`function normalizeTaxId`**
+- Canonical form for any tax id before it is stored or compared (issue #905): uppercase, drop every separator, and strip a leading `ES` only when what remains is still a full 9-character id — otherwise a razón social beginning with "Es…" would lose its first two letters.
+- Normalisation is deliberately independent of validation. Extracted supplier ids must be comparable even when they are foreign VAT numbers that no Spanish checksum accepts.
+
+**`function isValidSpanishTaxId`**
+- Real checksums (DNI/NIE mod 23, CIF control character), not a shape regex, and it enforces the control *kind* each CIF entity letter allows — a digit for A/B/E/H, a letter for K/P/Q/R/S/N/W. A shape check would accept most single-character typos, which is precisely the input this exists to reject.
+- Used to gate the restaurant's own CIF/NIF in Settings, where a human types it. It is not the right gate for extracted supplier ids: rejecting a valid foreign VAT number would drop identity data the document really carries.
+
 ### `src/lib/components/desktop/DesktopSupplierDetail.svelte`
 
 **`const SERIES_COLORS`**

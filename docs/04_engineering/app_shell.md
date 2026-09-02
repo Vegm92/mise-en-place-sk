@@ -152,6 +152,12 @@ the inventory template, issue #885) is a different route entirely.
 - Switch to it — adding a location and then having to find the switcher would be a strange place to stop.
 **`property renameRestaurant`**
 - Rename the restaurant. Owner-only; the slug stays fixed. Keep the settings override in step so the header does not keep showing the old name for tenants that have one.
+**`property fiscalIdentity` / `property saveFiscalIdentity`**
+- The tenant's own fiscal identity — `legal_name` (razón social), `cif_nif`, `fiscal_address` on `restaurants` (issue #905, task 1). Nothing reads them yet: they exist so extraction can tell the *emisor* from the *receptor* on a scanned document by matching the receiver's tax id against the restaurant's own, instead of guessing from names that vary between razón social, nombre comercial and an individual's name.
+- There is deliberately no `trade_name` column. `restaurants.name` already is the commercial name shown in the header, reports and exports; a second column for the same concept is the drift issue #515 removed, and the single-source rule is pinned by `tests/restaurant-name-single-source.test.ts`.
+- Owner-only, same trust level as the rename: the tax id is what will later decide whether a document belongs to this tenant.
+- The tax id is stored normalised (`normalizeTaxId`) and rejected outright when it fails its checksum. Strictness is right *here* and wrong for extracted supplier ids: a human typing their own CIF has no excuse for a typo, whereas an OCR'd supplier id may be a valid foreign VAT number that no Spanish checksum accepts.
+- Each field is nullable and clearing it is a normal save — a tenant that has not filled these in yet must not be blocked from changing the rest of the section.
 **`property addWhatsappContact`**
 - WhatsApp bot: authorised numbers. Authorise a phone number to send invoices for this restaurant. Owner-only: an authorised number can inject invoices into the tenant and spend its extraction quota, so this is the same trust level as renaming the venue.
 **`property removeWhatsappContact`**

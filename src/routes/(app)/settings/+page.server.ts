@@ -23,6 +23,7 @@ import { sendEmail, changeEmailAddress } from '$lib/server/email';
 import { listContacts, removeContact } from '$lib/server/whatsapp-contacts';
 import { WHATSAPP_ACCESS_TOKEN, WHATSAPP_DISPLAY_NUMBER, WHATSAPP_PHONE_NUMBER_ID } from '$lib/server/env';
 import { formatPhoneNumber, normalizePhoneNumber, waMeLink } from '$lib/phone';
+import { isValidSpanishTaxId, normalizeTaxId } from '$lib/tax-id';
 import { renderQrSvg } from '$lib/server/qr-svg';
 import { activePairingCode, generatePairingCode, revokePairingCodes } from '$lib/server/whatsapp-pairing';
 import {
@@ -68,7 +69,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 			db.select({ value: settings.value })
 				.from(settings)
 				.where(tdb.scope(settings.restaurantId, eq(settings.key, PRICE_ALERT_KEY))),
-			db.select({ name: restaurants.name })
+			db.select({
+				name: restaurants.name,
+				legalName: restaurants.legalName,
+				cifNif: restaurants.cifNif,
+				fiscalAddress: restaurants.fiscalAddress,
+			})
 				.from(restaurants)
 				.where(eq(restaurants.id, rid)),
 			db.select({ role: userRestaurants.role })
@@ -110,6 +116,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 				emailVerified: Boolean(userRow[0]?.emailVerified),
 			},
 			restaurantName: restaurantRow[0]?.name ?? '',
+			fiscalIdentity: {
+				legalName: restaurantRow[0]?.legalName ?? '',
+				cifNif: restaurantRow[0]?.cifNif ?? '',
+				fiscalAddress: restaurantRow[0]?.fiscalAddress ?? '',
+			},
 			canRenameRestaurant: membership[0]?.role === 'owner',
 			locations: locationRows.map(loc => ({ ...loc, locked: locals.lockedRestaurantIds.includes(loc.id) })),
 			multiLocation: features.multiLocation && multiLocationFlag,
@@ -312,6 +323,29 @@ export const actions: Actions = {
 		await db.update(restaurants).set({ name }).where(eq(restaurants.id, rid));
 
 		return { section: 'restaurant', ok: 'set.profile.ok.restaurant' };
+	},
+
+	saveFiscalIdentity: async ({ request, locals }) => {
+		const rid = locals.restaurantId;
+		if (!rid) redirect(303, '/onboarding');
+		if (!(await requireOwner(rid, locals.user!.id))) {
+			return fail(403, { section: 'fiscal', error: 'set.fiscal.err.notOwner' });
+		}
+
+		const data = await request.formData();
+		const legalName = ((data.get('legalName') as string) ?? '').trim();
+		const fiscalAddress = ((data.get('fiscalAddress') as string) ?? '').trim();
+		const cifNif = normalizeTaxId((data.get('cifNif') as string) ?? '');
+
+		if (legalName.length > 200) return fail(422, { section: 'fiscal', error: 'set.fiscal.err.legalNameTooLong' });
+		if (fiscalAddress.length > 300) return fail(422, { section: 'fiscal', error: 'set.fiscal.err.addressTooLong' });
+		if (cifNif && !isValidSpanishTaxId(cifNif)) return fail(422, { section: 'fiscal', error: 'set.fiscal.err.taxId' });
+
+		await db.update(restaurants)
+			.set({ legalName: legalName || null, cifNif, fiscalAddress: fiscalAddress || null })
+			.where(eq(restaurants.id, rid));
+
+		return { section: 'fiscal', ok: 'set.fiscal.ok.saved' };
 	},
 
 	addWhatsappContact: async ({ request, locals }) => {
