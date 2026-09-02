@@ -594,7 +594,18 @@
     const pct = fractionToPercent(rate);
     return pct === null ? '—' : String(pct).replace('.', ',') + '%';
   }
-  const totalCalc = $derived(lineTotal + taxTotal);
+  function numOrNull(v: unknown): number | null {
+    if (typeof v === 'number' && !isNaN(v)) return v;
+    if (typeof v === 'string' && v.trim() !== '' && !isNaN(Number(v))) return Number(v);
+    return null;
+  }
+  const grossAmount = $derived(numOrNull(data.review?.data?.gross_amount));
+  const discountAmount = $derived(numOrNull(data.review?.data?.discount_amount));
+  const retentionRate = $derived(numOrNull(data.review?.data?.retention_rate));
+  const retentionAmount = $derived(numOrNull(data.review?.data?.retention_amount));
+  const hasTotalsChain = $derived(grossAmount !== null || retentionAmount !== null);
+
+  const totalCalc = $derived(lineTotal + taxTotal - (discountAmount ?? 0) - (retentionAmount ?? 0));
   const discrepancy = $derived(Math.abs(totalCalc - extractedTotal));
   const hasDiscrepancy = $derived(discrepancy > 0.01 && extractedTotal > 0);
   const originalTotalNum = $derived.by(() => {
@@ -1345,6 +1356,27 @@
 
           {#if taxPanelOpen}
             <div class="rev-tax-panel">
+              {#if hasTotalsChain}
+                <div class="rev-totals-chain">
+                  {#if grossAmount !== null}
+                    <span>{$t('extract.grossAmount')} <span class="num text-fg-2">{fmt(grossAmount)}</span></span>
+                    <span class="rev-totals-chain-sep">→</span>
+                  {/if}
+                  {#if discountAmount !== null}
+                    <span>{$t('extract.discountAmount')} <span class="num text-fg-2">−{fmt(discountAmount)}</span></span>
+                    <span class="rev-totals-chain-sep">→</span>
+                  {/if}
+                  <span>{$t('extract.taxBase')} <span class="num text-fg-2">{fmt(taxBase)}</span></span>
+                  <span class="rev-totals-chain-sep">→</span>
+                  <span>{$t('extract.vat')} <span class="num text-fg-2">{fmt(taxTotal)}</span></span>
+                  {#if retentionAmount !== null}
+                    <span class="rev-totals-chain-sep">→</span>
+                    <span>{$t('extract.retention')}{retentionRate !== null ? ` (${ratePctLabel(retentionRate)})` : ''} <span class="num text-fg-2">−{fmt(retentionAmount)}</span></span>
+                  {/if}
+                  <span class="rev-totals-chain-sep">→</span>
+                  <span class="font-medium">{$t('extract.calcTotal')} <span class="num text-fg">{fmt(totalCalc)}</span></span>
+                </div>
+              {/if}
               <div class="rev-tax-panel-head">
                 <span class="body-strong">
                   {$t('review.taxes')}

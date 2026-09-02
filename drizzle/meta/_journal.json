@@ -477,6 +477,13 @@
       "when": 1788362653499,
       "tag": "0067_supplier_identity",
       "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1788374205962,
+      "tag": "0068_strong_jackal",
+      "breakpoints": true
     }
   ]
 }

@@ -102,14 +102,22 @@ export function lineRateFractions(lines: TaxedLine[]): number[] {
 	return [...seen].sort((a, b) => b - a);
 }
 
+export type TotalReconciliationExtras = {
+	discountAmount?: MoneyInput;
+	retentionAmount?: MoneyInput;
+};
+
 export function detectTotalMismatch(
 	lineTotals: Iterable<MoneyInput>,
 	taxBands: TaxBand[] | null,
 	totalAmount: MoneyInput,
+	extras?: TotalReconciliationExtras,
 ): boolean {
 	const totalCents = toCents(totalAmount);
 	if (totalCents === null || totalCents <= 0) return false;
-	const calcCents = sumCents(lineTotals) + (taxBands ? sumTaxCents(taxBands) : 0);
+	const discountCents = toCents(extras?.discountAmount) ?? 0;
+	const retentionCents = toCents(extras?.retentionAmount) ?? 0;
+	const calcCents = sumCents(lineTotals) + (taxBands ? sumTaxCents(taxBands) : 0) - discountCents - retentionCents;
 	return Math.abs(calcCents - totalCents) > 1;
 }
 
