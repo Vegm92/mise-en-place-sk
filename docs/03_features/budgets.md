@@ -80,6 +80,27 @@ None.
 
 Category ∈ `VALID_CATEGORIES`; amount numeric ≥ 0; month = current.
 
+### Data model note — per-restaurant categories (issue #881, ADR-037)
+
+`VALID_CATEGORIES` above is being replaced by a per-restaurant `categories`
+table (`src/lib/server/schema.ts`, `src/lib/server/categories.ts`) so a
+restaurant can add its own spend labels instead of being locked to the fixed
+food-and-drink list — see [ADR-037](../06_decisions/analytics/ADR-037-categories-are-per-restaurant.md).
+Landing in three PRs:
+
+- **Part 1 (this PR, shipped)**: the `categories` table + the
+  `seedDefaultCategories` / `listCategories` / `createCategory` /
+  `renameCategory` / `setCategoryHidden` / `resolveCategoryFor` module, seeded
+  from `VALID_CATEGORIES` for every restaurant (existing and new). Nothing on
+  this page reads it yet — the "custom category" support described in this
+  spec's Code notes below (a stray `category_budgets.category` value outside
+  `VALID_CATEGORIES`) predates this table and is unrelated to it.
+- **Part 2 (pending)**: this route, and the other consumers of
+  `VALID_CATEGORIES`/`resolveCategory` (suppliers, products, extraction
+  review, analytics), read the restaurant's own category set instead of the
+  fixed list.
+- **Part 3 (pending)**: a settings screen to create/rename/hide categories.
+
 ## Error states
 
 - Saving a past month → 403.
@@ -122,6 +143,14 @@ state when no `category_budgets` rows exist, so no change was needed there.
 Toggle from `/admin/feature-flags`.
 
 ## Code notes
+
+### `src/lib/server/categories.ts`
+
+- Not yet wired into this route or any other consumer (part 2, issue #881). Tenant-scoped throughout (`forTenant(rid).scope(...)`), matching every other per-tenant module.
+- `seedDefaultCategories` inserts one row per `VALID_CATEGORIES` entry except `UNCATEGORIZED_CATEGORY`, `ON CONFLICT (restaurantId, nameKey) DO NOTHING` — safe to call more than once, and called from every restaurant-creation path (`onboarding`, `settings` add-location, `auth-seed`) plus a one-off migration backfill for restaurants that already existed.
+- `createCategory`/`renameCategory` return a typed `{ ok: false, reason: 'duplicate' | 'invalid' | 'reserved' }` instead of throwing, so a route can turn a rejection straight into a form error without a try/catch. `reserved` is the `'Other'` sentinel's key — it can never become a row, so it can never be renamed or hidden either.
+- `renameCategory` runs in one transaction: `suppliers.category`/`products.category`/`category_budgets.category` store the category as a plain string, so a rename that only touched the `categories` row would silently orphan every row already tagged with the old name.
+- `resolveCategoryFor` is the per-restaurant successor to `resolveCategory` (ADR-027): it matches the AI/global proposal against the restaurant's *visible* categories first (custom or default, by `categoryKey`), then falls back to the global taxonomy match, and degrades to `UNCATEGORIZED_CATEGORY` when even that fallback is not currently visible to the restaurant (hidden, or a default it never had). Always one of the restaurant's visible names, or the sentinel — never null.
 
 ### `src/routes/(app)/budgets/+page.server.ts`
 
