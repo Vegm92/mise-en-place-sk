@@ -21,6 +21,7 @@ import {
 } from './document-segmentation.js';
 import { recordExtractionResult } from './extraction-corpus.js';
 import { annotateLineItems } from './products.js';
+import { ownPartyIdentity, resolveInvoiceParties } from './party.js';
 import {
 	attributeReservation, checkExtractionQuota, claimMonthlyExtraction, recordLlmUsage,
 	releaseMonthlyExtraction, reserveMonthlyExtractions,
@@ -357,6 +358,16 @@ export async function processExtractionJob(
 			}
 		} finally {
 			await slot.release();
+		}
+
+		const parties = resolveInvoiceParties(result, await ownPartyIdentity(restaurantId));
+		result = parties.invoice;
+		if (parties.swapped) {
+			console.warn(`[worker] Item ${itemId}: emisor/receptor swapped, matched by ${parties.reason}`);
+			Sentry.captureMessage('extraction.parties_swapped', {
+				level: 'info',
+				tags: { itemId, restaurantId, reason: parties.reason ?? 'unknown' },
+			});
 		}
 
 		const supplierName = result.supplier_name ?? '';

@@ -270,6 +270,7 @@ Quota, access, classification, JSON shape, error classification.
 **`function parseFacturae322`**
 
 - Root element may be prefixed (namespace removed) or plain 'Facturae'.
+- Also returns the buyer side — `BuyerParty` here, `AccountingCustomerParty` in `parseUbl21Invoice` (issue #905). Structured e-invoices label their parties, so nothing here can be swapped by mistake; the fields exist so `resolveInvoiceParties` sees the same shape whatever produced the extraction, and so an XML whose buyer is not this restaurant is detectable later.
 
 **`property unit`**
 
@@ -313,6 +314,8 @@ Quota, access, classification, JSON shape, error classification.
 **`interface ExtractedInvoice`**
 
 - Category the model proposes (#315) — raw output, never trusted; run through `resolveCategory` before `suppliers.category`. e-invoicing extensions (optional): `supplier_nif`, `qr_url` (AEAT/TicketBAI verification URL), `qr_mismatch` (QR vs AI conflict), `e_invoice_format` ('facturae_322' | 'ubl_21').
+- `receiver_name` / `receiver_nif` / `receiver_address` (issue #905) are the *other* party, the one being billed. The prompt used to name the cliente only to tell the model to ignore it, which made "which of these two is the supplier?" a decision taken inside the model with no way to check it — and on a document with no emisor/cliente labels it picked wrong, storing the restaurant itself as a new supplier. Reporting both parties moves that decision to `party.ts`, where the restaurant's own tax id can settle it.
+- `field_confidences` now scores `supplier_nif`, `receiver_name` and `receiver_nif` as well. The receiver scores are what a swap carries onto the supplier fields, so without them a corrected pair would land with confidences describing the wrong party.
 
 **`type GenerateFn`**
 
@@ -378,6 +381,22 @@ Quota, access, classification, JSON shape, error classification.
 
 - Returns `'completed' | 'failed'` instead of `void` (#520): `'failed'` only for the one case the DEGRADATION_ERRORS classification (#482) marks retryable with retries left. Every other outcome — success, a corrupt job already dead-lettered, a permanent classification, the final attempt of a transient one — reports `'completed'`, matching what silently not-throwing meant before this return value existed. Never throws for its own classified outcomes; a genuinely unexpected exception (a bug, not a classified extraction failure) still propagates.
 - Also runs the line-vs-total reconciliation (`detectTotalMismatch`, `$lib/tax`) against the raw extraction before `markDone` and persists it as `extracted_data.total_mismatch` (issue #808) — previously this check only ran inside `saveReviewedInvoice`, gated behind a human opening the review screen, so a misread invoice nobody ever reviewed could sit as `status: 'done'` with nothing flagging the discrepancy.
+- Resolves emisor vs receptor (`resolveInvoiceParties`, issue #905) before `annotateLineItems` and `markDone`, so the review screen, the product annotation and the corpus copy all read the corrected pair. This is the earliest point that knows *which* restaurant the document belongs to — `extractInvoice`/`extractWithProvider` stay pure file→data functions with no tenant context — and the latest point where a correction is still free: after `markDone` the wrong supplier name is already in front of a human.
+
+### `src/lib/server/party.ts`
+
+**`function resolveInvoiceParties`**
+
+- Decides which extracted party is the supplier (issue #905). The reported failure was not a bad reading: the model read both parties fine and assigned them backwards on a document that labelled neither, so the restaurant became a new supplier row and the real issuer — already in the database — was never matched.
+- A tax id equal to the restaurant's own is not evidence about a supplier, it *is* the restaurant, so that case swaps the pair outright rather than asking a human. Deterministic, not a heuristic: the only way it can be wrong is if the restaurant's own CIF/NIF in Settings is wrong.
+- When the restaurant has a tax id on file and the document printed one for either party, the tax ids decide and the name fallback is skipped — a printed id that is not ours means neither party is us, and a name that happens to look like ours is a coincidence, not evidence.
+- The name fallback exists only because most tenants have not filled in their fiscal identity yet; it reuses `isSameSupplierName`, so razón social / nombre comercial variants that differ only by legal form still match. It requires the restaurant to match exactly one of the two parties — a document where both look like us is left alone.
+- A swap never invents a supplier: it returns unchanged when the document printed no receiver at all, since swapping would replace a real name with null.
+- The swap drops `supplier_email`, `supplier_phone` and `supplier_category`, which described the old emisor — the restaurant itself. Carrying them would write the restaurant's own contact details onto a supplier row, and a category judged from the restaurant's name onto an unrelated business.
+
+**`function ownPartyIdentity`**
+
+- The restaurant's side of the comparison: `cif_nif` plus both names it may be printed under (`name`, the commercial name, and `legal_name`, the razón social — both from issue #905 task 1). `runAsSystem` because the extraction worker runs outside a request and holds no tenant context.
 
 **`function archiveExtraction`**
 
