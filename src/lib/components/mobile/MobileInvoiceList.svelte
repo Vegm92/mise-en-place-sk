@@ -5,6 +5,8 @@
   import { locale, t, tcat, ti } from '$lib/i18n';
   import ScrollStrip from '$lib/components/mep/ScrollStrip.svelte';
   import FileDown from '@lucide/svelte/icons/file-down';
+  import Check from '@lucide/svelte/icons/check';
+  import Trash2 from '@lucide/svelte/icons/trash-2';
   import {
     currentMonthRange,
     invoiceFilterParams,
@@ -106,6 +108,25 @@
 
   const shown = $derived(acc.page > 0 && acc.key === filterKey ? acc.items : invoices);
   const hasMore = $derived(pagination.page < pagination.totalPages);
+
+  let selectedIds = $state<Set<number>>(new Set());
+  const allSelected  = $derived(shown.length > 0 && selectedIds.size === shown.length);
+  const someSelected = $derived(selectedIds.size > 0 && selectedIds.size < shown.length);
+  const bulkDownloadHref = $derived(
+    `/invoices/export/download?ids=${[...selectedIds].join(',')}&format=zip`
+  );
+
+  function toggleSelect(id: number, checked: boolean) {
+    const next = new Set(selectedIds);
+    if (checked) next.add(id); else next.delete(id);
+    selectedIds = next;
+  }
+  function toggleSelectAll(checked: boolean) {
+    selectedIds = checked ? new Set(shown.map((i) => i.id)) : new Set();
+  }
+  function submitBulkForm(id: string) {
+    (document.getElementById(id) as HTMLFormElement).submit();
+  }
 
   const grouped = $derived.by(() => {
     const today = new Date();
@@ -209,6 +230,38 @@
     </a>
   </ScrollStrip>
 
+  {#if shown.length > 0}
+    <form id="mobile-bulk-reviewed-form" method="post" action="?/bulkReviewed" class="hidden">
+      {#each [...selectedIds] as id}<input type="hidden" name="invoice_ids" value={id} />{/each}
+    </form>
+    <form id="mobile-bulk-delete-form" method="post" action="?/bulkDelete" class="hidden">
+      {#each [...selectedIds] as id}<input type="hidden" name="invoice_ids" value={id} />{/each}
+    </form>
+
+    <div class="px-[18px] pb-[10px] flex items-center gap-2.5 flex-wrap">
+      <label class="flex items-center gap-2 min-h-[44px]">
+        <input type="checkbox" class="accent-acc" checked={allSelected} indeterminate={someSelected}
+          onchange={(e) => toggleSelectAll((e.target as HTMLInputElement).checked)} />
+        <span class="body">{$t('inv.selectAll')}</span>
+      </label>
+      {#if selectedIds.size > 0}
+        <span class="body-strong text-acc">{selectedIds.size} {$t('inv.selected')}</span>
+        <button type="button" class="chip gap-1.5" onclick={() => submitBulkForm('mobile-bulk-reviewed-form')}>
+          <Check size={13} />
+          {$t('inv.markReviewed')}
+        </button>
+        <button type="button" class="chip gap-1.5" onclick={() => submitBulkForm('mobile-bulk-delete-form')}>
+          <Trash2 size={13} />
+          {$t('inv.delete')}
+        </button>
+        <a href={bulkDownloadHref} data-sveltekit-reload class="chip gap-1.5" title={$t('inv.export.selected.tooltip')}>
+          <FileDown size={13} />
+          {$t('inv.export.selected.button')}
+        </a>
+      {/if}
+    </div>
+  {/if}
+
   {#if supplierSheetOpen}
     <button
       type="button"
@@ -284,7 +337,15 @@
           ">{label}</div>
           <div style="padding: 0 18px; display: flex; flex-direction: column; gap: 8px;">
             {#each group as inv (inv.id)}
+              <div class="flex items-center gap-1">
+                <label class="flex items-center justify-center shrink-0 min-h-[44px]">
+                  <input type="checkbox" class="accent-acc"
+                    checked={selectedIds.has(inv.id)}
+                    onclick={(e) => e.stopPropagation()}
+                    onchange={(e) => toggleSelect(inv.id, (e.target as HTMLInputElement).checked)} />
+                </label>
               <a href="/invoice/{inv.id}" style="
+                flex: 1; min-width: 0;
                 display: flex; align-items: center; gap: 12px;
                 padding: 12px; border-radius: 10px;
                 background: var(--mep-surface);
@@ -324,6 +385,7 @@
                   {/if}
                 </div>
               </a>
+              </div>
             {/each}
           </div>
         </div>

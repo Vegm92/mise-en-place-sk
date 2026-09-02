@@ -116,6 +116,9 @@
   const allChecked  = $derived(invoices.length > 0 && checkedIds.size === invoices.length);
   const someChecked = $derived(checkedIds.size > 0 && checkedIds.size < invoices.length);
   const bulkVisible = $derived(checkedIds.size > 0);
+  const bulkDownloadHref = $derived(
+    `/invoices/export/download?ids=${[...checkedIds].join(',')}&format=zip`
+  );
 
   function toggleCheck(id: number, checked: boolean) {
     const next = new Set(checkedIds);
@@ -401,6 +404,12 @@
                 <Trash2 size={12} />
                 {$t('inv.delete')}
               </button>
+              <a href={bulkDownloadHref} data-sveltekit-reload
+                title={$t('inv.export.selected.tooltip')}
+                class="btn btn-ghost h-[26px] text-[13px] px-2 gap-1 no-underline">
+                <FileDown size={12} />
+                {$t('inv.export.selected.button')}
+              </a>
             </div>
           {/if}
         </div>
