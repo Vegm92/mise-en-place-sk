@@ -114,8 +114,11 @@ Both parties — extract them separately, never pick one:
      A la atención de. Any explicit label settles it.
   2. Bank details, IBAN, "forma de pago", logo and letterhead belong to the EMISOR — the party being
      paid prints where to pay it.
-  3. Position: on a Spanish invoice the emisor is usually printed top-left or in the letterhead, and
-     the receptor in a block to its right or beneath it, next to the invoice number and date.
+  3. Position, and only when you can see the page: on a Spanish invoice the emisor is usually printed
+     top-left or in the letterhead, and the receptor in a block to its right or beneath it. When the
+     input is a plain text dump instead of an image that geometry is gone — the two blocks arrive in
+     whatever order the PDF stored them, which is very often the receptor first — so never treat the
+     order the parties appear in as evidence of which one issued the document.
   4. A LOPD/RGPD footer names the data controller, which is the EMISOR.
 - If after all of that you genuinely cannot tell which party is which, still return both — put the one
   you consider more likely to be the emisor in supplier_*, and score both receiver_name and
