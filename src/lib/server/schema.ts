@@ -47,6 +47,7 @@ export const suppliers = pgTable('suppliers', {
 	notes:              text('notes'),
 	outstandingBalance: numeric('outstanding_balance', { precision: 12, scale: 2 }),
 	normalizedCif:      text('normalized_cif'),
+	iban:               text('iban'),
 }, (t) => [
 	uniqueIndex('uq_suppliers_rid_name').on(t.restaurantId, sql`lower(${t.name})`),
 	index('suppliers_rid_normalized_cif_idx').on(t.restaurantId, t.normalizedCif).where(sql`${t.normalizedCif} IS NOT NULL`),
@@ -75,6 +76,8 @@ export const invoices = pgTable('invoices', {
 	totalAmount:     numeric('total_amount', { precision: 12, scale: 2 }),
 	taxBase:         numeric('tax_base', { precision: 12, scale: 2 }),
 	taxBreakdown:    text('tax_breakdown'),
+	paymentMethod:   text('payment_method'),
+	paymentTerms:    text('payment_terms'),
 	status:          text('status').default('pending'),
 	reviewState:     text('review_state').notNull().default('revisado'),
 	incidenceKind:   text('incidence_kind'),

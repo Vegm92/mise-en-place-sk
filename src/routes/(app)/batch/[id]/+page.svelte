@@ -30,6 +30,7 @@
     sumTaxCents, taxableBaseCents, lineRateFractions, bandsFromLines,
   } from '$lib/tax';
   import { t, ti, tp } from '$lib/i18n';
+  import { PAYMENT_METHODS } from '$lib/constants';
 
   import type { ActionData } from './$types';
   const { data, form }: { data: PageData; form: ActionData } = $props();
@@ -205,6 +206,8 @@
     dueDateSuggested: boolean;
     totalAmountInput: string;
     notesInput: string;
+    paymentMethodInput: string;
+    paymentTermsInput: string;
     lineItems: LineItem[];
     taxBands: BandRow[];
   };
@@ -326,6 +329,10 @@
   // svelte-ignore state_referenced_locally — intentional: the extraction's own total, never edited
   let originalTotal = $state(priceStr(str(data.review?.data?.total_amount)));
   let notesInput = $state(initialDraft?.notesInput ?? '');
+  // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data (or a pending draft) once
+  let paymentMethodInput = $state(initialDraft?.paymentMethodInput ?? str(data.review?.data?.payment_method));
+  // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data (or a pending draft) once
+  let paymentTermsInput = $state(initialDraft?.paymentTermsInput ?? str(data.review?.data?.payment_terms));
 
   $effect(() => {
     const id = data.review?.itemId ?? null;
@@ -353,6 +360,8 @@
     dueDateSuggested = draft ? draft.dueDateSuggested : (!rawDueDate && !!dueDateInput);
     totalAmountInput = draft?.totalAmountInput ?? priceStr(str(rd?.total_amount));
     notesInput = draft?.notesInput ?? '';
+    paymentMethodInput = draft?.paymentMethodInput ?? str(rd?.payment_method);
+    paymentTermsInput = draft?.paymentTermsInput ?? str(rd?.payment_terms);
   });
 
   let lastAutosaveItemId: string | null = null;
@@ -361,6 +370,7 @@
     const snapshot: DraftPayload = {
       supplierNameInput, invoiceNumberInput, documentTypeInput, invoiceDateInput,
       dueDateInput, dueDateSuggested, totalAmountInput, notesInput, lineItems, taxBands,
+      paymentMethodInput, paymentTermsInput,
     };
     if (!itemId) return;
     if (itemId !== lastAutosaveItemId) {
@@ -1148,6 +1158,29 @@
                     </div>
                   {/if}
                 </div>
+                <div>
+                  <label class="rev-field-label" for="field-payment-method">{$t('field.paymentMethod')}</label>
+                  <select id="field-payment-method" name="payment_method" bind:value={paymentMethodInput} class="rev-input">
+                    <option value="">{$t('field.paymentMethod.unknown')}</option>
+                    {#each PAYMENT_METHODS as method}
+                      <option value={method}>{$t(`field.paymentMethod.${method}`)}</option>
+                    {/each}
+                  </select>
+                </div>
+                <div>
+                  <label class="rev-field-label" for="field-payment-terms">{$t('field.paymentTerms')}</label>
+                  <input id="field-payment-terms" type="text" name="payment_terms" bind:value={paymentTermsInput}
+                    maxlength={100} class="rev-input" />
+                </div>
+                {#if str(review?.data?.iban)}
+                  <div>
+                    <label class="rev-field-label" for="field-iban">
+                      {$t('field.iban')}
+                      <ConfidenceDot confidence={fieldConf.iban} />
+                    </label>
+                    <input id="field-iban" type="text" readonly value={str(review?.data?.iban)} class="rev-input text-fg-3" />
+                  </div>
+                {/if}
                 {#if fieldVisible.notes}
                   <div class="rev-grid-wide">
                     <label class="rev-field-label" for="field-notes">{$t('extract.notesInternal')} <span style="text-transform:none;letter-spacing:0;">{$t('extract.optional')}</span></label>
