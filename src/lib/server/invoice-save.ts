@@ -23,6 +23,22 @@ import { renderTemplate } from '$lib/i18n-messages';
 import { isBlankOrIsoDate, toIsoDate } from './dates';
 import type { IncidenceKind, ReviewState } from '$lib/status';
 
+export interface DocumentReferenceFields {
+	purchaseOrder: string | null;
+	sellerName: string | null;
+	deliveryDate: string | null;
+	deliveryAddress: string | null;
+	printedNotes: string | null;
+}
+
+export const documentReferenceColumns = {
+	purchase_order: invoices.purchaseOrder,
+	seller_name: invoices.sellerName,
+	delivery_date: invoices.deliveryDate,
+	delivery_address: invoices.deliveryAddress,
+	printed_notes: invoices.printedNotes,
+};
+
 export type SaveOutcome =
 	| { type: 'lowConfidenceBlocked' }
 	| { type: 'invalidDate'; field: 'invoice_date' | 'due_date' | 'delivery_date' }

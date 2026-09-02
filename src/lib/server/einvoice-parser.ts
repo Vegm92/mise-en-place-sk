@@ -2,6 +2,7 @@ import { XMLParser } from 'fast-xml-parser';
 import { canonicalizeUnit } from './normalize';
 import type { ExtractedInvoice } from './extract';
 import type { PaymentMethod } from '$lib/constants';
+import type { DocumentReferenceFields } from './invoice-save';
 
 export type EinvoiceFormat = 'facturae_322' | 'ubl_21';
 
@@ -151,7 +152,7 @@ function ublParty(party: Record<string, unknown> | undefined): PartyFields {
 	};
 }
 
-interface EinvoiceParts {
+interface EinvoiceParts extends DocumentReferenceFields {
 	supplier: PartyFields;
 	receiver: PartyFields;
 	supplierEmail: string | null;
@@ -171,11 +172,6 @@ interface EinvoiceParts {
 	taxBreakdown: ExtractedInvoice['tax_breakdown'];
 	lineItems: ExtractedInvoice['line_items'];
 	format: EinvoiceFormat;
-	purchaseOrder: string | null;
-	sellerName: string | null;
-	deliveryDate: string | null;
-	deliveryAddress: string | null;
-	printedNotes: string | null;
 }
 
 function einvoiceResult(parts: EinvoiceParts): ParsedEinvoice {
