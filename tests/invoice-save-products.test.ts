@@ -216,6 +216,16 @@ function claimEvent(invoiceId: number, formData: FormData, restaurantId = rid) {
 	} as never;
 }
 
+async function expectRedirect(action: Promise<unknown>): Promise<void> {
+	let caught: unknown;
+	try {
+		await action;
+	} catch (e) {
+		caught = e;
+	}
+	expect((caught as { status?: number } | undefined)?.status).toBe(303);
+}
+
 describe.skipIf(!hasDbEnv)('requestCorrection action (issue #887)', () => {
 	beforeEach(() => {
 		sendEmailMock.mockClear();
@@ -234,13 +244,7 @@ describe.skipIf(!hasDbEnv)('requestCorrection action (issue #887)', () => {
 		const supplierId = await claimSupplier('proveedor2@example.com');
 		const invoiceId = await claimInvoice(supplierId);
 
-		let redirected: unknown;
-		try {
-			await actions.requestCorrection(claimEvent(invoiceId, claimFormData('Falta caja', 'Nos falta una caja.')));
-		} catch (e) {
-			redirected = e;
-		}
-		expect((redirected as { status?: number } | undefined)?.status).toBe(303);
+		await expectRedirect(actions.requestCorrection(claimEvent(invoiceId, claimFormData('Falta caja', 'Nos falta una caja.'))));
 
 		expect(sendEmailMock).toHaveBeenCalledOnce();
 		expect(sendEmailMock.mock.calls[0][0]).toMatchObject({
@@ -262,11 +266,7 @@ describe.skipIf(!hasDbEnv)('requestCorrection action (issue #887)', () => {
 		const supplierId = await claimSupplier('proveedor3@example.com');
 		const invoiceId = await claimInvoice(supplierId);
 
-		try {
-			await actions.requestCorrection(claimEvent(invoiceId, claimFormData()));
-		} catch {
-			// redirects on success
-		}
+		await expectRedirect(actions.requestCorrection(claimEvent(invoiceId, claimFormData())));
 		sendEmailMock.mockClear();
 
 		const second = await actions.requestCorrection(claimEvent(invoiceId, claimFormData()));
@@ -285,13 +285,7 @@ describe.skipIf(!hasDbEnv)('requestCorrection action (issue #887)', () => {
 			const supplierId = await claimSupplier('proveedor4@example.com');
 			const invoiceId = await claimInvoice(supplierId);
 
-			let redirected: unknown;
-			try {
-				await actions.requestCorrection(claimEvent(invoiceId, claimFormData(), otherRestaurant.id));
-			} catch (e) {
-				redirected = e;
-			}
-			expect((redirected as { status?: number } | undefined)?.status).toBe(303);
+			await expectRedirect(actions.requestCorrection(claimEvent(invoiceId, claimFormData(), otherRestaurant.id)));
 			expect(sendEmailMock).not.toHaveBeenCalled();
 		} finally {
 			await cleanupTestRestaurant(otherRestaurant.id);

@@ -18,6 +18,10 @@ import {
 	CLAIM_AUDIT_ACTION, CLAIM_SUBJECT_MAX_LENGTH, CLAIM_BODY_MAX_LENGTH,
 } from '$lib/server/supplier-claim';
 
+function invoiceScope(tdb: ReturnType<typeof forTenant>, id: number) {
+	return and(tdb.scope(invoices.restaurantId), eq(invoices.id, id), isNull(invoices.deletedAt));
+}
+
 async function pendingMismatchPayload(tdb: ReturnType<typeof forTenant>, invoiceId: number) {
 	const [row] = await db.select({ payload: systemNotifications.payload })
 		.from(systemNotifications)
@@ -77,7 +81,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			})
 				.from(invoices)
 				.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
-				.where(and(tdb.scope(invoices.restaurantId), eq(invoices.id, id), isNull(invoices.deletedAt)))
+				.where(invoiceScope(tdb, id))
 				.limit(1),
 
 			db.select({
@@ -106,7 +110,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				document_type:  invoices.documentType,
 			})
 				.from(invoices)
-				.where(and(tdb.scope(invoices.restaurantId), eq(invoices.id, row.linked_invoice_id), isNull(invoices.deletedAt)))
+				.where(invoiceScope(tdb, row.linked_invoice_id))
 				.limit(1))[0] ?? null
 			: null;
 
@@ -217,7 +221,7 @@ export const actions: Actions = {
 		})
 			.from(invoices)
 			.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
-			.where(and(tdb.scope(invoices.restaurantId), eq(invoices.id, id), isNull(invoices.deletedAt)))
+			.where(invoiceScope(tdb, id))
 			.limit(1);
 		if (!row) redirect(303, '/invoices');
 
