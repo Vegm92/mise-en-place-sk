@@ -22,7 +22,15 @@ import {
 } from '../src/lib/constants';
 import { getOrCreateSupplierId } from '../src/lib/server/supplier';
 import { runCategorySuggestion } from '../src/lib/server/alerts';
-import { invoiceLineItems, invoices, products, suppliers, systemNotifications } from '../src/lib/server/schema';
+import {
+	seedDefaultCategories,
+	listCategories,
+	createCategory,
+	renameCategory,
+	setCategoryHidden,
+	resolveCategoryFor,
+} from '../src/lib/server/categories';
+import { invoiceLineItems, invoices, products, suppliers, systemNotifications, categoryBudgets } from '../src/lib/server/schema';
 import {
 	testDb,
 	createTestRestaurant,
@@ -408,6 +416,181 @@ describe.skipIf(!hasDbEnv)('#315 extraction-proposed category on supplier creati
 			expect(await categoryOf(r.id, id)).toBe(UNCATEGORIZED_CATEGORY);
 		} finally {
 			await cleanupTestRestaurant(r.id);
+		}
+	});
+});
+
+describe.skipIf(!hasDbEnv)('per-restaurant categories (issue #881)', () => {
+	it('seeds the default taxonomy, minus Other, and is idempotent', async () => {
+		const r = await createTestRestaurant('cat-seed');
+		try {
+			await seedDefaultCategories(r.id, testDb);
+			await seedDefaultCategories(r.id, testDb);
+			const rows = await listCategories(r.id, {}, testDb);
+			expect(rows.map((c) => c.name)).toEqual(
+				VALID_CATEGORIES.filter((c) => c !== UNCATEGORIZED_CATEGORY)
+			);
+			for (const row of rows) expect(row.isDefault).toBe(true);
+		} finally {
+			await cleanupTestRestaurant(r.id);
+		}
+	});
+
+	it('creates a custom category and rejects a duplicate, a reserved name and an invalid name', async () => {
+		const r = await createTestRestaurant('cat-create');
+		try {
+			const created = await createCategory(r.id, '  Marketing  ', testDb);
+			expect(created).toMatchObject({ ok: true, category: { name: 'Marketing', isDefault: false } });
+
+			expect(await createCategory(r.id, 'marketing', testDb)).toEqual({ ok: false, reason: 'duplicate' });
+			expect(await createCategory(r.id, 'MARKETING', testDb)).toEqual({ ok: false, reason: 'duplicate' });
+
+			expect(await createCategory(r.id, UNCATEGORIZED_CATEGORY, testDb)).toEqual({ ok: false, reason: 'reserved' });
+			expect(await createCategory(r.id, 'other', testDb)).toEqual({ ok: false, reason: 'reserved' });
+
+			expect(await createCategory(r.id, '', testDb)).toEqual({ ok: false, reason: 'invalid' });
+			expect(await createCategory(r.id, '   ', testDb)).toEqual({ ok: false, reason: 'invalid' });
+			expect(await createCategory(r.id, 'x'.repeat(61), testDb)).toEqual({ ok: false, reason: 'invalid' });
+		} finally {
+			await cleanupTestRestaurant(r.id);
+		}
+	});
+
+	it('renames a category and propagates to suppliers/products/category_budgets rows of that tenant only', async () => {
+		const r = await createTestRestaurant('cat-rename');
+		const other = await createTestRestaurant('cat-rename-other');
+		try {
+			const created = await createCategory(r.id, 'Marketing', testDb);
+			if (!created.ok) throw new Error('setup failed');
+			const categoryId = created.category.id;
+
+			const supplierId = await getOrCreateSupplierId(r.id, 'Agencia Norte', testDb);
+			await testDb.update(suppliers).set({ category: 'Marketing' }).where(eq(suppliers.id, supplierId));
+			await testDb.insert(products).values({
+				restaurantId: r.id, canonicalName: 'Campaña redes', nameKey: 'campana redes', category: 'Marketing',
+			});
+			await testDb.insert(categoryBudgets).values({
+				restaurantId: r.id, category: 'Marketing', month: '2026-01', monthlyBudget: '500.00',
+			});
+
+			const otherSupplierId = await getOrCreateSupplierId(other.id, 'Otra Agencia', testDb);
+			await testDb.update(suppliers).set({ category: 'Marketing' }).where(eq(suppliers.id, otherSupplierId));
+
+			const renamed = await renameCategory(r.id, categoryId, 'Márketing Digital', testDb);
+			expect(renamed).toMatchObject({ ok: true, category: { name: 'Márketing Digital' } });
+
+			const [supplierRow] = await testDb.select({ category: suppliers.category })
+				.from(suppliers).where(eq(suppliers.id, supplierId));
+			expect(supplierRow.category).toBe('Márketing Digital');
+
+			const [productRow] = await testDb.select({ category: products.category })
+				.from(products).where(eq(products.restaurantId, r.id));
+			expect(productRow.category).toBe('Márketing Digital');
+
+			const [budgetRow] = await testDb.select({ category: categoryBudgets.category })
+				.from(categoryBudgets).where(eq(categoryBudgets.restaurantId, r.id));
+			expect(budgetRow.category).toBe('Márketing Digital');
+
+			const [otherSupplierRow] = await testDb.select({ category: suppliers.category })
+				.from(suppliers).where(eq(suppliers.id, otherSupplierId));
+			expect(otherSupplierRow.category).toBe('Marketing');
+		} finally {
+			await cleanupTestRestaurant(r.id);
+			await cleanupTestRestaurant(other.id);
+		}
+	});
+
+	it('excludes hidden categories from listCategories by default, but includeHidden surfaces them', async () => {
+		const r = await createTestRestaurant('cat-hidden');
+		try {
+			const created = await createCategory(r.id, 'Marketing', testDb);
+			if (!created.ok) throw new Error('setup failed');
+			await setCategoryHidden(r.id, created.category.id, true, testDb);
+
+			const visible = await listCategories(r.id, {}, testDb);
+			expect(visible.find((c) => c.id === created.category.id)).toBeUndefined();
+
+			const all = await listCategories(r.id, { includeHidden: true }, testDb);
+			const hiddenRow = all.find((c) => c.id === created.category.id);
+			expect(hiddenRow?.hidden).toBe(true);
+		} finally {
+			await cleanupTestRestaurant(r.id);
+		}
+	});
+
+	it('resolveCategoryFor: exact and accent-insensitive matches against the restaurant\'s own categories', async () => {
+		const r = await createTestRestaurant('cat-resolve-custom');
+		try {
+			await createCategory(r.id, 'Márketing Digital', testDb);
+			expect(await resolveCategoryFor(r.id, 'Márketing Digital', 1, testDb)).toBe('Márketing Digital');
+			expect(await resolveCategoryFor(r.id, 'marketing digital', 1, testDb)).toBe('Márketing Digital');
+		} finally {
+			await cleanupTestRestaurant(r.id);
+		}
+	});
+
+	it('resolveCategoryFor: a hidden custom category falls back to the sentinel', async () => {
+		const r = await createTestRestaurant('cat-resolve-hidden');
+		try {
+			const created = await createCategory(r.id, 'Marketing', testDb);
+			if (!created.ok) throw new Error('setup failed');
+			await setCategoryHidden(r.id, created.category.id, true, testDb);
+			expect(await resolveCategoryFor(r.id, 'Marketing', 1, testDb)).toBe(UNCATEGORIZED_CATEGORY);
+		} finally {
+			await cleanupTestRestaurant(r.id);
+		}
+	});
+
+	it('resolveCategoryFor: an unrecognised proposal falls back to the global taxonomy match, then the sentinel', async () => {
+		const r = await createTestRestaurant('cat-resolve-fallback');
+		try {
+			await seedDefaultCategories(r.id, testDb);
+			expect(await resolveCategoryFor(r.id, 'Lacteos', 1, testDb)).toBe('Lácteos');
+			expect(await resolveCategoryFor(r.id, 'Ferretería', 1, testDb)).toBe(UNCATEGORIZED_CATEGORY);
+		} finally {
+			await cleanupTestRestaurant(r.id);
+		}
+	});
+
+	it('resolveCategoryFor: the global match is hidden for this restaurant, so it still degrades to the sentinel', async () => {
+		const r = await createTestRestaurant('cat-resolve-fallback-hidden');
+		try {
+			await seedDefaultCategories(r.id, testDb);
+			const rows = await listCategories(r.id, { includeHidden: true }, testDb);
+			const lacteos = rows.find((c) => c.name === 'Lácteos')!;
+			await setCategoryHidden(r.id, lacteos.id, true, testDb);
+			expect(await resolveCategoryFor(r.id, 'Lacteos', 1, testDb)).toBe(UNCATEGORIZED_CATEGORY);
+		} finally {
+			await cleanupTestRestaurant(r.id);
+		}
+	});
+
+	it('resolveCategoryFor: below the confidence floor always degrades to the sentinel, even with a matching custom category', async () => {
+		const r = await createTestRestaurant('cat-resolve-lowconf');
+		try {
+			await createCategory(r.id, 'Marketing', testDb);
+			expect(await resolveCategoryFor(r.id, 'Marketing', MIN_CATEGORY_CONFIDENCE - 0.01, testDb))
+				.toBe(UNCATEGORIZED_CATEGORY);
+		} finally {
+			await cleanupTestRestaurant(r.id);
+		}
+	});
+
+	it('tenant isolation: restaurant B never sees restaurant A\'s categories', async () => {
+		const a = await createTestRestaurant('cat-tenant-a');
+		const b = await createTestRestaurant('cat-tenant-b');
+		try {
+			const created = await createCategory(a.id, 'Marketing', testDb);
+			if (!created.ok) throw new Error('setup failed');
+
+			expect(await listCategories(b.id, { includeHidden: true }, testDb)).toEqual([]);
+			expect(await resolveCategoryFor(b.id, 'Marketing', 1, testDb)).toBe(UNCATEGORIZED_CATEGORY);
+
+			const renamedFromB = await renameCategory(b.id, created.category.id, 'Marketing B', testDb);
+			expect(renamedFromB).toEqual({ ok: false, reason: 'invalid' });
+		} finally {
+			await cleanupTestRestaurant(a.id);
+			await cleanupTestRestaurant(b.id);
 		}
 	});
 });
