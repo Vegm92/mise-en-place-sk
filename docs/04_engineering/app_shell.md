@@ -356,7 +356,7 @@ the inventory template, issue #885) is a different route entirely.
 - Canonical category → the custom property holding its colour.
 
 **`function categoryColor`**
-- The colour for a category, safe for `background`, `color`, `border-color` and SVG `fill`/`stroke` alike. Unknown or missing categories fall back to the "Other" hue rather than to a literal, so the result is always theme-aware.
+- The colour for a category, safe for `background`, `color`, `border-color` and SVG `fill`/`stroke` alike. A missing/blank category (no category assigned) falls back to the "Other" hue. A category that is not one of the sixteen default names (a restaurant's own custom category, ADR-037 part 2, issue #881) has no `--mep-cat-*` token of its own — it gets a deterministic `--mep-series-*` colour instead, keyed by a hash of `categorySlug(category)`, so the same custom name always renders the same swatch and two different custom names usually differ. Still always a token, never a literal.
 
 **`function categoryTint`**
 - A translucent wash of the category colour, for the soft backgrounds that pair with `categoryColor()` as text — supplier avatars, product badges.

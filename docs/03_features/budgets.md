@@ -146,22 +146,24 @@ Toggle from `/admin/feature-flags`.
 
 ### `src/lib/server/categories.ts`
 
-- Not yet wired into this route or any other consumer (part 2, issue #881). Tenant-scoped throughout (`forTenant(rid).scope(...)`), matching every other per-tenant module.
+- Tenant-scoped throughout (`forTenant(rid).scope(...)`), matching every other per-tenant module. Wired into every read/write consumer as of part 2, issue #881 — see `visibleCategoryNames`/`selectableCategoryNames` below.
 - `seedDefaultCategories` inserts one row per `VALID_CATEGORIES` entry except `UNCATEGORIZED_CATEGORY`, `ON CONFLICT (restaurantId, nameKey) DO NOTHING` — safe to call more than once, and called from every restaurant-creation path (`onboarding`, `settings` add-location, `auth-seed`) plus a one-off migration backfill for restaurants that already existed.
 - `createCategory`/`renameCategory` return a typed `{ ok: false, reason: 'duplicate' | 'invalid' | 'reserved' }` instead of throwing, so a route can turn a rejection straight into a form error without a try/catch. `reserved` is the `'Other'` sentinel's key — it can never become a row, so it can never be renamed or hidden either.
 - `renameCategory` runs in one transaction: `suppliers.category`/`products.category`/`category_budgets.category` store the category as a plain string, so a rename that only touched the `categories` row would silently orphan every row already tagged with the old name.
-- `resolveCategoryFor` is the per-restaurant successor to `resolveCategory` (ADR-027): it matches the AI/global proposal against the restaurant's *visible* categories first (custom or default, by `categoryKey`), then falls back to the global taxonomy match, and degrades to `UNCATEGORIZED_CATEGORY` when even that fallback is not currently visible to the restaurant (hidden, or a default it never had). Always one of the restaurant's visible names, or the sentinel — never null.
+- `resolveCategoryFor` is the per-restaurant successor to `resolveCategory` (ADR-027): it matches the AI/global proposal against the restaurant's *visible* categories first (custom or default, by `categoryKey`), then falls back to the global taxonomy match, and degrades to `UNCATEGORIZED_CATEGORY` when even that fallback is not currently visible to the restaurant (hidden, or a default it never had). Always one of the restaurant's visible names, or the sentinel — never null. This is the write path every consumer that stores an AI-proposed category (`invoice-save.ts`, `products.ts`'s categorize job, `supplier.ts`) now goes through instead of the fixed-list `resolveCategory`.
+- `visibleCategoryNames(rid)` returns a `Set` of the restaurant's own (non-hidden) category names — used where `'Other'` must never be an accepted value (the supplier-category API's accept action, the category-suggestion effect in `alerts.ts`). `selectableCategoryNames(rid)` is the same list as an ordered array with `'Other'` appended — used everywhere a dropdown or filter needs to offer exactly what a user may pick, and by form-action validation that mirrors those dropdowns.
 
 ### `src/routes/(app)/budgets/+page.server.ts`
 
 **`const load`**
 
-- Includes any custom categories already stored in the DB for this restaurant.
+- The `categories` list handed to the page is the restaurant's own `listCategories(rid)` (via `selectableCategoryNames`), not the fixed `VALID_CATEGORIES` — a custom category the restaurant created shows up even with no budget row yet.
+- Any `category_budgets` row whose category is not currently one of the restaurant's own (a category since renamed away or one stored before this rewire) still surfaces, appended after the restaurant's list — the "custom stored category still surfaces" behaviour `tests/budgets.test.ts` pins.
 
 **`property save`**
 
 - Only the current month is editable — a past-month submission (e.g. a stale tab left open across a month boundary) is rejected here, never trusted from the client, which only hides the Save button.
-- Categories list is passed from the form so new custom ones are included.
+- Categories list is passed from the form so new custom ones are included; a malformed/absent `_categories` payload falls back to the restaurant's own `selectableCategoryNames(rid)` rather than the fixed list.
 
 ### `src/routes/(app)/budgets/+page.svelte`
 
