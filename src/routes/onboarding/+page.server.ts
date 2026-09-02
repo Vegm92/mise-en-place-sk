@@ -7,6 +7,7 @@ import { trialDaysFor, applyTierSettings } from '$lib/server/billing';
 import { sendEmail, welcomeEmail } from '$lib/server/email';
 import { hasConsent, recordConsent } from '$lib/server/consent';
 import { claimRequest, isValidKey } from '$lib/server/idempotency';
+import { seedDefaultCategories } from '$lib/server/categories';
 import { isValidVenueType, isValidCategory } from '$lib/constants';
 import { ATTRIBUTION_COOKIE, parseAttributionCookie } from '$lib/attribution';
 import { venueTypeForLandingVariant } from '$lib/landing-variants';
@@ -95,6 +96,8 @@ export const actions: Actions = {
 				restaurantId: restaurant.id,
 				role: 'owner',
 			});
+
+			await seedDefaultCategories(restaurant.id, tx);
 
 			const trialEndsAt = new Date(Date.now() + trialDaysFor(founder) * 24 * 60 * 60 * 1000);
 			await tx.insert(subscriptions)

@@ -669,6 +669,21 @@ export const recipes = pgTable('recipes', {
 	check('recipes_target_fc_range', sql`${t.targetFoodCostPct} IS NULL OR (${t.targetFoodCostPct} > 0 AND ${t.targetFoodCostPct} <= 100)`),
 ]);
 
+export const categories = pgTable('categories', {
+	id:            serial('id').primaryKey(),
+	restaurantId:  uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
+	name:          text('name').notNull(),
+	nameKey:       text('name_key').notNull(),
+	slug:          text('slug').notNull(),
+	sortOrder:     integer('sort_order').notNull().default(0),
+	hidden:        boolean('hidden').notNull().default(false),
+	isDefault:     boolean('is_default').notNull().default(false),
+	createdAt:     timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (t) => [
+	uniqueIndex('uq_categories_rid_name_key').on(t.restaurantId, t.nameKey),
+	index('idx_categories_rid_hidden').on(t.restaurantId, t.hidden),
+]);
+
 export const recipeItems = pgTable('recipe_items', {
 	id:            serial('id').primaryKey(),
 	restaurantId:  uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),

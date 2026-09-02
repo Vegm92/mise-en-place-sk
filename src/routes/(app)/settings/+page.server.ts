@@ -7,6 +7,7 @@ import { restaurants, settings, userRestaurants } from '$lib/server/schema';
 import { users } from '$lib/server/schema';
 import { asc, eq, sql } from 'drizzle-orm';
 import { applyTierSettings, BILLING_PARENT, TIERS } from '$lib/server/billing';
+import { seedDefaultCategories } from '$lib/server/categories';
 import { isBetaFeatureEnabled } from '$lib/server/feature-flags';
 import { randomBytes } from 'node:crypto';
 
@@ -274,6 +275,7 @@ export const actions: Actions = {
 					.values({ name, slug, parentId: billingRid })
 					.returning({ id: restaurants.id });
 				await tx.insert(userRestaurants).values({ userId, restaurantId: created.id, role: 'owner' });
+				await seedDefaultCategories(created.id, tx);
 				return created.id;
 			});
 		} catch (err) {

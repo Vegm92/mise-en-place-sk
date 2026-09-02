@@ -53,6 +53,7 @@ vi.mock('$lib/server/db', () => {
 				return {
 					returning: () => Promise.resolve([{ id: 'new-rest' }]),
 					then: (res: (v: unknown) => unknown) => Promise.resolve([]).then(res),
+					onConflictDoNothing: () => Promise.resolve(undefined),
 				};
 			},
 		}),

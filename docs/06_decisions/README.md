@@ -69,6 +69,7 @@ For *how the code works*, see the per-subsystem `## Code notes` sections (`docs/
 |---|---|---|
 | [012](./analytics/ADR-012-materialised-view-rollups.md) | Analytics reads pre-aggregated materialized views | Active — **refresh mechanism unresolved** |
 | [027](./analytics/ADR-027-spend-category-comes-from-the-line.md) | Spend is attributed by the line's product; the supplier's category is a label | Active |
+| [037](./analytics/ADR-037-categories-are-per-restaurant.md) | Categories are a per-restaurant table, seeded from the global default list | Active |
 
 ### [`billing/`](./billing) — plans, trial, quota
 
@@ -122,7 +123,7 @@ For *how the code works*, see the per-subsystem `## Code notes` sections (`docs/
 
 **Numbering is global and sequential.** ADR-014 is ADR-014 wherever it lives, so
 a reference in code, a commit message or an issue resolves without a path. Next
-number: **034**.
+number: **038**.
 
 **Known collisions (parallel branches picked the same number before merging):**
 ADR-025 exists twice (`insights/`, `whatsapp/`), ADR-027 exists twice
@@ -157,7 +158,7 @@ layers), not decisions.
 - Read the ADRs that touch an area *before* changing it — they are referenced by
   `docs/00_system/architectural_invariants.md` and the affected feature spec.
 - The operating workflow lives in `docs/07_ai/agent_workflow.md`; classify a
-  change with `docs/07_ai/change_protocol.md` (next ADR number: **036**).
+  change with `docs/07_ai/change_protocol.md` (next ADR number: **038**).
 
 **ADRs are amended, not rewritten.** When reality moves, add a dated amendment
 block at the top and strike through what is no longer true, leaving the original
