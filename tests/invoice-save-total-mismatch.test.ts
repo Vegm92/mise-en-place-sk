@@ -38,7 +38,17 @@ function mismatchFakeItem(extractedData: Record<string, unknown> | null): BatchI
 	});
 }
 
-function mismatchForm(opts: { invoiceNumber: string; totalAmount: string; lineTotal: string; supplier?: string }): FormData {
+type MismatchFormOpts = {
+	invoiceNumber: string;
+	totalAmount: string;
+	lineTotal: string;
+	supplier?: string;
+	discountAmount?: string;
+	retentionRate?: string;
+	retentionAmount?: string;
+};
+
+function mismatchForm(opts: MismatchFormOpts): FormData {
 	const fd = new FormData();
 	const fields = {
 		supplier_name: opts.supplier ?? '__inv_total_mismatch_sup__',
@@ -53,6 +63,9 @@ function mismatchForm(opts: { invoiceNumber: string; totalAmount: string; lineTo
 		line_tax_rates: '',
 	};
 	for (const [key, value] of Object.entries(fields)) fd.append(key, value);
+	if (opts.discountAmount !== undefined) fd.append('discount_amount', opts.discountAmount);
+	if (opts.retentionRate !== undefined) fd.append('retention_rate', opts.retentionRate);
+	if (opts.retentionAmount !== undefined) fd.append('retention_amount', opts.retentionAmount);
 	return fd;
 }
 
@@ -70,7 +83,7 @@ afterAll(async () => {
 
 async function saveInvoice(
 	extractedData: Record<string, unknown> | null,
-	formOpts: { invoiceNumber: string; totalAmount: string; lineTotal: string; supplier?: string },
+	formOpts: MismatchFormOpts,
 ): Promise<number> {
 	const out = await saveReviewedInvoice(mismatchFakeItem(extractedData), mismatchForm(formOpts), rid);
 	expect(out.type).toBe('saved');
@@ -80,12 +93,22 @@ async function saveInvoice(
 
 async function saveAndGetReviewState(
 	extractedData: Record<string, unknown> | null,
-	formOpts: { invoiceNumber: string; totalAmount: string; lineTotal: string; supplier?: string },
+	formOpts: MismatchFormOpts,
 ): Promise<{ reviewState: string; incidenceKind: string | null }> {
 	const invoiceId = await saveInvoice(extractedData, formOpts);
 	const [invoiceRow] = await testSql`
 		SELECT review_state, incidence_kind FROM invoices WHERE id = ${invoiceId}`;
 	return { reviewState: invoiceRow.review_state, incidenceKind: invoiceRow.incidence_kind };
+}
+
+async function saveAndGetRow(
+	columns: string[],
+	extractedData: Record<string, unknown> | null,
+	formOpts: MismatchFormOpts,
+): Promise<Record<string, unknown>> {
+	const invoiceId = await saveInvoice(extractedData, formOpts);
+	const [row] = await testSql`SELECT ${testSql(columns)} FROM invoices WHERE id = ${invoiceId}`;
+	return row;
 }
 
 describe.skipIf(!hasDbEnv)('saveReviewedInvoice → extraction-time total_mismatch signal (issue #808)', () => {
@@ -126,25 +149,62 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → extraction-time total_mismat
 		expect(incidenceKind).toBeNull();
 	});
 
+	const gestoriaExtraction = {
+		confidence: 1,
+		tax_base: 1000,
+		tax_breakdown: [{ rate: 0.21, base: 1000, tax_amount: 210, type: 'iva' }],
+		retention_rate: 0.15,
+		retention_amount: 150,
+	};
+
 	it('does not flag a gestoría invoice with a 15% IRPF retention as a mismatch, and persists the retention (issue #916)', async () => {
-		const invoiceId = await saveInvoice(
-			{
-				confidence: 1,
-				tax_base: 1000,
-				tax_breakdown: [{ rate: 0.21, base: 1000, tax_amount: 210, type: 'iva' }],
-				retention_rate: 0.15,
-				retention_amount: 150,
-			},
+		const row = await saveAndGetRow(
+			['review_state', 'incidence_kind', 'total_amount', 'retention_rate', 'retention_amount'],
+			gestoriaExtraction,
 			{ invoiceNumber: 'FAC-916-001', totalAmount: '1060.00', lineTotal: '1000.00' },
 		);
+		expect(row.review_state).toBe('revisado');
+		expect(row.incidence_kind).toBeNull();
+		expect(Number(row.total_amount)).toBeCloseTo(1060, 2);
+		expect(Number(row.retention_rate)).toBeCloseTo(0.15, 5);
+		expect(Number(row.retention_amount)).toBeCloseTo(150, 2);
+	});
 
-		const [invoiceRow] = await testSql`
-			SELECT review_state, incidence_kind, total_amount, retention_rate, retention_amount
-			FROM invoices WHERE id = ${invoiceId}`;
-		expect(invoiceRow.review_state).toBe('revisado');
-		expect(invoiceRow.incidence_kind).toBeNull();
-		expect(Number(invoiceRow.total_amount)).toBeCloseTo(1060, 2);
-		expect(Number(invoiceRow.retention_rate)).toBeCloseTo(0.15, 5);
-		expect(Number(invoiceRow.retention_amount)).toBeCloseTo(150, 2);
+	it('persists a reviewer-corrected discount and retention instead of the extraction\'s OCR\'d values (issue #916)', async () => {
+		const row = await saveAndGetRow(
+			['review_state', 'incidence_kind', 'discount_amount', 'retention_rate', 'retention_amount'],
+			gestoriaExtraction,
+			{
+				invoiceNumber: 'FAC-916-002',
+				totalAmount: '970.00',
+				lineTotal: '1000.00',
+				discountAmount: '50.00',
+				retentionRate: '0.19',
+				retentionAmount: '190.00',
+			},
+		);
+		expect(row.review_state).toBe('revisado');
+		expect(row.incidence_kind).toBeNull();
+		expect(Number(row.discount_amount)).toBeCloseTo(50, 2);
+		expect(Number(row.retention_rate)).toBeCloseTo(0.19, 5);
+		expect(Number(row.retention_amount)).toBeCloseTo(190, 2);
+	});
+
+	it('recomputes the total mismatch off the reviewer-edited retention, not the extraction\'s (issue #916)', async () => {
+		// The extraction's retention (150) reconciled with 1060; the reviewer
+		// corrects retention_amount to 50 but the total field is left as-is —
+		// the mismatch check must use the edited 50, not the stale extracted 150.
+		const { reviewState, incidenceKind } = await saveAndGetReviewState(
+			gestoriaExtraction,
+			{
+				invoiceNumber: 'FAC-916-003',
+				totalAmount: '1060.00',
+				lineTotal: '1000.00',
+				supplier: '__inv_total_mismatch_sup_retention_edit__',
+				retentionAmount: '50.00',
+			},
+		);
+		expect(reviewState).toBe('incidencia');
+		expect(incidenceKind).toBe('lectura');
 	});
 });
