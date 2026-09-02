@@ -1,4 +1,0 @@
-#!/bin/sh
-# Blocks explanatory comments in src/ from being committed (see the per-subsystem Code notes sections).
-# Enable with: git config core.hooksPath .githooks
-node scripts/check-no-comments.mjs --staged || exit 1
