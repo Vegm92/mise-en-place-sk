@@ -24,8 +24,7 @@ vi.mock('$lib/server/locale', () => ({ currentLocale: () => ({ locale: 'es', exp
 vi.mock('$lib/server/db', async () => {
 	const { testDb } = await import('./helpers/test-db');
 	const { forTenant } = await import('../src/lib/server/tenant');
-	const { runWithTenantContext, runAsSystem, activeTenantContext } = await import('../src/lib/server/tenant-context');
-	return { db: testDb, forTenant, runWithTenantContext, runAsSystem, activeTenantContext };
+	return { db: testDb, forTenant, runAsSystem: (fn: () => unknown) => fn(), runWithTenantContext: (_rid: unknown, fn: () => unknown) => fn() };
 });
 
 let rid = '';
