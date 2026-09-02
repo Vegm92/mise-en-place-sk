@@ -33,12 +33,14 @@ export type SaveOutcome =
 	| { type: 'saved'; invoiceId: number; isFirstInvoice: boolean };
 
 const MONETARY_LINE_FIELDS = ['line_quantities', 'line_unit_prices', 'line_total_prices', 'line_tax_rates'] as const;
+const HEADER_MONEY_FIELDS = ['total_amount', 'gross_amount', 'discount_amount', 'retention_amount', 'retention_rate'] as const;
 
 export function findInvalidMonetaryField(formData: FormData): string | null {
-	const totalAmountRaw = formData.get('total_amount');
-	if (totalAmountRaw !== null) {
-		if (typeof totalAmountRaw !== 'string') return 'total_amount';
-		if (totalAmountRaw.trim() !== '' && parseAmount(totalAmountRaw) === null) return 'total_amount';
+	for (const field of HEADER_MONEY_FIELDS) {
+		const raw = formData.get(field);
+		if (raw === null) continue;
+		if (typeof raw !== 'string') return field;
+		if (raw.trim() !== '' && parseAmount(raw) === null) return field;
 	}
 
 	const descriptions = formData.getAll('line_descriptions').map(String);
@@ -346,6 +348,7 @@ export function resolveTaxBreakdown(
 }
 
 export function resolveTotalsBreakdown(
+	formData: FormData,
 	extractedData: Record<string, unknown> | undefined,
 ): {
 	grossAmount: string | null;
@@ -353,12 +356,16 @@ export function resolveTotalsBreakdown(
 	retentionRate: number | null;
 	retentionAmount: string | null;
 } {
-	const retentionRateRaw = extractedData?.retention_rate;
+	const rawGross = formData.has('gross_amount') ? formData.get('gross_amount') : extractedData?.gross_amount;
+	const rawDiscount = formData.has('discount_amount') ? formData.get('discount_amount') : extractedData?.discount_amount;
+	const rawRetentionRate = formData.has('retention_rate') ? formData.get('retention_rate') : extractedData?.retention_rate;
+	const rawRetentionAmount = formData.has('retention_amount') ? formData.get('retention_amount') : extractedData?.retention_amount;
+
 	return {
-		grossAmount: toMoneyString(extractedData?.gross_amount as string | number | null | undefined),
-		discountAmount: toMoneyString(extractedData?.discount_amount as string | number | null | undefined),
-		retentionRate: typeof retentionRateRaw === 'number' ? retentionRateRaw : null,
-		retentionAmount: toMoneyString(extractedData?.retention_amount as string | number | null | undefined),
+		grossAmount: toMoneyString(rawGross as string | number | null | undefined),
+		discountAmount: toMoneyString(rawDiscount as string | number | null | undefined),
+		retentionRate: parseAmount(rawRetentionRate),
+		retentionAmount: toMoneyString(rawRetentionAmount as string | number | null | undefined),
 	};
 }
 
@@ -835,6 +842,7 @@ export async function saveReviewedInvoice(
 		item?.extractedData ?? undefined,
 	);
 	const { grossAmount, discountAmount, retentionRate, retentionAmount } = resolveTotalsBreakdown(
+		formData,
 		item?.extractedData ?? undefined,
 	);
 

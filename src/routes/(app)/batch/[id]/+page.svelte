@@ -206,6 +206,10 @@
     dueDateInput: string;
     dueDateSuggested: boolean;
     totalAmountInput: string;
+    grossAmountInput: string;
+    discountAmountInput: string;
+    retentionRateInput: string;
+    retentionAmountInput: string;
     notesInput: string;
     paymentMethodInput: string;
     paymentTermsInput: string;
@@ -334,6 +338,14 @@
   let totalAmountInput = $state(initialDraft?.totalAmountInput ?? priceStr(str(data.review?.data?.total_amount)));
   // svelte-ignore state_referenced_locally — intentional: the extraction's own total, never edited
   let originalTotal = $state(priceStr(str(data.review?.data?.total_amount)));
+  // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data (or a pending draft) once
+  let grossAmountInput = $state(initialDraft?.grossAmountInput ?? priceStr(str(data.review?.data?.gross_amount)));
+  // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data (or a pending draft) once
+  let discountAmountInput = $state(initialDraft?.discountAmountInput ?? priceStr(str(data.review?.data?.discount_amount)));
+  // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data (or a pending draft) once
+  let retentionRateInput = $state(initialDraft?.retentionRateInput ?? percentInputValue(data.review?.data?.retention_rate as number | null | undefined));
+  // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data (or a pending draft) once
+  let retentionAmountInput = $state(initialDraft?.retentionAmountInput ?? priceStr(str(data.review?.data?.retention_amount)));
   let notesInput = $state(initialDraft?.notesInput ?? '');
   // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data (or a pending draft) once
   let paymentMethodInput = $state(initialDraft?.paymentMethodInput ?? str(data.review?.data?.payment_method));
@@ -375,6 +387,10 @@
     dueDateInput = draft?.dueDateInput ?? net30Suggestion(rawDueDate, invoiceDateInput);
     dueDateSuggested = draft ? draft.dueDateSuggested : (!rawDueDate && !!dueDateInput);
     totalAmountInput = draft?.totalAmountInput ?? priceStr(str(rd?.total_amount));
+    grossAmountInput = draft?.grossAmountInput ?? priceStr(str(rd?.gross_amount));
+    discountAmountInput = draft?.discountAmountInput ?? priceStr(str(rd?.discount_amount));
+    retentionRateInput = draft?.retentionRateInput ?? percentInputValue(rd?.retention_rate as number | null | undefined);
+    retentionAmountInput = draft?.retentionAmountInput ?? priceStr(str(rd?.retention_amount));
     notesInput = draft?.notesInput ?? '';
     paymentMethodInput = draft?.paymentMethodInput ?? str(rd?.payment_method);
     paymentTermsInput = draft?.paymentTermsInput ?? str(rd?.payment_terms);
@@ -393,6 +409,7 @@
       dueDateInput, dueDateSuggested, totalAmountInput, notesInput, lineItems, taxBands,
       paymentMethodInput, paymentTermsInput,
       purchaseOrderInput, sellerNameInput, deliveryDateInput, deliveryAddressInput, printedNotesInput,
+      grossAmountInput, discountAmountInput, retentionRateInput, retentionAmountInput,
     };
     if (!itemId) return;
     if (itemId !== lastAutosaveItemId) {
@@ -626,16 +643,10 @@
     const pct = fractionToPercent(rate);
     return pct === null ? '—' : String(pct).replace('.', ',') + '%';
   }
-  function rateOrNull(v: unknown): number | null {
-    if (typeof v === 'number' && !isNaN(v)) return v;
-    if (typeof v === 'string' && v.trim() !== '' && !isNaN(Number(v))) return Number(v);
-    return null;
-  }
-  const grossAmount = $derived(moneyToNullableNumber(data.review?.data?.gross_amount as string | number | null | undefined));
-  const discountAmount = $derived(moneyToNullableNumber(data.review?.data?.discount_amount as string | number | null | undefined));
-  const retentionRate = $derived(rateOrNull(data.review?.data?.retention_rate));
-  const retentionAmount = $derived(moneyToNullableNumber(data.review?.data?.retention_amount as string | number | null | undefined));
-  const hasTotalsChain = $derived(grossAmount !== null || discountAmount !== null || retentionAmount !== null);
+  const grossAmount = $derived(moneyToNullableNumber(grossAmountInput));
+  const discountAmount = $derived(moneyToNullableNumber(discountAmountInput));
+  const retentionRate = $derived(percentToFraction(retentionRateInput));
+  const retentionAmount = $derived(moneyToNullableNumber(retentionAmountInput));
 
   const totalCalc = $derived(lineTotal + taxTotal - (discountAmount ?? 0) - (retentionAmount ?? 0));
   const discrepancy = $derived(Math.abs(totalCalc - extractedTotal));
@@ -1436,27 +1447,31 @@
 
           {#if taxPanelOpen}
             <div class="rev-tax-panel">
-              {#if hasTotalsChain}
-                <div class="rev-totals-chain">
-                  {#if grossAmount !== null}
-                    <span>{$t('extract.grossAmount')} <span class="num text-fg-2">{fmt(grossAmount)}</span></span>
-                    <span class="rev-totals-chain-sep">→</span>
-                  {/if}
-                  {#if discountAmount !== null}
-                    <span>{$t('extract.discountAmount')} <span class="num text-fg-2">−{fmt(discountAmount)}</span></span>
-                    <span class="rev-totals-chain-sep">→</span>
-                  {/if}
-                  <span>{$t('extract.taxBase')} <span class="num text-fg-2">{fmt(taxBase)}</span></span>
-                  <span class="rev-totals-chain-sep">→</span>
-                  <span>{$t('extract.vat')} <span class="num text-fg-2">{fmt(taxTotal)}</span></span>
-                  {#if retentionAmount !== null}
-                    <span class="rev-totals-chain-sep">→</span>
-                    <span>{$t('extract.retention')}{retentionRate !== null ? ` (${ratePctLabel(retentionRate)})` : ''} <span class="num text-fg-2">−{fmt(retentionAmount)}</span></span>
-                  {/if}
-                  <span class="rev-totals-chain-sep">→</span>
-                  <span class="font-medium">{$t('extract.calcTotal')} <span class="num text-fg">{fmt(totalCalc)}</span></span>
-                </div>
-              {/if}
+              <div class="rev-totals-chain">
+                <span>{$t('extract.grossAmount')}
+                  <input type="text" name="gross_amount" bind:value={grossAmountInput}
+                    class="rev-totals-chain-input num" placeholder="—" aria-label={$t('extract.grossAmount')} />
+                </span>
+                <span class="rev-totals-chain-sep">→</span>
+                <span>{$t('extract.discountAmount')}
+                  <input type="text" name="discount_amount" bind:value={discountAmountInput}
+                    class="rev-totals-chain-input num" placeholder="—" aria-label={$t('extract.discountAmount')} />
+                </span>
+                <span class="rev-totals-chain-sep">→</span>
+                <span>{$t('extract.taxBase')} <span class="num text-fg-2">{fmt(taxBase)}</span></span>
+                <span class="rev-totals-chain-sep">→</span>
+                <span>{$t('extract.vat')} <span class="num text-fg-2">{fmt(taxTotal)}</span></span>
+                <span class="rev-totals-chain-sep">→</span>
+                <span>{$t('extract.retention')}
+                  <input type="text" bind:value={retentionRateInput}
+                    class="rev-totals-chain-input rev-totals-chain-input-rate num" placeholder="%" aria-label={$t('extract.retention')} />
+                  <input type="text" name="retention_amount" bind:value={retentionAmountInput}
+                    class="rev-totals-chain-input num" placeholder="—" aria-label={$t('extract.retention')} />
+                </span>
+                <input type="hidden" name="retention_rate" value={percentToFraction(retentionRateInput) ?? ''} />
+                <span class="rev-totals-chain-sep">→</span>
+                <span class="font-medium">{$t('extract.calcTotal')} <span class="num text-fg">{fmt(totalCalc)}</span></span>
+              </div>
               <div class="rev-tax-panel-head">
                 <span class="body-strong">
                   {$t('review.taxes')}
