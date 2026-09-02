@@ -46,7 +46,7 @@ export function isValidCategory(value: unknown): value is string {
 
 export const DAY_MS = 24 * 60 * 60 * 1000;
 
-function categoryKey(value: string): string {
+export function categoryKey(value: string): string {
 	return value
 		.normalize('NFD')
 		.replace(/[\u0300-\u036f]/g, '')

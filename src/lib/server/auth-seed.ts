@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { db, runAsSystem } from './db';
 import { restaurants, subscriptions, userRestaurants, users } from './schema';
 import { trialDaysFor } from './billing';
+import { seedDefaultCategories } from './categories';
 import { DAY_MS } from '$lib/constants';
 
 const AUTH_ADMIN_EMAIL = process.env.AUTH_ADMIN_EMAIL ?? '';
@@ -56,6 +57,8 @@ export async function seedAdminUser(): Promise<void> {
 			restaurantId: restaurant.id,
 			role:         'owner',
 		});
+
+		await seedDefaultCategories(restaurant.id, db);
 
 		const trialEndsAt = new Date(Date.now() + trialDaysFor(created.founder ?? false) * DAY_MS);
 		await db.insert(subscriptions).values({

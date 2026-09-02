@@ -85,6 +85,15 @@ gate. Feeds: `invoices`, `supplier_metrics` (reliability), `mv_supplier_monthly_
 `unit_conversions` (supplier-scoped). Consumers: price-shock history, budgets,
 analytics, reminders.
 
+### Categories (`categories.ts`, issue #881, ADR-037)
+Per-restaurant `categories` table, seeded from `VALID_CATEGORIES` on every
+restaurant-creation path (`onboarding`, `settings` add-location, `auth-seed`)
+plus a one-off migration backfill. `resolveCategoryFor` is the per-restaurant
+successor to `resolveCategory` (ADR-027). **Not yet a dependency of anything**
+— suppliers, products, budgets and extraction review still read the fixed
+`VALID_CATEGORIES`/`resolveCategory`; rewiring them onto this table is a
+separate, follow-up change.
+
 ### Billing (`billing.ts`)
 Stripe client ↔ webhook → `subscriptions` + `settings` mirror →
 `getTierFeatures()`/`getAccessState()`. Gated consumers: `/api/chat`,
