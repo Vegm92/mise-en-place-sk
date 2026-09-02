@@ -1,3 +1,8 @@
+---
+tags: [mep, engineering]
+related: "[[CONTEXT]]"
+---
+
 # Security Rules
 
 Security model as actually implemented, plus what agents must never bypass.

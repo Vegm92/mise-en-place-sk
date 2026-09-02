@@ -1,3 +1,8 @@
+---
+tags: [mep, ai]
+related: "[[CONTEXT]]"
+---
+
 # Change Protocol
 
 Classifies every change into a level with escalating requirements, so the

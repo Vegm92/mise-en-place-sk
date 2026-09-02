@@ -1,3 +1,8 @@
+---
+tags: [mep, architecture]
+related: "[[CONTEXT]]"
+---
+
 # Architecture Overview
 
 A SvelteKit 2 application with a split web/worker deployment, app-layer

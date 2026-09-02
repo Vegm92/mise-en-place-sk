@@ -1,3 +1,8 @@
+---
+tags: [mep, system]
+related: "[[CONTEXT]]"
+---
+
 # Dependency Map — Subsystem Graph and Blast Radius
 
 What feeds what, and who breaks when you touch a subsystem. Use this before

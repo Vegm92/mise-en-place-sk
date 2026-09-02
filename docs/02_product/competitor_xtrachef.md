@@ -1,3 +1,8 @@
+---
+tags: [mep, product]
+related: "[[CONTEXT]]"
+---
+
 # Competitor teardown: xtraCHEF (by Toast)
 
 Researched 2026-08-13 from public sources. xtraCHEF is the closest US analogue to

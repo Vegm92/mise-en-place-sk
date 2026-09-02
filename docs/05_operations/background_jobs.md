@@ -1,3 +1,8 @@
+---
+tags: [mep, operations]
+related: "[[CONTEXT]]"
+---
+
 # Background Jobs
 
 All async work runs in the **separate worker process** (`pnpm worker` →

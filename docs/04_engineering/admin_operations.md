@@ -1,3 +1,8 @@
+---
+tags: [mep, engineering]
+related: "[[CONTEXT]]"
+---
+
 # Admin Operations
 
 The ops console under `/admin` (dashboard, events, revenue, health), the public health endpoint, and the server modules backing them. Admin access is guarded by `isAdminUser` in `src/lib/server/admin.ts`.

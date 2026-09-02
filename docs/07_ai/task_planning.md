@@ -1,3 +1,8 @@
+---
+tags: [mep, ai]
+related: "[[CONTEXT]]"
+---
+
 # Task Planning
 
 A small, consistent plan format. The point is not paperwork — it is making the

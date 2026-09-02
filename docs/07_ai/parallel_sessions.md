@@ -1,3 +1,8 @@
+---
+tags: [mep, ai]
+related: "[[CONTEXT]]"
+---
+
 # Parallel Sessions
 
 The working agreement for running several agent sessions at once. `agent_workflow.md`

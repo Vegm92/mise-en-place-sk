@@ -1,3 +1,8 @@
+---
+tags: [mep, product]
+related: "[[CONTEXT]]"
+---
+
 # TPV integration — the Spanish market and how sales data reaches Mise en Place
 
 Researched 2026-08-29 from public sources, focused on Barcelona. Companion to

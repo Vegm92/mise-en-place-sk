@@ -1,3 +1,8 @@
+---
+tags: [mep, engineering]
+related: "[[CONTEXT]]"
+---
+
 # Authentication
 
 How sign-in, sign-up, onboarding consent and password recovery are implemented, and the auth server utilities they share. Sessions: `security_rules.md`; invariants: `architectural_invariants.md`.

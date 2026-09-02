@@ -1,3 +1,8 @@
+---
+tags: [mep, ai]
+related: "[[CONTEXT]]"
+---
+
 # Agent Workflow
 
 The operating cycle every agent (human or AI) follows in this repository.

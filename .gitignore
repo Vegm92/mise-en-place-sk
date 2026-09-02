@@ -56,7 +56,7 @@ AGENTS.md
 DEPLOYMENT.md
 .vscode
 /.claude/
-/graphify-out
+/madge-out
 .graphify_cached.json
 /docs/*
 # ...and the AI-native operating layers (added 2026-08-13) â€” tracked on purpose

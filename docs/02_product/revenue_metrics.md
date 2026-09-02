@@ -1,3 +1,8 @@
+---
+tags: [mep, product]
+related: "[[CONTEXT]]"
+---
+
 # Revenue Metrics — `/admin/revenue`
 
 The SaaS metrics behind the admin revenue dashboard. Implementation lives in
