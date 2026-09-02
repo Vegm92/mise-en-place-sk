@@ -133,6 +133,24 @@
             <span class="label">{$t('field.totalAmount')}</span>
             <span class="num body-strong" style="font-size:17px;">{fmt(invoice.total_amount)}</span>
           </div>
+          {#if invoice.payment_method}
+            <div style="display:flex;flex-direction:column;gap:2px;">
+              <span class="label">{$t('field.paymentMethod')}</span>
+              <span class="body-strong">{$t(`field.paymentMethod.${invoice.payment_method}`)}</span>
+            </div>
+          {/if}
+          {#if invoice.payment_terms}
+            <div style="display:flex;flex-direction:column;gap:2px;">
+              <span class="label">{$t('field.paymentTerms')}</span>
+              <span class="body-strong">{invoice.payment_terms}</span>
+            </div>
+          {/if}
+          {#if invoice.iban}
+            <div style="display:flex;flex-direction:column;gap:2px;">
+              <span class="label">{$t('field.iban')}</span>
+              <span class="body-strong">{invoice.iban}</span>
+            </div>
+          {/if}
         </div>
 
         {#if invoice.notes}
