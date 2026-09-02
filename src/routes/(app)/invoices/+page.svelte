@@ -443,7 +443,7 @@
 
               <div class="max-[800px]:hidden flex items-center gap-1.5">
                 <StatusBadge status={inv.review_state ?? 'revisado'} />
-                <IncidenceKindBadge kind={inv.incidence_kind} style="font-size:11px;padding:1px 5px;" />
+                <IncidenceKindBadge kind={inv.incidence_kind} small />
               </div>
 
               <div class="flex justify-end text-fg-3 transition-transform {expanded ? 'rotate-90' : ''}">

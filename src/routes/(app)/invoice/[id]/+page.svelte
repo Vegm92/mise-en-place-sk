@@ -96,7 +96,7 @@
       <div class="card p-4" style="display:flex;flex-direction:column;gap:14px;">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
           <span class="title" style="font-size:18px;">{invoice.invoice_number ?? `Invoice #${invoice.id}`}</span>
-          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+          <div class="flex flex-col items-end gap-1">
             <StatusBadge status={invoice.review_state ?? 'revisado'} />
             <IncidenceKindBadge kind={invoice.incidence_kind} hint />
           </div>

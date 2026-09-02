@@ -305,7 +305,8 @@ Tenant scope on every read; version check on edit; status-transition guards.
 ### `src/lib/components/mep/IncidenceKindBadge.svelte`
 
 **`markup`**
-- Issue #879: renders nothing when `kind` is null/unrecognised (`isIncidenceKind` guard), otherwise the `lectura`/`documento` badge from `$lib/status` and, with `hint`, the one-line action text underneath. One component rather than repeating the same `{#if}` in every place an `incidencia` badge renders (`/invoices`, `/reminders`, the invoice detail and their mobile variants) — mirrors `StatusBadge.svelte`'s shape (a `status`/`kind` prop plus an optional `style` passthrough) but is a separate component rather than a mode of `StatusBadge`, since the two axes (`ReviewState` vs `IncidenceKind`) are independent vocabularies with their own fallback and never share a badge.
+- Issue #879: renders nothing when `kind` is null/unrecognised (`isIncidenceKind` guard), otherwise the `lectura`/`documento` badge from `$lib/status` and, with `hint`, the one-line action text underneath. One component rather than repeating the same `{#if}` in every place an `incidencia` badge renders (`/invoices`, `/reminders`, the invoice detail and their mobile variants) — mirrors `StatusBadge.svelte`'s shape (a `status`/`kind` prop) but is a separate component rather than a mode of `StatusBadge`, since the two axes (`ReviewState` vs `IncidenceKind`) are independent vocabularies with their own fallback and never share a badge.
+- No `style` passthrough (issue #845 — inline styles are being removed repo-wide, and `tests/design-scale-ratchet.test.ts` ratchets off-scale inline font sizes down, never up): a `small` boolean prop switches to `text-[11px] px-1.5 py-px` Tailwind utilities for the tighter list-row placement instead, and the hint paragraph is `text-[11px] text-fg-3` rather than an inline `font-size`.
 
 ### `src/lib/components/mobile/MobileInvoiceDetail.svelte`
 

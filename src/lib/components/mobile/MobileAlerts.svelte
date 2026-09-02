@@ -83,8 +83,8 @@
                     <div style="text-align: right; flex-shrink: 0;">
                       <div class="num" style="font-size: 14px; font-weight: 600; color: var(--mep-fg);">{fmtAmount(r.display_amount)}</div>
                       <span class="badge badge-overdue">{$t('inv.review.incidencia')}</span>
-                      <div style="margin-top: 2px;">
-                        <IncidenceKindBadge kind={r.incidence_kind} style="font-size: 10.5px; padding: 1px 5px;" />
+                      <div class="mt-0.5">
+                        <IncidenceKindBadge kind={r.incidence_kind} small />
                       </div>
                     </div>
                   </div>

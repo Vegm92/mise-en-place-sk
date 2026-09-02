@@ -125,7 +125,7 @@
             {fmt(invoice.display_amount ?? invoice.total_amount)}
           </div>
         </div>
-        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+        <div class="flex flex-col items-end gap-1">
           <StatusBadge status={invoice.review_state ?? 'revisado'} />
           <IncidenceKindBadge kind={invoice.incidence_kind} hint />
         </div>
