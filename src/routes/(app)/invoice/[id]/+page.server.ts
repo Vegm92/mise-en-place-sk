@@ -18,8 +18,29 @@ import {
 	CLAIM_AUDIT_ACTION, CLAIM_SUBJECT_MAX_LENGTH, CLAIM_BODY_MAX_LENGTH,
 } from '$lib/server/supplier-claim';
 
-function invoiceScope(tdb: ReturnType<typeof forTenant>, id: number) {
-	return and(tdb.scope(invoices.restaurantId), eq(invoices.id, id), isNull(invoices.deletedAt));
+async function invoiceDetailRow(tdb: ReturnType<typeof forTenant>, id: number) {
+	const [row] = await db.select({
+		id:               invoices.id,
+		supplier_id:      invoices.supplierId,
+		supplier_name:    suppliers.name,
+		contact_email:    suppliers.contactEmail,
+		invoice_number:   invoices.invoiceNumber,
+		document_type:    invoices.documentType,
+		invoice_date:     invoices.invoiceDate,
+		due_date:         invoices.dueDate,
+		total_amount:     invoices.totalAmount,
+		review_state:     invoices.reviewState,
+		incidence_kind:   invoices.incidenceKind,
+		source_file:      invoices.sourceFile,
+		notes:            invoices.notes,
+		created_at:       invoices.createdAt,
+		linked_invoice_id: invoices.linkedInvoiceId,
+	})
+		.from(invoices)
+		.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
+		.where(and(tdb.scope(invoices.restaurantId), eq(invoices.id, id), isNull(invoices.deletedAt)))
+		.limit(1);
+	return row ?? null;
 }
 
 async function pendingMismatchPayload(tdb: ReturnType<typeof forTenant>, invoiceId: number) {
@@ -61,28 +82,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		const tdb = forTenant(rid);
 		const locale = locals.locale ?? 'es';
 
-		const [rows, lineItems, restaurantRows] = await Promise.all([
-			db.select({
-				id:               invoices.id,
-				supplier_id:      invoices.supplierId,
-				supplier_name:    suppliers.name,
-				contact_email:    suppliers.contactEmail,
-				invoice_number:   invoices.invoiceNumber,
-				document_type:    invoices.documentType,
-				invoice_date:     invoices.invoiceDate,
-				due_date:         invoices.dueDate,
-				total_amount:     invoices.totalAmount,
-				review_state:     invoices.reviewState,
-				incidence_kind:   invoices.incidenceKind,
-				source_file:      invoices.sourceFile,
-				notes:            invoices.notes,
-				created_at:       invoices.createdAt,
-				linked_invoice_id: invoices.linkedInvoiceId,
-			})
-				.from(invoices)
-				.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
-				.where(invoiceScope(tdb, id))
-				.limit(1),
+		const [row, lineItems, restaurantRows] = await Promise.all([
+			invoiceDetailRow(tdb, id),
 
 			db.select({
 				id:          invoiceLineItems.id,
@@ -100,7 +101,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			db.select({ name: restaurants.name }).from(restaurants).where(eq(restaurants.id, rid)).limit(1),
 		]);
 
-		const row = rows[0];
 		if (!row) redirect(303, '/invoices');
 
 		const linkedInvoice = row.linked_invoice_id
@@ -110,7 +110,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				document_type:  invoices.documentType,
 			})
 				.from(invoices)
-				.where(invoiceScope(tdb, row.linked_invoice_id))
+				.where(and(tdb.scope(invoices.restaurantId), eq(invoices.id, row.linked_invoice_id), isNull(invoices.deletedAt)))
 				.limit(1))[0] ?? null
 			: null;
 
@@ -211,35 +211,24 @@ export const actions: Actions = {
 		if (!parsed.success) return fail(422, { claim: 'invalid' });
 		const { subject, body } = parsed.output;
 
-		const [row] = await db.select({
-			reviewState:   invoices.reviewState,
-			incidenceKind: invoices.incidenceKind,
-			invoiceNumber: invoices.invoiceNumber,
-			invoiceDate:   invoices.invoiceDate,
-			supplierName:  suppliers.name,
-			contactEmail:  suppliers.contactEmail,
-		})
-			.from(invoices)
-			.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
-			.where(invoiceScope(tdb, id))
-			.limit(1);
+		const row = await invoiceDetailRow(tdb, id);
 		if (!row) redirect(303, '/invoices');
 
 		if (!claimEligibility(
-			{ reviewState: row.reviewState, incidenceKind: row.incidenceKind },
-			{ contactEmail: row.contactEmail },
+			{ reviewState: row.review_state, incidenceKind: row.incidence_kind },
+			{ contactEmail: row.contact_email },
 			null,
 		)) {
 			return fail(422, { claim: 'notEligible' });
 		}
 
-		const to = row.contactEmail!;
+		const to = row.contact_email!;
 		const [restaurantRow] = await db.select({ name: restaurants.name })
 			.from(restaurants).where(eq(restaurants.id, rid)).limit(1);
 		const mismatch = await pendingMismatchPayload(tdb, id);
 		const lines = buildClaimLines(locale, mismatch.missingInInvoice, mismatch.quantityMismatches);
-		const documentLabel = row.invoiceNumber ?? `#${id}`;
-		const documentDate = formatClaimDate(row.invoiceDate, locale);
+		const documentLabel = row.invoice_number ?? `#${id}`;
+		const documentDate = formatClaimDate(row.invoice_date, locale);
 
 		let alreadySent = false;
 		await db.transaction(async (tx) => {
@@ -270,7 +259,7 @@ export const actions: Actions = {
 		const payload = supplierClaimEmail({
 			to, subject, bodyText: body,
 			restaurantName: restaurantRow?.name ?? '',
-			supplierName:   row.supplierName ?? '',
+			supplierName:   row.supplier_name ?? '',
 			documentNumber: documentLabel,
 			documentDate,
 			lines,
