@@ -367,6 +367,7 @@ export default {
   'notif.msg.lineItemMismatch':     "📋 Albarán {albaran} y factura {factura}: {missing} artículo(s) sin facturar, {qty} con cantidad distinta.",
   'notif.msg.whatsappPendingSave': "✅ Confirmaste por WhatsApp el albarán de '{supplier}' ({code}). Guárdalo en el panel para que cuente en tus análisis.",
   'notif.msg.whatsappNeedsReview': "⚠️ Marcaste por WhatsApp el albarán de '{supplier}' ({code}) como incorrecto. Revísalo y corrige los datos antes de guardarlo.",
+  'notif.msg.restaurantTaxIdMismatch': "🪪 Este documento va dirigido al NIF/CIF {extracted}, pero el de tu restaurante es {current}. Lo hemos guardado igualmente: revisa que la factura sea tuya, o corrige tu NIF/CIF en Ajustes.",
   'notif.msg.restaurantPhoneMismatch': "📞 Esta factura imprime {extracted} como el teléfono de tu restaurante, pero en Ajustes tienes guardado {current}. No hemos cambiado nada: actualízalo en Ajustes si el impreso es el correcto.",
   'notif.openBatch':               'Abrir albarán',
   'notif.viewDetail':               'Ver detalle',
