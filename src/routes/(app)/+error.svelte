@@ -7,10 +7,10 @@
 	<h1>{page.status}</h1>
 	<p>
 		{page.status === 404 && page.error?.message === 'Not Found'
-			? $t('error.notFound')
-			: (page.error?.message ?? $t('error.generic'))}
+			? t('error.notFound')
+			: (page.error?.message ?? t('error.generic'))}
 	</p>
-	<a href="/">{$t('error.backToPanel')}</a>
+	<a href="/">{t('error.backToPanel')}</a>
 </div>
 
 <style>

@@ -28,16 +28,16 @@ describe('issue #747 — desktop /invoices rows use the shared locale-aware form
 
 	it('formats the invoice date through fmtDateShort, not the raw ISO string', () => {
 		expect(row).not.toMatch(/\{inv\.invoice_date\s*\?\?/);
-		expect(row).toMatch(/fmtDateShort\(inv\.invoice_date, \$locale\)/);
+		expect(row).toMatch(/fmtDateShort\(inv\.invoice_date, \locale.current\)/);
 	});
 
 	it('formats the due date through fmtDateShort, not the raw ISO string', () => {
 		expect(row).not.toMatch(/\{inv\.due_date\s*\?\?/);
-		expect(row).toMatch(/fmtDateShort\(inv\.due_date, \$locale\)/);
+		expect(row).toMatch(/fmtDateShort\(inv\.due_date, \locale.current\)/);
 	});
 
 	it('formats the total through fmtEur (locale symbol/decimal), not a literal " EUR" suffix', () => {
 		expect(row).not.toMatch(/>\s*EUR\s*</);
-		expect(row).toMatch(/fmtEur\(inv\.total_amount \?\? 0, \$locale\)/);
+		expect(row).toMatch(/fmtEur\(inv\.total_amount \?\? 0, \locale.current\)/);
 	});
 });

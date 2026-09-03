@@ -569,7 +569,7 @@
   };
   function queueItemSubLabel(item: { status: string; type: string; size: string }): string {
     const key = QUEUE_STATUS_KEYS[item.status];
-    return key ? $t(key) : `${item.type} · ${item.size}`;
+    return key ? t(key) : `${item.type} · ${item.size}`;
   }
 
   const UNCERTAIN_FIELD_LABEL_KEYS: Record<string, string> = {
@@ -579,7 +579,7 @@
     due_date:       'field.dueDate',
   };
   function uncertainFieldLabel(field: string): string {
-    return $t(UNCERTAIN_FIELD_LABEL_KEYS[field] ?? 'field.totalAmount');
+    return t(UNCERTAIN_FIELD_LABEL_KEYS[field] ?? 'field.totalAmount');
   }
 
   const needsReview = (val: unknown) => !val && val !== 0;
@@ -809,7 +809,7 @@
       <span class="rev-strip-name">
         <span class="rev-strip-file">{activeDoc?.name ?? ''}</span>
         <span class="num rev-strip-sub">
-          {$ti('review.docOf', { i: activeDocIndex, n: data.queue.length })}{queueRemaining > 0 ? ` · ${$tp('review.inQueue', queueRemaining)}` : ''}
+          {ti('review.docOf', { i: activeDocIndex, n: data.queue.length })}{queueRemaining > 0 ? ` · ${tp('review.inQueue', queueRemaining)}` : ''}
         </span>
       </span>
       <span class="rev-strip-dots">
@@ -844,10 +844,10 @@
               </span>
             </span>
             {#if hasDraft}
-              <span class="rev-draft-dot" title={$t('review.draftPending')} aria-label={$t('review.draftPending')}></span>
+              <span class="rev-draft-dot" title={t('review.draftPending')} aria-label={t('review.draftPending')}></span>
             {/if}
             {#if q.id === data.review?.itemId}
-              <span class="rev-strip-mark">{$t('review.reviewing')}</span>
+              <span class="rev-strip-mark">{t('review.reviewing')}</span>
             {:else if q.status === 'confirmed'}
               <span class="text-pos inline-flex"><Check size={14} /></span>
             {:else if q.status === 'failed'}
@@ -857,11 +857,11 @@
         {/each}
         <div class="rev-strip-actions">
           <label class="rev-strip-action">
-            <Plus size={15} /> {$t('review.addFiles')}
+            <Plus size={15} /> {t('review.addFiles')}
             <input type="file" class="hidden" accept={UPLOAD_ACCEPT} multiple onchange={(e) => { onFileInputChange(e); submitAddFiles(); }} />
           </label>
           <button type="submit" form="discard-batch-form" class="rev-strip-action danger">
-            <Trash size={15} /> {$t('confirm.discard')}
+            <Trash size={15} /> {t('confirm.discard')}
           </button>
         </div>
       </div>
@@ -879,15 +879,15 @@
           class="rev-icon-btn"
           onclick={toggleQueue}
           aria-expanded={queueOpen}
-          title={`${queueOpen ? $t('review.collapseQueue') : $t('review.expandQueue')} · ⌘B`}
-          aria-label={queueOpen ? $t('review.collapseQueue') : $t('review.expandQueue')}
+          title={`${queueOpen ? t('review.collapseQueue') : t('review.expandQueue')} · ⌘B`}
+          aria-label={queueOpen ? t('review.collapseQueue') : t('review.expandQueue')}
         >
           {#if queueOpen}<PanelLeftClose size={15} />{:else}<PanelLeft size={15} />{/if}
         </button>
         {#if queueOpen}
-          <span class="body-strong" style="flex:1;min-width:0;">{$t('review.queue')}</span>
+          <span class="body-strong" style="flex:1;min-width:0;">{t('review.queue')}</span>
         {/if}
-        <span class="num text-[11px] font-semibold px-[7px] py-0.5 rounded-full bg-acc-soft text-acc" title={$t('upload.queue')}>{doneCount}/{data.queue.length}</span>
+        <span class="num text-[11px] font-semibold px-[7px] py-0.5 rounded-full bg-acc-soft text-acc" title={t('upload.queue')}>{doneCount}/{data.queue.length}</span>
       </div>
 
       <div class="rev-rail-list" style="flex:1;overflow-y:auto;min-height:0;padding:0 {queueOpen ? 6 : 5}px;">
@@ -920,7 +920,7 @@
             {/if}
             <div style="flex-shrink:0;display:flex;align-items:center;gap:6px;{queueOpen ? '' : 'position:absolute;'}">
               {#if hasDraft}
-                <span class="rev-draft-dot" title={$t('review.draftPending')} aria-label={$t('review.draftPending')}></span>
+                <span class="rev-draft-dot" title={t('review.draftPending')} aria-label={t('review.draftPending')}></span>
               {/if}
               {#if q.status === 'confirmed'}
                 <div class="w-[18px] h-[18px] rounded-pill bg-pos-soft text-pos flex items-center justify-center"><Check size={11} /></div>
@@ -942,7 +942,7 @@
               {:else if queueOpen}
                 <form method="POST" action="?/remove">
                   <input type="hidden" name="itemId" value={q.id} />
-                  <button type="submit" class="rev-icon-btn" style="width:22px;height:22px;" title={$t('confirm.remove')} aria-label={$t('confirm.remove')}>
+                  <button type="submit" class="rev-icon-btn" style="width:22px;height:22px;" title={t('confirm.remove')} aria-label={t('confirm.remove')}>
                     <X size={12} />
                   </button>
                 </form>
@@ -956,38 +956,38 @@
         {#if queueOpen}
           <button type="button" class="btn btn-ghost text-[12.5px] text-acc p-0 justify-start h-6"
             onclick={() => addMoreOpen = !addMoreOpen}>
-            {addMoreOpen ? $t('confirm.hideAdd') : $t('confirm.showAdd')}
+            {addMoreOpen ? t('confirm.hideAdd') : t('confirm.showAdd')}
           </button>
           {#if addMoreOpen}
             <label class="flex items-center gap-2 p-2.5 rounded-lg border-[1.5px] border-dashed border-border-strong cursor-pointer text-xs text-fg-3 bg-surface-2">
               <Upload size={14} />
-              {$t('confirm.addMoreTitle')}
+              {t('confirm.addMoreTitle')}
               <input type="file" class="hidden" accept={UPLOAD_ACCEPT} multiple onchange={onFileInputChange} />
             </label>
             {#each addFiles as f, i}
               <div class="flex items-center gap-2 text-xs text-fg">
                 <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{f.name}</span>
-                <button type="button" class="rev-icon-btn" style="width:20px;height:20px;" title={$t('confirm.remove')} aria-label={$t('confirm.remove')} onclick={() => addFiles = addFiles.filter((_, j) => j !== i)}><X size={11} /></button>
+                <button type="button" class="rev-icon-btn" style="width:20px;height:20px;" title={t('confirm.remove')} aria-label={t('confirm.remove')} onclick={() => addFiles = addFiles.filter((_, j) => j !== i)}><X size={11} /></button>
               </div>
             {/each}
             {#if addFiles.length > 0}
               <button disabled={addSubmitting} class="btn btn-primary" style="justify-content:center;font-size:12.5px;" onclick={submitAddFiles}>
-                {addSubmitting ? $t('confirm.adding') : $tp('confirm.addFile', addFiles.length)}
+                {addSubmitting ? t('confirm.adding') : tp('confirm.addFile', addFiles.length)}
               </button>
             {/if}
           {/if}
           <form method="POST" action="?/discardBatch">
             <button type="submit" class="btn btn-secondary" style="width:100%;height:30px;justify-content:center;font-size:12px;">
-              {$t('confirm.discard')}
+              {t('confirm.discard')}
             </button>
           </form>
         {:else}
-          <label class="rev-icon-btn" title={$t('confirm.addMoreTitle')} aria-label={$t('confirm.addMoreTitle')}>
+          <label class="rev-icon-btn" title={t('confirm.addMoreTitle')} aria-label={t('confirm.addMoreTitle')}>
             <Upload size={14} />
             <input type="file" class="hidden" accept={UPLOAD_ACCEPT} multiple onchange={(e) => { onFileInputChange(e); submitAddFiles(); }} />
           </label>
           <form method="POST" action="?/discardBatch">
-            <button type="submit" class="rev-icon-btn" title={$t('confirm.discard')} aria-label={$t('confirm.discard')}>
+            <button type="submit" class="rev-icon-btn" title={t('confirm.discard')} aria-label={t('confirm.discard')}>
               <Trash size={14} />
             </button>
           </form>
@@ -1003,39 +1003,39 @@
       </form>
 
       <div class="card rev-col rev-col-fixed rev-sizing rev-preview-frame rev-desktop-only" style="width:{previewOpen ? previewW : PREVIEW_SHUT_W}px;padding:0;">
-        <h2 class="sr-only">{$t('a11y.documentPreview')}</h2>
+        <h2 class="sr-only">{t('a11y.documentPreview')}</h2>
         {#if previewOpen}
           <div class="rev-bar rev-bar-head" style="padding:8px 8px 8px 12px;gap:6px;">
             <span class="inline-flex text-fg-3 shrink-0"><FileText size={13} /></span>
             <div title={review.filename} class="flex-1 min-w-0 text-xs text-fg-2 font-medium truncate">
               {review.filename}
             </div>
-            <a href={previewSrc} target="_blank" rel="noopener" class="rev-icon-btn" title={$t('review.openInTab')} aria-label={$t('review.openInTab')}>
+            <a href={previewSrc} target="_blank" rel="noopener" class="rev-icon-btn" title={t('review.openInTab')} aria-label={t('review.openInTab')}>
               <ExternalLink size={13} />
             </a>
-            <button type="button" class="rev-icon-btn" onclick={() => previewFull = true} title={$t('review.fullscreen')} aria-label={$t('review.fullscreen')}>
+            <button type="button" class="rev-icon-btn" onclick={() => previewFull = true} title={t('review.fullscreen')} aria-label={t('review.fullscreen')}>
               <Maximize2 size={13} />
             </button>
-            <button type="button" class="rev-icon-btn" onclick={togglePreview} title={`${$t('review.hidePreview')} · ⌘\\`} aria-label={$t('review.hidePreview')}>
+            <button type="button" class="rev-icon-btn" onclick={togglePreview} title={`${t('review.hidePreview')} · ⌘\\`} aria-label={t('review.hidePreview')}>
               <ChevronsLeft size={14} />
             </button>
           </div>
           <div class="flex-1 min-h-0 overflow-hidden bg-surface-2">
             <iframe
               src={previewSrc}
-              title={$t('a11y.documentPreview')}
+              title={t('a11y.documentPreview')}
               style="width:100%;height:100%;border:none;display:block;"
             ></iframe>
           </div>
           <div class="px-2.5 py-1.5 border-t border-divider flex items-center gap-[5px] text-[11px] text-acc">
-            <Sparkle size={10} /> {$t('extract.aiExtracted')} · {$t(confidenceBadgeKey)}
+            <Sparkle size={10} /> {t('extract.aiExtracted')} · {t(confidenceBadgeKey)}
           </div>
         {:else}
           <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;padding:8px 0;">
-            <button type="button" class="rev-icon-btn" onclick={togglePreview} title={`${$t('review.showPreview')} · ⌘\\`} aria-label={$t('review.showPreview')}>
+            <button type="button" class="rev-icon-btn" onclick={togglePreview} title={`${t('review.showPreview')} · ⌘\\`} aria-label={t('review.showPreview')}>
               <ChevronsRight size={14} />
             </button>
-            <button type="button" class="rev-icon-btn" onclick={() => previewFull = true} title={$t('review.fullscreen')} aria-label={$t('review.fullscreen')}>
+            <button type="button" class="rev-icon-btn" onclick={() => previewFull = true} title={t('review.fullscreen')} aria-label={t('review.fullscreen')}>
               <FileText size={14} />
             </button>
           </div>
@@ -1052,8 +1052,8 @@
           onpointercancel={onSplitUp}
           onkeydown={onSplitKey}
           ondblclick={resetPreviewWidth}
-          aria-label={$t('review.resizePreview')}
-          title={`${$t('review.resizePreview')} · ${$t('review.resetWidth')}`}
+          aria-label={t('review.resizePreview')}
+          title={`${t('review.resizePreview')} · ${t('review.resetWidth')}`}
         ></button>
       {/if}
 
@@ -1071,7 +1071,7 @@
         {/each}
 
         <div class="card rev-col rev-col-fill" data-coach="invoice-fields" style="padding:0;">
-          <h2 class="sr-only">{$t('a11y.extractedData')}</h2>
+          <h2 class="sr-only">{t('a11y.extractedData')}</h2>
 
           <div class="rev-bar rev-bar-head">
             <div class="rev-bar-title">
@@ -1081,17 +1081,17 @@
             </div>
             {#if uncertainCount > 0}
               <button type="button" class="badge badge-pending" style="cursor:pointer;flex-shrink:0;" onclick={jumpToUncertain}
-                title={`${$t('review.jumpUncertain')} · F2`}>
+                title={`${t('review.jumpUncertain')} · F2`}>
                 <AlertTriangle size={11} /> {uncertainCount}
               </button>
             {:else}
-              <span class="badge badge-confirmed" style="flex-shrink:0;" title={$t('review.allChecked')}>
+              <span class="badge badge-confirmed" style="flex-shrink:0;" title={t('review.allChecked')}>
                 <Check size={11} />
               </span>
             {/if}
-            <button type="submit" form="discard-item-form" class="btn btn-secondary rev-desktop-only" style="font-size:12.5px;padding:0 12px;flex-shrink:0;">{$t('extract.discard')}</button>
+            <button type="submit" form="discard-item-form" class="btn btn-secondary rev-desktop-only" style="font-size:12.5px;padding:0 12px;flex-shrink:0;">{t('extract.discard')}</button>
             <button type="submit" form="save-form" class="btn btn-primary rev-desktop-only" style="font-size:12.5px;gap:6px;flex-shrink:0;padding:0 12px;">
-              <Check size={13} /> {$t('extract.confirmSave')}
+              <Check size={13} /> {t('extract.confirmSave')}
               <kbd class="rev-kbd" style="background:transparent;border-color:currentColor;color:inherit;opacity:0.7;">⌘↵</kbd>
             </button>
           </div>
@@ -1102,43 +1102,43 @@
               {#if formErrorKey}
                 <div role="alert" class="rev-note rev-note-neg">
                   <AlertTriangle size={12} style="flex-shrink:0;" />
-                  <span style="flex:1;">{$t(formErrorKey)}</span>
+                  <span style="flex:1;">{t(formErrorKey)}</span>
                 </div>
               {/if}
               {#if review.duplicateOfId}
                 <div class="rev-note rev-note-neg">
                   <AlertTriangle size={12} style="flex-shrink:0;" />
-                  <span style="flex:1;">{$t('batch.possibleDupWarning')}</span>
+                  <span style="flex:1;">{t('batch.possibleDupWarning')}</span>
                   <a href="/invoice/{review.duplicateOfId}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;flex-shrink:0;">
-                    {$t('batch.viewExisting')}
+                    {t('batch.viewExisting')}
                   </a>
                 </div>
               {:else if review.similarInvoiceId}
                 <div class="rev-note rev-note-warn">
                   <AlertTriangle size={12} style="flex-shrink:0;" />
-                  <span style="flex:1;">{$t('batch.similarDupWarning')}</span>
+                  <span style="flex:1;">{t('batch.similarDupWarning')}</span>
                   <a href="/invoice/{review.similarInvoiceId}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;flex-shrink:0;">
-                    {$t('batch.viewExisting')}
+                    {t('batch.viewExisting')}
                   </a>
                 </div>
               {/if}
               {#if totalMismatch}
                 <div class="rev-note rev-note-neg">
                   <AlertTriangle size={12} style="flex-shrink:0;" />
-                  <span style="flex:1;">{$t('batch.totalMismatchWarning')}</span>
+                  <span style="flex:1;">{t('batch.totalMismatchWarning')}</span>
                 </div>
               {/if}
               {#if uncertainCount > 0}
-                <button type="button" class="rev-note rev-note-warn" onclick={jumpToUncertain} title={`${$t('review.jumpUncertain')} · F2`}>
+                <button type="button" class="rev-note rev-note-warn" onclick={jumpToUncertain} title={`${t('review.jumpUncertain')} · F2`}>
                   <AlertTriangle size={12} style="flex-shrink:0;" />
-                  <span style="flex:1;">{uncertainCount} {$tp('batch.field', uncertainCount)} {$t('extract.lowConfFields')}</span>
+                  <span style="flex:1;">{uncertainCount} {tp('batch.field', uncertainCount)} {t('extract.lowConfFields')}</span>
                 </button>
               {/if}
 
               <div class="rev-grid">
                 <div class="rev-field-wide">
                   <label class="rev-field-label" for="field-supplier-name">
-                    {$t('field.supplier')}
+                    {t('field.supplier')}
                     <ConfidenceDot confidence={fieldConf.supplier_name} />
                   </label>
                   <input id="field-supplier-name" type="text" name="supplier_name" bind:value={supplierNameInput}
@@ -1146,7 +1146,7 @@
                 </div>
                 <div>
                   <label class="rev-field-label" for="field-invoice-number">
-                    {$t('field.invoiceNum')}
+                    {t('field.invoiceNum')}
                     <ConfidenceDot confidence={fieldConf.invoice_number} />
                   </label>
                   <input id="field-invoice-number" type="text" name="invoice_number" bind:value={invoiceNumberInput}
@@ -1154,18 +1154,18 @@
                 </div>
                 <div>
                   <label class="rev-field-label" for="field-document-type">
-                    {$t('field.documentType')}
+                    {t('field.documentType')}
                     <ConfidenceDot confidence={fieldConf.document_type} />
                   </label>
                   <select id="field-document-type" name="document_type" bind:value={documentTypeInput} class="rev-input">
-                    <option value="">{$t('field.documentType.unknown')}</option>
-                    <option value="factura">{$t('field.documentType.factura')}</option>
-                    <option value="albaran">{$t('field.documentType.albaran')}</option>
+                    <option value="">{t('field.documentType.unknown')}</option>
+                    <option value="factura">{t('field.documentType.factura')}</option>
+                    <option value="albaran">{t('field.documentType.albaran')}</option>
                   </select>
                 </div>
                 <div>
                   <label class="rev-field-label" for="field-invoice-date">
-                    {$t('field.invoiceDate')}
+                    {t('field.invoiceDate')}
                     <ConfidenceDot confidence={fieldConf.invoice_date} />
                   </label>
                   <input id="field-invoice-date" type="text" name="invoice_date" bind:value={invoiceDateInput} placeholder="YYYY-MM-DD"
@@ -1175,21 +1175,21 @@
                   {#if documentTypeInput !== 'albaran'}
                     <div>
                       <label class="rev-field-label" for="field-due-date">
-                        {$t('extract.due')}
+                        {t('extract.due')}
                         <ConfidenceDot confidence={fieldConf.due_date} />
                       </label>
                       <input id="field-due-date" type="text" name="due_date" bind:value={dueDateInput} placeholder="YYYY-MM-DD"
                         oninput={() => { dueDateSuggested = false; }}
                         class="rev-input num" class:flagged={flagged('due_date')} />
                       {#if dueDateSuggested}
-                        <div class="text-[11px] text-fg-3 mt-1">{$t('field.dueDateSuggested')}</div>
+                        <div class="text-[11px] text-fg-3 mt-1">{t('field.dueDateSuggested')}</div>
                       {/if}
                     </div>
                   {:else}
                     <div>
-                      <label class="rev-field-label" for="field-due-date">{$t('extract.due')}</label>
+                      <label class="rev-field-label" for="field-due-date">{t('extract.due')}</label>
                       <input id="field-due-date" type="text" class="rev-input text-fg-4" readonly
-                        value={$t('field.dueDate.notApplicable')} />
+                        value={t('field.dueDate.notApplicable')} />
                       <input type="hidden" name="due_date" value="" />
                     </div>
                   {/if}
@@ -1198,7 +1198,7 @@
                 {/if}
                 <div class="rev-field-wide">
                   <label class="rev-field-label" for="field-total-amount">
-                    {$t('tbl.total')}
+                    {t('tbl.total')}
                     <ConfidenceDot confidence={fieldConf.total_amount} />
                   </label>
                   <input id="field-total-amount" type="text" name="total_amount" bind:value={totalAmountInput}
@@ -1206,53 +1206,53 @@
                     class="rev-input num" class:mismatch={hasDiscrepancy} class:flagged={!hasDiscrepancy && flagged('total_amount')} />
                   {#if hasDiscrepancy}
                     <div id="err-total_amount" class="text-[11px] text-warn mt-1 flex items-center gap-1">
-                      <AlertTriangle size={10} /> {$t('extract.mismatch')} ({fmt(totalCalc)})
+                      <AlertTriangle size={10} /> {t('extract.mismatch')} ({fmt(totalCalc)})
                     </div>
                   {/if}
                 </div>
                 <div>
-                  <label class="rev-field-label" for="field-payment-method">{$t('field.paymentMethod')}</label>
+                  <label class="rev-field-label" for="field-payment-method">{t('field.paymentMethod')}</label>
                   <select id="field-payment-method" name="payment_method" bind:value={paymentMethodInput} class="rev-input">
-                    <option value="">{$t('field.paymentMethod.unknown')}</option>
+                    <option value="">{t('field.paymentMethod.unknown')}</option>
                     {#each PAYMENT_METHODS as method}
-                      <option value={method}>{$t(`field.paymentMethod.${method}`)}</option>
+                      <option value={method}>{t(`field.paymentMethod.${method}`)}</option>
                     {/each}
                   </select>
                 </div>
                 <div>
-                  <label class="rev-field-label" for="field-payment-terms">{$t('field.paymentTerms')}</label>
+                  <label class="rev-field-label" for="field-payment-terms">{t('field.paymentTerms')}</label>
                   <input id="field-payment-terms" type="text" name="payment_terms" bind:value={paymentTermsInput}
                     maxlength={100} class="rev-input" />
                 </div>
                 <div>
-                  <label class="rev-field-label" for="field-purchase-order">{$t('field.purchaseOrder')}</label>
+                  <label class="rev-field-label" for="field-purchase-order">{t('field.purchaseOrder')}</label>
                   <input id="field-purchase-order" type="text" name="purchase_order" bind:value={purchaseOrderInput}
                     maxlength={100} class="rev-input" />
                 </div>
                 <div>
-                  <label class="rev-field-label" for="field-seller-name">{$t('field.sellerName')}</label>
+                  <label class="rev-field-label" for="field-seller-name">{t('field.sellerName')}</label>
                   <input id="field-seller-name" type="text" name="seller_name" bind:value={sellerNameInput}
                     maxlength={200} class="rev-input" />
                 </div>
                 <div>
-                  <label class="rev-field-label" for="field-delivery-date">{$t('field.deliveryDate')}</label>
+                  <label class="rev-field-label" for="field-delivery-date">{t('field.deliveryDate')}</label>
                   <input id="field-delivery-date" type="text" name="delivery_date" bind:value={deliveryDateInput}
                     placeholder="YYYY-MM-DD" class="rev-input num" />
                 </div>
                 <div class="rev-field-wide">
-                  <label class="rev-field-label" for="field-delivery-address">{$t('field.deliveryAddress')}</label>
+                  <label class="rev-field-label" for="field-delivery-address">{t('field.deliveryAddress')}</label>
                   <input id="field-delivery-address" type="text" name="delivery_address" bind:value={deliveryAddressInput}
                     maxlength={300} class="rev-input" />
                 </div>
                 <div class="rev-grid-wide">
-                  <label class="rev-field-label" for="field-printed-notes">{$t('field.printedNotes')}</label>
+                  <label class="rev-field-label" for="field-printed-notes">{t('field.printedNotes')}</label>
                   <textarea id="field-printed-notes" name="printed_notes" maxlength={500} rows={2}
                     bind:value={printedNotesInput} class="rev-input"></textarea>
                 </div>
                 {#if str(review?.data?.iban)}
                   <div>
                     <label class="rev-field-label" for="field-iban">
-                      {$t('field.iban')}
+                      {t('field.iban')}
                       <ConfidenceDot confidence={fieldConf.iban} />
                     </label>
                     <input id="field-iban" type="text" readonly value={str(review?.data?.iban)} class="rev-input text-fg-3" />
@@ -1260,9 +1260,9 @@
                 {/if}
                 {#if fieldVisible.notes}
                   <div class="rev-grid-wide">
-                    <label class="rev-field-label" for="field-notes">{$t('extract.notesInternal')} <span style="text-transform:none;letter-spacing:0;">{$t('extract.optional')}</span></label>
+                    <label class="rev-field-label" for="field-notes">{t('extract.notesInternal')} <span style="text-transform:none;letter-spacing:0;">{t('extract.optional')}</span></label>
                     <textarea id="field-notes" name="notes" maxlength={250} rows={2} bind:value={notesInput}
-                      placeholder={$t('extract.notesPh')} class="rev-input"></textarea>
+                      placeholder={t('extract.notesPh')} class="rev-input"></textarea>
                   </div>
                 {:else}
                   <input type="hidden" name="notes" value={notesInput} />
@@ -1272,15 +1272,15 @@
 
             <div class="rev-sticky-head">
               <div class="body-strong">
-                {$t('extract.lineItems')} <span class="num text-fg-3 font-normal">· {lineItems.length}</span>
+                {t('extract.lineItems')} <span class="num text-fg-3 font-normal">· {lineItems.length}</span>
               </div>
               <button type="button" class="btn btn-ghost" style="height:26px;font-size:12px;padding:0 8px;gap:5px;" onclick={addRow}>
-                <Plus size={12} /> {$t('extract.addLine')}
+                <Plus size={12} /> {t('extract.addLine')}
               </button>
             </div>
 
             {#if lineItems.length === 0}
-              <div class="rev-section text-[12.5px] text-fg-3">{$t('review.noLines')}</div>
+              <div class="rev-section text-[12.5px] text-fg-3">{t('review.noLines')}</div>
             {:else if isMobile}
               <div class="rev-cards">
                 {#each lineItems as item, i}
@@ -1291,13 +1291,13 @@
                   <div class="rev-card" class:flagged={confLow} class:open={isOpen} data-line={i}>
                     <button type="button" class="rev-card-head" onclick={() => toggleLine(i)} aria-expanded={isOpen}>
                       <span class="rev-card-main">
-                        <span class="rev-card-name">{str(item.description) || $t('extract.fieldEmpty')}</span>
+                        <span class="rev-card-name">{str(item.description) || t('extract.fieldEmpty')}</span>
                         <span class="num rev-card-meta">{str(item.quantity)} {str(item.unit)} × {str(item.unit_price)} €</span>
                       </span>
                       <span class="rev-card-side">
                         <span class="num rev-card-total">{str(item.total_price)} €</span>
                         <span class="rev-card-rate" class:none={lineRate === null}>
-                          {lineRate === null ? $t('review.noRate') : ratePctLabel(lineRate)}
+                          {lineRate === null ? t('review.noRate') : ratePctLabel(lineRate)}
                         </span>
                       </span>
                       {#if confLow}<span class="rev-card-dot"></span>{/if}
@@ -1306,50 +1306,50 @@
                     {#if isOpen}
                       <div class="rev-card-body">
                         <div>
-                          <label class="rev-field-label" for="line-desc-{i}">{$t('tbl.desc')} <ConfidenceDot confidence={itemConf} size={6} /></label>
+                          <label class="rev-field-label" for="line-desc-{i}">{t('tbl.desc')} <ConfidenceDot confidence={itemConf} size={6} /></label>
                           <input id="line-desc-{i}" type="text" name="line_descriptions" bind:value={lineItems[i].description} class="rev-input" />
                         </div>
                         <div>
                           <label class="rev-field-label" for="line-product-{i}">
-                            {$t('review.productMatch')}
+                            {t('review.productMatch')}
                             {#if productUnmatched(item.product_name)}
-                              <span class="rev-product-chip warn">{$t('review.productUnknown')}</span>
+                              <span class="rev-product-chip warn">{t('review.productUnknown')}</span>
                             {:else if !str(item.product_name)}
-                              <span class="rev-product-chip">{$t('review.productNew')}</span>
+                              <span class="rev-product-chip">{t('review.productNew')}</span>
                             {:else if item.product_status === 'fuzzy'}
-                              <span class="rev-product-chip">{$t('review.productFuzzy')}</span>
+                              <span class="rev-product-chip">{t('review.productFuzzy')}</span>
                             {/if}
                           </label>
                           <input id="line-product-{i}" type="text" list="mep-product-options"
                             bind:value={lineItems[i].product_name} class="rev-input"
-                            placeholder={$t('review.productPh')} title={$t('review.productMatchHint')} />
+                            placeholder={t('review.productPh')} title={t('review.productMatchHint')} />
                         </div>
                         <div class="rev-card-grid3">
                           <div>
-                            <label class="rev-field-label" for="line-qty-{i}">{$t('tbl.qty')}</label>
+                            <label class="rev-field-label" for="line-qty-{i}">{t('tbl.qty')}</label>
                             <input id="line-qty-{i}" type="text" name="line_quantities" bind:value={lineItems[i].quantity} class="rev-input num" style="text-align:right;" />
                           </div>
                           <div>
-                            <label class="rev-field-label" for="line-unit-{i}">{$t('tbl.unit')}</label>
+                            <label class="rev-field-label" for="line-unit-{i}">{t('tbl.unit')}</label>
                             <input id="line-unit-{i}" type="text" name="line_units" bind:value={lineItems[i].unit} class="rev-input" />
                           </div>
                           <div>
-                            <label class="rev-field-label" for="line-rate-{i}">{$t('review.lineRate')}</label>
+                            <label class="rev-field-label" for="line-rate-{i}">{t('review.lineRate')}</label>
                             <input id="line-rate-{i}" type="text" bind:value={lineItems[i].tax_rate} class="rev-input num" placeholder="%" style="text-align:right;" />
                           </div>
                         </div>
                         <div class="rev-card-grid2">
                           <div>
-                            <label class="rev-field-label" for="line-unit-price-{i}">{$t('tbl.unitPrice')}</label>
+                            <label class="rev-field-label" for="line-unit-price-{i}">{t('tbl.unitPrice')}</label>
                             <input id="line-unit-price-{i}" type="text" name="line_unit_prices" bind:value={lineItems[i].unit_price} class="rev-input num" style="text-align:right;" />
                           </div>
                           <div>
-                            <label class="rev-field-label" for="line-total-{i}">{$t('tbl.total')}</label>
+                            <label class="rev-field-label" for="line-total-{i}">{t('tbl.total')}</label>
                             <input id="line-total-{i}" type="text" name="line_total_prices" bind:value={lineItems[i].total_price} class="rev-input num" style="text-align:right;font-weight:600;" />
                           </div>
                         </div>
                         <button type="button" class="rev-card-remove" onclick={() => removeRow(i)}>
-                          <Trash size={14} /> {$t('review.removeLine')}
+                          <Trash size={14} /> {t('review.removeLine')}
                         </button>
                       </div>
                     {:else}
@@ -1369,14 +1369,14 @@
               <table class="tbl rev-lines" style="table-layout:fixed;width:100%;">
                 <thead>
                   <tr>
-                    <th class="num" scope="col" style="width:38px;" title={$t('review.lineNumber')}>#</th>
-                    <th scope="col">{$t('tbl.desc')}</th>
-                    <th class="num" scope="col" style="width:74px;">{$t('tbl.qty')}</th>
-                    <th scope="col" style="width:80px;">{$t('tbl.unit')}</th>
-                    <th class="num" scope="col" style="width:96px;">{$t('tbl.unitPrice')}</th>
-                    <th class="num" scope="col" style="width:72px;" title={$t('review.lineRateHint')}>{$t('review.lineRate')}</th>
-                    <th class="num" scope="col" style="width:100px;">{$t('tbl.total')}</th>
-                    <th scope="col" style="width:36px;"><span class="sr-only">{$t('review.removeLine')}</span></th>
+                    <th class="num" scope="col" style="width:38px;" title={t('review.lineNumber')}>#</th>
+                    <th scope="col">{t('tbl.desc')}</th>
+                    <th class="num" scope="col" style="width:74px;">{t('tbl.qty')}</th>
+                    <th scope="col" style="width:80px;">{t('tbl.unit')}</th>
+                    <th class="num" scope="col" style="width:96px;">{t('tbl.unitPrice')}</th>
+                    <th class="num" scope="col" style="width:72px;" title={t('review.lineRateHint')}>{t('review.lineRate')}</th>
+                    <th class="num" scope="col" style="width:100px;">{t('tbl.total')}</th>
+                    <th scope="col" style="width:36px;"><span class="sr-only">{t('review.removeLine')}</span></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1388,54 +1388,54 @@
                       <td>
                         <div style="display:flex;align-items:center;gap:5px;">
                           <input type="text" name="line_descriptions" bind:value={lineItems[i].description}
-                            aria-label={$ti('batch.aria.lineDesc', { row: i + 1 })}
+                            aria-label={ti('batch.aria.lineDesc', { row: i + 1 })}
                             class="rev-cell" style="font-weight:500;" />
                           <ConfidenceDot confidence={itemConf} size={6} />
                         </div>
                         <div class="rev-line-product">
-                          <span class="rev-line-product-label">{$t('review.productMatch')}</span>
+                          <span class="rev-line-product-label">{t('review.productMatch')}</span>
                           <input type="text" list="mep-product-options" bind:value={lineItems[i].product_name}
-                            aria-label={$ti('batch.aria.lineProduct', { row: i + 1 })}
-                            class="rev-cell rev-product-input" placeholder={$t('review.productPh')}
-                            title={$t('review.productMatchHint')} />
+                            aria-label={ti('batch.aria.lineProduct', { row: i + 1 })}
+                            class="rev-cell rev-product-input" placeholder={t('review.productPh')}
+                            title={t('review.productMatchHint')} />
                           {#if productUnmatched(item.product_name)}
-                            <span class="rev-product-chip warn">{$t('review.productUnknown')}</span>
+                            <span class="rev-product-chip warn">{t('review.productUnknown')}</span>
                           {:else if !str(item.product_name)}
-                            <span class="rev-product-chip">{$t('review.productNew')}</span>
+                            <span class="rev-product-chip">{t('review.productNew')}</span>
                           {:else if item.product_status === 'fuzzy'}
-                            <span class="rev-product-chip">{$t('review.productFuzzy')}</span>
+                            <span class="rev-product-chip">{t('review.productFuzzy')}</span>
                           {/if}
                         </div>
                       </td>
                       <td class="num">
                         <input type="text" name="line_quantities" bind:value={lineItems[i].quantity}
-                          aria-label={$ti('batch.aria.lineQty', { row: i + 1 })}
+                          aria-label={ti('batch.aria.lineQty', { row: i + 1 })}
                           class="rev-cell num" style="text-align:right;" />
                       </td>
                       <td>
                         <input type="text" name="line_units" bind:value={lineItems[i].unit}
-                          aria-label={$ti('batch.aria.lineUnit', { row: i + 1 })}
+                          aria-label={ti('batch.aria.lineUnit', { row: i + 1 })}
                           class="rev-cell text-fg-2" />
                       </td>
                       <td class="num">
                         <input type="text" name="line_unit_prices" bind:value={lineItems[i].unit_price}
-                          aria-label={$ti('batch.aria.lineUnitPrice', { row: i + 1 })}
+                          aria-label={ti('batch.aria.lineUnitPrice', { row: i + 1 })}
                           class="rev-cell num" style="text-align:right;" />
                       </td>
                       <td class="num">
                         <input type="text" bind:value={lineItems[i].tax_rate} class="rev-cell num rev-cell-rate"
-                          placeholder="%" aria-label={$ti('batch.aria.lineRate', { row: i + 1 })} style="text-align:right;" />
+                          placeholder="%" aria-label={ti('batch.aria.lineRate', { row: i + 1 })} style="text-align:right;" />
                       </td>
                       <td class="num">
                         <input type="text" name="line_total_prices" bind:value={lineItems[i].total_price}
-                          aria-label={$ti('batch.aria.lineTotal', { row: i + 1 })}
+                          aria-label={ti('batch.aria.lineTotal', { row: i + 1 })}
                           class="rev-cell num" style="text-align:right;font-weight:500;" />
                       </td>
                       <td>
                         <input type="hidden" name="line_tax_rates" value={percentToFraction(item.tax_rate) ?? ''} />
                         <input type="hidden" name="line_supplier_skus" value={str(item.product_code ?? '')} />
                         <input type="hidden" name="line_product_ids" value={productIdFor(item.product_name) ?? ''} />
-                        <button type="button" class="rev-icon-btn" style="width:22px;height:22px;" title={$t('review.removeLine')} aria-label={$t('review.removeLine')} onclick={() => removeRow(i)}>
+                        <button type="button" class="rev-icon-btn" style="width:22px;height:22px;" title={t('review.removeLine')} aria-label={t('review.removeLine')} onclick={() => removeRow(i)}>
                           <Trash size={11} />
                         </button>
                       </td>
@@ -1456,68 +1456,68 @@
           {#if taxPanelOpen}
             <div class="rev-tax-panel">
               <div class="rev-totals-chain">
-                <span>{$t('extract.grossAmount')}
+                <span>{t('extract.grossAmount')}
                   <input type="text" name="gross_amount" bind:value={grossAmountInput}
-                    class="rev-totals-chain-input num" placeholder="—" aria-label={$t('extract.grossAmount')} />
+                    class="rev-totals-chain-input num" placeholder="—" aria-label={t('extract.grossAmount')} />
                 </span>
                 <span class="rev-totals-chain-sep">→</span>
-                <span>{$t('extract.discountAmount')}
+                <span>{t('extract.discountAmount')}
                   <input type="text" name="discount_amount" bind:value={discountAmountInput}
-                    class="rev-totals-chain-input num" placeholder="—" aria-label={$t('extract.discountAmount')} />
+                    class="rev-totals-chain-input num" placeholder="—" aria-label={t('extract.discountAmount')} />
                 </span>
                 <span class="rev-totals-chain-sep">→</span>
-                <span>{$t('extract.taxBase')} <span class="num text-fg-2">{fmt(taxBase)}</span></span>
+                <span>{t('extract.taxBase')} <span class="num text-fg-2">{fmt(taxBase)}</span></span>
                 <span class="rev-totals-chain-sep">→</span>
-                <span>{$t('extract.vat')} <span class="num text-fg-2">{fmt(taxTotal)}</span></span>
+                <span>{t('extract.vat')} <span class="num text-fg-2">{fmt(taxTotal)}</span></span>
                 <span class="rev-totals-chain-sep">→</span>
-                <span>{$t('extract.retention')}
+                <span>{t('extract.retention')}
                   <input type="text" bind:value={retentionRateInput}
-                    class="rev-totals-chain-input rev-totals-chain-input-rate num" placeholder="%" aria-label={$t('extract.retention')} />
+                    class="rev-totals-chain-input rev-totals-chain-input-rate num" placeholder="%" aria-label={t('extract.retention')} />
                   <input type="text" name="retention_amount" bind:value={retentionAmountInput}
-                    class="rev-totals-chain-input num" placeholder="—" aria-label={$t('extract.retention')} />
+                    class="rev-totals-chain-input num" placeholder="—" aria-label={t('extract.retention')} />
                 </span>
                 <input type="hidden" name="retention_rate" value={percentToFraction(retentionRateInput) ?? ''} />
                 <span class="rev-totals-chain-sep">→</span>
-                <span class="font-medium">{$t('extract.calcTotal')} <span class="num text-fg">{fmt(totalCalc)}</span></span>
+                <span class="font-medium">{t('extract.calcTotal')} <span class="num text-fg">{fmt(totalCalc)}</span></span>
               </div>
               <div class="rev-tax-panel-head">
                 <span class="body-strong">
-                  {$t('review.taxes')}
-                  <span class="num text-fg-3 font-normal">· {$tp('review.taxTypeCount', taxBands.length)}</span>
+                  {t('review.taxes')}
+                  <span class="num text-fg-3 font-normal">· {tp('review.taxTypeCount', taxBands.length)}</span>
                 </span>
                 {#if !taxBaseMatchesLines && taxBands.length > 0}
-                  <span class="rev-tax-stale" title={$t('review.taxBaseStaleHint')}>
-                    <AlertTriangle size={11} /> {$t('review.taxBaseStale')}
+                  <span class="rev-tax-stale" title={t('review.taxBaseStaleHint')}>
+                    <AlertTriangle size={11} /> {t('review.taxBaseStale')}
                   </span>
                 {/if}
                 {#if unbandedRates.length > 0}
-                  <span class="rev-tax-stale" title={$t('review.taxRateUnbandedHint')}>
+                  <span class="rev-tax-stale" title={t('review.taxRateUnbandedHint')}>
                     <AlertTriangle size={11} /> {unbandedRates.map(ratePctLabel).join(' · ')}
                   </span>
                 {/if}
                 <span style="flex:1;"></span>
                 {#if linesCarryRates}
                   <button type="button" class="btn btn-ghost" style="height:24px;font-size:11.5px;padding:0 8px;gap:4px;"
-                    onclick={rebuildBandsFromLines} title={$t('review.taxRebuildHint')}>
-                    <RefreshCw size={11} /> {$t('review.taxRebuild')}
+                    onclick={rebuildBandsFromLines} title={t('review.taxRebuildHint')}>
+                    <RefreshCw size={11} /> {t('review.taxRebuild')}
                   </button>
                 {/if}
                 <button type="button" class="btn btn-ghost" style="height:24px;font-size:11.5px;padding:0 8px;gap:4px;" onclick={addBand}>
-                  <Plus size={11} /> {$t('review.taxAddBand')}
+                  <Plus size={11} /> {t('review.taxAddBand')}
                 </button>
               </div>
 
               {#if taxBands.length === 0}
-                <div class="text-xs text-fg-3 pt-1 pb-2.5">{$t('review.taxNoBands')}</div>
+                <div class="text-xs text-fg-3 pt-1 pb-2.5">{t('review.taxNoBands')}</div>
               {:else}
                 <table class="tbl rev-tax-tbl">
                   <thead>
                     <tr>
-                      <th class="num" scope="col" style="width:92px;">{$t('review.taxRate')}</th>
-                      <th scope="col" style="width:96px;">{$t('review.taxKind')}</th>
-                      <th class="num" scope="col">{$t('review.taxBandBase')}</th>
-                      <th class="num" scope="col" style="width:120px;">{$t('review.taxAmount')}</th>
-                      <th scope="col" style="width:32px;"><span class="sr-only">{$t('review.taxRemoveBand')}</span></th>
+                      <th class="num" scope="col" style="width:92px;">{t('review.taxRate')}</th>
+                      <th scope="col" style="width:96px;">{t('review.taxKind')}</th>
+                      <th class="num" scope="col">{t('review.taxBandBase')}</th>
+                      <th class="num" scope="col" style="width:120px;">{t('review.taxAmount')}</th>
+                      <th scope="col" style="width:32px;"><span class="sr-only">{t('review.taxRemoveBand')}</span></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1525,26 +1525,26 @@
                       <tr>
                         <td>
                           <input type="text" bind:value={taxBands[i].rate} oninput={() => syncBandAmount(i)}
-                            class="rev-cell num" placeholder="%" aria-label={$t('review.taxRate')} style="text-align:right;" />
+                            class="rev-cell num" placeholder="%" aria-label={t('review.taxRate')} style="text-align:right;" />
                         </td>
                         <td>
-                          <select bind:value={taxBands[i].type} class="rev-cell" aria-label={$t('review.taxKind')}>
-                            <option value="">{$t('review.taxKindNone')}</option>
-                            <option value="iva">{$t('review.taxIva')}</option>
-                            <option value="rec">{$t('review.taxRec')}</option>
+                          <select bind:value={taxBands[i].type} class="rev-cell" aria-label={t('review.taxKind')}>
+                            <option value="">{t('review.taxKindNone')}</option>
+                            <option value="iva">{t('review.taxIva')}</option>
+                            <option value="rec">{t('review.taxRec')}</option>
                           </select>
                         </td>
                         <td class="num">
                           <input type="text" bind:value={taxBands[i].base} oninput={() => syncBandAmount(i)}
-                            class="rev-cell num" aria-label={$t('review.taxBandBase')} style="text-align:right;" />
+                            class="rev-cell num" aria-label={t('review.taxBandBase')} style="text-align:right;" />
                         </td>
                         <td class="num">
                           <input type="text" bind:value={taxBands[i].amount}
-                            class="rev-cell num" aria-label={$t('review.taxAmount')} style="text-align:right;font-weight:500;" />
+                            class="rev-cell num" aria-label={t('review.taxAmount')} style="text-align:right;font-weight:500;" />
                         </td>
                         <td>
                           <button type="button" class="rev-icon-btn" style="width:22px;height:22px;"
-                            title={$t('review.taxRemoveBand')} aria-label={$t('review.taxRemoveBand')} onclick={() => removeBand(i)}>
+                            title={t('review.taxRemoveBand')} aria-label={t('review.taxRemoveBand')} onclick={() => removeBand(i)}>
                             <Trash size={11} />
                           </button>
                         </td>
@@ -1553,7 +1553,7 @@
                   </tbody>
                   <tfoot>
                     <tr>
-                      <td colspan="2" class="text-fg-3">{$t('tbl.total')}</td>
+                      <td colspan="2" class="text-fg-3">{t('tbl.total')}</td>
                       <td class="num text-fg-3">{fmt(taxBase)}</td>
                       <td class="num" style="font-weight:600;">{fmt(taxTotal)}</td>
                       <td></td>
@@ -1567,37 +1567,37 @@
           <div class="rev-bar rev-bar-foot">
             {#if hasDiscrepancy}
               <div class="rev-foot-status text-warn font-medium">
-                <AlertTriangle size={12} /> {$t('extract.discrepancy')} · {fmt(discrepancy)}
+                <AlertTriangle size={12} /> {t('extract.discrepancy')} · {fmt(discrepancy)}
               </div>
             {:else if lineItems.length > 0}
               <div class="rev-foot-status text-pos font-medium">
-                <Check size={12} /> {$t('extract.totalsMatch')}
+                <Check size={12} /> {t('extract.totalsMatch')}
               </div>
             {:else}
-              <div class="rev-foot-status text-fg-3">{$t('extract.noLinesVerify')}</div>
+              <div class="rev-foot-status text-fg-3">{t('extract.noLinesVerify')}</div>
             {/if}
 
-            <div class="rev-shortcuts" title={$t('review.shortcuts')}>
-              <span><kbd class="rev-kbd">⌘↵</kbd> {$t('review.shortcutSave')}</span>
-              <span><kbd class="rev-kbd">⌘\</kbd> {$t('review.shortcutPreview')}</span>
-              <span><kbd class="rev-kbd">⌘B</kbd> {$t('review.shortcutQueue')}</span>
-              <span><kbd class="rev-kbd">F2</kbd> {$t('review.shortcutJump')}</span>
+            <div class="rev-shortcuts" title={t('review.shortcuts')}>
+              <span><kbd class="rev-kbd">⌘↵</kbd> {t('review.shortcutSave')}</span>
+              <span><kbd class="rev-kbd">⌘\</kbd> {t('review.shortcutPreview')}</span>
+              <span><kbd class="rev-kbd">⌘B</kbd> {t('review.shortcutQueue')}</span>
+              <span><kbd class="rev-kbd">F2</kbd> {t('review.shortcutJump')}</span>
             </div>
 
             <div class="rev-foot-totals">
-              <span class="text-[11.5px] text-fg-3">{$t('extract.taxBase')} <span class="num text-fg-2">{fmt(lineTotal)}</span></span>
+              <span class="text-[11.5px] text-fg-3">{t('extract.taxBase')} <span class="num text-fg-2">{fmt(lineTotal)}</span></span>
               <button type="button" class="rev-tax-toggle" onclick={() => taxPanelOpen = !taxPanelOpen}
                 aria-expanded={taxPanelOpen}
-                title={taxPanelOpen ? $t('review.hideTaxes') : $t('review.showTaxes')}>
-                {$t('extract.vat')} <span class="num">{fmt(taxTotal)}</span>
+                title={taxPanelOpen ? t('review.hideTaxes') : t('review.showTaxes')}>
+                {t('extract.vat')} <span class="num">{fmt(taxTotal)}</span>
                 {#if documentTypeInput === 'albaran' && taxBands.length === 0}
-                  <span class="normal-case tracking-normal text-fg-3">{$t('extract.optional')}</span>
+                  <span class="normal-case tracking-normal text-fg-3">{t('extract.optional')}</span>
                 {/if}
                 {#if showBandKinds}
                   {#each bandKinds as kind}
                     <span class="badge {kind === 'rec' ? 'badge-pending' : 'badge-exported'}"
-                      title={kind === 'rec' ? $t('review.taxRecFull') : $t('review.taxIva')}>
-                      {kind === 'rec' ? $t('review.taxRec') : $t('review.taxIva')}
+                      title={kind === 'rec' ? t('review.taxRecFull') : t('review.taxIva')}>
+                      {kind === 'rec' ? t('review.taxRec') : t('review.taxIva')}
                     </span>
                   {/each}
                 {/if}
@@ -1606,12 +1606,12 @@
                 <span class="rev-tax-caret" class:open={taxPanelOpen}><ChevronsRight size={11} /></span>
               </button>
               {#if extractedDrift}
-                <span class="rev-foot-drift" title={$t('review.extractedDriftHint')}>
-                  {$t('review.extractedWas')} <span class="num">{fmt(originalTotalNum)}</span>
+                <span class="rev-foot-drift" title={t('review.extractedDriftHint')}>
+                  {t('review.extractedWas')} <span class="num">{fmt(originalTotalNum)}</span>
                   <span class="num" style="font-weight:600;">{driftLabel}</span>
                 </span>
               {/if}
-              <span class="text-xs text-fg-2">{$t('extract.calcTotal')}</span>
+              <span class="text-xs text-fg-2">{t('extract.calcTotal')}</span>
               <span class="num text-[15px] font-semibold text-fg">{fmt(totalCalc)}</span>
             </div>
           </div>
@@ -1623,19 +1623,19 @@
     {:else if data.failedItem}
       <div class="rev-col rev-col-fill" style="display:flex;flex-direction:column;gap:12px;max-width:560px;overflow:visible;">
         <div class="card p-4 bg-neg-soft border-neg">
-          <strong class="body-strong text-neg block mb-1.5">{$t('extract.error')} · {data.failedItem.name}</strong>
-          <p class="text-[13px] text-neg">{data.failedItem.errorVars ? $ti(data.failedItem.error, data.failedItem.errorVars) : $t(data.failedItem.error)}</p>
+          <strong class="body-strong text-neg block mb-1.5">{t('extract.error')} · {data.failedItem.name}</strong>
+          <p class="text-[13px] text-neg">{data.failedItem.errorVars ? ti(data.failedItem.error, data.failedItem.errorVars) : t(data.failedItem.error)}</p>
         </div>
         <div style="display:flex;gap:8px;">
           <form method="POST" action="?/retry">
             <input type="hidden" name="itemId" value={data.failedItem.itemId} />
             <button type="submit" class="btn btn-primary" style="height:34px;font-size:13px;gap:6px;">
-              <RefreshCw size={13} /> {$t('extract.retry')}
+              <RefreshCw size={13} /> {t('extract.retry')}
             </button>
           </form>
           <form method="POST" action="?/discardItem">
             <input type="hidden" name="itemId" value={data.failedItem.itemId} />
-            <button type="submit" class="btn btn-ghost" style="height:34px;font-size:13px;">{$t('extract.discard')}</button>
+            <button type="submit" class="btn btn-ghost" style="height:34px;font-size:13px;">{t('extract.discard')}</button>
           </form>
         </div>
       </div>
@@ -1644,22 +1644,22 @@
       <div class="rev-col rev-col-fill" style="display:flex;flex-direction:column;gap:12px;max-width:560px;overflow:visible;">
         <div class="card p-4 bg-warn-soft border-warn">
           <strong class="body-strong text-warn flex items-center gap-1.5 mb-1.5">
-            <AlertTriangle size={14} /> {$t('batch.stalledTitle')}
+            <AlertTriangle size={14} /> {t('batch.stalledTitle')}
           </strong>
           <p class="text-[13px] text-fg-2 leading-normal">
-            {$ti('batch.stalledBody', { name: data.stalled.name })}
+            {ti('batch.stalledBody', { name: data.stalled.name })}
           </p>
         </div>
         <div style="display:flex;gap:8px;">
           <form method="POST" action="?/retry">
             <input type="hidden" name="itemId" value={data.stalled.itemId} />
             <button type="submit" class="btn btn-primary" style="height:34px;font-size:13px;gap:6px;">
-              <RefreshCw size={13} /> {$t('extract.retry')}
+              <RefreshCw size={13} /> {t('extract.retry')}
             </button>
           </form>
           <form method="POST" action="?/discardItem">
             <input type="hidden" name="itemId" value={data.stalled.itemId} />
-            <button type="submit" class="btn btn-ghost" style="height:34px;font-size:13px;">{$t('extract.discard')}</button>
+            <button type="submit" class="btn btn-ghost" style="height:34px;font-size:13px;">{t('extract.discard')}</button>
           </form>
         </div>
       </div>
@@ -1669,10 +1669,10 @@
         <div class="w-11 h-11 border-[3px] border-acc border-t-transparent rounded-full" style="animation:mepspin 0.9s linear infinite;"></div>
         <div>
           <div class="text-[15px] font-semibold text-fg mb-1.5">
-            {$ti('batch.extracting', { name: extractingItem?.name ?? $t('misc.invoice') })}
+            {ti('batch.extracting', { name: extractingItem?.name ?? t('misc.invoice') })}
           </div>
           <div class="text-[13px] text-fg-3 leading-normal">
-            {$ti('batch.progress', { done: doneCount, total: data.queue.length })}
+            {ti('batch.progress', { done: doneCount, total: data.queue.length })}
           </div>
         </div>
       </div>
@@ -1684,14 +1684,14 @@
         </div>
         <div>
           <div class="text-[15px] font-semibold text-fg mb-1">
-            {$tp('batch.readyToExtract', data.openCount)}
+            {tp('batch.readyToExtract', data.openCount)}
           </div>
-          <div class="text-[13px] text-fg-3">{$t('batch.processParallel')}</div>
+          <div class="text-[13px] text-fg-3">{t('batch.processParallel')}</div>
         </div>
         <form method="POST" action="?/extract">
           <button type="submit" class="btn btn-primary" style="height:40px;justify-content:center;font-weight:500;gap:6px;padding:0 20px;">
             <Sparkle size={14} />
-            {$tp('confirm.extract', data.openCount)}
+            {tp('confirm.extract', data.openCount)}
           </button>
         </form>
       </div>
@@ -1700,14 +1700,14 @@
 
   {#if review}
     <div class="rev-mobile-only rev-actionbar">
-      <button type="button" class="rev-actionbar-icon" onclick={openDocViewer} aria-label={$t('review.document')} title={$t('review.document')}>
+      <button type="button" class="rev-actionbar-icon" onclick={openDocViewer} aria-label={t('review.document')} title={t('review.document')}>
         <FileText size={20} />
       </button>
-      <button type="submit" form="discard-item-form" class="rev-actionbar-icon danger" aria-label={$t('extract.discard')} title={$t('extract.discard')}>
+      <button type="submit" form="discard-item-form" class="rev-actionbar-icon danger" aria-label={t('extract.discard')} title={t('extract.discard')}>
         <Trash size={19} />
       </button>
       <button type="submit" form="save-form" class="rev-actionbar-save">
-        <Check size={18} /> {$t('extract.confirmSave')}
+        <Check size={18} /> {t('extract.confirmSave')}
       </button>
     </div>
   {/if}
@@ -1719,36 +1719,36 @@
       <span class="rev-lightbox-title">{review.filename}</span>
       {#if isMobile}
         <a href={previewSrc} target="_blank" rel="noopener" class="rev-icon-btn" style="width:44px;height:44px;"
-          title={$t('review.openInTab')} aria-label={$t('review.openInTab')}>
+          title={t('review.openInTab')} aria-label={t('review.openInTab')}>
           <ExternalLink size={17} />
         </a>
       {/if}
       <button type="button" class="btn btn-secondary" style="font-size:12.5px;gap:6px;" onclick={closeDocViewer}>
-        <X size={13} /> {$t('review.closeFullscreen')}
+        <X size={13} /> {t('review.closeFullscreen')}
       </button>
     </div>
     <div class="rev-lightbox-frame" role="presentation" onclick={(e) => e.stopPropagation()}>
       {#if isMobile && previewIsImage}
-        <img src={previewSrc} alt={$t('a11y.documentPreview')} class="rev-lightbox-img" />
+        <img src={previewSrc} alt={t('a11y.documentPreview')} class="rev-lightbox-img" />
       {:else}
-        <iframe src={isMobile ? previewFitSrc : previewSrc} title={$t('a11y.documentPreview')} style="width:100%;height:100%;border:none;display:block;"></iframe>
+        <iframe src={isMobile ? previewFitSrc : previewSrc} title={t('a11y.documentPreview')} style="width:100%;height:100%;border:none;display:block;"></iframe>
       {/if}
     </div>
     {#if isMobile}
       <div class="rev-returnbar" role="presentation" onclick={(e) => e.stopPropagation()}>
         {#if returnTarget}
-          <div class="rev-returnbar-label">{$t('review.returnTo')}</div>
+          <div class="rev-returnbar-label">{t('review.returnTo')}</div>
           <button type="button" class="rev-returnbar-btn" onclick={closeDocViewer}>
             <ArrowLeft size={18} />
             <span class="rev-returnbar-field">
-              <span class="rev-returnbar-name">{$t(returnTarget.labelKey)}</span>
-              <span class="num rev-returnbar-value">{returnTarget.value || $t('extract.fieldEmpty')}</span>
+              <span class="rev-returnbar-name">{t(returnTarget.labelKey)}</span>
+              <span class="num rev-returnbar-value">{returnTarget.value || t('extract.fieldEmpty')}</span>
             </span>
-            <span class="rev-returnbar-go">{$t('review.resume')}</span>
+            <span class="rev-returnbar-go">{t('review.resume')}</span>
           </button>
         {:else}
           <button type="button" class="rev-returnbar-btn plain" onclick={closeDocViewer}>
-            <ArrowLeft size={18} /> {$t('review.backToForm')}
+            <ArrowLeft size={18} /> {t('review.backToForm')}
           </button>
         {/if}
       </div>
@@ -1774,19 +1774,19 @@
     >
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
         <AlertTriangle size={18} class="text-neg shrink-0" />
-        <strong id="dup-modal-title" class="text-[15px] font-semibold text-fg">{$t('batch.dupTitle')}</strong>
+        <strong id="dup-modal-title" class="text-[15px] font-semibold text-fg">{t('batch.dupTitle')}</strong>
       </div>
       <p class="text-[13px] text-fg-2 leading-[1.6] mb-5">
-        {$t('batch.dupBody')}
+        {t('batch.dupBody')}
       </p>
       <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
         <button type="button" class="btn btn-secondary" style="height:36px;font-size:13px;"
           onclick={closeContentDuplicateModal}>
-          {$t('batch.backToReview')}
+          {t('batch.backToReview')}
         </button>
         <button type="submit" form="discard-item-form" class="btn btn-primary" style="height:36px;font-size:13px;"
           onclick={closeContentDuplicateModal}>
-          {$t('extract.discard')}
+          {t('extract.discard')}
         </button>
       </div>
     </div>
@@ -1811,10 +1811,10 @@
     >
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
         <AlertTriangle size={18} class="text-warn shrink-0" />
-        <strong id="lowconf-modal-title" class="text-[15px] font-semibold text-fg">{$t('batch.lowConfTitle')}</strong>
+        <strong id="lowconf-modal-title" class="text-[15px] font-semibold text-fg">{t('batch.lowConfTitle')}</strong>
       </div>
       <p class="text-[13px] text-fg-2 leading-[1.6] mb-4">
-        {$t('batch.lowConfPre')} <strong>{uncertainCount}</strong> {$tp('batch.field', uncertainCount)} {$t('batch.lowConfPost')}
+        {t('batch.lowConfPre')} <strong>{uncertainCount}</strong> {tp('batch.field', uncertainCount)} {t('batch.lowConfPost')}
       </p>
       {#if uncertainHeaderFields.length > 0}
         <ul class="text-[12.5px] text-fg-3 mb-4 pl-4">
@@ -1830,7 +1830,7 @@
           style="height:36px;font-size:13px;"
           onclick={closeLowConfModal}
         >
-          {$t('batch.backToReview')}
+          {t('batch.backToReview')}
         </button>
         <button
           type="button"
@@ -1843,7 +1843,7 @@
             (document.getElementById('save-form') as HTMLFormElement)?.requestSubmit();
           }}
         >
-          {$t('batch.reviewedAll')}
+          {t('batch.reviewedAll')}
         </button>
       </div>
     </div>

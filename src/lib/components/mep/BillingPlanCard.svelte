@@ -31,12 +31,12 @@
 	box-shadow:{isRecommended ? '0 0 0 1px var(--mep-acc), var(--mep-shadow-card)' : 'var(--mep-shadow-card)'};
 	background:{tier.isCurrent ? 'var(--mep-surface-2)' : 'var(--mep-surface)'};">
 	<div style="display:flex;align-items:center;gap:8px;">
-		<div style="font-size:16px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.01em;">{$t(tier.nameKey)}</div>
+		<div style="font-size:16px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.01em;">{t(tier.nameKey)}</div>
 		{#if isRecommended}
-			<span style="background:var(--mep-acc);color:var(--mep-acc-fg);font-size:11px;font-weight:500;padding:2px 7px;border-radius:var(--mep-r-tag);">{$t('billing.recommended')}</span>
+			<span style="background:var(--mep-acc);color:var(--mep-acc-fg);font-size:11px;font-weight:500;padding:2px 7px;border-radius:var(--mep-r-tag);">{t('billing.recommended')}</span>
 		{/if}
 		{#if tier.isCurrent}
-			<span style="background:var(--mep-hover);color:var(--mep-fg-2);font-size:11px;font-weight:500;padding:2px 7px;border-radius:var(--mep-r-tag);">{$t('billing.currentPlan')}</span>
+			<span style="background:var(--mep-hover);color:var(--mep-fg-2);font-size:11px;font-weight:500;padding:2px 7px;border-radius:var(--mep-r-tag);">{t('billing.currentPlan')}</span>
 		{/if}
 	</div>
 
@@ -44,24 +44,24 @@
 		<div style="display:flex;align-items:baseline;gap:6px;">
 			<span class="num" style="font-size:32px;font-weight:600;letter-spacing:-0.025em;color:var(--mep-fg);
 				border-bottom:2px dotted var(--mep-border-strong);line-height:1.1;">{price} €</span>
-			<span style="font-size:13px;color:var(--mep-fg-3);">{$t('billing.perMonth')}</span>
+			<span style="font-size:13px;color:var(--mep-fg-3);">{t('billing.perMonth')}</span>
 		</div>
 		<div style="margin-top:8px;">
 			<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;
 				letter-spacing:0.02em;text-transform:uppercase;color:var(--mep-fg-3);
 				border:1px dashed var(--mep-border-strong);border-radius:var(--mep-r-tag);padding:1px 5px;">
-				{$t('billing.provisional')}
+				{t('billing.provisional')}
 			</span>
 		</div>
 	</div>
 
-	<div style="font-size:13px;color:var(--mep-fg-2);line-height:1.45;min-height:34px;">{$t(copy.tagline)}</div>
+	<div style="font-size:13px;color:var(--mep-fg-2);line-height:1.45;min-height:34px;">{t(copy.tagline)}</div>
 
 	{#if tier.isCurrent}
 		<div style="display:flex;align-items:center;justify-content:center;gap:6px;height:36px;width:100%;
 			font-size:13px;font-weight:500;color:var(--mep-acc);
 			border:1px solid var(--mep-acc-ring);border-radius:var(--mep-r-input);">
-			<Check size={14} /> {$t('billing.currentPlan')}
+			<Check size={14} /> {t('billing.currentPlan')}
 		</div>
 	{:else}
 		<form method="POST" action={switchable ? '?/portal' : '?/checkout'}>
@@ -70,7 +70,7 @@
 			<button type="submit" class={isRecommended ? 'btn btn-primary' : 'btn btn-secondary'}
 				disabled={!available}
 				style="height:36px;justify-content:center;width:100%;opacity:{available ? 1 : 0.5};">
-				{$ti(switchable ? 'billing.switchTo' : 'billing.choose', { name: $t(tier.nameKey) })}
+				{ti(switchable ? 'billing.switchTo' : 'billing.choose', { name: t(tier.nameKey) })}
 			</button>
 		</form>
 	{/if}
@@ -79,7 +79,7 @@
 
 	<div style="display:flex;flex-direction:column;gap:8px;">
 		{#if copy.inherits}
-			<div style="font-size:12px;font-weight:500;color:var(--mep-fg-2);">{$t(copy.inherits)}</div>
+			<div style="font-size:12px;font-weight:500;color:var(--mep-fg-2);">{t(copy.inherits)}</div>
 		{/if}
 		{#each copy.bullets(tier.monthlyInvoiceQuota) as bullet}
 			<div style="display:flex;gap:8px;align-items:flex-start;font-size:13px;color:var(--mep-fg-2);">
@@ -87,7 +87,7 @@
 					<Check size={14} />
 				</span>
 				<span style="line-height:1.4;">
-					{bullet.interpolate ? $ti(bullet.key, bullet.interpolate) : $t(bullet.key)}
+					{bullet.interpolate ? ti(bullet.key, bullet.interpolate) : t(bullet.key)}
 				</span>
 			</div>
 		{/each}

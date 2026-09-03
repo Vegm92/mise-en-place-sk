@@ -8,8 +8,7 @@
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { get } from 'svelte/store';
-import { locale, t, loadAllMessages } from '../src/lib/i18n';
+import { setLocale, t, loadAllMessages } from '../src/lib/i18n';
 
 await loadAllMessages();
 
@@ -393,9 +392,9 @@ describe('switchTier', () => {
 
 describe('plan display names go through the i18n table (follow-up to #661)', () => {
   const order: PlanTier[] = ['trial', 'starter', 'pro', 'business'];
-  const tr = (key: string) => get(t)(key);
+  const tr = (key: string) => t(key);
 
-  afterEach(() => locale.set('es'));
+  afterEach(() => setLocale('es'));
 
   it('gives every tier an i18n key for its display name', () => {
     for (const tier of order) {
@@ -406,7 +405,7 @@ describe('plan display names go through the i18n table (follow-up to #661)', () 
   it('resolves every tier name key in both locales', () => {
     const missing: string[] = [];
     for (const lc of ['es', 'en'] as const) {
-      locale.set(lc);
+      setLocale(lc);
       for (const tier of order) {
         const key = TIERS[tier].nameKey;
         if (tr(key) === key) missing.push(`${lc}:${key}`);
@@ -416,17 +415,17 @@ describe('plan display names go through the i18n table (follow-up to #661)', () 
   });
 
   it('translates the trial plan instead of showing Spanish to English readers', () => {
-    locale.set('es');
+    setLocale('es');
     expect(tr(TIERS.trial.nameKey)).toBe('Prueba gratuita');
-    locale.set('en');
+    setLocale('en');
     expect(tr(TIERS.trial.nameKey)).toBe('Free trial');
   });
 
   it('keeps Starter/Pro/Business identical in both locales — they are brand names', () => {
     for (const tier of ['starter', 'pro', 'business'] as PlanTier[]) {
-      locale.set('es');
+      setLocale('es');
       const es = tr(TIERS[tier].nameKey);
-      locale.set('en');
+      setLocale('en');
       expect(tr(TIERS[tier].nameKey)).toBe(es);
       expect(es).toBe(TIERS[tier].name);
     }

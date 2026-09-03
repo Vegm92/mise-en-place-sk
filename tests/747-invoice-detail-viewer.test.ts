@@ -47,7 +47,7 @@ describe('issue #747 — invoice detail viewer never prints the raw storage key'
 
 	it('the desktop download action reads "Descargar original", not "Descargar PDF"', () => {
 		const source = readFileSync(DESKTOP, 'utf8');
-		expect(source).toContain("$t('inv.detail.downloadOriginal')");
+		expect(source).toContain("t('inv.detail.downloadOriginal')");
 		expect(source).not.toContain('inv.detail.downloadPdf');
 		expect(translations.es['inv.detail.downloadOriginal']).toBe('Descargar original');
 		expect(translations.en['inv.detail.downloadOriginal']).toBe('Download original');
@@ -56,6 +56,6 @@ describe('issue #747 — invoice detail viewer never prints the raw storage key'
 	it('the mobile download action is no longer hardcoded to the literal "PDF"', () => {
 		const source = readFileSync(MOBILE, 'utf8');
 		expect(source).not.toMatch(/label:\s*'PDF'/);
-		expect(source).toContain("$t('mid.actionDownload')");
+		expect(source).toContain("t('mid.actionDownload')");
 	});
 });

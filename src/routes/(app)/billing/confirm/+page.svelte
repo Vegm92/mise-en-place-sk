@@ -7,7 +7,7 @@
 </script>
 
 <svelte:head>
-	<title>{$t('billing.confirm.title')} · Mise en Place</title>
+	<title>{t('billing.confirm.title')} · Mise en Place</title>
 </svelte:head>
 
 <div style="min-height:100%;background:var(--mep-bg);display:flex;align-items:center;justify-content:center;padding:40px 24px;">
@@ -21,38 +21,38 @@
 		</div>
 
 		<h1 style="font-size:20px;font-weight:600;color:var(--mep-fg);margin:0 0 8px;letter-spacing:-0.3px;">
-			{$t('billing.confirm.title')}
+			{t('billing.confirm.title')}
 		</h1>
 
 		<p style="font-size:14px;color:var(--mep-fg-2);line-height:1.6;margin:0 0 20px;">
-			{$t('billing.confirm.body')}
+			{t('billing.confirm.body')}
 		</p>
 
 		{#if data.planNameKey}
 			<div
 				style="display:inline-flex;align-items:center;gap:8px;background:var(--mep-acc-soft);color:var(--mep-acc);border-radius:99px;padding:6px 16px;font-size:13px;font-weight:500;margin-bottom:20px;"
 			>
-				{$t('billing.confirm.plan')}: <strong>{$t(data.planNameKey)}</strong>
+				{t('billing.confirm.plan')}: <strong>{t(data.planNameKey)}</strong>
 			</div>
 		{/if}
 
 		{#if data.email}
 			<p style="font-size:12.5px;color:var(--mep-fg-3);margin:0 0 24px;">
-				{$ti('billing.confirm.receiptSent', { email: data.email })}
+				{ti('billing.confirm.receiptSent', { email: data.email })}
 			</p>
 		{/if}
 
 		<div style="display:flex;gap:10px;justify-content:center;margin-bottom:18px;">
 			<a href="/dashboard" class="btn btn-primary" style="height:38px;justify-content:center;text-decoration:none;">
-				{$t('billing.confirm.goDashboard')}
+				{t('billing.confirm.goDashboard')}
 			</a>
 			<a href="/billing" class="btn btn-ghost" style="height:38px;justify-content:center;text-decoration:none;">
-				{$t('billing.confirm.viewBilling')}
+				{t('billing.confirm.viewBilling')}
 			</a>
 		</div>
 
 		<p style="font-size:12px;color:var(--mep-fg-4);margin:0;">
-			{$t('billing.confirm.redirecting')}
+			{t('billing.confirm.redirecting')}
 		</p>
 	</div>
 </div>
