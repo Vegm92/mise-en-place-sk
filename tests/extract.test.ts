@@ -351,9 +351,11 @@ describe('classifyFile', () => {
 
 // Issue #385: supplier-level contact fields (CIF/NIF, address, email, phone)
 // were never requested from the LLM in the first place — the JSON schema in
-// the extraction prompt only asked for header/line-item fields.
-describe('extractInvoice — supplier contact fields (issue #385)', () => {
-  it('asks the model for supplier_nif, supplier_address, supplier_email and supplier_phone', async () => {
+// the extraction prompt only asked for header/line-item fields. Issue #918
+// extends the same gap to the receiver's own email/phone, folded into the
+// same three tests rather than a parallel describe block.
+describe('extractInvoice — supplier and receiver contact fields (issues #385, #918)', () => {
+  it('asks the model for supplier_nif, supplier_address, supplier/receiver email and phone', async () => {
     mockPdfText('FACTURA\nProveedor Test S.L.\nTotal: 1250.00 EUR\n'.repeat(5));
 
     const generate = makeGenerateFn(JSON.stringify(MOCK_INVOICE_DATA));
@@ -364,9 +366,11 @@ describe('extractInvoice — supplier contact fields (issue #385)', () => {
     expect(systemInstruction).toContain('supplier_address');
     expect(systemInstruction).toContain('supplier_email');
     expect(systemInstruction).toContain('supplier_phone');
+    expect(systemInstruction).toContain('receiver_email');
+    expect(systemInstruction).toContain('receiver_phone');
   });
 
-  it('passes supplier contact fields through when the model returns them', async () => {
+  it('passes supplier and receiver contact fields through when the model returns them', async () => {
     mockPdfText('FACTURA\nSuministros Alimentarios Goya, S.L.\n'.repeat(5));
 
     const dataWithContact = {
@@ -375,6 +379,8 @@ describe('extractInvoice — supplier contact fields (issue #385)', () => {
       supplier_address: 'Polígono Ind. La Resina, Nave 14, 28201 Madrid',
       supplier_email: 'facturacion@goya.es',
       supplier_phone: '+34 91 555 22 33',
+      receiver_email: 'restaurante@example.es',
+      receiver_phone: '+34 600 11 22 33',
     };
     const generate = makeGenerateFn(JSON.stringify(dataWithContact));
     const result = await extractInvoice('/fake/invoice.pdf', generate);
@@ -383,6 +389,8 @@ describe('extractInvoice — supplier contact fields (issue #385)', () => {
     expect(result.supplier_address).toBe('Polígono Ind. La Resina, Nave 14, 28201 Madrid');
     expect(result.supplier_email).toBe('facturacion@goya.es');
     expect(result.supplier_phone).toBe('+34 91 555 22 33');
+    expect(result.receiver_email).toBe('restaurante@example.es');
+    expect(result.receiver_phone).toBe('+34 600 11 22 33');
   });
 
   it('does not fabricate contact fields absent from the model response', async () => {
@@ -395,6 +403,8 @@ describe('extractInvoice — supplier contact fields (issue #385)', () => {
     expect(result.supplier_address ?? null).toBeNull();
     expect(result.supplier_email ?? null).toBeNull();
     expect(result.supplier_phone ?? null).toBeNull();
+    expect(result.receiver_email ?? null).toBeNull();
+    expect(result.receiver_phone ?? null).toBeNull();
   });
 });
 

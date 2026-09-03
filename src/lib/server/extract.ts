@@ -43,6 +43,8 @@ Return ONLY valid JSON with this exact structure:
   "receiver_name": "the RECEPTOR's name — the party billed, who owes the money (cliente, destinatario) — or null if not printed",
   "receiver_nif": "the RECEPTOR's CIF or NIF — or null if not printed",
   "receiver_address": "the RECEPTOR's postal address as printed — or null if not printed",
+  "receiver_email": "the RECEPTOR's contact email — or null if not printed",
+  "receiver_phone": "the RECEPTOR's contact phone — or null if not printed",
   "payment_method": "one of ${PAYMENT_METHODS.filter((m) => m !== 'otro').join(' | ')} | otro — or null if not printed",
   "iban": "the EMISOR's bank account (IBAN / cuenta / nº cuenta / CCC), as printed — or null if not printed",
   "payment_terms": "payment terms exactly as printed (e.g. '30 días', 'contado', '60 días f.f.') — or null if not printed",
@@ -188,6 +190,8 @@ export interface ExtractedInvoice {
 	receiver_name?: string | null;
 	receiver_nif?: string | null;
 	receiver_address?: string | null;
+	receiver_email?: string | null;
+	receiver_phone?: string | null;
 	payment_method?: string | null;
 	iban?: string | null;
 	payment_terms?: string | null;
@@ -297,6 +301,8 @@ export const INVOICE_RESPONSE_SCHEMA: Schema = {
 		receiver_name: { type: Type.STRING, nullable: true },
 		receiver_nif: { type: Type.STRING, nullable: true },
 		receiver_address: { type: Type.STRING, nullable: true },
+		receiver_email: { type: Type.STRING, nullable: true },
+		receiver_phone: { type: Type.STRING, nullable: true },
 		payment_method: { type: Type.STRING, enum: [...PAYMENT_METHODS], nullable: true },
 		iban: { type: Type.STRING, nullable: true },
 		payment_terms: { type: Type.STRING, nullable: true },
@@ -325,7 +331,7 @@ export const INVOICE_RESPONSE_SCHEMA: Schema = {
 	},
 	required: [
 		'supplier_name', 'supplier_category', 'supplier_nif', 'supplier_address', 'supplier_email',
-		'supplier_phone', 'receiver_name', 'receiver_nif', 'receiver_address',
+		'supplier_phone', 'receiver_name', 'receiver_nif', 'receiver_address', 'receiver_email', 'receiver_phone',
 		'payment_method', 'iban', 'payment_terms',
 		'invoice_number', 'purchase_order', 'seller_name', 'document_type', 'invoice_date', 'due_date',
 		'delivery_date', 'delivery_address', 'printed_notes', 'total_amount',
@@ -417,6 +423,8 @@ export function sanitizeExtractedInvoice(invoice: ExtractedInvoice): ExtractedIn
 		receiver_name: sanitizeFreeText(invoice.receiver_name, MAX_SUPPLIER_NAME_LENGTH),
 		receiver_nif: sanitizeFreeText(invoice.receiver_nif, MAX_NIF_LENGTH),
 		receiver_address: sanitizeFreeText(invoice.receiver_address, MAX_ADDRESS_LENGTH),
+		receiver_email: sanitizeFreeText(invoice.receiver_email, MAX_EMAIL_LENGTH),
+		receiver_phone: sanitizeFreeText(invoice.receiver_phone, MAX_PHONE_LENGTH),
 		payment_method: isValidPaymentMethod(invoice.payment_method) ? invoice.payment_method : null,
 		iban,
 		payment_terms: sanitizeFreeText(invoice.payment_terms, MAX_PAYMENT_TERMS_LENGTH),
