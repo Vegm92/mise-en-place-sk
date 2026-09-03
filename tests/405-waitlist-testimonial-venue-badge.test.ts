@@ -80,12 +80,12 @@ describe('LandingPage.svelte renders venue type as a distinct badge, not trailin
 		const block = PAGE_SRC.match(/const testimonialItems = \$derived\(\[([\s\S]*?)\]\);/);
 		expect(block, 'testimonialItems derived array not found').toBeTruthy();
 		for (const key of ROLE_KEYS) {
-			expect(block![1]).toContain(`splitRole($t('${key}'))`);
+			expect(block![1]).toContain(`splitRole(t('${key}'))`);
 		}
 	});
 
 	it('renders one .badge.badge-neutral element per testimonial card, sourced from item.venueType', () => {
-		const eyebrowIdx = PAGE_SRC.indexOf("$t('waitlist.testimonialsEyebrow')");
+		const eyebrowIdx = PAGE_SRC.indexOf("t('waitlist.testimonialsEyebrow')");
 		const sectionStart = PAGE_SRC.lastIndexOf('<section', eyebrowIdx);
 		const sectionEnd = PAGE_SRC.indexOf('</section>', eyebrowIdx);
 		expect(sectionStart, 'testimonials section not found').toBeGreaterThan(-1);
@@ -101,7 +101,7 @@ describe('LandingPage.svelte renders venue type as a distinct badge, not trailin
 	});
 
 	it('the badge sits below the name line, not concatenated as trailing text on it', () => {
-		const eyebrowIdx = PAGE_SRC.indexOf("$t('waitlist.testimonialsEyebrow')");
+		const eyebrowIdx = PAGE_SRC.indexOf("t('waitlist.testimonialsEyebrow')");
 		const sectionStart = PAGE_SRC.lastIndexOf('<section', eyebrowIdx);
 		const sectionEnd = PAGE_SRC.indexOf('</section>', eyebrowIdx);
 		const section = PAGE_SRC.slice(sectionStart, sectionEnd);
@@ -113,7 +113,7 @@ describe('LandingPage.svelte renders venue type as a distinct badge, not trailin
 	});
 
 	it('uses the neutral badge tokens, never the accent color, on the venue-type tag (ADR-026/ADR-027)', () => {
-		const eyebrowIdx = PAGE_SRC.indexOf("$t('waitlist.testimonialsEyebrow')");
+		const eyebrowIdx = PAGE_SRC.indexOf("t('waitlist.testimonialsEyebrow')");
 		const sectionStart = PAGE_SRC.lastIndexOf('<section', eyebrowIdx);
 		const sectionEnd = PAGE_SRC.indexOf('</section>', eyebrowIdx);
 		const section = PAGE_SRC.slice(sectionStart, sectionEnd);
@@ -132,7 +132,7 @@ describe('LandingPage.svelte renders venue type as a distinct badge, not trailin
 	});
 
 	it('adds no new inline font-size or border-radius (reuses the .badge class already on the type/radius scale)', () => {
-		const eyebrowIdx = PAGE_SRC.indexOf("$t('waitlist.testimonialsEyebrow')");
+		const eyebrowIdx = PAGE_SRC.indexOf("t('waitlist.testimonialsEyebrow')");
 		const sectionStart = PAGE_SRC.lastIndexOf('<section', eyebrowIdx);
 		const sectionEnd = PAGE_SRC.indexOf('</section>', eyebrowIdx);
 		const section = PAGE_SRC.slice(sectionStart, sectionEnd);
@@ -143,7 +143,7 @@ describe('LandingPage.svelte renders venue type as a distinct badge, not trailin
 	});
 
 	it('stays inside the shared .mep-grid-3 card, which already collapses to one column at 640px and below', () => {
-		const eyebrowIdx = PAGE_SRC.indexOf("$t('waitlist.testimonialsEyebrow')");
+		const eyebrowIdx = PAGE_SRC.indexOf("t('waitlist.testimonialsEyebrow')");
 		const sectionStart = PAGE_SRC.lastIndexOf('<section', eyebrowIdx);
 		const sectionEnd = PAGE_SRC.indexOf('</section>', eyebrowIdx);
 		const section = PAGE_SRC.slice(sectionStart, sectionEnd);

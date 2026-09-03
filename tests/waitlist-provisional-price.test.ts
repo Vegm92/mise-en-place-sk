@@ -18,7 +18,7 @@
  * The second describe block is the core acceptance check for #407: it
  * rebuilds, field by field, the exact object the page used to hardcode as
  * `const copy = { es: {...}, en: {...} }` before the migration — but sourced
- * entirely from the shared i18n table (`$t`/`$ti` lookups, `billing.*` reuse,
+ * entirely from the shared i18n table (`t`/`ti` lookups, `billing.*` reuse,
  * `PROVISIONAL_PRICE`-fed interpolation) — and diffs it against the real
  * pre-migration object, evaluated out of a checked-in snapshot of the page at
  * the last commit before this migration
@@ -62,9 +62,9 @@ describe('/waitlist reads prices from PROVISIONAL_PRICE, not hardcoded literals'
 		expect(block).not.toMatch(BARE_PRICE);
 	});
 
-	it('the "cost" FAQ answer is interpolated via $ti with PROVISIONAL_PRICE-fed vars, not literal figures', () => {
-		const match = PAGE_SRC.match(/\$ti\('waitlist\.faq\.3\.a',\s*\{([\s\S]*?)\}\s*\)/);
-		expect(match, '$ti(\'waitlist.faq.3.a\', {...}) call not found').toBeTruthy();
+	it('the "cost" FAQ answer is interpolated via ti with PROVISIONAL_PRICE-fed vars, not literal figures', () => {
+		const match = PAGE_SRC.match(/ti\('waitlist\.faq\.3\.a',\s*\{([\s\S]*?)\}\s*\)/);
+		expect(match, 'ti(\'waitlist.faq.3.a\', {...}) call not found').toBeTruthy();
 		const block = match![1];
 		expect(block).toContain('starter: PROVISIONAL_PRICE.starter');
 		expect(block).toContain('pro: PROVISIONAL_PRICE.pro');
@@ -321,7 +321,7 @@ describe('waitlist copy migration is byte-identical to the pre-migration inline 
 	});
 
 	for (const loc of ['es', 'en'] as const) {
-		it(`renders identical ${loc} copy via $t/$ti against the shared i18n table, aside from documented later changes`, () => {
+		it(`renders identical ${loc} copy via t/ti against the shared i18n table, aside from documented later changes`, () => {
 			const expected = { ...PRE_MIGRATION_COPY[loc], ...POST_407_INTENTIONAL_CHANGES[loc] };
 			expected.pricingTrialLimit = POST_ADR036_TRIAL_LIMIT[loc];
 			expected.mockKpiInvoicesShort = POST_ADR036_KPI_SHORT[loc];

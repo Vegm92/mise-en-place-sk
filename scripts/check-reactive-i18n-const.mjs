@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
 /**
- * Flags `const x = [...$t(...)]` — a translator call captured in a
+ * Flags `const x = [...t(...)]` — a translator call captured in a
  * module-scope `const` that is never re-run, so the label freezes at whatever
  * the locale was on first render and never updates on a language switch
  * (issue #534).
@@ -9,7 +9,7 @@
  * Only the top-level statements of a component's `<script>` block are
  * considered "module scope" here: a `const` declared inside a function body,
  * an `$effect`/`$derived.by` callback, or any other nested block runs again
- * every time that function runs, so a `$t(...)` inside it is fine and is not
+ * every time that function runs, so a `t(...)` inside it is fine and is not
  * flagged. A `const` wrapped in `$derived(...)`, `$derived.by(...)` or a
  * generic `$derived<T>(...)` re-evaluates on every dependency change
  * (including a locale change) by rune semantics, so it is fine too.
@@ -17,14 +17,14 @@
  * This is a pragmatic, TypeScript-AST-based check, not a full reactivity
  * analysis. Known limitations, kept deliberately narrow to avoid false
  * positives:
- *   - Only `const` is checked. A `let` or `$state([...$t(...)])` with the
+ *   - Only `const` is checked. A `let` or `$state([...t(...)])` with the
  *     same shape would have the same latent bug but is out of scope here.
- *   - Only calls to `$t` / `$ti` / `$tp` / `$tiv` / `$tcat` are looked for
- *     (the app's translator stores) — see src/lib/i18n.ts.
+ *   - Only calls to `t` / `ti` / `tp` / `tiv` / `tcat` are looked for
+ *     (the app's translator functions) — see src/lib/i18n.svelte.ts.
  *   - A `const` whose initializer is itself a plain function/arrow function
  *     is not flagged even without `$derived`, since the body only runs when
  *     the function is called, not at declaration time (e.g. a helper that
- *     calls `$t(...)` when invoked from markup or an event handler).
+ *     calls `t(...)` when invoked from markup or an event handler).
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -75,8 +75,7 @@ function callsTranslator(node, sf) {
 		if (
 			ts.isCallExpression(n) &&
 			ts.isIdentifier(n.expression) &&
-			n.expression.text.startsWith('$') &&
-			TRANSLATOR_FNS.has(n.expression.text.slice(1))
+			TRANSLATOR_FNS.has(n.expression.text)
 		) {
 			found = true;
 			return;
@@ -186,7 +185,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 	]);
 	if (violations.length > 0) {
 		console.error(
-			'\n$t(...) (or $ti/$tp/$tiv/$tcat) captured in a non-reactive const — it evaluates once and\n' +
+			'\nt(...) (or ti/tp/tiv/tcat) captured in a non-reactive const — it evaluates once and\n' +
 				'never updates on a language switch. Wrap the array/object in $derived(...) instead (issue #534).\n'
 		);
 		for (const v of violations) console.error(`  ${v.file}:${v.line}  const ${v.name}`);

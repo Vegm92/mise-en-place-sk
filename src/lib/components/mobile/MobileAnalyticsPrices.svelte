@@ -61,11 +61,11 @@
   );
 
   function fmtPrice(n: number) {
-    return fmtEur(n, $locale);
+    return fmtEur(n, locale.current);
   }
   function fmtDate(d: string | null) {
     if (!d) return '—';
-    try { return new Date(d).toLocaleDateString($locale, { day: '2-digit', month: 'short' }); }
+    try { return new Date(d).toLocaleDateString(locale.current, { day: '2-digit', month: 'short' }); }
     catch { return d; }
   }
   function chipBg(pct: number | null) {
@@ -82,10 +82,10 @@
   }
 
   const filterOptions = $derived<Array<[typeof filterChange, string]>>([
-    ['all',  $t('prices.filter.all')],
-    ['up',   $t('prices.filter.up')],
-    ['down', $t('prices.filter.down')],
-    ['flat', $t('prices.filter.flat')],
+    ['all',  t('prices.filter.all')],
+    ['up',   t('prices.filter.up')],
+    ['down', t('prices.filter.down')],
+    ['flat', t('prices.filter.flat')],
   ]);
 </script>
 
@@ -99,12 +99,12 @@
     <input
       class="input"
       style="width: 100%; height: 40px; padding-left: 36px; box-sizing: border-box;"
-      placeholder={$t('prices.searchPlaceholder')}
+      placeholder={t('prices.searchPlaceholder')}
       bind:value={search}
     />
   </div>
 
-  <ScrollStrip label={$t('anp.filterLabel')} extraStyle="flex-shrink:0;">
+  <ScrollStrip label={t('anp.filterLabel')} extraStyle="flex-shrink:0;">
     {#each filterOptions as [val, label]}
       <button
         class="chip {filterChange === val ? 'active' : ''}"
@@ -116,24 +116,24 @@
       style="gap: 5px;"
       aria-haspopup="dialog"
       onclick={() => supplierSheetOpen = true}
-    >{$t('prices.filter.supplier')}</button>
+    >{t('prices.filter.supplier')}</button>
   </ScrollStrip>
 
   {#if supplierSheetOpen}
     <button
       type="button"
       class="filter-sheet-backdrop"
-      aria-label={$t('minv.sheet.close')}
+      aria-label={t('minv.sheet.close')}
       onclick={() => supplierSheetOpen = false}
     ></button>
-    <div class="filter-sheet" role="dialog" aria-modal="true" aria-label={$t('prices.filter.supplier')}>
+    <div class="filter-sheet" role="dialog" aria-modal="true" aria-label={t('prices.filter.supplier')}>
       <div class="filter-sheet-head">
-        <span class="body-strong">{$t('prices.filter.supplier')}</span>
-        <button type="button" class="btn btn-ghost" onclick={() => supplierSheetOpen = false}>{$t('minv.sheet.close')}</button>
+        <span class="body-strong">{t('prices.filter.supplier')}</span>
+        <button type="button" class="btn btn-ghost" onclick={() => supplierSheetOpen = false}>{t('minv.sheet.close')}</button>
       </div>
       <div class="filter-sheet-list">
         <button type="button" class="filter-sheet-option" aria-pressed={selected_supplier === null} onclick={() => pickSupplier(null)}>
-          <span>{$t('prices.allSuppliers')}</span>
+          <span>{t('prices.allSuppliers')}</span>
         </button>
         {#each suppliers as s}
           <button type="button" class="filter-sheet-option" aria-pressed={selected_supplier === s.id} onclick={() => pickSupplier(s.id)}>
@@ -148,42 +148,42 @@
 
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
       <div class="card" style="padding: 12px;">
-        <div class="label" style=" margin-bottom: 5px;">{$t('prices.tracked')}</div>
+        <div class="label" style=" margin-bottom: 5px;">{t('prices.tracked')}</div>
         <div class="num" style="font-size: 20px; font-weight: 600; letter-spacing: -0.4px; line-height: 1.1; color: var(--mep-fg);">
           {items.length}
         </div>
-        <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 4px;">{$t('prices.inTotal')}</div>
+        <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 4px;">{t('prices.inTotal')}</div>
       </div>
       <div class="card" style="padding: 12px;">
-        <div class="label" style=" margin-bottom: 5px;">{$t('prices.up')}</div>
+        <div class="label" style=" margin-bottom: 5px;">{t('prices.up')}</div>
         <div class="num" style="font-size: 20px; font-weight: 600; letter-spacing: -0.4px; line-height: 1.1; color: {totalUp > 0 ? 'var(--mep-neg)' : 'var(--mep-fg)'};">
           {totalUp}
         </div>
-        <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 4px;">{totalUp > 0 ? $t('prices.upSub') : $t('prices.noUp')}</div>
+        <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 4px;">{totalUp > 0 ? t('prices.upSub') : t('prices.noUp')}</div>
       </div>
       <div class="card" style="padding: 12px;">
-        <div class="label" style=" margin-bottom: 5px;">{$t('prices.down')}</div>
+        <div class="label" style=" margin-bottom: 5px;">{t('prices.down')}</div>
         <div class="num" style="font-size: 20px; font-weight: 600; letter-spacing: -0.4px; line-height: 1.1; color: {totalDown > 0 ? 'var(--mep-pos)' : 'var(--mep-fg)'};">
           {totalDown}
         </div>
-        <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 4px;">{totalDown > 0 ? $t('prices.downSub') : $t('prices.noDown')}</div>
+        <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 4px;">{totalDown > 0 ? t('prices.downSub') : t('prices.noDown')}</div>
       </div>
       <div class="card" style="padding: 12px;">
-        <div class="label" style=" margin-bottom: 5px;">{$t('prices.noChange')}</div>
+        <div class="label" style=" margin-bottom: 5px;">{t('prices.noChange')}</div>
         <div class="num" style="font-size: 20px; font-weight: 600; letter-spacing: -0.4px; line-height: 1.1; color: var(--mep-fg);">
           {totalFlat}
         </div>
-        <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 4px;">{$t('prices.stablePrices')}</div>
+        <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 4px;">{t('prices.stablePrices')}</div>
       </div>
     </div>
 
     {#if items.length === 0}
       <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 28px 0; text-align: center;">
-        <p class="body" style="color: var(--mep-fg-3); font-size: 13px; max-width: 260px; margin: 0;">{$t('prices.noDataDesc')}</p>
-        <a href="/" style="font-size: 13px; color: var(--mep-acc); text-decoration: none; display: inline-flex; align-items: center; min-height: 44px;">{$t('spend.uploadFirst')}</a>
+        <p class="body" style="color: var(--mep-fg-3); font-size: 13px; max-width: 260px; margin: 0;">{t('prices.noDataDesc')}</p>
+        <a href="/" style="font-size: 13px; color: var(--mep-acc); text-decoration: none; display: inline-flex; align-items: center; min-height: 44px;">{t('spend.uploadFirst')}</a>
       </div>
     {:else if filtered.length === 0}
-      <div style="padding: 32px 0; text-align: center; color: var(--mep-fg-3); font-size: 13px;">{$t('prices.noResults')}</div>
+      <div style="padding: 32px 0; text-align: center; color: var(--mep-fg-3); font-size: 13px;">{t('prices.noResults')}</div>
     {:else}
       <div style="display: flex; flex-direction: column; gap: 8px;">
         {#each filtered as item}
@@ -213,7 +213,7 @@
                 <span style="font-size: 12px; color: var(--mep-fg-3);">/ {item.unit}</span>
               {/if}
               {#if item.latest_normalized_price !== null && item.base_unit}
-                <span class="num" title={$t('prices.perBaseHint')} style="font-size: 11px; color: var(--mep-fg-3); border: 1px solid var(--mep-divider); border-radius: 6px; padding: 1px 6px;">
+                <span class="num" title={t('prices.perBaseHint')} style="font-size: 11px; color: var(--mep-fg-3); border: 1px solid var(--mep-divider); border-radius: 6px; padding: 1px 6px;">
                   {fmtPrice(item.latest_normalized_price)}/{item.base_unit}
                 </span>
               {/if}
@@ -224,9 +224,9 @@
               {/if}
             </div>
             <div style="margin-top: 6px; font-size: 11px; color: var(--mep-fg-3);">
-              {$t('prices.latest')}: <span class="num" style="color: var(--mep-fg-2);">{fmtDate(item.latest_date)}</span>
+              {t('prices.latest')}: <span class="num" style="color: var(--mep-fg-2);">{fmtDate(item.latest_date)}</span>
               {#if item.prev_date}
-                · {$t('prices.previous')}: <span class="num" style="color: var(--mep-fg-2);">{fmtDate(item.prev_date)}</span>
+                · {t('prices.previous')}: <span class="num" style="color: var(--mep-fg-2);">{fmtDate(item.prev_date)}</span>
               {/if}
             </div>
           </div>

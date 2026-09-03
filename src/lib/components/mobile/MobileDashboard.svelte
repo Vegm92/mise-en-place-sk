@@ -24,7 +24,7 @@
     return 'mdash.evening';
   });
   const dateStr = $derived(
-    new Date().toLocaleDateString($locale, { weekday: 'long', day: 'numeric', month: 'long' })
+    new Date().toLocaleDateString(locale.current, { weekday: 'long', day: 'numeric', month: 'long' })
   );
 
   const daysInMonth = $derived(data.projection?.days_in_month ?? 30);
@@ -62,8 +62,8 @@
 
   const momNote = $derived.by(() => {
     const pct = data.mom.pct_change;
-    if (pct == null) return $t('turno.ribbon.paceNoData');
-    return $ti('turno.ribbon.paceNoBudget', { delta: (pct >= 0 ? '+' : '') + pct + '%' });
+    if (pct == null) return t('turno.ribbon.paceNoData');
+    return ti('turno.ribbon.paceNoBudget', { delta: (pct >= 0 ? '+' : '') + pct + '%' });
   });
 
   const reviewColor = $derived.by(() => {
@@ -78,24 +78,24 @@
   <div style="padding: 14px 18px 24px; display: flex; flex-direction: column; gap: 14px;">
 
     <div style="font-size:13px;color:var(--mep-fg-3);">
-      {$t(greeting)} · {dateStr}
+      {t(greeting)} · {dateStr}
     </div>
 
     <div class="card" style="padding: 16px;">
-      <div class="label" style="margin-bottom: 6px;">{$t('turno.atStake')}</div>
+      <div class="label" style="margin-bottom: 6px;">{t('turno.atStake')}</div>
       <div class="num" style="font-size: 32px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.025em; line-height: 1;">
-        {stake > 0 ? fmtEur(stake, $locale) : '—'}
+        {stake > 0 ? fmtEur(stake, locale.current) : '—'}
       </div>
       <div class="body" style="margin-top: 6px;">
-        {worklist.length > 0 ? $ti('mdash.turno.stakeSub', { n: worklist.length, urgent: urgentCount }) : $t('turno.worklist.subMoney.zero')}
+        {worklist.length > 0 ? ti('mdash.turno.stakeSub', { n: worklist.length, urgent: urgentCount }) : t('turno.worklist.subMoney.zero')}
       </div>
     </div>
 
     <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
       <div class="card" style="padding: 12px; display: flex; flex-direction: column; gap: 5px; min-width: 0;">
-        <span class="label">{$t('turno.ribbon.pace')}</span>
+        <span class="label">{t('turno.ribbon.pace')}</span>
         <span class="num" style="font-size: 20px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; color: var(--mep-fg);">
-          {fmtEurCompact(data.mom.this_month, $locale)}
+          {fmtEurCompact(data.mom.this_month, locale.current)}
         </span>
         {#if hasBudget}
           <Bullet
@@ -104,40 +104,40 @@
             max={data.total_budget}
             width={140}
             height={10}
-            label={$ti('turno.ribbon.paceAria', { spent: fmtEurCompact(data.mom.this_month, $locale), plan: fmtEurCompact(planMtd, $locale), budget: fmtEurCompact(data.total_budget, $locale) })}
+            label={ti('turno.ribbon.paceAria', { spent: fmtEurCompact(data.mom.this_month, locale.current), plan: fmtEurCompact(planMtd, locale.current), budget: fmtEurCompact(data.total_budget, locale.current) })}
           />
         {/if}
         <span class="num" style="font-size: 11px; font-weight: 500; color: {hasBudget && paceDelta > 0 ? 'var(--mep-neg)' : 'var(--mep-pos)'};">
-          {hasBudget ? $ti('turno.ribbon.paceNote', { delta: fmtEurSigned(paceDelta, $locale), day: daysElapsed }) : momNote}
+          {hasBudget ? ti('turno.ribbon.paceNote', { delta: fmtEurSigned(paceDelta, locale.current), day: daysElapsed }) : momNote}
         </span>
       </div>
       <div class="card" style="padding: 12px; display: flex; flex-direction: column; gap: 5px; min-width: 0;">
-        <span class="label">{$t('turno.ribbon.forecast')}</span>
+        <span class="label">{t('turno.ribbon.forecast')}</span>
         <span class="num" style="font-size: 20px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; color: var(--mep-fg);">
-          {fmtEurCompact(projectedEom, $locale)}
+          {fmtEurCompact(projectedEom, locale.current)}
         </span>
         <span class="num" style="font-size: 11px; font-weight: 500; color: {hasBudget && overrun > 0 ? 'var(--mep-neg)' : 'var(--mep-pos)'};">
-          {hasBudget ? $ti('turno.ribbon.forecastNote', { delta: fmtEurSigned(overrun, $locale) }) : $t('turno.ribbon.forecastNoBudget')}
+          {hasBudget ? ti('turno.ribbon.forecastNote', { delta: fmtEurSigned(overrun, locale.current) }) : t('turno.ribbon.forecastNoBudget')}
         </span>
       </div>
       <div class="card" style="grid-column: 1 / -1; padding: 12px; display: flex; flex-direction: column; gap: 5px; min-width: 0;">
-        <span class="label">{$t('turno.ribbon.review')}</span>
+        <span class="label">{t('turno.ribbon.review')}</span>
         <span class="num" style="font-size: 20px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; color: var(--mep-fg);">
-          {fmtEurCompact(data.review.amount, $locale)}
+          {fmtEurCompact(data.review.amount, locale.current)}
         </span>
         <span class="num" style="font-size: 11px; font-weight: 500; color: {reviewColor};">
           {data.review.incidencias > 0
-            ? $tp('turno.ribbon.issuesNote', data.review.incidencias)
-            : $tp('turno.ribbon.reviewNote', data.review.count)}
+            ? tp('turno.ribbon.issuesNote', data.review.incidencias)
+            : tp('turno.ribbon.reviewNote', data.review.count)}
         </span>
       </div>
     </div>
 
     <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 2px;">
       <div style="min-width: 0;">
-        <div class="subtitle">{$t('turno.worklist.title')}</div>
+        <div class="subtitle">{t('turno.worklist.title')}</div>
         <div class="body" style="margin-top: 1px;">
-          {$tp(sortMode === 'money' ? 'turno.worklist.subMoney' : 'turno.worklist.subUrgency', worklist.length)}
+          {tp(sortMode === 'money' ? 'turno.worklist.subMoney' : 'turno.worklist.subUrgency', worklist.length)}
         </div>
       </div>
       {#if worklist.length > 1}
@@ -146,7 +146,7 @@
           style="display: inline-flex; align-items: center; gap: 6px; background: none; border: 0; font-size: 13px; font-weight: 500; color: var(--mep-acc); min-height: 44px; flex-shrink: 0;"
           onclick={() => sortMode = sortMode === 'money' ? 'urgency' : 'money'}
         >
-          {$t(sortMode === 'money' ? 'turno.sort.toUrgency' : 'turno.sort.toMoney')}
+          {t(sortMode === 'money' ? 'turno.sort.toUrgency' : 'turno.sort.toMoney')}
           <ArrowUpDown size={14} />
         </button>
       {/if}
@@ -154,9 +154,9 @@
 
     {#if sortedWorklist.length === 0}
       <div class="card" style="padding: 24px 18px; text-align: center;">
-        <div class="subtitle" style="margin-bottom: 6px;">{$t('turno.empty.title')}</div>
-        <div class="body" style="margin: 0 0 14px;">{$t('turno.empty.body')}</div>
-        <a href="/" class="btn btn-primary" style="text-decoration: none;">{$t('turno.empty.action')}</a>
+        <div class="subtitle" style="margin-bottom: 6px;">{t('turno.empty.title')}</div>
+        <div class="body" style="margin: 0 0 14px;">{t('turno.empty.body')}</div>
+        <a href="/" class="btn btn-primary" style="text-decoration: none;">{t('turno.empty.action')}</a>
       </div>
     {:else}
       <div style="display: flex; flex-direction: column; gap: 10px;">
@@ -166,52 +166,52 @@
       </div>
     {/if}
 
-    <RailBlock title={$t('turno.rail.pace')}>
+    <RailBlock title={t('turno.rail.pace')}>
       {#snippet headerRight()}
         {#if hasBudget}
           <span class="num" style="font-size: 11px; font-weight: 500; color: {overrun > 0 ? 'var(--mep-neg)' : 'var(--mep-pos)'};">
-            {fmtEurSigned(overrun, $locale)}
+            {fmtEurSigned(overrun, locale.current)}
           </span>
         {/if}
       {/snippet}
       {#if !hasPaceData && data.invoices_outside_month > 0}
         <div style="display:flex;flex-direction:column;gap:6px;">
-          <div class="body">{$tp('turno.rail.paceOutOfRange', data.invoices_outside_month)}</div>
-          <a href="/invoices" style="font-size:11px;color:var(--mep-acc);text-decoration:none;">{$t('turno.rail.paceOutOfRangeAction')}</a>
+          <div class="body">{tp('turno.rail.paceOutOfRange', data.invoices_outside_month)}</div>
+          <a href="/invoices" style="font-size:11px;color:var(--mep-acc);text-decoration:none;">{t('turno.rail.paceOutOfRangeAction')}</a>
         </div>
       {:else if !hasPaceData}
-        <div class="body">{$t('turno.rail.paceEmpty')}</div>
+        <div class="body">{t('turno.rail.paceEmpty')}</div>
       {:else}
         <PaceChart
           points={paceCurve}
           budget={data.total_budget}
           todayDay={data.is_current_month ? Math.min(daysElapsed, daysInMonth) : daysInMonth}
-          budgetLabel={$ti('turno.rail.budgetLine', { amount: fmtEurCompact(data.total_budget, $locale) })}
-          forecastLabel={$t('turno.rail.forecastLabel')}
-          forecastValueLabel={fmtEurCompact(projectedEom, $locale)}
-          ariaLabel={$t('turno.rail.paceAriaChart')}
+          budgetLabel={ti('turno.rail.budgetLine', { amount: fmtEurCompact(data.total_budget, locale.current) })}
+          forecastLabel={t('turno.rail.forecastLabel')}
+          forecastValueLabel={fmtEurCompact(projectedEom, locale.current)}
+          ariaLabel={t('turno.rail.paceAriaChart')}
           width={326}
           height={130}
         />
       {/if}
     </RailBlock>
 
-    <RailBlock title={$t('turno.rail.cats')}>
+    <RailBlock title={t('turno.rail.cats')}>
       {#snippet headerRight()}
         <a href="/budgets" style="font-size: 13px; font-weight: 500; color: var(--mep-acc); text-decoration: none; min-height: 44px; display: inline-flex; align-items: center;">
-          {$t('turno.rail.catsAll')}
+          {t('turno.rail.catsAll')}
         </a>
       {/snippet}
       {#if categoryRisk.length === 0}
-        <div class="body">{$t('turno.rail.catsEmpty')}</div>
+        <div class="body">{t('turno.rail.catsEmpty')}</div>
       {:else}
         <div style="display: flex; flex-direction: column; gap: 12px;">
           {#each categoryRisk as cat (cat.category)}
             <div>
               <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 5px;">
-                <span class="body-strong" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{$tcat(cat.category)}</span>
+                <span class="body-strong" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{tcat(cat.category)}</span>
                 <span class="num" style="font-size: 11px; color: var(--mep-fg-3); flex-shrink: 0;">
-                  {fmtEurCompact(cat.spent, $locale)} <span style="color: var(--mep-fg-4);">/ {fmtEurCompact(cat.budget, $locale)}</span>
+                  {fmtEurCompact(cat.spent, locale.current)} <span style="color: var(--mep-fg-4);">/ {fmtEurCompact(cat.budget, locale.current)}</span>
                 </span>
               </div>
               <Bullet
@@ -221,10 +221,10 @@
                 color={categoryColor(cat.category)}
                 width={326}
                 height={10}
-                label={$ti('turno.rail.catBullet', { category: $tcat(cat.category), spent: fmtEurCompact(cat.spent, $locale), budget: fmtEurCompact(cat.budget, $locale) })}
+                label={ti('turno.rail.catBullet', { category: tcat(cat.category), spent: fmtEurCompact(cat.spent, locale.current), budget: fmtEurCompact(cat.budget, locale.current) })}
               />
               <div class="num" style="font-size: 11px; margin-top: 5px; color: {cat.overrun > 0 ? 'var(--mep-neg)' : 'var(--mep-fg-3)'};">
-                {$ti('turno.rail.catForecast', { amount: fmtEurCompact(cat.forecast, $locale), delta: fmtEurSigned(cat.overrun, $locale) })}
+                {ti('turno.rail.catForecast', { amount: fmtEurCompact(cat.forecast, locale.current), delta: fmtEurSigned(cat.overrun, locale.current) })}
               </div>
             </div>
           {/each}

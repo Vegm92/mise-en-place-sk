@@ -57,7 +57,7 @@
     const restSpend = rest.reduce((a, p) => a + p.spend, 0);
 
     const entries = top.map((p, i) => ({ label: p.description ?? 'â€”', spend: p.spend, color: seriesColor(i) }));
-    if (restSpend > 0) entries.push({ label: $t('sup.products.other'), spend: restSpend, color: SERIES_OTHER });
+    if (restSpend > 0) entries.push({ label: t('sup.products.other'), spend: restSpend, color: SERIES_OTHER });
 
     let cursor = 0;
     const CIRC = 2 * Math.PI * 60;
@@ -92,7 +92,7 @@
 
   <div style="padding:14px 18px 0;flex-shrink:0;">
     <a href="/suppliers" style="display:inline-flex;align-items:center;min-height:44px;gap:4px;font-size:13px;color:var(--mep-fg-3);text-decoration:none;">
-      <ArrowLeft size={14} /> {$t('sup.back')}
+      <ArrowLeft size={14} /> {t('sup.back')}
     </a>
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
       <div style="
@@ -105,59 +105,59 @@
         <h1 style="margin:0 0 3px;font-size:18px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{s.name}</h1>
         <div style="font-size:11.5px;color:var(--mep-fg-3);display:flex;align-items:center;gap:5px;">
           {#if s.category}
-            <span class="swatch" style="background:{color};"></span>{$tcat(s.category)}
+            <span class="swatch" style="background:{color};"></span>{tcat(s.category)}
           {:else}
-            <span style="font-style:italic;">{$t('sup.noCategory')}</span>
+            <span style="font-style:italic;">{t('sup.noCategory')}</span>
           {/if}
         </div>
       </div>
       <button class="btn btn-secondary" style="font-size:12px;padding:0 10px;display:inline-flex;align-items:center;gap:5px;"
         onclick={() => { editing = !editing; confirmDelete = false; }}>
-        <Pencil size={12} /> {$t('action.edit')}
+        <Pencil size={12} /> {t('action.edit')}
       </button>
     </div>
 
     {#if editing}
       <div class="card" style="padding:16px;margin-bottom:12px;">
-        <p class="body-strong" style="margin-bottom:12px;">{$t('sup.edit.title')}</p>
+        <p class="body-strong" style="margin-bottom:12px;">{t('sup.edit.title')}</p>
         <form method="post" action="?/update" style="display:flex;flex-direction:column;gap:10px;">
           <div>
-            <label for="m-edit-name" class="label" style="display:block;margin-bottom:4px;">{$t('sup.field.name')}</label>
+            <label for="m-edit-name" class="label" style="display:block;margin-bottom:4px;">{t('sup.field.name')}</label>
             <input id="m-edit-name" class="input" name="name" value={s.name} required style="width:100%;" />
           </div>
           <div>
-            <label for="m-edit-category" class="label" style="display:block;margin-bottom:4px;">{$t('sup.field.category')}</label>
+            <label for="m-edit-category" class="label" style="display:block;margin-bottom:4px;">{t('sup.field.category')}</label>
             <select id="m-edit-category" class="input" class:mep-field-highlight={highlightCategory} name="category" style="width:100%;"
               onfocus={() => highlightCategory = false} onchange={() => highlightCategory = false}>
-              <option value="">{$t('sup.noCategory')}</option>
+              <option value="">{t('sup.noCategory')}</option>
               {#each data.categories as cat}
-                <option value={cat} selected={s.category === cat}>{$tcat(cat)}</option>
+                <option value={cat} selected={s.category === cat}>{tcat(cat)}</option>
               {/each}
             </select>
           </div>
           <div>
-            <label for="m-edit-cif" class="label" style="display:block;margin-bottom:4px;">{$t('sup.field.cif')}</label>
+            <label for="m-edit-cif" class="label" style="display:block;margin-bottom:4px;">{t('sup.field.cif')}</label>
             <input id="m-edit-cif" class="input" name="cif" value={s.cif ?? ''} style="width:100%;" placeholder="B12345678" />
           </div>
           <div>
-            <label for="m-edit-iban" class="label" style="display:block;margin-bottom:4px;">{$t('sup.field.iban')}</label>
-            <input id="m-edit-iban" class="input" name="iban" value={s.iban ?? ''} style="width:100%;" placeholder={$t('sup.ph.iban')} />
+            <label for="m-edit-iban" class="label" style="display:block;margin-bottom:4px;">{t('sup.field.iban')}</label>
+            <input id="m-edit-iban" class="input" name="iban" value={s.iban ?? ''} style="width:100%;" placeholder={t('sup.ph.iban')} />
           </div>
           <div>
-            <label for="m-edit-address" class="label" style="display:block;margin-bottom:4px;">{$t('sup.field.address')}</label>
-            <input id="m-edit-address" class="input" name="address" value={s.address ?? ''} style="width:100%;" placeholder={$t('sup.ph.address')} />
+            <label for="m-edit-address" class="label" style="display:block;margin-bottom:4px;">{t('sup.field.address')}</label>
+            <input id="m-edit-address" class="input" name="address" value={s.address ?? ''} style="width:100%;" placeholder={t('sup.ph.address')} />
           </div>
           <div>
-            <label for="m-edit-email" class="label" style="display:block;margin-bottom:4px;">{$t('sup.field.email')}</label>
+            <label for="m-edit-email" class="label" style="display:block;margin-bottom:4px;">{t('sup.field.email')}</label>
             <input id="m-edit-email" class="input" name="contact_email" type="email" value={s.contactEmail ?? ''} style="width:100%;" />
           </div>
           <div>
-            <label for="m-edit-phone" class="label" style="display:block;margin-bottom:4px;">{$t('sup.field.phone')}</label>
+            <label for="m-edit-phone" class="label" style="display:block;margin-bottom:4px;">{t('sup.field.phone')}</label>
             <input id="m-edit-phone" class="input" name="contact_phone" type="tel" value={s.contactPhone ?? ''} style="width:100%;" />
           </div>
           <div style="display:flex;gap:8px;margin-top:4px;">
-            <button type="submit" class="btn btn-primary" style="font-size:12.5px;">{$t('set.save')}</button>
-            <button type="button" class="btn" style="font-size:12.5px;" onclick={() => editing = false}>{$t('edit.cancel')}</button>
+            <button type="submit" class="btn btn-primary" style="font-size:12.5px;">{t('set.save')}</button>
+            <button type="button" class="btn" style="font-size:12.5px;" onclick={() => editing = false}>{t('edit.cancel')}</button>
           </div>
         </form>
       </div>
@@ -165,27 +165,27 @@
 
     <div class="card" style="margin-bottom:12px;padding:10px 14px;display:flex;align-items:center;">
       <div style="flex:1;text-align:center;">
-        <div class="num" style="font-size:15px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;">{fmtEur(totalSpend, $locale)}</div>
-        <div style="font-size:11px;color:var(--mep-fg-3);margin-top:1px;">{$t('sup.totalSpend')}</div>
+        <div class="num" style="font-size:15px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;">{fmtEur(totalSpend, locale.current)}</div>
+        <div style="font-size:11px;color:var(--mep-fg-3);margin-top:1px;">{t('sup.totalSpend')}</div>
       </div>
       <div style="width:1px;height:26px;background:var(--mep-divider);"></div>
       <div style="flex:1;text-align:center;">
         <div class="num" style="font-size:15px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;">{data.invoices.length}</div>
-        <div style="font-size:11px;color:var(--mep-fg-3);margin-top:1px;">{$t('sup.kpiInvoices')}</div>
+        <div style="font-size:11px;color:var(--mep-fg-3);margin-top:1px;">{t('sup.kpiInvoices')}</div>
       </div>
       <div style="width:1px;height:26px;background:var(--mep-divider);"></div>
       <div style="flex:1;text-align:center;">
-        <div class="num" style="font-size:15px;font-weight:600;color:{pendingAmt > 0 ? 'var(--mep-warn)' : 'var(--mep-fg)'};letter-spacing:-0.3px;">{fmtEur(pendingAmt, $locale)}</div>
-        <div style="font-size:11px;color:var(--mep-fg-3);margin-top:1px;">{$t('sup.pending')}</div>
+        <div class="num" style="font-size:15px;font-weight:600;color:{pendingAmt > 0 ? 'var(--mep-warn)' : 'var(--mep-fg)'};letter-spacing:-0.3px;">{fmtEur(pendingAmt, locale.current)}</div>
+        <div style="font-size:11px;color:var(--mep-fg-3);margin-top:1px;">{t('sup.pending')}</div>
       </div>
     </div>
 
-    <ScrollStrip label={$t('sup.tabsLabel')} padding="0 0 12px" leadIn="2px">
+    <ScrollStrip label={t('sup.tabsLabel')} padding="0 0 12px" leadIn="2px">
       {#each [
-        { id: 'resumen',      label: $t('sup.tab.resumen') },
-        { id: 'albaranes',     label: $t('nav.invoices'), count: data.invoices.length },
-        { id: 'productos',    label: $t('sup.tab.productos') },
-        { id: 'conversiones', label: $t('sup.tab.conversiones'), count: data.conversions.length || undefined },
+        { id: 'resumen',      label: t('sup.tab.resumen') },
+        { id: 'albaranes',     label: t('nav.invoices'), count: data.invoices.length },
+        { id: 'productos',    label: t('sup.tab.productos') },
+        { id: 'conversiones', label: t('sup.tab.conversiones'), count: data.conversions.length || undefined },
       ] as tabItem}
         <button
           onclick={() => tab = tabItem.id as typeof tab}
@@ -205,9 +205,9 @@
     {#if tab === 'resumen'}
 
       <div class="card" style="padding:14px;">
-        <div class="subtitle" style="margin-bottom:10px;">{$t('sup.info')}</div>
+        <div class="subtitle" style="margin-bottom:10px;">{t('sup.info')}</div>
         {#if !s.contactEmail && !s.contactPhone && !s.cif && !s.iban && !s.address && !s.deliveryDays && !s.paymentTerms}
-          <p style="font-size:12.5px;color:var(--mep-fg-3);font-style:italic;">{$t('sup.infoEmpty')}</p>
+          <p style="font-size:12.5px;color:var(--mep-fg-3);font-style:italic;">{t('sup.infoEmpty')}</p>
         {:else}
           <div style="display:flex;flex-direction:column;gap:8px;">
             {#if s.contactEmail}
@@ -225,13 +225,13 @@
             {#if s.cif}
               <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--mep-fg-2);">
                 <CreditCard size={13} style="color:var(--mep-fg-3);flex-shrink:0;" />
-                <span>{$t('sup.field.cif')}: {s.cif}</span>
+                <span>{t('sup.field.cif')}: {s.cif}</span>
               </div>
             {/if}
             {#if s.iban}
               <div class="text-fg-2" style="display:flex;align-items:center;gap:10px;font-size:11px;">
                 <CreditCard size={13} class="text-fg-3 shrink-0" />
-                <span>{$t('sup.field.iban')}: {s.iban}</span>
+                <span>{t('sup.field.iban')}: {s.iban}</span>
               </div>
             {/if}
             {#if s.address}
@@ -249,7 +249,7 @@
             {#if s.paymentTerms}
               <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--mep-fg-2);">
                 <CreditCard size={13} style="color:var(--mep-fg-3);flex-shrink:0;" />
-                <span>{$t('sup.paymentPrefix')}: {s.paymentTerms}</span>
+                <span>{t('sup.paymentPrefix')}: {s.paymentTerms}</span>
               </div>
             {/if}
             {#if s.notes}
@@ -262,19 +262,19 @@
       {#if data.invoices.length}
         <div class="card" style="padding:0;overflow:hidden;">
           <div style="padding:12px 14px 8px;display:flex;align-items:center;justify-content:space-between;">
-            <div class="subtitle">{$t('sup.recentInvoices')}</div>
+            <div class="subtitle">{t('sup.recentInvoices')}</div>
             {#if data.invoices.length > 4}
               <button style="font-size:12px;color:var(--mep-acc);font-weight:500;background:none;border:0;cursor:pointer;padding:0;"
-                onclick={() => tab = 'albaranes'}>{$ti('sup.viewAll', { n: data.invoices.length })}</button>
+                onclick={() => tab = 'albaranes'}>{ti('sup.viewAll', { n: data.invoices.length })}</button>
             {/if}
           </div>
           {#each data.invoices.slice(0, 4) as inv (inv.id)}
             <a href="/invoice/{inv.id}" style="padding:10px 14px;display:flex;align-items:center;gap:10px;border-top:1px solid var(--mep-divider);text-decoration:none;color:inherit;">
               <div style="flex:1;min-width:0;">
                 <div class="num" style="font-size:13px;font-weight:500;color:var(--mep-fg);">{inv.invoiceNumber ?? '—'}</div>
-                <div style="font-size:11px;color:var(--mep-fg-3);">{fmtDateShort(inv.invoiceDate, $locale)}</div>
+                <div style="font-size:11px;color:var(--mep-fg-3);">{fmtDateShort(inv.invoiceDate, locale.current)}</div>
               </div>
-              <div class="num" style="font-size:13px;font-weight:500;color:var(--mep-fg);">{fmtEur(inv.totalAmount ?? 0, $locale)}</div>
+              <div class="num" style="font-size:13px;font-weight:500;color:var(--mep-fg);">{fmtEur(inv.totalAmount ?? 0, locale.current)}</div>
               <StatusBadge status={invoiceStatus(inv)} style="font-size:11px;padding:1px 5px;" />
             </a>
           {/each}
@@ -284,7 +284,7 @@
       {#if m}
         <div class="card" style="padding:14px;">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
-            <div class="subtitle" style="flex:1;">{$t('sup.reliabilityShort')}</div>
+            <div class="subtitle" style="flex:1;">{t('sup.reliabilityShort')}</div>
             <div style="
               width:42px;height:42px;border-radius:50%;
               border:3px solid {getScoreColor(m.score)};
@@ -293,13 +293,13 @@
               <span style="font-size:13px;font-weight:700;color:{getScoreColor(m.score)};line-height:1;">{m.score}</span>
               <span style="font-size:11px;color:var(--mep-fg-3);">/100</span>
             </div>
-            <span style="font-size:12px;font-weight:600;color:{getScoreColor(m.score)};">{$t(scoreLabelKey(m.score))}</span>
+            <span style="font-size:12px;font-weight:600;color:{getScoreColor(m.score)};">{t(scoreLabelKey(m.score))}</span>
           </div>
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
             {#each [
-              { label: $t('sup.score.prices'), score: m.priceStabilityScore, max: 33 },
-              { label: $t('sup.score.regularity'), score: m.frequencyScore, max: 33 },
-              { label: $t('sup.score.punctuality'), score: m.timelinessScore, max: 34 },
+              { label: t('sup.score.prices'), score: m.priceStabilityScore, max: 33 },
+              { label: t('sup.score.regularity'), score: m.frequencyScore, max: 33 },
+              { label: t('sup.score.punctuality'), score: m.timelinessScore, max: 34 },
             ] as kpi}
               <div style="padding:8px;background:var(--mep-surface-2);border-radius:8px;text-align:center;">
                 <div style="font-size:14px;font-weight:700;color:{getScoreColor(kpi.score * 3)};" class="num">{kpi.score}/{kpi.max}</div>
@@ -315,10 +315,10 @@
       {#if !data.invoices.length}
         <div style="padding:40px 24px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px;">
           <div style="color:var(--mep-fg-3);font-size:13px;line-height:1.5;">
-            {$t('sup.noInvoicesYet')}<br />{$t('sup.noInvoicesYetSub')}
+            {t('sup.noInvoicesYet')}<br />{t('sup.noInvoicesYetSub')}
           </div>
           <a href="/" class="btn btn-primary" style="height:34px;font-size:13px;text-decoration:none;">
-            {$t('sup.uploadInvoice')}
+            {t('sup.uploadInvoice')}
           </a>
         </div>
       {:else}
@@ -326,9 +326,9 @@
           <a href="/invoice/{inv.id}" class="card" style="padding:12px 14px;display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;">
             <div style="flex:1;min-width:0;">
               <div class="num" style="font-size:13.5px;font-weight:500;color:var(--mep-fg);">{inv.invoiceNumber ?? '—'}</div>
-              <div style="font-size:11px;color:var(--mep-fg-3);margin-top:2px;">{fmtDate(inv.invoiceDate, $locale)}{inv.dueDate ? ` · ${$t('sup.dueShort')} ${fmtDateShort(inv.dueDate, $locale)}` : ''}</div>
+              <div style="font-size:11px;color:var(--mep-fg-3);margin-top:2px;">{fmtDate(inv.invoiceDate, locale.current)}{inv.dueDate ? ` · ${t('sup.dueShort')} ${fmtDateShort(inv.dueDate, locale.current)}` : ''}</div>
             </div>
-            <div class="num" style="font-size:14px;font-weight:600;color:var(--mep-fg);">{fmtEur(inv.totalAmount ?? 0, $locale)}</div>
+            <div class="num" style="font-size:14px;font-weight:600;color:var(--mep-fg);">{fmtEur(inv.totalAmount ?? 0, locale.current)}</div>
             <StatusBadge status={invoiceStatus(inv)} style="font-size:11px;padding:1px 5px;" />
           </a>
         {/each}
@@ -338,11 +338,11 @@
       {#if !data.products.length}
         <div class="card" style="padding:20px;display:flex;align-items:center;gap:10px;">
           <span style="font-size:22px;opacity:0.35;">📦</span>
-          <p style="font-size:12.5px;color:var(--mep-fg-3);margin:0;">{$t('sup.products.empty')}</p>
+          <p style="font-size:12.5px;color:var(--mep-fg-3);margin:0;">{t('sup.products.empty')}</p>
         </div>
       {:else}
         <div class="card" style="padding:14px;">
-          <div class="subtitle" style="margin-bottom:12px;">{$t('sup.products.dominance')}</div>
+          <div class="subtitle" style="margin-bottom:12px;">{t('sup.products.dominance')}</div>
           <div style="display:flex;flex-direction:column;align-items:center;gap:14px;">
             <div style="position:relative;width:156px;height:156px;">
               <svg width="156" height="156" viewBox="0 0 156 156" style="overflow:visible;transform:rotate(-90deg);">
@@ -353,12 +353,12 @@
                     stroke={slice.color} stroke-width="22"
                     stroke-dasharray="{Math.max(slice.dash - GAP, 0)} {CIRC - slice.dash + GAP}"
                     stroke-dashoffset={-slice.offset}
-                    role="img" aria-label="{slice.label}: {fmtEur(slice.spend, $locale)} ({(slice.pct * 100).toFixed(0)}%)" />
+                    role="img" aria-label="{slice.label}: {fmtEur(slice.spend, locale.current)} ({(slice.pct * 100).toFixed(0)}%)" />
                 {/each}
               </svg>
               <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
-                <span class="num" style="font-size:14px;font-weight:600;color:var(--mep-fg);">{fmtEur(productDonut.total, $locale)}</span>
-                <span style="font-size:11px;color:var(--mep-fg-3);">{$t('sup.products.totalSpend')}</span>
+                <span class="num" style="font-size:14px;font-weight:600;color:var(--mep-fg);">{fmtEur(productDonut.total, locale.current)}</span>
+                <span style="font-size:11px;color:var(--mep-fg-3);">{t('sup.products.totalSpend')}</span>
               </div>
             </div>
             <div style="display:flex;flex-direction:column;gap:7px;width:100%;">
@@ -367,7 +367,7 @@
                   <span style="width:9px;height:9px;border-radius:2px;background:{slice.color};flex-shrink:0;"></span>
                   <span style="font-size:12px;color:var(--mep-fg-2);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{slice.label}</span>
                   <span class="num" style="font-size:11px;color:var(--mep-fg-3);flex-shrink:0;">{(slice.pct * 100).toFixed(0)}%</span>
-                  <span class="num" style="font-size:12px;font-weight:500;color:var(--mep-fg);flex-shrink:0;width:70px;text-align:right;">{fmtEur(slice.spend, $locale)}</span>
+                  <span class="num" style="font-size:12px;font-weight:500;color:var(--mep-fg);flex-shrink:0;width:70px;text-align:right;">{fmtEur(slice.spend, locale.current)}</span>
                 </div>
               {/each}
             </div>
@@ -380,16 +380,16 @@
             </div>
             <div style="display:flex;gap:10px;font-size:11.5px;color:var(--mep-fg-3);">
               {#if prod.unit}<span>{prod.unit}</span>{/if}
-              {#if prod.avgPrice != null}<span>· {fmtEur(prod.avgPrice, $locale)}</span>{/if}
-              {#if prod.lastDate}<span>· {fmtDateShort(prod.lastDate, $locale)}</span>{/if}
+              {#if prod.avgPrice != null}<span>· {fmtEur(prod.avgPrice, locale.current)}</span>{/if}
+              {#if prod.lastDate}<span>· {fmtDateShort(prod.lastDate, locale.current)}</span>{/if}
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px;">
               <div>
-                <div style="font-size:11px;color:var(--mep-fg-3);">{$t('sup.products.colSpend')}</div>
-                <div class="num" style="font-size:13px;font-weight:600;color:var(--mep-fg);">{prod.totalSpend != null ? fmtEur(prod.totalSpend, $locale) : '—'}</div>
+                <div style="font-size:11px;color:var(--mep-fg-3);">{t('sup.products.colSpend')}</div>
+                <div class="num" style="font-size:13px;font-weight:600;color:var(--mep-fg);">{prod.totalSpend != null ? fmtEur(prod.totalSpend, locale.current) : '—'}</div>
               </div>
               <div>
-                <div style="font-size:11px;color:var(--mep-fg-3);">{$t('sup.products.colUnits')}</div>
+                <div style="font-size:11px;color:var(--mep-fg-3);">{t('sup.products.colUnits')}</div>
                 <div class="num" style="font-size:13px;font-weight:600;color:var(--mep-fg);">{prod.totalQty != null ? prod.totalQty.toFixed(2) : '—'}</div>
               </div>
             </div>
@@ -401,7 +401,7 @@
       {#if !data.conversions.length}
         <div class="card" style="padding:20px;display:flex;align-items:center;gap:10px;">
           <span style="font-size:22px;opacity:0.35;">⚖️</span>
-          <p style="font-size:12.5px;color:var(--mep-fg-3);margin:0;">{$t('sup.conv.empty')}</p>
+          <p style="font-size:12.5px;color:var(--mep-fg-3);margin:0;">{t('sup.conv.empty')}</p>
         </div>
       {:else}
         {#each data.conversions as conv (conv.id)}
@@ -414,16 +414,16 @@
         {/each}
       {/if}
       <div class="card" style="padding:14px;">
-        <p class="body-strong" style="margin-bottom:10px;font-size:12.5px;">{$t('sup.conv.add')}</p>
+        <p class="body-strong" style="margin-bottom:10px;font-size:12.5px;">{t('sup.conv.add')}</p>
         <form method="post" action="?/addConversion" style="display:flex;flex-direction:column;gap:8px;">
-          <input class="input" name="ingredient" required placeholder={$t('sup.conv.ph.ingredient')} value={data.initialIngredient} />
+          <input class="input" name="ingredient" required placeholder={t('sup.conv.ph.ingredient')} value={data.initialIngredient} />
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-            <input class="input" name="purchase_unit" required placeholder={$t('sup.conv.ph.purchase')} value={data.initialPurchaseUnit} />
-            <input class="input" name="canonical_unit" required placeholder={$t('sup.conv.ph.canonical')} />
+            <input class="input" name="purchase_unit" required placeholder={t('sup.conv.ph.purchase')} value={data.initialPurchaseUnit} />
+            <input class="input" name="canonical_unit" required placeholder={t('sup.conv.ph.canonical')} />
           </div>
-          <input class="input" name="conversion_factor" type="number" min="0.001" step="any" required placeholder={$t('sup.conv.ph.factor')} />
+          <input class="input" name="conversion_factor" type="number" min="0.001" step="any" required placeholder={t('sup.conv.ph.factor')} />
           <button type="submit" class="btn btn-primary" style="height:34px;font-size:12.5px;">
-            + {$t('sup.conv.add')}
+            + {t('sup.conv.add')}
           </button>
         </form>
       </div>

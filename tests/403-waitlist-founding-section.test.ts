@@ -64,9 +64,9 @@ describe('waitlist.founding* keys exist in both locales (issue #403)', () => {
 
 describe('LandingPage.svelte renders the founding section between pricing and FAQ', () => {
 	it('the section sits after waitlist.pricingFoot and before waitlist.faqEyebrow in source order', () => {
-		const pricingIdx = PAGE_SRC.indexOf("$t('waitlist.pricingFoot')");
-		const foundingIdx = PAGE_SRC.indexOf("$t('waitlist.foundingHead')");
-		const faqIdx = PAGE_SRC.indexOf("$t('waitlist.faqEyebrow')");
+		const pricingIdx = PAGE_SRC.indexOf("t('waitlist.pricingFoot')");
+		const foundingIdx = PAGE_SRC.indexOf("t('waitlist.foundingHead')");
+		const faqIdx = PAGE_SRC.indexOf("t('waitlist.faqEyebrow')");
 		expect(pricingIdx, 'waitlist.pricingFoot not found').toBeGreaterThan(-1);
 		expect(foundingIdx, 'waitlist.foundingHead not found').toBeGreaterThan(-1);
 		expect(faqIdx, 'waitlist.faqEyebrow not found').toBeGreaterThan(-1);
@@ -74,13 +74,13 @@ describe('LandingPage.svelte renders the founding section between pricing and FA
 		expect(foundingIdx).toBeLessThan(faqIdx);
 	});
 
-	it('renders the eyebrow/head/sub keys through $t (source-scan, no hardcoded copy)', () => {
+	it('renders the eyebrow/head/sub keys through t (source-scan, no hardcoded copy)', () => {
 		for (const key of ['waitlist.foundingEyebrow', 'waitlist.foundingHead', 'waitlist.foundingSub']) {
-			expect(PAGE_SRC, key).toContain(`$t('${key}')`);
+			expect(PAGE_SRC, key).toContain(`t('${key}')`);
 		}
 	});
 
-	it('builds the three-item list from the three indexed founding keys via $t, in a $derived array', () => {
+	it('builds the three-item list from the three indexed founding keys via t, in a $derived array', () => {
 		const block = PAGE_SRC.match(/const foundingItems = \$derived\(\[([\s\S]*?)\]\);/);
 		expect(block, 'foundingItems derived array not found').toBeTruthy();
 		for (let i = 0; i < 3; i++) {
@@ -90,7 +90,7 @@ describe('LandingPage.svelte renders the founding section between pricing and FA
 	});
 
 	it('never hardcodes a PROVISIONAL_PRICE literal (29/59/129) inside the founding section', () => {
-		const startIdx = PAGE_SRC.indexOf("$t('waitlist.foundingEyebrow')");
+		const startIdx = PAGE_SRC.indexOf("t('waitlist.foundingEyebrow')");
 		const sectionStart = PAGE_SRC.lastIndexOf('<section', startIdx);
 		const sectionEnd = PAGE_SRC.indexOf('</section>', startIdx);
 		expect(sectionStart).toBeGreaterThan(-1);
@@ -100,11 +100,11 @@ describe('LandingPage.svelte renders the founding section between pricing and FA
 	});
 
 	it('uses design-system tokens for color and radius, not hex literals', () => {
-		assertSectionUsesTokens(PAGE_SRC, "$t('waitlist.foundingEyebrow')", ['text-acc', 'rounded-card']);
+		assertSectionUsesTokens(PAGE_SRC, "t('waitlist.foundingEyebrow')", ['text-acc', 'rounded-card']);
 	});
 
 	it('reuses the shared .mep-grid-3 class, which already collapses to one column on mobile', () => {
-		const startIdx = PAGE_SRC.indexOf("$t('waitlist.foundingEyebrow')");
+		const startIdx = PAGE_SRC.indexOf("t('waitlist.foundingEyebrow')");
 		const sectionStart = PAGE_SRC.lastIndexOf('<section', startIdx);
 		const sectionEnd = PAGE_SRC.indexOf('</section>', startIdx);
 		const section = PAGE_SRC.slice(sectionStart, sectionEnd);

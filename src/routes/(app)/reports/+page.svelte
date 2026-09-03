@@ -21,8 +21,8 @@
   <div style="display:flex;align-items:center;gap:10px;">
     <Newspaper size={18} style="color:var(--mep-acc);flex-shrink:0;" />
     <div>
-      <h1 style="font-size:16px;font-weight:600;margin:0;line-height:1.2;">{$t('rep.title')}</h1>
-      <p style="font-size:11px;color:var(--mep-fg-3);margin:2px 0 0;">{$t('rep.section.typeHint')}</p>
+      <h1 style="font-size:16px;font-weight:600;margin:0;line-height:1.2;">{t('rep.title')}</h1>
+      <p style="font-size:11px;color:var(--mep-fg-3);margin:2px 0 0;">{t('rep.section.typeHint')}</p>
     </div>
   </div>
 
@@ -32,8 +32,8 @@
       <a href="/reports/{type}" class="rep-card">
         <Icon size={18} style="color:var(--mep-acc);flex-shrink:0;" />
         <span style="display:flex;flex-direction:column;gap:2px;min-width:0;">
-          <span class="rep-card-title">{$t(`rep.${type}.name`)}</span>
-          <span class="rep-card-desc">{$t(`rep.${type}.desc`)}</span>
+          <span class="rep-card-title">{t(`rep.${type}.name`)}</span>
+          <span class="rep-card-desc">{t(`rep.${type}.desc`)}</span>
         </span>
         <ChevronRight size={16} style="color:var(--mep-fg-3);flex-shrink:0;margin-left:auto;" />
       </a>

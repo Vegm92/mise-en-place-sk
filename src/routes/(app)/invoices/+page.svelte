@@ -109,7 +109,7 @@
   const trendSeries = $derived(
     data.trendData.series
       .filter(s => activeTrendKeys.includes(s.key))
-      .map((s, i) => ({ key: s.key, label: $t(s.labelKey), color: seriesColor(i), values: s.values }))
+      .map((s, i) => ({ key: s.key, label: t(s.labelKey), color: seriesColor(i), values: s.values }))
   );
 
   let checkedIds = $state<Set<number>>(new Set());
@@ -198,21 +198,21 @@
       <div style="display:flex;align-items:flex-start;gap:10px;">
         <span style="color:var(--mep-pos);flex-shrink:0;"><Check size={16} /></span>
         <div style="flex:1;min-width:0;">
-          <div class="body-strong" style="font-size:13.5px;">{$t('saved.title')}</div>
-          <div class="body text-fg-3" style="font-size:12px;">{$ti('saved.desc', { id: data.savedInvoiceId ?? 0 })}</div>
+          <div class="body-strong" style="font-size:13.5px;">{t('saved.title')}</div>
+          <div class="body text-fg-3" style="font-size:12px;">{ti('saved.desc', { id: data.savedInvoiceId ?? 0 })}</div>
         </div>
         <button
           type="button"
           class="btn btn-ghost"
           style="width:24px;height:24px;padding:0;justify-content:center;flex-shrink:0;"
-          aria-label={$t('action.cancel')}
+          aria-label={t('action.cancel')}
           onclick={() => (toastDismissed = true)}
         >
           <ChevronDown size={13} />
         </button>
       </div>
       {#each data.savedAlerts as alert (alert.id)}
-        <div class="card p-2 bg-warn-soft border-warn text-warn" style="font-size:12.5px;">{notificationMessage(alert, $tiv)}</div>
+        <div class="card p-2 bg-warn-soft border-warn text-warn" style="font-size:12.5px;">{notificationMessage(alert, tiv)}</div>
       {/each}
     </div>
   </div>
@@ -234,26 +234,26 @@
 
 <div class="hidden md:block p-6">
   {#if data.conflict}
-    <div class="card p-3 text-neg" role="alert" style="font-size:13px;margin-bottom:16px;">{$t('inv.conflict')}</div>
+    <div class="card p-3 text-neg" role="alert" style="font-size:13px;margin-bottom:16px;">{t('inv.conflict')}</div>
   {/if}
 
   <ListPageTemplate
     dataCoach="invoices-main"
     bind:view
-    viewLabels={{ list: $t('tpl.view.list'), chart: $t('tpl.view.chart') }}
+    viewLabels={{ list: t('tpl.view.list'), chart: t('tpl.view.chart') }}
     kpis={[
-      { key: 'reviewed',  label: $t('inv.kpi.reviewed'),  value: stats.reviewed_count, sub: $t('misc.invoices'), variant: 'pos' },
-      { key: 'toReview',  label: $t('inv.kpi.toReview'),  value: stats.to_review_count, sub: $t('misc.invoices'), variant: stats.to_review_count > 0 ? 'warn' : 'default' },
-      { key: 'issues',    label: $t('inv.kpi.issues'),    value: stats.issue_count, sub: $t('misc.invoices'), variant: stats.issue_count > 0 ? 'neg' : 'default' },
-      { key: 'suppliers', label: $t('inv.kpi.suppliers'), value: stats.supplier_count, sub: $t('dash.kpi.active') },
+      { key: 'reviewed',  label: t('inv.kpi.reviewed'),  value: stats.reviewed_count, sub: t('misc.invoices'), variant: 'pos' },
+      { key: 'toReview',  label: t('inv.kpi.toReview'),  value: stats.to_review_count, sub: t('misc.invoices'), variant: stats.to_review_count > 0 ? 'warn' : 'default' },
+      { key: 'issues',    label: t('inv.kpi.issues'),    value: stats.issue_count, sub: t('misc.invoices'), variant: stats.issue_count > 0 ? 'neg' : 'default' },
+      { key: 'suppliers', label: t('inv.kpi.suppliers'), value: stats.supplier_count, sub: t('dash.kpi.active') },
     ]}
-    trendTitle={$t('inv.trend.title')}
-    trendBadges={data.trendData.series.map((s, i) => ({ key: s.key, label: $t(s.labelKey), color: seriesColor(i), active: activeTrendKeys.includes(s.key) }))}
+    trendTitle={t('inv.trend.title')}
+    trendBadges={data.trendData.series.map((s, i) => ({ key: s.key, label: t(s.labelKey), color: seriesColor(i), active: activeTrendKeys.includes(s.key) }))}
     onToggleTrendBadge={toggleTrendBadge}
     trendXLabels={data.trendData.xLabels}
     {trendSeries}
-    trendValueFormatter={(n) => fmtEur(n, $locale)}
-    trendEmptyLabel={$t('tpl.trend.empty')}
+    trendValueFormatter={(n) => fmtEur(n, locale.current)}
+    trendEmptyLabel={t('tpl.trend.empty')}
   >
     {#snippet filters()}
       <button type="button" class="btn btn-ghost"
@@ -262,10 +262,10 @@
         aria-controls="inv-filter-panel"
         onclick={() => (filtersOpen = !filtersOpen)}>
         <SlidersHorizontal size={13} />
-        {$t('inv.filter.toggle')}
+        {t('inv.filter.toggle')}
         {#if activeCount > 0}
           <span class="badge bg-acc-soft text-acc border border-acc"
-            aria-label={$ti('inv.filter.activeCount', { n: activeCount })}
+            aria-label={ti('inv.filter.activeCount', { n: activeCount })}
             style="min-width:18px;height:18px;padding:0 5px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;">
             {activeCount}
           </span>
@@ -277,13 +277,13 @@
 
       {#if activeCount > 0}
         <button type="button" class="btn btn-ghost" style="font-size:12.5px;" onclick={clearFilters}>
-          {$t('inv.filter.clear')}
+          {t('inv.filter.clear')}
         </button>
       {/if}
       <div style="flex:1;"></div>
       <a href="/invoices/export" class="btn btn-ghost" style="font-size:12px;gap:5px;text-decoration:none;flex-shrink:0;">
         <FileDown size={13} />
-        {$t('inv.export')}
+        {t('inv.export')}
       </a>
 
       <div id="inv-filter-panel" style="width:100%;">
@@ -291,23 +291,23 @@
             <div class="flex flex-wrap items-end gap-3">
 
               <div class="flex flex-col gap-1">
-                <label class="label" style="text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-q">{$t('inv.filter.search')}</label>
+                <label class="label" style="text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-q">{t('inv.filter.search')}</label>
                 <div class="search-field">
                   <span class="search-icon"><Search size={13} /></span>
                   <input id="inv-q" type="search" class="input"
                     style="padding-left:32px;min-width:200px;"
-                    placeholder={$t('inv.searchPlaceholder')}
+                    placeholder={t('inv.searchPlaceholder')}
                     value={filterDraft.q}
                     oninput={(e) => setSearch((e.target as HTMLInputElement).value)} />
                 </div>
               </div>
 
               <div class="flex flex-col gap-1">
-                <label class="label" style="text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-supplier">{$t('inv.filter.supplier')}</label>
+                <label class="label" style="text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-supplier">{t('inv.filter.supplier')}</label>
                 <select id="inv-supplier" class="input" style="padding:0 8px;min-width:160px;"
                   value={filterDraft.supplier_id}
                   onchange={(e) => setFilter('supplier_id', (e.target as HTMLSelectElement).value)}>
-                  <option value="">{$t('inv.filter.all')}</option>
+                  <option value="">{t('inv.filter.all')}</option>
                   {#each suppliers as s}
                     <option value={String(s.id)}>{s.name}</option>
                   {/each}
@@ -315,54 +315,54 @@
               </div>
 
               <div class="flex flex-col gap-1">
-                <label class="label" style="text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-status">{$t('inv.filter.status')}</label>
+                <label class="label" style="text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-status">{t('inv.filter.status')}</label>
                 <select id="inv-status" class="input" style="padding:0 8px;"
                   value={filterDraft.status}
                   onchange={(e) => setFilter('status', (e.target as HTMLSelectElement).value)}>
-                  <option value="">{$t('inv.filter.allStatus')}</option>
-                  <option value="por_revisar">{$t('inv.review.por_revisar')}</option>
-                  <option value="revisado">{$t('inv.review.revisado')}</option>
-                  <option value="incidencia">{$t('inv.review.incidencia')}</option>
+                  <option value="">{t('inv.filter.allStatus')}</option>
+                  <option value="por_revisar">{t('inv.review.por_revisar')}</option>
+                  <option value="revisado">{t('inv.review.revisado')}</option>
+                  <option value="incidencia">{t('inv.review.incidencia')}</option>
                 </select>
               </div>
 
               <div class="flex flex-col gap-1">
-                <label class="label" style="text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-from">{$t('inv.filter.from')}</label>
+                <label class="label" style="text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-from">{t('inv.filter.from')}</label>
                 <input id="inv-from" type="date" class="input" style="padding:0 8px;"
                   value={filterDraft.date_from}
                   onchange={(e) => setFilter('date_from', (e.target as HTMLInputElement).value)} />
               </div>
 
               <div class="flex flex-col gap-1">
-                <label class="label" style="text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-to">{$t('inv.filter.to')}</label>
+                <label class="label" style="text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-to">{t('inv.filter.to')}</label>
                 <input id="inv-to" type="date" class="input" style="padding:0 8px;"
                   value={filterDraft.date_to}
                   onchange={(e) => setFilter('date_to', (e.target as HTMLInputElement).value)} />
               </div>
 
               <div class="flex flex-col gap-1">
-                <label class="label" style="text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-uploaded-from">{$t('inv.filter.uploadedFrom')}</label>
+                <label class="label" style="text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-uploaded-from">{t('inv.filter.uploadedFrom')}</label>
                 <input id="inv-uploaded-from" type="date" class="input" style="padding:0 8px;"
                   value={filterDraft.uploaded_from}
                   onchange={(e) => setFilter('uploaded_from', (e.target as HTMLInputElement).value)} />
               </div>
 
               <div class="flex flex-col gap-1">
-                <label class="label" style="text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-uploaded-to">{$t('inv.filter.uploadedTo')}</label>
+                <label class="label" style="text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-uploaded-to">{t('inv.filter.uploadedTo')}</label>
                 <input id="inv-uploaded-to" type="date" class="input" style="padding:0 8px;"
                   value={filterDraft.uploaded_to}
                   onchange={(e) => setFilter('uploaded_to', (e.target as HTMLInputElement).value)} />
               </div>
 
               <div class="flex flex-col gap-1">
-                <label class="label" style="text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-sort">{$t('inv.filter.sort')}</label>
+                <label class="label" style="text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-sort">{t('inv.filter.sort')}</label>
                 <select id="inv-sort" class="input" style="padding:0 8px;min-width:185px;"
                   value={filterDraft.sort}
                   onchange={(e) => setFilter('sort', (e.target as HTMLSelectElement).value as InvoiceSortKey)}>
-                  <option value="uploaded_desc">{$t('inv.filter.sort.uploadedDesc')}</option>
-                  <option value="uploaded_asc">{$t('inv.filter.sort.uploadedAsc')}</option>
-                  <option value="invoice_date_desc">{$t('inv.filter.sort.invoiceDateDesc')}</option>
-                  <option value="invoice_date_asc">{$t('inv.filter.sort.invoiceDateAsc')}</option>
+                  <option value="uploaded_desc">{t('inv.filter.sort.uploadedDesc')}</option>
+                  <option value="uploaded_asc">{t('inv.filter.sort.uploadedAsc')}</option>
+                  <option value="invoice_date_desc">{t('inv.filter.sort.invoiceDateDesc')}</option>
+                  <option value="invoice_date_asc">{t('inv.filter.sort.invoiceDateAsc')}</option>
                 </select>
               </div>
 
@@ -373,7 +373,7 @@
 
     {#snippet table()}
       {#if invoices.length === 0}
-        <p class="body text-center py-16">{$t('inv.noInvoices')}</p>
+        <p class="body text-center py-16">{t('inv.noInvoices')}</p>
       {:else}
         <form id="bulk-reviewed-form" method="post" action="?/bulkReviewed" class="hidden">
           {#each [...checkedIds] as id}<input type="hidden" name="invoice_ids" value={id} />{/each}
@@ -387,28 +387,28 @@
             <input type="checkbox" checked={allChecked} indeterminate={someChecked}
               class="cursor-pointer accent-acc shrink-0"
               onchange={(e) => toggleAll((e.target as HTMLInputElement).checked)} />
-            {$t('inv.selectAll')}
+            {t('inv.selectAll')}
           </label>
 
           {#if bulkVisible}
             <div class="flex items-center gap-2 bg-acc-soft border border-acc rounded-lg px-3 py-1.5 transition-all">
-              <span class="body-strong text-acc" style="font-size:12px;">{checkedIds.size} {$t('inv.selected')}</span>
+              <span class="body-strong text-acc" style="font-size:12px;">{checkedIds.size} {t('inv.selected')}</span>
               <div class="w-px h-4 bg-divider"></div>
               <button type="button" onclick={handleBulkReviewed}
                 class="btn btn-ghost text-pos" style="height:26px;font-size:12px;padding:0 8px;gap:4px;">
                 <Check size={12} />
-                {$t('inv.markReviewed')}
+                {t('inv.markReviewed')}
               </button>
               <button type="button" onclick={handleBulkDelete}
                 class="btn btn-ghost text-neg" style="height:26px;font-size:12px;padding:0 8px;gap:4px;">
                 <Trash2 size={12} />
-                {$t('inv.delete')}
+                {t('inv.delete')}
               </button>
               <a href={bulkDownloadHref} data-sveltekit-reload
-                title={$t('inv.export.selected.tooltip')}
+                title={t('inv.export.selected.tooltip')}
                 class="btn btn-ghost h-[26px] text-[13px] px-2 gap-1 no-underline">
                 <FileDown size={12} />
-                {$t('inv.export.selected.button')}
+                {t('inv.export.selected.button')}
               </a>
             </div>
           {/if}
@@ -437,17 +437,17 @@
               <div class="min-w-0">
                 <div class="body-strong overflow-hidden text-ellipsis whitespace-nowrap" title={inv.supplier_name ?? undefined}>{inv.supplier_name ?? '—'}</div>
                 <div class="body text-fg-3 overflow-hidden text-ellipsis whitespace-nowrap" style="font-size:11.5px;">
-                  {inv.invoice_number ?? '—'} · {fmtDateShort(inv.invoice_date, $locale)}
-                  <span class="text-fg-4">· {$t('inv.uploadedOn')} {inv.created_at ? fmtDateShort(inv.created_at.toISOString(), $locale) : '—'}</span>
+                  {inv.invoice_number ?? '—'} · {fmtDateShort(inv.invoice_date, locale.current)}
+                  <span class="text-fg-4">· {t('inv.uploadedOn')} {inv.created_at ? fmtDateShort(inv.created_at.toISOString(), locale.current) : '—'}</span>
                 </div>
               </div>
 
               <div class="body text-fg-3 max-[800px]:hidden xl:hidden" style="font-size:12px;">
-                {fmtDateShort(inv.due_date, $locale)}
+                {fmtDateShort(inv.due_date, locale.current)}
               </div>
 
               <div class="num text-right font-semibold" style="font-size:13px;">
-                {fmtEur(inv.total_amount ?? 0, $locale)}
+                {fmtEur(inv.total_amount ?? 0, locale.current)}
               </div>
 
               <div class="max-[800px]:hidden flex items-center gap-1.5">
@@ -467,13 +467,13 @@
                 <div class="flex items-center gap-2 flex-wrap">
                   <a href="/invoice/{inv.id}" class="btn btn-ghost" style="height:28px;font-size:12px;gap:5px;text-decoration:none;">
                     <Eye size={12} />
-                    {$t('inv.viewDetail')}
+                    {t('inv.viewDetail')}
                   </a>
                   {#if inv.source_file}
                     <a href="/invoice/{inv.id}/file" target="_blank" rel="noopener noreferrer"
                       class="btn btn-ghost" style="height:28px;font-size:12px;gap:5px;text-decoration:none;">
                       <ExternalLink size={12} />
-                      {$t('inv.detail.original')}
+                      {t('inv.detail.original')}
                     </a>
                   {/if}
                   {#if inv.review_state !== 'revisado'}
@@ -481,19 +481,19 @@
                       <input type="hidden" name="id" value={inv.id} />
                       <button type="submit" class="btn btn-ghost text-pos" style="height:28px;font-size:12px;gap:5px;">
                         <Check size={12} />
-                        {$t('inv.markReviewed')}
+                        {t('inv.markReviewed')}
                       </button>
                     </form>
                   {/if}
                   <a href="/invoice/{inv.id}/edit" class="btn btn-ghost" style="height:28px;font-size:12px;text-decoration:none;">
-                    {$t('action.edit')}
+                    {t('action.edit')}
                   </a>
                   <form id="delete-form-{inv.id}" method="post" action="?/deleteInvoice">
                     <input type="hidden" name="id" value={inv.id} />
                     <button type="button" class="btn btn-ghost text-neg" style="height:28px;font-size:12px;gap:5px;"
                       onclick={() => requestDeleteInvoice(inv.id)}>
                       <Trash2 size={12} />
-                      {$t('inv.delete')}
+                      {t('inv.delete')}
                     </button>
                   </form>
                 </div>
@@ -502,11 +502,11 @@
                   <table class="tbl">
                     <thead>
                       <tr>
-                        <th>{$t('tbl.desc')}</th>
-                        <th class="num">{$t('tbl.qty')}</th>
-                        <th>{$t('tbl.unit')}</th>
-                        <th class="num">{$t('tbl.unitPrice')}</th>
-                        <th class="num">{$t('tbl.total')}</th>
+                        <th>{t('tbl.desc')}</th>
+                        <th class="num">{t('tbl.qty')}</th>
+                        <th>{t('tbl.unit')}</th>
+                        <th class="num">{t('tbl.unitPrice')}</th>
+                        <th class="num">{t('tbl.total')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -522,14 +522,14 @@
                     </tbody>
                   </table>
                 {:else}
-                  <p class="body">{$t('inv.detail.noLines')}</p>
+                  <p class="body">{t('inv.detail.noLines')}</p>
                 {/if}
 
                 <div class="flex flex-col gap-1.5">
-                  <span class="label">{$t('inv.detail.notes')}</span>
+                  <span class="label">{t('inv.detail.notes')}</span>
                   <textarea
                     maxlength={250}
-                    placeholder={$t('inv.detail.addNote')}
+                    placeholder={t('inv.detail.addNote')}
                     value={noteVal}
                     class="input resize-y"
                     style="min-height:52px;max-height:120px;padding:8px 10px;"
@@ -538,7 +538,7 @@
                   ></textarea>
                   <div class="flex justify-between items-center">
                     <span class="body text-pos transition-opacity duration-300 {noteSavedFlash[inv.id] ? 'opacity-100' : 'opacity-0'}"
-                      style="font-size:11px;">{$t('inv.detail.saved')}</span>
+                      style="font-size:11px;">{t('inv.detail.saved')}</span>
                     <span class="body text-fg-3" style="font-size:11px;">{noteVal.length}/250</span>
                   </div>
                 </div>
@@ -578,18 +578,18 @@
 
 <ConfirmDialog
   bind:open={confirmReviewedOpen}
-  message={$tp('inv.confirm.reviewed', checkedIds.size)}
+  message={tp('inv.confirm.reviewed', checkedIds.size)}
   onconfirm={executeBulkReviewed}
 />
 <ConfirmDialog
   bind:open={confirmDeleteOpen}
-  message={$tp('inv.confirm.delete', checkedIds.size)}
+  message={tp('inv.confirm.delete', checkedIds.size)}
   danger={true}
   onconfirm={executeBulkDelete}
 />
 <ConfirmDialog
   bind:open={confirmDeleteOneOpen}
-  message={$t('inv.confirm.del1')}
+  message={t('inv.confirm.del1')}
   danger={true}
   onconfirm={executeDeleteInvoice}
   oncancel={() => { deleteInvoiceId = null; }}

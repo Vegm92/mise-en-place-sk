@@ -1,6 +1,5 @@
 <script lang="ts">
   import type { ActionData, PageData } from './$types';
-  import { get } from 'svelte/store';
   import { t, ti, tp } from '$lib/i18n';
   import { formatPhoneNumber } from '$lib/phone';
   import { HELP_FAQ } from '$lib/help-content';
@@ -56,7 +55,7 @@
   }
 
   async function handleDeleteAccount() {
-    const tFn = get(t);
+    const tFn = t;
     deleting = true;
     deleteError = '';
     try {
@@ -83,16 +82,16 @@
   }
 
   const sections = $derived([
-    { id: 'cuenta', label: $t('set.nav.account'), sub: $t('set.sub.account'), icon: SettingsIcon },
-    { id: 'negocio', label: $t('set.nav.business'), sub: $t('set.sub.business'), icon: Truck },
-    { id: 'categorias', label: $t('set.nav.categories'), sub: $t('set.sub.categories'), icon: Tag },
-    { id: 'campos', label: $t('set.nav.fields'), sub: $t('set.sub.fields'), icon: Eye },
-    { id: 'alertas', label: $t('set.nav.alerts'), sub: $t('set.sub.alerts'), icon: Bell },
+    { id: 'cuenta', label: t('set.nav.account'), sub: t('set.sub.account'), icon: SettingsIcon },
+    { id: 'negocio', label: t('set.nav.business'), sub: t('set.sub.business'), icon: Truck },
+    { id: 'categorias', label: t('set.nav.categories'), sub: t('set.sub.categories'), icon: Tag },
+    { id: 'campos', label: t('set.nav.fields'), sub: t('set.sub.fields'), icon: Eye },
+    { id: 'alertas', label: t('set.nav.alerts'), sub: t('set.sub.alerts'), icon: Bell },
     ...(data.whatsappEnabled
-      ? [{ id: 'whatsapp', label: $t('set.nav.whatsapp'), sub: $t('set.sub.whatsapp'), icon: MessageCircle }]
+      ? [{ id: 'whatsapp', label: t('set.nav.whatsapp'), sub: t('set.sub.whatsapp'), icon: MessageCircle }]
       : []),
-    { id: 'ayuda', label: $t('set.nav.help'), sub: $t('set.sub.help'), icon: CircleHelp },
-    { id: 'datos', label: $t('set.nav.privacy'), sub: $t('set.sub.privacy'), icon: ShieldCheck },
+    { id: 'ayuda', label: t('set.nav.help'), sub: t('set.sub.help'), icon: CircleHelp },
+    { id: 'datos', label: t('set.nav.privacy'), sub: t('set.sub.privacy'), icon: ShieldCheck },
   ]);
 
   let activeSection = $state('cuenta');
@@ -143,7 +142,7 @@
     query.trim().length === 0
       ? []
       : searchIndex.filter((entry) =>
-          $t(entry.key).toLowerCase().includes(query.trim().toLowerCase()),
+          t(entry.key).toLowerCase().includes(query.trim().toLowerCase()),
         ),
   );
 
@@ -213,19 +212,19 @@
 
 {#snippet feedbackLine(section: string)}
   {#if feedback(section)?.error}
-    <p class="set-msg set-msg-err">{$t(feedback(section)!.error!)}</p>
+    <p class="set-msg set-msg-err">{t(feedback(section)!.error!)}</p>
   {:else if feedback(section)?.ok}
-    <p class="set-msg set-msg-ok">{$t(feedback(section)!.ok!)}</p>
+    <p class="set-msg set-msg-ok">{t(feedback(section)!.ok!)}</p>
   {/if}
 {/snippet}
 
 {#snippet sectionBody(section: string, idp: string)}
       {#if section === 'cuenta'}
-        <SectionCard title={$t('set.profile.title')} sub={$t('set.access.sub')} noPad>
+        <SectionCard title={t('set.profile.title')} sub={t('set.access.sub')} noPad>
           <div class="set-row">
             <label for="{idp}-profile-name" class="set-lbl">
-              <span class="set-lbl-name">{$t('set.profile.name')}</span>
-              <span class="set-lbl-hint">{$t('set.profile.nameHint')}</span>
+              <span class="set-lbl-name">{t('set.profile.name')}</span>
+              <span class="set-lbl-hint">{t('set.profile.nameHint')}</span>
             </label>
             <div>
               <input id="{idp}-profile-name" name="name" type="text" maxlength="80" required
@@ -236,21 +235,21 @@
 
           <div class="set-row">
             <label for="{idp}-profile-email" class="set-lbl">
-              <span class="set-lbl-name">{$t('set.profile.email')}</span>
-              <span class="set-lbl-hint">{$t('set.profile.emailDesc')}</span>
+              <span class="set-lbl-name">{t('set.profile.email')}</span>
+              <span class="set-lbl-hint">{t('set.profile.emailDesc')}</span>
             </label>
             <form method="POST" action="?/saveEmail" class="set-stack">
               <div class="set-inline">
                 <Mail size={14} style="color:var(--mep-fg-3);" />
                 <span class="set-value">{data.profile.email}</span>
                 {#if data.profile.emailVerified}
-                  <span class="badge badge-confirmed"><Check size={10} />{$t('set.profile.emailVerified')}</span>
+                  <span class="badge badge-confirmed"><Check size={10} />{t('set.profile.emailVerified')}</span>
                 {/if}
               </div>
               <div class="set-inline">
                 <input id="{idp}-profile-email" name="email" type="email" required
                   value={data.profile.email} class="input set-input" />
-                <button type="submit" class="btn btn-secondary">{$t('set.profile.emailBtn')}</button>
+                <button type="submit" class="btn btn-secondary">{t('set.profile.emailBtn')}</button>
               </div>
               {@render feedbackLine('email')}
             </form>
@@ -259,29 +258,29 @@
           {#if data.profile.hasPassword}
             <div class="set-row set-row-top">
               <div class="set-lbl">
-                <span class="set-lbl-name">{$t('set.profile.password')}</span>
-                <span class="set-lbl-hint">{$t('set.profile.passwordHint')}</span>
+                <span class="set-lbl-name">{t('set.profile.password')}</span>
+                <span class="set-lbl-hint">{t('set.profile.passwordHint')}</span>
               </div>
               <div>
                 {#if pwOpen}
                   <form method="POST" action="?/changePassword" class="set-stack set-stack-narrow">
                     <input id="{idp}-pw-current" name="current" type="password" required autocomplete="current-password"
-                      placeholder={$t('set.profile.currentPassword')} class="input" />
+                      placeholder={t('set.profile.currentPassword')} class="input" />
                     <input name="password" type="password" required minlength="12" autocomplete="new-password"
-                      placeholder={$t('set.profile.newPassword')} class="input" />
+                      placeholder={t('set.profile.newPassword')} class="input" />
                     <input name="confirm" type="password" required minlength="12" autocomplete="new-password"
-                      placeholder={$t('set.profile.confirmPassword')} class="input" />
+                      placeholder={t('set.profile.confirmPassword')} class="input" />
                     <div class="set-inline">
-                      <button type="submit" class="btn btn-primary">{$t('set.profile.passwordBtn')}</button>
-                      <button type="button" class="btn btn-ghost" onclick={() => (pwOpen = false)}>{$t('set.cancel')}</button>
+                      <button type="submit" class="btn btn-primary">{t('set.profile.passwordBtn')}</button>
+                      <button type="button" class="btn btn-ghost" onclick={() => (pwOpen = false)}>{t('set.cancel')}</button>
                     </div>
                     {@render feedbackLine('password')}
                   </form>
                 {:else}
                   <div class="set-inline">
-                    <span class="set-mask num">{$t('set.profile.passwordMask')}</span>
+                    <span class="set-mask num">{t('set.profile.passwordMask')}</span>
                     <button type="button" class="btn btn-ghost set-btn-sm" onclick={() => (pwOpen = true)}>
-                      {$t('set.profile.passwordShow')} <ChevronDown size={12} />
+                      {t('set.profile.passwordShow')} <ChevronDown size={12} />
                     </button>
                   </div>
                   {@render feedbackLine('password')}
@@ -294,20 +293,20 @@
         <a href="/billing" class="card set-link">
           <span class="set-link-icon"><Wallet size={16} /></span>
           <span class="set-lbl">
-            <span class="set-lbl-name">{$t('billing.settings.link')}</span>
-            <span class="set-lbl-hint">{$t('billing.settings.linkBody')}</span>
+            <span class="set-lbl-name">{t('billing.settings.link')}</span>
+            <span class="set-lbl-hint">{t('billing.settings.linkBody')}</span>
           </span>
           <ChevronRight size={15} style="color:var(--mep-fg-3);flex-shrink:0;" />
         </a>
       {/if}
 
       {#if section === 'negocio'}
-        <SectionCard title={$t('set.business.title')} sub={$t('set.business.sub')} noPad>
+        <SectionCard title={t('set.business.title')} sub={t('set.business.sub')} noPad>
           <div class="set-row">
             {#if data.canRenameRestaurant}
               <label for="{idp}-restaurant-name" class="set-lbl">
-                <span class="set-lbl-name">{$t('set.profile.restaurant')}</span>
-                <span class="set-lbl-hint">{$t('set.business.nameHint')}</span>
+                <span class="set-lbl-name">{t('set.profile.restaurant')}</span>
+                <span class="set-lbl-hint">{t('set.business.nameHint')}</span>
               </label>
               <div>
                 <input id="{idp}-restaurant-name" name="name" type="text" maxlength="120" required
@@ -316,12 +315,12 @@
               </div>
             {:else}
               <span class="set-lbl">
-                <span class="set-lbl-name">{$t('set.profile.restaurant')}</span>
-                <span class="set-lbl-hint">{$t('set.business.nameHint')}</span>
+                <span class="set-lbl-name">{t('set.profile.restaurant')}</span>
+                <span class="set-lbl-hint">{t('set.business.nameHint')}</span>
               </span>
               <div>
                 <span class="set-value">{data.restaurantName}</span>
-                <p class="set-lbl-hint set-msg">{$t('set.business.nameReadonlyHint')}</p>
+                <p class="set-lbl-hint set-msg">{t('set.business.nameReadonlyHint')}</p>
                 {@render feedbackLine('restaurant')}
               </div>
             {/if}
@@ -329,24 +328,24 @@
 
           <div class="set-row">
             <span class="set-lbl">
-              <span class="set-lbl-name">{$t('set.business.currencyLabel')}</span>
-              <span class="set-lbl-hint">{$t('set.business.currencyHint')}</span>
+              <span class="set-lbl-name">{t('set.business.currencyLabel')}</span>
+              <span class="set-lbl-hint">{t('set.business.currencyHint')}</span>
             </span>
             <div class="set-readonly">
               <Wallet size={14} style="color:var(--mep-fg-3);" />
-              {$t('set.business.currencyValue')}
+              {t('set.business.currencyValue')}
               <span class="set-spacer"></span>
-              <span class="badge badge-neutral">{$t('set.business.currencyFixed')}</span>
+              <span class="badge badge-neutral">{t('set.business.currencyFixed')}</span>
             </div>
           </div>
         </SectionCard>
 
-        <SectionCard title={$t('set.fiscal.title')} sub={$t('set.fiscal.sub')} noPad>
+        <SectionCard title={t('set.fiscal.title')} sub={t('set.fiscal.sub')} noPad>
           {#if data.canRenameRestaurant}
             <div class="set-row">
               <label for="{idp}-fiscal-legal-name" class="set-lbl">
-                <span class="set-lbl-name">{$t('set.fiscal.legalName')}</span>
-                <span class="set-lbl-hint">{$t('set.fiscal.legalNameHint')}</span>
+                <span class="set-lbl-name">{t('set.fiscal.legalName')}</span>
+                <span class="set-lbl-hint">{t('set.fiscal.legalNameHint')}</span>
               </label>
               <div>
                 <input id="{idp}-fiscal-legal-name" name="legalName" type="text" maxlength="200"
@@ -356,8 +355,8 @@
 
             <div class="set-row">
               <label for="{idp}-fiscal-trade-name" class="set-lbl">
-                <span class="set-lbl-name">{$t('set.fiscal.tradeName')}</span>
-                <span class="set-lbl-hint">{$t('set.fiscal.tradeNameHint')}</span>
+                <span class="set-lbl-name">{t('set.fiscal.tradeName')}</span>
+                <span class="set-lbl-hint">{t('set.fiscal.tradeNameHint')}</span>
               </label>
               <div>
                 <input id="{idp}-fiscal-trade-name" name="tradeName" type="text" maxlength="200"
@@ -367,8 +366,8 @@
 
             <div class="set-row">
               <label for="{idp}-fiscal-cif" class="set-lbl">
-                <span class="set-lbl-name">{$t('set.fiscal.cifNif')}</span>
-                <span class="set-lbl-hint">{$t('set.fiscal.cifNifHint')}</span>
+                <span class="set-lbl-name">{t('set.fiscal.cifNif')}</span>
+                <span class="set-lbl-hint">{t('set.fiscal.cifNifHint')}</span>
               </label>
               <div>
                 <input id="{idp}-fiscal-cif" name="cifNif" type="text" maxlength="20" autocapitalize="characters"
@@ -378,8 +377,8 @@
 
             <div class="set-row">
               <label for="{idp}-fiscal-address" class="set-lbl">
-                <span class="set-lbl-name">{$t('set.fiscal.address')}</span>
-                <span class="set-lbl-hint">{$t('set.fiscal.addressHint')}</span>
+                <span class="set-lbl-name">{t('set.fiscal.address')}</span>
+                <span class="set-lbl-hint">{t('set.fiscal.addressHint')}</span>
               </label>
               <div>
                 <input id="{idp}-fiscal-address" name="fiscalAddress" type="text" maxlength="300"
@@ -389,8 +388,8 @@
 
             <div class="set-row">
               <label for="{idp}-fiscal-phone" class="set-lbl">
-                <span class="set-lbl-name">{$t('set.fiscal.phone')}</span>
-                <span class="set-lbl-hint">{$t('set.fiscal.phoneHint')}</span>
+                <span class="set-lbl-name">{t('set.fiscal.phone')}</span>
+                <span class="set-lbl-hint">{t('set.fiscal.phoneHint')}</span>
               </label>
               <div>
                 <input id="{idp}-fiscal-phone" name="phone" type="text" maxlength="40"
@@ -401,61 +400,61 @@
             <div class="set-row">
               <span class="set-lbl"></span>
               <div>
-                <button type="submit" class="btn btn-primary" form="{idp}-form-fiscal">{$t('set.fiscal.save')}</button>
+                <button type="submit" class="btn btn-primary" form="{idp}-form-fiscal">{t('set.fiscal.save')}</button>
                 {@render feedbackLine('fiscal')}
               </div>
             </div>
           {:else}
             <div class="set-row">
               <span class="set-lbl">
-                <span class="set-lbl-name">{$t('set.fiscal.legalName')}</span>
-                <span class="set-lbl-hint">{$t('set.fiscal.legalNameHint')}</span>
+                <span class="set-lbl-name">{t('set.fiscal.legalName')}</span>
+                <span class="set-lbl-hint">{t('set.fiscal.legalNameHint')}</span>
               </span>
               <div>
-                <span class="set-value">{data.fiscalIdentity.legalName || $t('set.fiscal.empty')}</span>
-                <p class="set-lbl-hint set-msg">{$t('set.business.nameReadonlyHint')}</p>
+                <span class="set-value">{data.fiscalIdentity.legalName || t('set.fiscal.empty')}</span>
+                <p class="set-lbl-hint set-msg">{t('set.business.nameReadonlyHint')}</p>
               </div>
             </div>
 
             <div class="set-row">
               <span class="set-lbl">
-                <span class="set-lbl-name">{$t('set.fiscal.tradeName')}</span>
-                <span class="set-lbl-hint">{$t('set.fiscal.tradeNameHint')}</span>
+                <span class="set-lbl-name">{t('set.fiscal.tradeName')}</span>
+                <span class="set-lbl-hint">{t('set.fiscal.tradeNameHint')}</span>
               </span>
-              <div><span class="set-value">{data.fiscalIdentity.tradeName || $t('set.fiscal.empty')}</span></div>
+              <div><span class="set-value">{data.fiscalIdentity.tradeName || t('set.fiscal.empty')}</span></div>
             </div>
 
             <div class="set-row">
               <span class="set-lbl">
-                <span class="set-lbl-name">{$t('set.fiscal.cifNif')}</span>
-                <span class="set-lbl-hint">{$t('set.fiscal.cifNifHint')}</span>
+                <span class="set-lbl-name">{t('set.fiscal.cifNif')}</span>
+                <span class="set-lbl-hint">{t('set.fiscal.cifNifHint')}</span>
               </span>
-              <div><span class="set-value">{data.fiscalIdentity.cifNif || $t('set.fiscal.empty')}</span></div>
+              <div><span class="set-value">{data.fiscalIdentity.cifNif || t('set.fiscal.empty')}</span></div>
             </div>
 
             <div class="set-row">
               <span class="set-lbl">
-                <span class="set-lbl-name">{$t('set.fiscal.address')}</span>
-                <span class="set-lbl-hint">{$t('set.fiscal.addressHint')}</span>
+                <span class="set-lbl-name">{t('set.fiscal.address')}</span>
+                <span class="set-lbl-hint">{t('set.fiscal.addressHint')}</span>
               </span>
-              <div><span class="set-value">{data.fiscalIdentity.fiscalAddress || $t('set.fiscal.empty')}</span></div>
+              <div><span class="set-value">{data.fiscalIdentity.fiscalAddress || t('set.fiscal.empty')}</span></div>
             </div>
 
             <div class="set-row">
               <span class="set-lbl">
-                <span class="set-lbl-name">{$t('set.fiscal.phone')}</span>
-                <span class="set-lbl-hint">{$t('set.fiscal.phoneHint')}</span>
+                <span class="set-lbl-name">{t('set.fiscal.phone')}</span>
+                <span class="set-lbl-hint">{t('set.fiscal.phoneHint')}</span>
               </span>
-              <div><span class="set-value">{data.fiscalIdentity.phone || $t('set.fiscal.empty')}</span></div>
+              <div><span class="set-value">{data.fiscalIdentity.phone || t('set.fiscal.empty')}</span></div>
             </div>
           {/if}
         </SectionCard>
 
         {#if showLocations}
-          <SectionCard title={$t('set.locations.title')} noPad>
+          <SectionCard title={t('set.locations.title')} noPad>
             {#snippet headerRight()}
               <span class="set-lbl-hint">
-                {$tp('set.locations.planIncludes', data.maxLocations)} {$ti('set.locations.inUse', { used: usableLocations.length })}
+                {tp('set.locations.planIncludes', data.maxLocations)} {ti('set.locations.inUse', { used: usableLocations.length })}
               </span>
             {/snippet}
             {#each data.locations as loc}
@@ -463,10 +462,10 @@
                 <span class="set-loc-badge">{loc.name.slice(0, 1)}</span>
                 <span class="set-loc-name">{loc.name}</span>
                 {#if loc.id === data.activeRestaurantId}
-                  <span class="badge set-badge-acc">{$t('set.locations.current')}</span>
+                  <span class="badge set-badge-acc">{t('set.locations.current')}</span>
                 {/if}
                 {#if loc.locked}
-                  <span class="badge badge-neutral"><Lock size={10} /> {$t('set.locations.locked')}</span>
+                  <span class="badge badge-neutral"><Lock size={10} /> {t('set.locations.locked')}</span>
                 {/if}
               </div>
             {/each}
@@ -475,15 +474,15 @@
               {#if data.multiLocation && usableLocations.length < data.maxLocations}
                 <form method="POST" action="?/addLocation" class="set-inline set-grow">
                   <input name="name" type="text" maxlength="120" required
-                    placeholder={$t('set.locations.newPlaceholder')} class="input set-grow" />
-                  <button type="submit" class="btn btn-secondary">{$t('set.locations.add')}</button>
+                    placeholder={t('set.locations.newPlaceholder')} class="input set-grow" />
+                  <button type="submit" class="btn btn-secondary">{t('set.locations.add')}</button>
                 </form>
               {:else if data.multiLocation}
-                <p class="set-lbl-hint">{$t('set.locations.err.limitReached')}</p>
+                <p class="set-lbl-hint">{t('set.locations.err.limitReached')}</p>
               {/if}
               {#if lockedLocations.length > 0}
                 <p class="set-lbl-hint">
-                  {$tp('set.locations.lockedCount', lockedLocations.length)} · {$t('set.locations.lockedHint')}
+                  {tp('set.locations.lockedCount', lockedLocations.length)} · {t('set.locations.lockedHint')}
                 </p>
               {/if}
               {@render feedbackLine('location')}
@@ -493,7 +492,7 @@
       {/if}
 
       {#if section === 'categorias'}
-        <SectionCard title={$t('set.categories.title')} sub={$t('set.categories.sub')} noPad>
+        <SectionCard title={t('set.categories.title')} sub={t('set.categories.sub')} noPad>
           {#each data.categories as cat (cat.id)}
             <div class="set-loc">
               <span class="set-loc-badge">{cat.name.slice(0, 1)}</span>
@@ -502,23 +501,23 @@
                   <input type="hidden" name="id" value={cat.id} />
                   <input name="name" type="text" maxlength="60" required
                     bind:value={editingCategoryName} class="input set-grow" />
-                  <button type="submit" class="btn btn-secondary set-btn-sm">{$t('set.categories.save')}</button>
+                  <button type="submit" class="btn btn-secondary set-btn-sm">{t('set.categories.save')}</button>
                   <button type="button" class="btn btn-ghost set-btn-sm"
-                    onclick={() => (editingCategoryId = null)}>{$t('set.categories.cancel')}</button>
+                    onclick={() => (editingCategoryId = null)}>{t('set.categories.cancel')}</button>
                 </form>
               {:else}
                 <span class="set-loc-name">{cat.name}</span>
-                {#if cat.isDefault}<span class="badge badge-neutral">{$t('set.categories.defaultBadge')}</span>{/if}
-                {#if cat.hidden}<span class="badge badge-neutral">{$t('set.categories.hiddenBadge')}</span>{/if}
+                {#if cat.isDefault}<span class="badge badge-neutral">{t('set.categories.defaultBadge')}</span>{/if}
+                {#if cat.hidden}<span class="badge badge-neutral">{t('set.categories.hiddenBadge')}</span>{/if}
                 <span class="set-spacer"></span>
                 {#if data.canManageCategories}
                   <button type="button" class="btn btn-ghost set-btn-sm"
-                    onclick={() => startEditCategory(cat)}>{$t('set.categories.rename')}</button>
+                    onclick={() => startEditCategory(cat)}>{t('set.categories.rename')}</button>
                   <form method="POST" action="?/setCategoryHidden">
                     <input type="hidden" name="id" value={cat.id} />
                     <input type="hidden" name="hidden" value={cat.hidden ? '0' : '1'} />
                     <button type="submit" class="btn btn-ghost set-btn-sm">
-                      {cat.hidden ? $t('set.categories.show') : $t('set.categories.hide')}
+                      {cat.hidden ? t('set.categories.show') : t('set.categories.hide')}
                     </button>
                   </form>
                 {/if}
@@ -529,23 +528,23 @@
           {#if data.canManageCategories}
             <form method="POST" action="?/addCategory" class="set-foot set-foot-fill set-inline">
               <input name="name" type="text" maxlength="60" required
-                placeholder={$t('set.categories.namePlaceholder')} class="input set-grow" />
-              <button type="submit" class="btn btn-secondary">{$t('set.categories.add')}</button>
+                placeholder={t('set.categories.namePlaceholder')} class="input set-grow" />
+              <button type="submit" class="btn btn-secondary">{t('set.categories.add')}</button>
             </form>
           {:else}
-            <div class="set-foot"><p class="set-lbl-hint">{$t('set.categories.err.notOwner')}</p></div>
+            <div class="set-foot"><p class="set-lbl-hint">{t('set.categories.err.notOwner')}</p></div>
           {/if}
           {@render feedbackLine('categorias')}
         </SectionCard>
       {/if}
 
       {#if section === 'campos'}
-        <SectionCard title={$t('set.fields.title')} sub={$t('set.fields.sub')} noPad>
+        <SectionCard title={t('set.fields.title')} sub={t('set.fields.sub')} noPad>
           {#each data.optionalFields as field}
             <label class="alert-toggle" for={`${idp}-field-vis-${field}`}>
               <span class="alert-toggle-copy">
-                <span class="set-lbl-name">{$t(`set.fields.label.${field}`)}</span>
-                <span class="set-lbl-hint">{$t(`set.fields.desc.${field}`)}</span>
+                <span class="set-lbl-name">{t(`set.fields.label.${field}`)}</span>
+                <span class="set-lbl-hint">{t(`set.fields.desc.${field}`)}</span>
               </span>
               <input
                 id={`${idp}-field-vis-${field}`}
@@ -564,11 +563,11 @@
       {/if}
 
       {#if section === 'alertas'}
-        <SectionCard title={$t('set.thresholdsTitle')} noPad>
+        <SectionCard title={t('set.thresholdsTitle')} noPad>
           <div class="set-row set-row-top">
             <span class="set-lbl">
-              <span class="set-lbl-name">{$t('set.threshold.label')}</span>
-              <span class="set-lbl-hint">{$t('set.thresholdDesc')}</span>
+              <span class="set-lbl-name">{t('set.threshold.label')}</span>
+              <span class="set-lbl-hint">{t('set.thresholdDesc')}</span>
             </span>
             <div>
               <div class="set-slider">
@@ -578,24 +577,24 @@
                 </div>
                 <div class="set-inline">
                   <button type="button" class="btn btn-secondary set-step"
-                    aria-label={$t('set.thresholdTitle')}
+                    aria-label={t('set.thresholdTitle')}
                     onclick={() => (threshold = Math.max(50, threshold - 1))}>−</button>
                   <div class="num set-readout">
                     {threshold}<span class="set-readout-unit">%</span>
                   </div>
                   <button type="button" class="btn btn-secondary set-step"
-                    aria-label={$t('set.thresholdTitle')}
+                    aria-label={t('set.thresholdTitle')}
                     onclick={() => (threshold = Math.min(100, threshold + 1))}>+</button>
                 </div>
               </div>
-              <p class="set-lbl-hint set-msg">{$ti('set.thresholdPreview', { value: threshold })}</p>
+              <p class="set-lbl-hint set-msg">{ti('set.thresholdPreview', { value: threshold })}</p>
             </div>
           </div>
 
           <div class="set-row set-row-top">
             <span class="set-lbl">
-              <span class="set-lbl-name">{$t('set.priceThreshold.label')}</span>
-              <span class="set-lbl-hint">{$t('set.priceThresholdDesc')}</span>
+              <span class="set-lbl-name">{t('set.priceThreshold.label')}</span>
+              <span class="set-lbl-hint">{t('set.priceThresholdDesc')}</span>
             </span>
             <div>
               <div class="set-slider">
@@ -605,36 +604,36 @@
                 </div>
                 <div class="set-inline">
                   <button type="button" class="btn btn-secondary set-step"
-                    aria-label={$t('set.priceThresholdTitle')}
+                    aria-label={t('set.priceThresholdTitle')}
                     onclick={() => (priceThreshold = Math.max(1, priceThreshold - 1))}>−</button>
                   <div class="num set-readout">
                     {priceThreshold}<span class="set-readout-unit">%</span>
                   </div>
                   <button type="button" class="btn btn-secondary set-step"
-                    aria-label={$t('set.priceThresholdTitle')}
+                    aria-label={t('set.priceThresholdTitle')}
                     onclick={() => (priceThreshold = Math.min(50, priceThreshold + 1))}>+</button>
                 </div>
               </div>
-              <p class="set-lbl-hint set-msg">{$ti('set.priceThresholdPreview', { value: priceThreshold })}</p>
+              <p class="set-lbl-hint set-msg">{ti('set.priceThresholdPreview', { value: priceThreshold })}</p>
             </div>
           </div>
         </SectionCard>
 
-        <SectionCard title={$t('set.alertPrefs.title')} sub={$t('set.alertPrefs.sub')} noPad>
+        <SectionCard title={t('set.alertPrefs.title')} sub={t('set.alertPrefs.sub')} noPad>
           {#snippet headerRight()}
-            <span class="set-lbl-hint num">{$ti('set.alertPrefs.count', { on: alertsOn, total: alertTypes.length })}</span>
+            <span class="set-lbl-hint num">{ti('set.alertPrefs.count', { on: alertsOn, total: alertTypes.length })}</span>
           {/snippet}
           {#each data.alertGroups as group}
             <div class="set-group">
-              <span class="label">{$t(`set.alertPrefs.group.${group.id}`)}</span>
+              <span class="label">{t(`set.alertPrefs.group.${group.id}`)}</span>
               <span class="set-spacer"></span>
-              <span class="set-lbl-hint num">{$ti('set.alertPrefs.groupCount', { on: groupOn(group.types), total: group.types.length })}</span>
+              <span class="set-lbl-hint num">{ti('set.alertPrefs.groupCount', { on: groupOn(group.types), total: group.types.length })}</span>
             </div>
             {#each group.types as type}
               <label class="alert-toggle" for={`${idp}-alert-pref-${type}`}>
                 <span class="alert-toggle-copy">
-                  <span class="set-lbl-name">{$t(`set.alertPrefs.type.${type}`)}</span>
-                  <span class="set-lbl-hint">{$t(`set.alertPrefs.desc.${type}`)}</span>
+                  <span class="set-lbl-name">{t(`set.alertPrefs.type.${type}`)}</span>
+                  <span class="set-lbl-hint">{t(`set.alertPrefs.desc.${type}`)}</span>
                 </span>
                 <input
                   id={`${idp}-alert-pref-${type}`}
@@ -655,7 +654,7 @@
       {#if section === 'whatsapp' && data.whatsappEnabled}
         <div class="set-wa">
           {#if data.whatsappBotNumber}
-            <SectionCard title={$t('set.whatsapp.botTitle')}>
+            <SectionCard title={t('set.whatsapp.botTitle')}>
               <div class="wa-number-block">
                 <a
                   href={data.whatsappBotNumber.link}
@@ -665,21 +664,21 @@
                 >{data.whatsappBotNumber.display}</a>
                 {#if data.whatsappBotNumber.qrSvg}
                   <div class="wa-qr" aria-hidden="true">{@html data.whatsappBotNumber.qrSvg}</div>
-                  <p class="set-lbl-hint wa-center">{$t('set.whatsapp.qrHint')}</p>
+                  <p class="set-lbl-hint wa-center">{t('set.whatsapp.qrHint')}</p>
                 {/if}
                 <button
                   type="button"
                   class="btn btn-secondary wa-no-print set-grow"
                   onclick={() => copyBotNumber(data.whatsappBotNumber!.link)}
-                >{botNumberCopied ? $t('set.whatsapp.copied') : $t('set.whatsapp.copy')}</button>
+                >{botNumberCopied ? t('set.whatsapp.copied') : t('set.whatsapp.copy')}</button>
               </div>
             </SectionCard>
           {/if}
 
           <div class="set-wa-col">
-            <SectionCard title={$t('set.whatsapp.contactsTitle')} noPad>
+            <SectionCard title={t('set.whatsapp.contactsTitle')} noPad>
               <div class="set-foot set-foot-top">
-                <p class="set-lbl-hint">{$t('set.whatsapp.desc')}</p>
+                <p class="set-lbl-hint">{t('set.whatsapp.desc')}</p>
               </div>
               {#if data.whatsappContacts.length > 0}
                 {#each data.whatsappContacts as contact (contact.id)}
@@ -693,54 +692,54 @@
                     {#if data.canManageWhatsapp}
                       <form method="POST" action="?/removeWhatsappContact">
                         <input type="hidden" name="id" value={contact.id} />
-                        <button type="submit" class="btn btn-ghost set-btn-sm">{$t('set.whatsapp.remove')}</button>
+                        <button type="submit" class="btn btn-ghost set-btn-sm">{t('set.whatsapp.remove')}</button>
                       </form>
                     {/if}
                   </div>
                 {/each}
               {:else}
-                <div class="set-foot"><p class="set-lbl-hint">{$t('set.whatsapp.empty')}</p></div>
+                <div class="set-foot"><p class="set-lbl-hint">{t('set.whatsapp.empty')}</p></div>
               {/if}
 
               {#if data.canManageWhatsapp}
                 <form method="POST" action="?/addWhatsappContact" class="set-foot set-foot-fill set-inline">
                   <input name="phone" type="tel" required
-                    placeholder={$t('set.whatsapp.phonePlaceholder')} class="input set-grow" />
+                    placeholder={t('set.whatsapp.phonePlaceholder')} class="input set-grow" />
                   <input name="name" type="text" maxlength="80"
-                    placeholder={$t('set.whatsapp.namePlaceholder')} class="input set-grow" />
-                  <button type="submit" class="btn btn-secondary">{$t('set.whatsapp.add')}</button>
+                    placeholder={t('set.whatsapp.namePlaceholder')} class="input set-grow" />
+                  <button type="submit" class="btn btn-secondary">{t('set.whatsapp.add')}</button>
                 </form>
               {:else}
-                <div class="set-foot"><p class="set-lbl-hint">{$t('set.whatsapp.err.notOwner')}</p></div>
+                <div class="set-foot"><p class="set-lbl-hint">{t('set.whatsapp.err.notOwner')}</p></div>
               {/if}
             </SectionCard>
 
             {#if data.canManageWhatsapp}
-              <SectionCard title={$t('set.whatsapp.pairTitle')}>
+              <SectionCard title={t('set.whatsapp.pairTitle')}>
                 <div class="set-pair">
                   <div class="set-pair-copy">
                     {#if data.whatsappPairingCode}
                       <p class="set-lbl-hint">
                         {#if data.whatsappPairingCode.phoneNumber}
-                          {$ti('set.whatsapp.pairActiveFor', { phone: formatPhoneNumber(data.whatsappPairingCode.phoneNumber) })}
+                          {ti('set.whatsapp.pairActiveFor', { phone: formatPhoneNumber(data.whatsappPairingCode.phoneNumber) })}
                         {:else}
-                          {$t('set.whatsapp.pairActive')}
+                          {t('set.whatsapp.pairActive')}
                         {/if}
                       </p>
                       <div class="set-inline">
                         <form method="POST" action="?/generateWhatsappPairingCode">
-                          <button type="submit" class="btn btn-secondary set-btn-sm">{$t('set.whatsapp.pairRegenerate')}</button>
+                          <button type="submit" class="btn btn-secondary set-btn-sm">{t('set.whatsapp.pairRegenerate')}</button>
                         </form>
                         <form method="POST" action="?/revokeWhatsappPairingCode">
-                          <button type="submit" class="btn btn-ghost set-btn-sm">{$t('set.whatsapp.pairRevoke')}</button>
+                          <button type="submit" class="btn btn-ghost set-btn-sm">{t('set.whatsapp.pairRevoke')}</button>
                         </form>
                       </div>
                     {:else}
-                      <p class="set-lbl-hint">{$t('set.whatsapp.pairDesc')}</p>
+                      <p class="set-lbl-hint">{t('set.whatsapp.pairDesc')}</p>
                       <form method="POST" action="?/generateWhatsappPairingCode" class="set-inline">
                         <input name="name" type="text" maxlength="80"
-                          placeholder={$t('set.whatsapp.namePlaceholder')} class="input set-grow" />
-                        <button type="submit" class="btn btn-secondary set-btn-sm">{$t('set.whatsapp.pairGenerate')}</button>
+                          placeholder={t('set.whatsapp.namePlaceholder')} class="input set-grow" />
+                        <button type="submit" class="btn btn-secondary set-btn-sm">{t('set.whatsapp.pairGenerate')}</button>
                       </form>
                     {/if}
                   </div>
@@ -748,7 +747,7 @@
                     <div class="wa-pair-block">
                       <p class="wa-pair-code">{data.whatsappPairingCode.code}</p>
                       <p class="set-lbl-hint">
-                        {$ti('set.whatsapp.pairExpires', { time: formatTime(data.whatsappPairingCode.expiresAt) })}
+                        {ti('set.whatsapp.pairExpires', { time: formatTime(data.whatsappPairingCode.expiresAt) })}
                       </p>
                     </div>
                   {/if}
@@ -761,18 +760,18 @@
       {/if}
 
       {#if section === 'ayuda'}
-        <SectionCard title={$t('set.tourTitle')}>
+        <SectionCard title={t('set.tourTitle')}>
           <div class="set-tour">
             <span class="set-link-icon"><Compass size={18} /></span>
             <div class="set-stack">
-              <p class="set-prose">{$t('set.tourDesc')}</p>
+              <p class="set-prose">{t('set.tourDesc')}</p>
               <div class="set-chips">
                 {#each TOUR_PAGES as page (page.step)}
-                  <span class="badge badge-neutral">{$t(`help.tip.${page.tip}.title`)}</span>
+                  <span class="badge badge-neutral">{t(`help.tip.${page.tip}.title`)}</span>
                 {/each}
               </div>
               <form method="POST" action="?/resetTutorial">
-                <button type="submit" class="btn btn-secondary">{$t('set.tourRepeat')}</button>
+                <button type="submit" class="btn btn-secondary">{t('set.tourRepeat')}</button>
               </form>
             </div>
           </div>
@@ -781,16 +780,16 @@
         <a href="/help" class="card set-link">
           <span class="set-link-icon"><CircleHelp size={16} /></span>
           <span class="set-lbl">
-            <span class="set-lbl-name">{$t('set.helpLink')}</span>
-            <span class="set-lbl-hint">{$t('set.helpLinkBody')}</span>
+            <span class="set-lbl-name">{t('set.helpLink')}</span>
+            <span class="set-lbl-hint">{t('set.helpLinkBody')}</span>
           </span>
           <ChevronRight size={15} style="color:var(--mep-fg-3);flex-shrink:0;" />
         </a>
 
-        <SectionCard title={$t('set.faqShort')} sub={$t('set.faqShortSub')} noPad>
+        <SectionCard title={t('set.faqShort')} sub={t('set.faqShortSub')} noPad>
           {#each HELP_FAQ as item (item)}
             <a href="/help" class="set-faq-link">
-              <span class="set-lbl-name">{$t(`help.faq.${item}.q`)}</span>
+              <span class="set-lbl-name">{t(`help.faq.${item}.q`)}</span>
               <ChevronRight size={14} style="color:var(--mep-fg-3);flex-shrink:0;" />
             </a>
           {/each}
@@ -798,69 +797,69 @@
       {/if}
 
       {#if section === 'datos'}
-        <SectionCard title={$t('set.dataTitle')} noPad>
+        <SectionCard title={t('set.dataTitle')} noPad>
           <div class="set-row">
             <span class="set-lbl">
-              <span class="set-lbl-name">{$t('set.dataExportBtn')}</span>
-              <span class="set-lbl-hint">{$t('set.dataExportDesc')}</span>
+              <span class="set-lbl-name">{t('set.dataExportBtn')}</span>
+              <span class="set-lbl-hint">{t('set.dataExportDesc')}</span>
             </span>
             <div>
               <a href="/api/user/export" download class="btn btn-secondary set-btn-link">
-                <Download size={13} /> {$t('set.download')}
+                <Download size={13} /> {t('set.download')}
               </a>
             </div>
           </div>
           <div class="set-row">
             <span class="set-lbl">
-              <span class="set-lbl-name">{$t('set.legalTitle')}</span>
-              <span class="set-lbl-hint">{$t('set.legalSub')}</span>
+              <span class="set-lbl-name">{t('set.legalTitle')}</span>
+              <span class="set-lbl-hint">{t('set.legalSub')}</span>
             </span>
             <div class="set-legal">
-              <a href="/privacy" class="set-legal-link">{$t('set.privacyLink')}</a>
-              <a href="/terms" class="set-legal-link">{$t('set.termsLink')}</a>
+              <a href="/privacy" class="set-legal-link">{t('set.privacyLink')}</a>
+              <a href="/terms" class="set-legal-link">{t('set.termsLink')}</a>
             </div>
           </div>
         </SectionCard>
 
         <div class="card set-danger-card">
           <div class="card-header set-danger-head">
-            <span class="subtitle set-danger-title">{$t('set.dangerTitle')}</span>
+            <span class="subtitle set-danger-title">{t('set.dangerTitle')}</span>
           </div>
           <div class="set-danger-body">
             {#if dangerOpen}
               <div style="border:1px solid var(--mep-neg);background:var(--mep-neg-soft);border-radius:var(--mep-r-card);padding:14px;display:flex;gap:10px;align-items:flex-start;">
                 <AlertTriangle size={18} style="color:var(--mep-neg);flex-shrink:0;margin-top:2px;" />
                 <div class="set-grow">
-                  <p class="set-danger-lead">{$t('set.deleteDesc')}</p>
+                  <p class="set-danger-lead">{t('set.deleteDesc')}</p>
                   {#if !data.profile.hasPassword}
                     <p class="set-lbl-hint set-danger-hint">
-                      {$t('set.deleteType')} <strong>{$t('set.deleteConfirmWord')}</strong> {$t('set.deleteHint')}
+                      {t('set.deleteType')} <strong>{t('set.deleteConfirmWord')}</strong> {t('set.deleteHint')}
                     </p>
                     <div class="set-inline">
                       <input
                         type="text"
-                        placeholder={$t('set.deleteConfirmWord')}
+                        placeholder={t('set.deleteConfirmWord')}
                         bind:value={deleteConfirm}
                         class="input set-danger-input"
                       />
                       <button
                         type="button"
                         onclick={handleDeleteAccount}
-                        disabled={deleteConfirm !== $t('set.deleteConfirmWord') || deleting}
+                        disabled={deleteConfirm !== t('set.deleteConfirmWord') || deleting}
                         class="btn"
-                        style="background:var(--mep-neg);color:var(--mep-neg-fg);border:none;opacity:{deleteConfirm !== $t('set.deleteConfirmWord') || deleting ? 0.5 : 1};"
+                        style="background:var(--mep-neg);color:var(--mep-neg-fg);border:none;opacity:{deleteConfirm !== t('set.deleteConfirmWord') || deleting ? 0.5 : 1};"
                       >
-                        {deleting ? $t('set.deletingBtn') : $t('set.deleteBtn')}
+                        {deleting ? t('set.deletingBtn') : t('set.deleteBtn')}
                       </button>
-                      <button type="button" class="btn btn-ghost" onclick={() => (dangerOpen = false)}>{$t('set.cancel')}</button>
+                      <button type="button" class="btn btn-ghost" onclick={() => (dangerOpen = false)}>{t('set.cancel')}</button>
                     </div>
                   {:else}
-                    <p class="set-lbl-hint set-danger-hint">{$t('set.deletePasswordHint')}</p>
+                    <p class="set-lbl-hint set-danger-hint">{t('set.deletePasswordHint')}</p>
                     <div class="set-inline">
                       <input
                         type="password"
                         autocomplete="current-password"
-                        placeholder={$t('set.profile.currentPassword')}
+                        placeholder={t('set.profile.currentPassword')}
                         bind:value={deletePassword}
                         class="input set-danger-input"
                       />
@@ -871,9 +870,9 @@
                         class="btn"
                         style="background:var(--mep-neg);color:var(--mep-neg-fg);border:none;opacity:{deletePassword.length === 0 || deleting ? 0.5 : 1};"
                       >
-                        {deleting ? $t('set.deletingBtn') : $t('set.deleteBtn')}
+                        {deleting ? t('set.deletingBtn') : t('set.deleteBtn')}
                       </button>
-                      <button type="button" class="btn btn-ghost" onclick={() => (dangerOpen = false)}>{$t('set.cancel')}</button>
+                      <button type="button" class="btn btn-ghost" onclick={() => (dangerOpen = false)}>{t('set.cancel')}</button>
                     </div>
                   {/if}
                   {#if deleteError}
@@ -884,11 +883,11 @@
             {:else}
               <div class="set-inline">
                 <span class="set-lbl set-grow">
-                  <span class="set-lbl-name">{$t('set.deleteBtn')}</span>
-                  <span class="set-lbl-hint">{$t('set.deleteSub')}</span>
+                  <span class="set-lbl-name">{t('set.deleteBtn')}</span>
+                  <span class="set-lbl-hint">{t('set.deleteSub')}</span>
                 </span>
                 <button type="button" class="btn btn-secondary set-danger-open" onclick={() => (dangerOpen = true)}>
-                  {$t('set.deleteOpen')}
+                  {t('set.deleteOpen')}
                 </button>
               </div>
             {/if}
@@ -900,17 +899,17 @@
 {#snippet searchResults(idp: string)}
   <div class="card set-results">
     <div class="card-header">
-      <span class="subtitle">{$tp('set.searchCount', results.length)}</span>
+      <span class="subtitle">{tp('set.searchCount', results.length)}</span>
     </div>
     {#each results as entry (idp + entry.key)}
       <button type="button" class="set-result" onclick={() => goToResult(entry.section)}>
-        <span class="set-lbl-name">{$t(entry.key)}</span>
+        <span class="set-lbl-name">{t(entry.key)}</span>
         <span class="set-spacer"></span>
         <span class="badge badge-neutral">{sectionOf(entry.section).label}</span>
         <ChevronRight size={14} style="color:var(--mep-fg-3);flex-shrink:0;" />
       </button>
     {:else}
-      <div class="set-foot"><p class="set-lbl-hint">{$t('set.searchEmpty')}</p></div>
+      <div class="set-foot"><p class="set-lbl-hint">{t('set.searchEmpty')}</p></div>
     {/each}
   </div>
 {/snippet}
@@ -918,9 +917,9 @@
 {#snippet searchBox(idp: string)}
   <div class="set-search">
     <Search size={13} style="color:var(--mep-fg-3);flex-shrink:0;" />
-    <input type="text" bind:value={query} placeholder={$t('set.search')} aria-label={$t('set.search')} />
+    <input type="text" bind:value={query} placeholder={t('set.search')} aria-label={t('set.search')} />
     {#if query.trim().length > 0}
-      <button type="button" class="set-search-clear" aria-label={$t('set.searchClear')} onclick={() => (query = '')}>
+      <button type="button" class="set-search-clear" aria-label={t('set.searchClear')} onclick={() => (query = '')}>
         <X size={13} />
       </button>
     {/if}
@@ -932,10 +931,10 @@
   {#if pending > 0}
     <div class="set-savebar">
       <span class="set-savebar-dot"></span>
-      <span class="set-savebar-text">{$tp('set.dirty', pending)}</span>
+      <span class="set-savebar-text">{tp('set.dirty', pending)}</span>
       <span class="set-spacer"></span>
-      <button type="button" class="btn btn-ghost" onclick={() => discard(section)}>{$t('set.discard')}</button>
-      <button type="submit" class="btn btn-primary" form={savableForm(section, idp)}>{$t('set.saveChanges')}</button>
+      <button type="button" class="btn btn-ghost" onclick={() => discard(section)}>{t('set.discard')}</button>
+      <button type="submit" class="btn btn-primary" form={savableForm(section, idp)}>{t('set.saveChanges')}</button>
     </div>
   {/if}
 {/snippet}
@@ -977,7 +976,7 @@
             <p class="body set-head-sub">{sectionOf(activeSection).sub}</p>
           </div>
           {#if data.canRenameRestaurant}
-            <span class="badge badge-neutral set-head-badge">{$t('set.owner')}</span>
+            <span class="badge badge-neutral set-head-badge">{t('set.owner')}</span>
           {/if}
         </div>
         {@render sectionBody(activeSection, 'd')}
@@ -1009,7 +1008,7 @@
       {/if}
     {:else}
       <button type="button" class="set-mob-back" onclick={() => (mobileSection = null)}>
-        <ChevronLeft size={16} /> {$t('set.back')}
+        <ChevronLeft size={16} /> {t('set.back')}
       </button>
       <h2 class="title set-head-title">{sectionOf(mobileSection).label}</h2>
       <p class="body set-head-sub set-mob-sub">{sectionOf(mobileSection).sub}</p>

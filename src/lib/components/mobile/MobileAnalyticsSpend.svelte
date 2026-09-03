@@ -50,14 +50,14 @@
   } = $props();
 
   const periods = $derived<Array<[string, string]>>([
-    ['month', $t('spend.period.monthShort')],
-    ['quarter', $t('spend.period.quarterShort')],
-    ['half', $t('spend.period.halfShort')],
-    ['all', $t('spend.period.allShort')],
+    ['month', t('spend.period.monthShort')],
+    ['quarter', t('spend.period.quarterShort')],
+    ['half', t('spend.period.halfShort')],
+    ['all', t('spend.period.allShort')],
   ]);
 
   function fmtEur(n: number | null | undefined) {
-    return fmtEurCompact(n ?? 0, $locale);
+    return fmtEurCompact(n ?? 0, locale.current);
   }
 
   const DONUT_RADIUS = 60;
@@ -69,19 +69,19 @@
     const restSpend = rest.reduce((a, p) => a + p.total_spend, 0);
 
     const entries = top.map((p, i) => ({ label: p.description, value: p.total_spend, color: seriesColor(i) }));
-    if (restSpend > 0) entries.push({ label: $t('spend.other'), value: restSpend, color: SERIES_OTHER });
+    if (restSpend > 0) entries.push({ label: t('spend.other'), value: restSpend, color: SERIES_OTHER });
     return entries;
   })());
   const spendDonut = $derived(computeDonutSlices(topItemInputs, DONUT_RADIUS));
 
   const categoryInputs = $derived(category_spend.map(cat => ({
-    key: cat.category, label: $tcat(cat.category), value: cat.total, color: categoryColor(cat.category),
+    key: cat.category, label: tcat(cat.category), value: cat.total, color: categoryColor(cat.category),
   })));
   const categoryDonut = $derived(computeDonutSlices(categoryInputs, DONUT_RADIUS));
 
-  const yearlyLabels = $derived(monthly_spend.map(m => fmtMonthShort(m.month, $locale)));
+  const yearlyLabels = $derived(monthly_spend.map(m => fmtMonthShort(m.month, locale.current)));
   const yearlySeries = $derived([
-    { key: 'spend', label: $t('spend.yearly.series'), color: seriesColor(0), values: monthly_spend.map(m => m.total) },
+    { key: 'spend', label: t('spend.yearly.series'), color: seriesColor(0), values: monthly_spend.map(m => m.total) },
   ]);
 </script>
 
@@ -96,25 +96,25 @@
 
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
       <div class="card" style="padding: 12px;">
-        <div class="label" style=" margin-bottom: 5px;">{$t('spend.totalSpend')}</div>
+        <div class="label" style=" margin-bottom: 5px;">{t('spend.totalSpend')}</div>
         <div class="num" style="font-size: 20px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.4px; line-height: 1.1;">
           {fmtEur(kpis?.total_items_spend)}
         </div>
       </div>
       <div class="card" style="padding: 12px;">
-        <div class="label" style=" margin-bottom: 5px;">{$t('tbl.lines')}</div>
+        <div class="label" style=" margin-bottom: 5px;">{t('tbl.lines')}</div>
         <div class="num" style="font-size: 20px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.4px; line-height: 1.1;">
           {kpis?.total_line_items ?? '—'}
         </div>
       </div>
       <div class="card" style="padding: 12px;">
-        <div class="label" style=" margin-bottom: 5px;">{$t('spend.uniqueItems')}</div>
+        <div class="label" style=" margin-bottom: 5px;">{t('spend.uniqueItems')}</div>
         <div class="num" style="font-size: 20px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.4px; line-height: 1.1;">
           {kpis?.unique_items ?? '—'}
         </div>
       </div>
       <div class="card" style="padding: 12px;">
-        <div class="label" style=" margin-bottom: 5px;">{$t('spend.avgItems')}</div>
+        <div class="label" style=" margin-bottom: 5px;">{t('spend.avgItems')}</div>
         <div class="num" style="font-size: 20px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.4px; line-height: 1.1;">
           {kpis?.avg_invoice_items != null ? kpis.avg_invoice_items.toFixed(1) : '—'}
         </div>
@@ -122,31 +122,31 @@
     </div>
 
     <div class="card" style="padding: 14px;">
-      <div class="subtitle" style="font-size: 15px; margin-bottom: 2px;">{$t('spend.topProducts')}</div>
-      <div style="font-size: 11px; color: var(--mep-fg-3); margin-bottom: 12px;">{$t('spend.topItemsSub')}</div>
+      <div class="subtitle" style="font-size: 15px; margin-bottom: 2px;">{t('spend.topProducts')}</div>
+      <div style="font-size: 11px; color: var(--mep-fg-3); margin-bottom: 12px;">{t('spend.topItemsSub')}</div>
       {#if !top_items?.length && has_invoices && invoices_outside_range > 0}
         <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 20px 0; text-align: center;">
           <div style="font-size: 24px; opacity: 0.25;">📅</div>
-          <p class="body-strong" style="color: var(--mep-fg-3); margin: 0;">{$t('spend.noneInRange')}</p>
-          <p class="body" style="color: var(--mep-fg-4); font-size: 13px; max-width: 240px; margin: 0;">{$tp('spend.noneInRangeHint', invoices_outside_range)}</p>
-          <a href="?period=all" style="font-size: 13px; color: var(--mep-acc); text-decoration: none; display: inline-flex; align-items: center; min-height: 44px;">{$t('spend.widenRange')}</a>
+          <p class="body-strong" style="color: var(--mep-fg-3); margin: 0;">{t('spend.noneInRange')}</p>
+          <p class="body" style="color: var(--mep-fg-4); font-size: 13px; max-width: 240px; margin: 0;">{tp('spend.noneInRangeHint', invoices_outside_range)}</p>
+          <a href="?period=all" style="font-size: 13px; color: var(--mep-acc); text-decoration: none; display: inline-flex; align-items: center; min-height: 44px;">{t('spend.widenRange')}</a>
         </div>
       {:else if !top_items?.length}
         <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 20px 0; text-align: center;">
           <div style="font-size: 24px; opacity: 0.25;">📊</div>
-          <p class="body-strong" style="color: var(--mep-fg-3); margin: 0;">{$t('spend.noDataYet')}</p>
-          <p class="body" style="color: var(--mep-fg-4); font-size: 13px; max-width: 240px; margin: 0;">{$t('spend.emptyHint')}</p>
-          <a href="/" style="font-size: 13px; color: var(--mep-acc); text-decoration: none; display: inline-flex; align-items: center; min-height: 44px;">{$t('spend.uploadFirst')}</a>
+          <p class="body-strong" style="color: var(--mep-fg-3); margin: 0;">{t('spend.noDataYet')}</p>
+          <p class="body" style="color: var(--mep-fg-4); font-size: 13px; max-width: 240px; margin: 0;">{t('spend.emptyHint')}</p>
+          <a href="/" style="font-size: 13px; color: var(--mep-acc); text-decoration: none; display: inline-flex; align-items: center; min-height: 44px;">{t('spend.uploadFirst')}</a>
         </div>
       {:else}
-        <div class="flex flex-col items-center gap-3.5" role="group" aria-label={$t('spend.donut.topItemsAria')}>
+        <div class="flex flex-col items-center gap-3.5" role="group" aria-label={t('spend.donut.topItemsAria')}>
           <DonutChart
             slices={topItemInputs}
             radius={DONUT_RADIUS}
             size={156}
             strokeWidth={22}
             hoverStrokeWidth={22}
-            centerLabel={$t('spend.totalSpend')}
+            centerLabel={t('spend.totalSpend')}
             valueFormatter={fmtEur}
           />
           <div style="display: flex; flex-direction: column; gap: 7px; width: 100%;">
@@ -164,22 +164,22 @@
     </div>
 
     <div class="card" style="padding: 14px 14px 6px;">
-      <div class="subtitle" style="font-size: 15px; margin-bottom: 2px;">{$t('spend.byCategory')}</div>
-      <div style="font-size: 11px; color: var(--mep-fg-3); margin-bottom: 12px;">{$t('spend.byCategorySub')}</div>
+      <div class="subtitle" style="font-size: 15px; margin-bottom: 2px;">{t('spend.byCategory')}</div>
+      <div style="font-size: 11px; color: var(--mep-fg-3); margin-bottom: 12px;">{t('spend.byCategorySub')}</div>
       {#if !category_spend?.length}
         <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 14px 0 20px; text-align: center;">
-          <p class="body" style="color: var(--mep-fg-4); font-size: 13px; max-width: 220px; margin: 0;">{$t('spend.assignCategories')}</p>
-          <a href="/suppliers" style="font-size: 13px; color: var(--mep-acc); text-decoration: none; display: inline-flex; align-items: center; min-height: 44px;">{$t('spend.viewSuppliers')}</a>
+          <p class="body" style="color: var(--mep-fg-4); font-size: 13px; max-width: 220px; margin: 0;">{t('spend.assignCategories')}</p>
+          <a href="/suppliers" style="font-size: 13px; color: var(--mep-acc); text-decoration: none; display: inline-flex; align-items: center; min-height: 44px;">{t('spend.viewSuppliers')}</a>
         </div>
       {:else}
-        <div class="flex flex-col items-center gap-3.5 pb-1.5" role="group" aria-label={$t('spend.donut.categoryAria')}>
+        <div class="flex flex-col items-center gap-3.5 pb-1.5" role="group" aria-label={t('spend.donut.categoryAria')}>
           <DonutChart
             slices={categoryInputs}
             radius={DONUT_RADIUS}
             size={156}
             strokeWidth={22}
             hoverStrokeWidth={22}
-            centerLabel={$t('spend.totalSpend')}
+            centerLabel={t('spend.totalSpend')}
             valueFormatter={fmtEur}
           />
           <div class="flex flex-col gap-[7px] w-full">
@@ -197,13 +197,13 @@
     </div>
 
     <div class="card p-3.5">
-      <div class="subtitle text-[15px] mb-0.5">{$t('spend.yearly.title')}</div>
-      <div class="text-[11px] text-fg-3 mb-2.5">{$t('spend.yearly.sub')}</div>
+      <div class="subtitle text-[15px] mb-0.5">{t('spend.yearly.title')}</div>
+      <div class="text-[11px] text-fg-3 mb-2.5">{t('spend.yearly.sub')}</div>
       <TrendLineChart
         xLabels={yearlyLabels}
         series={yearlySeries}
         valueFormatter={(n) => fmtEur(n)}
-        emptyLabel={$t('spend.yearly.empty')}
+        emptyLabel={t('spend.yearly.empty')}
       />
     </div>
 

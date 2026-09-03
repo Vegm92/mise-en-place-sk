@@ -13,8 +13,7 @@
  * which `sessions.ts` expands server-side into the individual invoices.
  */
 import { describe, it, expect } from 'vitest';
-import { get } from 'svelte/store';
-import { locale, t } from '../src/lib/i18n';
+import { setLocale, t } from '../src/lib/i18n';
 import { isTouchFirstDevice, supportsDirectoryPicker } from '../src/lib/upload-capabilities';
 import { SUPPORTED_UPLOAD_EXTENSIONS, ZIP_UPLOAD_ACCEPT } from '../src/lib/upload-formats';
 import { read } from './helpers/i18n-setup';
@@ -74,7 +73,7 @@ describe('UploadPanel wiring', () => {
 	});
 
 	it('labels the button for what it will actually open', () => {
-		expect(PANEL).toMatch(/canPickFolder \? \$t\('upload\.browseFolder'\) : \$t\('upload\.browseZip'\)/);
+		expect(PANEL).toMatch(/canPickFolder \? t\('upload\.browseFolder'\) : t\('upload\.browseZip'\)/);
 	});
 
 	it('keeps one element per hidden input, not one per responsive variant', () => {
@@ -90,8 +89,8 @@ describe('UploadPanel wiring', () => {
 
 describe('copy', () => {
 	it.each(['es', 'en'] as const)('resolves the zip fallback strings in %s', (lang) => {
-		locale.set(lang);
-		const translate = get(t);
+		setLocale(lang);
+		const translate = t;
 		for (const key of ['upload.browseZip', 'upload.folderZipHint']) {
 			expect(translate(key), key).not.toBe(key);
 			expect(translate(key).length).toBeGreaterThan(0);

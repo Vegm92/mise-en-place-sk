@@ -57,9 +57,9 @@ describe('waitlist.compare.* keys exist in both locales (issue #402)', () => {
 
 describe('LandingPage.svelte renders the comparison section between pain and how-it-works', () => {
 	it('the section sits after waitlist.painHead and before waitlist.howEyebrow in source order', () => {
-		const painIdx = PAGE_SRC.indexOf("$t('waitlist.painHead')");
-		const compareIdx = PAGE_SRC.indexOf("$t('waitlist.compareHead')");
-		const howIdx = PAGE_SRC.indexOf("$t('waitlist.howEyebrow')");
+		const painIdx = PAGE_SRC.indexOf("t('waitlist.painHead')");
+		const compareIdx = PAGE_SRC.indexOf("t('waitlist.compareHead')");
+		const howIdx = PAGE_SRC.indexOf("t('waitlist.howEyebrow')");
 		expect(painIdx, 'waitlist.painHead not found').toBeGreaterThan(-1);
 		expect(compareIdx, 'waitlist.compareHead not found').toBeGreaterThan(-1);
 		expect(howIdx, 'waitlist.howEyebrow not found').toBeGreaterThan(-1);
@@ -67,9 +67,9 @@ describe('LandingPage.svelte renders the comparison section between pain and how
 		expect(compareIdx).toBeLessThan(howIdx);
 	});
 
-	it('renders every waitlist.compare.* key through $t (source-scan, no hardcoded copy)', () => {
+	it('renders every waitlist.compare.* key through t (source-scan, no hardcoded copy)', () => {
 		for (const key of COMPARE_KEYS) {
-			expect(PAGE_SRC, key).toContain(`$t('${key}')`);
+			expect(PAGE_SRC, key).toContain(`t('${key}')`);
 		}
 	});
 
@@ -85,7 +85,7 @@ describe('LandingPage.svelte renders the comparison section between pain and how
 	});
 
 	it('uses the established pos/neg design tokens, not new or hardcoded colors', () => {
-		assertSectionUsesTokens(PAGE_SRC, "$t('waitlist.compareEyebrow')", [
+		assertSectionUsesTokens(PAGE_SRC, "t('waitlist.compareEyebrow')", [
 			'border-neg', 'bg-neg-soft', 'text-neg', 'bg-neg', 'text-neg-fg',
 			'border-pos', 'bg-pos-soft', 'text-pos', 'bg-pos', 'text-pos-fg',
 		]);

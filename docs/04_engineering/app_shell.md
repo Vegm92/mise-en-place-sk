@@ -65,7 +65,7 @@ the inventory template, issue #885) is a different route entirely.
 **`const tourPages`**
 - The tour is `TOUR_PAGES` minus what this plan cannot reach, resolved once (issue #569). Numbering the dots off the full list told a trial account "step 6 of 9" and then finished at 7; the filtered list is also what `advanceTour` steps through, so there is one definition of "the next step".
 **`function advanceTour`**
-- Awaits the step write before `goto`. See `src/lib/stores/tutorial.ts`.
+- Awaits the step write before `goto`. See `src/lib/stores/tutorial.svelte.ts`.
 **`const showTourStep`**
 - No accessibility check here any more — `tourPages` has already dropped the gated pages. The `$effect` below still recovers a *stored* step that has since become inaccessible (a plan downgrade mid-tour), which is the one case the filter cannot express.
 **`const upgradeFeatures`**
@@ -211,7 +211,7 @@ the inventory template, issue #885) is a different route entirely.
 **`markup`**
 - The help centre (issue #569): getting-started guide, per-section tips, FAQ and a launcher for the guided tour. Static documentation — no server load beyond the page title, which is why the route has a `+page.ts` and no `+page.server.ts`.
 - Steps, tips and questions are rendered from the lists in `src/lib/help-content.ts` rather than written into the markup, so the copy stays entirely in the locale tables and adding an entry is a one-line change in two places (the list and both locales).
-- The tour launcher goes through `setTutorialStep('3')` (`src/lib/stores/tutorial.ts` → `POST /api/tutorial`) and then navigates to `/dashboard`, the same entry point as the dashboard nudge in `(app)/+layout.svelte`. Step `3` is the first of `TOUR_PAGES`; steps `1`/`2` only render their coach mark on `/batch/[id]`, so starting there would look like nothing happened.
+- The tour launcher goes through `setTutorialStep('3')` (`src/lib/stores/tutorial.svelte.ts` → `POST /api/tutorial`) and then navigates to `/dashboard`, the same entry point as the dashboard nudge in `(app)/+layout.svelte`. Step `3` is the first of `TOUR_PAGES`; steps `1`/`2` only render their coach mark on `/batch/[id]`, so starting there would look like nothing happened.
 - `HELP_TIPS` is also the tour's script: every `TOUR_PAGES` entry names one by `tip`, and the coach marks render `help.tip.*` directly. The walkthrough and the documentation are the same words, so neither can go stale on its own; `tests/guided-tour.test.ts` holds the two lists to the same order.
 - FAQ entries are native `<details>`/`<summary>`: they open without JavaScript and keep the disclosure semantics a hand-rolled accordion would have to re-add.
 
@@ -336,7 +336,7 @@ the inventory template, issue #885) is a different route entirely.
 **`markup`**
 - Chart area; gridlines + Y-axis labels; bars; X-axis labels; legend.
 
-### `src/lib/stores/tutorial.ts`
+### `src/lib/stores/tutorial.svelte.ts`
 
 **`function setTutorialStep`**
 - Awaitable, and it records the step it is writing in `pending`. The UI is already updated optimistically; callers that navigate afterwards await it so the next page's layout load cannot read the step the user just left.

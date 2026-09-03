@@ -66,7 +66,7 @@
     style="display:block;overflow:visible;flex-shrink:0;"
   >
     {#if risingStreak >= 3}
-      <title>{$t('spark.risingTrend')}</title>
+      <title>{t('spark.risingTrend')}</title>
     {/if}
     <polyline
       fill="none"

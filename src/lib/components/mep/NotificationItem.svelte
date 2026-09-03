@@ -40,7 +40,7 @@
   </div>
   <div style="flex:1;min-width:0;">
     <div style="font-size:12.5px;color:var(--mep-fg);line-height:1.4;">
-      {notificationMessage(notification, $tiv)}
+      {notificationMessage(notification, tiv)}
     </div>
     {#if notification.notificationType === 'supplier_uncategorized'}
       {@const supplierId = (notification.payload as { supplierId?: number } | null)?.supplierId}
@@ -50,7 +50,7 @@
             href="/suppliers/{supplierId}?edit=1&highlight=category"
             class="btn btn-primary"
             style="height:26px;font-size:11px;padding:0 10px;text-decoration:none;display:inline-flex;align-items:center;"
-          >{$t('notif.categorize')}</a>
+          >{t('notif.categorize')}</a>
         </div>
       {/if}
     {/if}
@@ -63,12 +63,12 @@
             style="height:26px;font-size:11px;padding:0 10px;"
             disabled={decidingCategoryId !== null}
             onclick={() => onAcceptCategory(notification)}
-          >{$t('notif.catAccept')}</button>
+          >{t('notif.catAccept')}</button>
           <a
             href="/suppliers/{p.supplierId}?edit=1&highlight=category"
             class="btn btn-secondary"
             style="height:26px;font-size:11px;padding:0 10px;text-decoration:none;display:inline-flex;align-items:center;"
-          >{$t('notif.catChange')}</a>
+          >{t('notif.catChange')}</a>
         </div>
       {/if}
     {/if}
@@ -80,7 +80,7 @@
             href="/suppliers/{p.supplierId}?tab=conversiones&ingredient={encodeURIComponent(p.ingredient ?? '')}&purchase_unit={encodeURIComponent(p.purchaseUnit ?? '')}"
             class="btn btn-primary"
             style="height:26px;font-size:11px;padding:0 10px;text-decoration:none;display:inline-flex;align-items:center;"
-          >{$t('notif.setConversion')}</a>
+          >{t('notif.setConversion')}</a>
         </div>
       {/if}
     {/if}
@@ -92,7 +92,7 @@
             href="/batch/{batchId}"
             class="btn btn-primary"
             style="height:26px;font-size:11px;padding:0 10px;text-decoration:none;display:inline-flex;align-items:center;"
-          >{$t('notif.openBatch')}</a>
+          >{t('notif.openBatch')}</a>
         </div>
       {/if}
     {/if}
@@ -102,7 +102,7 @@
           href="/settings"
           class="btn btn-primary"
           style="height:26px;font-size:11px;padding:0 10px;text-decoration:none;display:inline-flex;align-items:center;"
-        >{$t('notif.openSettings')}</a>
+        >{t('notif.openSettings')}</a>
       </div>
     {/if}
     {#if notification.notificationType === 'product_suggestion'}
@@ -112,13 +112,13 @@
           style="height:26px;font-size:11px;padding:0 10px;"
           disabled={decidingProductId !== null}
           onclick={() => onDecideProduct(notification, true)}
-        >{$t('notif.prodConfirm')}</button>
+        >{t('notif.prodConfirm')}</button>
         <button
           class="btn btn-secondary"
           style="height:26px;font-size:11px;padding:0 10px;"
           disabled={decidingProductId !== null}
           onclick={() => onDecideProduct(notification, false)}
-        >{$t('notif.prodReject')}</button>
+        >{t('notif.prodReject')}</button>
       </div>
     {/if}
     {#if !hasSpecificAction}
@@ -128,7 +128,7 @@
             href="/invoice/{notification.invoiceId}"
             class="btn btn-secondary"
             style="height:26px;font-size:11px;padding:0 10px;text-decoration:none;display:inline-flex;align-items:center;"
-          >{$t('notif.viewDetail')}</a>
+          >{t('notif.viewDetail')}</a>
         </div>
       {:else if notification.notificationType === 'locations_locked'}
         <div style="margin-top:6px;">
@@ -136,7 +136,7 @@
             href="/billing"
             class="btn btn-secondary"
             style="height:26px;font-size:11px;padding:0 10px;text-decoration:none;display:inline-flex;align-items:center;"
-          >{$t('notif.viewBilling')}</a>
+          >{t('notif.viewBilling')}</a>
         </div>
       {/if}
     {/if}
@@ -149,7 +149,7 @@
   <button
     style="flex-shrink:0;background:none;border:none;cursor:pointer;color:var(--mep-fg-3);padding:2px;margin-top:-1px;"
     onclick={() => onDismiss(notification.id)}
-    aria-label={$t('a11y.dismiss')}
+    aria-label={t('a11y.dismiss')}
   >
     <X size={12} />
   </button>

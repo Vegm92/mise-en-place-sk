@@ -100,7 +100,7 @@ describe('mobile dashboard data threading', () => {
 
 describe('mobile dashboard greeting (issue #656)', () => {
 	it('no longer forces the greeting onto one clipped line', () => {
-		const start = MOBILE_DASH.indexOf('{$t(greeting)}');
+		const start = MOBILE_DASH.indexOf('{t(greeting)}');
 		expect(start).toBeGreaterThan(0);
 		const tagStart = MOBILE_DASH.lastIndexOf('<div', start);
 		const greetingTag = MOBILE_DASH.slice(tagStart, start);

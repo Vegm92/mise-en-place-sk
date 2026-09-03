@@ -38,7 +38,7 @@ describe('issue #747 — reminders page names an empty incidencias section', () 
 		const elseAt = source.indexOf('{:else}', ifAt);
 		const endAt = source.indexOf('{/if}', elseAt);
 		expect(elseAt).toBeGreaterThan(ifAt);
-		expect(source.slice(elseAt, endAt)).toContain("$t('rem.noIncidencias')");
+		expect(source.slice(elseAt, endAt)).toContain("t('rem.noIncidencias')");
 	});
 
 	it('mobile alerts view renders rem.noIncidencias when incidencias.length is 0', () => {
@@ -48,6 +48,6 @@ describe('issue #747 — reminders page names an empty incidencias section', () 
 		const elseAt = source.indexOf('{:else}', ifAt);
 		const endAt = source.indexOf('{/if}', elseAt);
 		expect(elseAt).toBeGreaterThan(ifAt);
-		expect(source.slice(elseAt, endAt)).toContain("$t('rem.noIncidencias')");
+		expect(source.slice(elseAt, endAt)).toContain("t('rem.noIncidencias')");
 	});
 });

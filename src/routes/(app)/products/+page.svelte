@@ -64,11 +64,11 @@
   const periodPills = $derived(PERIOD_PILLS.map(p => {
     const params = new URLSearchParams(page.url.searchParams);
     params.set('period', p.value);
-    return { value: p.value, label: $t(p.labelKey), href: `/products?${params.toString()}` };
+    return { value: p.value, label: t(p.labelKey), href: `/products?${params.toString()}` };
   }));
 
   const trendSeries = $derived(
-    data.trendData.series.map((s, i) => ({ key: s.key, label: $t(s.label), color: seriesColor(i), values: s.values }))
+    data.trendData.series.map((s, i) => ({ key: s.key, label: t(s.label), color: seriesColor(i), values: s.values }))
   );
 
   async function saveConversion(prompt: ConversionPrompt, canonicalUnit: string, conversionFactor: string) {
@@ -130,30 +130,30 @@
   <ListPageTemplate
     dataCoach="products-main"
     bind:view
-    viewLabels={{ list: $t('tpl.view.list'), chart: $t('tpl.view.chart') }}
+    viewLabels={{ list: t('tpl.view.list'), chart: t('tpl.view.chart') }}
     kpis={[
-      { key: 'total',       label: $t('prod.kpi.total'),          value: products.length,       sub: $t('dsup.inTotal') },
-      { key: 'conversion',  label: $t('prod.kpi.needsConversion'), value: needsConversionCount, variant: needsConversionCount > 0 ? 'warn' : 'default' },
-      { key: 'suggestions', label: $t('prod.kpi.suggestions'),    value: suggestions.length,    variant: suggestions.length > 0 ? 'warn' : 'pos' },
-      { key: 'categories',  label: $t('prod.kpi.categories'),     value: categoryCount },
-      { key: 'uncategorized', label: $t('prod.kpi.uncategorized'), value: uncategorizedCount, variant: uncategorizedCount > 0 ? 'warn' : 'pos' },
+      { key: 'total',       label: t('prod.kpi.total'),          value: products.length,       sub: t('dsup.inTotal') },
+      { key: 'conversion',  label: t('prod.kpi.needsConversion'), value: needsConversionCount, variant: needsConversionCount > 0 ? 'warn' : 'default' },
+      { key: 'suggestions', label: t('prod.kpi.suggestions'),    value: suggestions.length,    variant: suggestions.length > 0 ? 'warn' : 'pos' },
+      { key: 'categories',  label: t('prod.kpi.categories'),     value: categoryCount },
+      { key: 'uncategorized', label: t('prod.kpi.uncategorized'), value: uncategorizedCount, variant: uncategorizedCount > 0 ? 'warn' : 'pos' },
     ]}
-    trendTitle={$t('prod.trend.title')}
-    trendBadges={data.trendData.series.map((s, i) => ({ key: s.key, label: $t(s.label), color: seriesColor(i), active: true }))}
+    trendTitle={t('prod.trend.title')}
+    trendBadges={data.trendData.series.map((s, i) => ({ key: s.key, label: t(s.label), color: seriesColor(i), active: true }))}
     trendXLabels={data.trendData.xLabels}
     {trendSeries}
     trendValueFormatter={(v) => String(v)}
-    trendEmptyLabel={$t('tpl.trend.empty')}
+    trendEmptyLabel={t('tpl.trend.empty')}
   >
     {#snippet filters()}
       <div class="flex items-center gap-2">
         <button type="button" class="btn {tab === 'catalog' ? 'btn-primary' : 'btn-ghost'}"
           style="font-size:12.5px;" onclick={() => (tab = 'catalog')}>
-          {$t('prod.tab.catalog')}
+          {t('prod.tab.catalog')}
         </button>
         <button type="button" class="btn {tab === 'suggestions' ? 'btn-primary' : 'btn-ghost'}"
           style="font-size:12.5px;gap:6px;" onclick={() => (tab = 'suggestions')}>
-          {$t('prod.tab.suggestions')}
+          {t('prod.tab.suggestions')}
           {#if pendingCount > 0}
             <span class="badge" style="background:var(--mep-warn-soft);color:var(--mep-warn);">{pendingCount}</span>
           {/if}
@@ -166,7 +166,7 @@
           aria-controls="prod-filter-panel"
           onclick={() => (filtersOpen = !filtersOpen)}>
           <SlidersHorizontal size={13} />
-          {$t('tpl.filter.toggle')}
+          {t('tpl.filter.toggle')}
           {#if activeFilterCount > 0}
             <span class="badge bg-acc-soft text-acc border border-acc"
               style="min-width:18px;height:18px;padding:0 5px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;">
@@ -180,7 +180,7 @@
 
         {#if activeFilterCount > 0}
           <button type="button" class="btn btn-ghost" style="font-size:13px;" onclick={clearFilters}>
-            {$t('tpl.filter.clear')}
+            {t('tpl.filter.clear')}
           </button>
         {/if}
       {/if}
@@ -195,29 +195,29 @@
                 <span class="search-icon"><Search size={13} /></span>
                 <input type="search" class="input"
                   style="padding-left:32px;min-width:200px;"
-                  placeholder={$t('prod.col.name')}
-                  aria-label={$t('prod.col.name')}
+                  placeholder={t('prod.col.name')}
+                  aria-label={t('prod.col.name')}
                   bind:value={search} />
               </div>
 
               <div class="relative">
                 <select class="btn btn-secondary appearance-none pl-2.5 pr-7 cursor-pointer min-w-[140px]"
-                  aria-label={$t('prod.new.category')}
+                  aria-label={t('prod.new.category')}
                   bind:value={catFilter}>
                   <option value="">—</option>
-                  <option value={UNCATEGORIZED_FILTER}>{$t('prod.filter.uncategorized')}</option>
-                  {#each categories as c}<option value={c}>{$tcat(c)}</option>{/each}
+                  <option value={UNCATEGORIZED_FILTER}>{t('prod.filter.uncategorized')}</option>
+                  {#each categories as c}<option value={c}>{tcat(c)}</option>{/each}
                 </select>
                 <span class="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-fg-3 text-[11px]">▾</span>
               </div>
 
               <div class="relative">
                 <select class="btn btn-secondary appearance-none pl-2.5 pr-7 cursor-pointer min-w-[170px]"
-                  aria-label={$t('prod.sort.label')}
+                  aria-label={t('prod.sort.label')}
                   value={sort}
                   onchange={(e) => setSort((e.target as HTMLSelectElement).value)}>
                   {#each PRODUCT_SORT_KEYS as key}
-                    <option value={key}>{$t(`prod.sort.${key}`)}</option>
+                    <option value={key}>{t(`prod.sort.${key}`)}</option>
                   {/each}
                 </select>
                 <span class="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-fg-3 text-[11px]">▾</span>
@@ -225,11 +225,11 @@
 
               <a href="/products/inventory-template" data-sveltekit-reload
                 class="btn btn-secondary gap-1.5"
-                title={$t('prod.inventoryTemplate.tooltip')}>
+                title={t('prod.inventoryTemplate.tooltip')}>
                 <Download size={13} />
-                {$t('prod.inventoryTemplate.link')}
+                {t('prod.inventoryTemplate.link')}
                 {#if !hasInventoryTemplate}
-                  <span class="badge badge-neutral border border-border">{$t('nav.badge.pro')}</span>
+                  <span class="badge badge-neutral border border-border">{t('nav.badge.pro')}</span>
                 {/if}
               </a>
             </div>
@@ -245,32 +245,32 @@
             <button type="button" class="btn btn-primary" style="font-size:12.5px;gap:5px;"
               onclick={() => (showAddForm = true)}>
               <Plus size={13} />
-              {$t('prod.new.add')}
+              {t('prod.new.add')}
             </button>
           {:else}
             <form method="post" action="?/create" class="flex flex-wrap items-end gap-2">
               <div class="flex flex-col gap-1 min-w-[180px]">
-                <label class="label text-fg-3" for="prod-name">{$t('prod.new.name')}</label>
+                <label class="label text-fg-3" for="prod-name">{t('prod.new.name')}</label>
                 <input id="prod-name" name="canonicalName" required class="input" style="padding:0 8px;" />
               </div>
               <div class="flex flex-col gap-1 min-w-[160px]">
-                <label class="label text-fg-3" for="prod-cat">{$t('prod.new.category')}</label>
+                <label class="label text-fg-3" for="prod-cat">{t('prod.new.category')}</label>
                 <select id="prod-cat" name="category" class="input" style="padding:0 8px;">
                   <option value="">—</option>
-                  {#each categories as c}<option value={c}>{$tcat(c)}</option>{/each}
+                  {#each categories as c}<option value={c}>{tcat(c)}</option>{/each}
                 </select>
               </div>
               <div class="flex flex-col gap-1 min-w-[100px]">
-                <label class="label text-fg-3" for="prod-unit">{$t('prod.new.unit')}</label>
+                <label class="label text-fg-3" for="prod-unit">{t('prod.new.unit')}</label>
                 <input id="prod-unit" name="canonicalUnit" class="input" style="padding:0 8px;" placeholder="kg" />
               </div>
               <button type="submit" class="btn btn-primary" style="font-size:12.5px;gap:5px;">
                 <Plus size={13} />
-                {$t('prod.new.add')}
+                {t('prod.new.add')}
               </button>
               <button type="button" class="btn btn-ghost" style="font-size:12.5px;"
                 onclick={() => (showAddForm = false)}>
-                {$t('action.cancel')}
+                {t('action.cancel')}
               </button>
             </form>
             {#if form?.error}
@@ -280,17 +280,17 @@
         </div>
 
         {#if filteredProducts.length === 0}
-          <p class="body text-center py-16">{$t('prod.empty')}</p>
+          <p class="body text-center py-16">{t('prod.empty')}</p>
         {:else}
           <table class="tbl tbl-stack">
             <thead>
               <tr>
-                <th>{$t('prod.col.name')}</th>
-                <th>{$t('prod.col.category')}</th>
-                <th>{$t('prod.col.unit')}</th>
-                <th class="num">{$t('prod.col.suppliers')}</th>
-                <th class="num">{$t('prod.col.aliases')}</th>
-                <th class="num">{$t('prod.col.yoy')}</th>
+                <th>{t('prod.col.name')}</th>
+                <th>{t('prod.col.category')}</th>
+                <th>{t('prod.col.unit')}</th>
+                <th class="num">{t('prod.col.suppliers')}</th>
+                <th class="num">{t('prod.col.aliases')}</th>
+                <th class="num">{t('prod.col.yoy')}</th>
                 <th></th>
               </tr>
             </thead>
@@ -302,22 +302,22 @@
                   </td>
                   <td>
                     {#if p.category}
-                      <span class="badge" style="background:{categoryTint(p.category)};color:{categoryColor(p.category)};">{$tcat(p.category)}</span>
+                      <span class="badge" style="background:{categoryTint(p.category)};color:{categoryColor(p.category)};">{tcat(p.category)}</span>
                     {:else}
-                      <span class="badge" style="background:color-mix(in oklab, var(--mep-warn) 14%, transparent);color:var(--mep-warn);">{$t('prod.uncategorized')}</span>
+                      <span class="badge" style="background:color-mix(in oklab, var(--mep-warn) 14%, transparent);color:var(--mep-warn);">{t('prod.uncategorized')}</span>
                     {/if}
                   </td>
-                  <td class="body text-fg-3" style="font-size:12px;" data-label={$t('prod.col.unit')}>{p.canonicalUnit ?? '—'}</td>
-                  <td class="num" data-label={$t('prod.col.suppliers')}>{p.supplierCount}</td>
-                  <td class="num" data-label={$t('prod.col.aliases')}>{p.aliasCount}</td>
-                  <td class="num" data-label={$t('prod.col.yoy')}
+                  <td class="body text-fg-3" style="font-size:12px;" data-label={t('prod.col.unit')}>{p.canonicalUnit ?? '—'}</td>
+                  <td class="num" data-label={t('prod.col.suppliers')}>{p.supplierCount}</td>
+                  <td class="num" data-label={t('prod.col.aliases')}>{p.aliasCount}</td>
+                  <td class="num" data-label={t('prod.col.yoy')}
                     class:text-neg={p.yoyChangePct != null && p.yoyChangePct > 0}
                     class:text-pos={p.yoyChangePct != null && p.yoyChangePct < 0}>
-                    {formatYoyPct(p.yoyChangePct, $locale)}
+                    {formatYoyPct(p.yoyChangePct, locale.current)}
                   </td>
-                  <td data-label={p.needsConversion ? $t('prod.badge.needsConversion') : null}>
+                  <td data-label={p.needsConversion ? t('prod.badge.needsConversion') : null}>
                     {#if p.needsConversion}
-                      <span class="body text-warn flex items-center gap-1" style="font-size:11px;" title={$t('prod.badge.needsConversion')}>
+                      <span class="body text-warn flex items-center gap-1" style="font-size:11px;" title={t('prod.badge.needsConversion')}>
                         <AlertTriangle size={12} />
                       </span>
                     {/if}
@@ -329,11 +329,11 @@
         {/if}
       {:else}
         {#if pendingCount === 0}
-          <p class="body text-center py-16">{$t('prod.suggestions.empty')}</p>
+          <p class="body text-center py-16">{t('prod.suggestions.empty')}</p>
         {:else}
           {#if conversionPrompts.length > 0}
             <div class="flex flex-col gap-3 p-4">
-              <p class="label text-fg-3">{$t('prod.conv.heading')}</p>
+              <p class="label text-fg-3">{t('prod.conv.heading')}</p>
               {#each conversionPrompts as c (c.notificationId)}
                 <div class="border border-divider rounded-lg p-3 flex flex-col gap-2"
                   style="border-left:3px solid var(--mep-warn);">
@@ -341,10 +341,10 @@
                     <span class="badge flex items-center gap-1"
                       style="background:var(--mep-warn-soft);color:var(--mep-warn);">
                       <AlertTriangle size={11} />
-                      {$t('prod.conv.badge')}
+                      {t('prod.conv.badge')}
                     </span>
                     <p class="body" style="font-size:13px;">
-                      {$ti('prod.conv.ask', { unit: c.purchaseUnit, ingredient: c.ingredient, supplier: c.supplierName })}
+                      {ti('prod.conv.ask', { unit: c.purchaseUnit, ingredient: c.ingredient, supplier: c.supplierName })}
                     </p>
                   </div>
                   <form class="flex flex-wrap items-end gap-2"
@@ -354,22 +354,22 @@
                       saveConversion(c, String(fd.get('canonical_unit') ?? ''), String(fd.get('conversion_factor') ?? ''));
                     }}>
                     <div class="flex flex-col gap-1 min-w-[110px]">
-                      <label class="label text-fg-3" for="conv-unit-{c.notificationId}">{$t('prod.conv.canonicalUnit')}</label>
+                      <label class="label text-fg-3" for="conv-unit-{c.notificationId}">{t('prod.conv.canonicalUnit')}</label>
                       <input id="conv-unit-{c.notificationId}" name="canonical_unit" required
-                        class="input" style="padding:0 8px;" placeholder={$t('sup.conv.ph.canonical')} />
+                        class="input" style="padding:0 8px;" placeholder={t('sup.conv.ph.canonical')} />
                     </div>
                     <div class="flex flex-col gap-1 min-w-[110px]">
-                      <label class="label text-fg-3" for="conv-factor-{c.notificationId}">{$t('prod.conv.factor')}</label>
+                      <label class="label text-fg-3" for="conv-factor-{c.notificationId}">{t('prod.conv.factor')}</label>
                       <input id="conv-factor-{c.notificationId}" name="conversion_factor" type="number" min="0.001" step="any" required
-                        class="input" style="padding:0 8px;" placeholder={$t('sup.conv.ph.factor')} />
+                        class="input" style="padding:0 8px;" placeholder={t('sup.conv.ph.factor')} />
                     </div>
                     <button type="submit" class="btn btn-primary" style="font-size:12.5px;"
                       disabled={conversionBusy[c.notificationId]}>
-                      {$t('prod.conv.save')}
+                      {t('prod.conv.save')}
                     </button>
                   </form>
                   {#if conversionError[c.notificationId]}
-                    <p class="body text-neg" style="font-size:12px;">{$t('prod.conv.error')}</p>
+                    <p class="body text-neg" style="font-size:12px;">{t('prod.conv.error')}</p>
                   {/if}
                 </div>
               {/each}
@@ -384,12 +384,12 @@
                   <button type="button" class="btn btn-ghost text-pos" style="height:28px;font-size:12px;"
                     disabled={suggestionBusy[s.id]}
                     onclick={() => respondSuggestion(s.id, 'confirm', s.description)}>
-                    {$t('prod.suggestions.confirm')}
+                    {t('prod.suggestions.confirm')}
                   </button>
                   <button type="button" class="btn btn-ghost text-neg" style="height:28px;font-size:12px;"
                     disabled={suggestionBusy[s.id]}
                     onclick={() => respondSuggestion(s.id, 'reject', s.description)}>
-                    {$t('prod.suggestions.reject')}
+                    {t('prod.suggestions.reject')}
                   </button>
                 </div>
               </div>

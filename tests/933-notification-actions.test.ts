@@ -36,8 +36,8 @@ describe('issue #933 — every pending alert offers an action', () => {
 	it('an alert with no type-specific action falls back to the invoice or billing link', () => {
 		const fallback = item.slice(item.indexOf('{#if !hasSpecificAction}'));
 		expect(fallback).toContain('href="/invoice/{notification.invoiceId}"');
-		expect(fallback).toContain("$t('notif.viewDetail')");
-		expect(fallback).toContain("$t('notif.viewBilling')");
+		expect(fallback).toContain("t('notif.viewDetail')");
+		expect(fallback).toContain("t('notif.viewBilling')");
 	});
 
 	for (const locale of ['es', 'en'] as const) {
