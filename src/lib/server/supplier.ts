@@ -69,7 +69,6 @@ async function findByTaxId(
 	const rows = await exec.execute<{ id: number; name: string }>(sql`
 		SELECT id, name FROM suppliers
 		WHERE restaurant_id = ${restaurantId} AND normalized_cif = ${normalizedCif}
-		ORDER BY id
 		LIMIT 1
 	`);
 	return rows[0] ?? null;
@@ -113,9 +112,12 @@ export async function getOrCreateSupplierId(
 	const iban = contact.iban?.trim() || null;
 	const paymentTerms = contact.paymentTerms?.trim() || null;
 	const normalizedCif = normalizeTaxId(cif);
+	const identityCif = contactTrusted && taxIdDecidesIdentity(normalizedCif, contact.cifConfidence)
+		? normalizedCif
+		: null;
 	const merge: ContactMerge = {
 		cif: contactTrusted ? cif : null,
-		normalizedCif: contactTrusted ? normalizedCif : null,
+		normalizedCif: identityCif,
 		email: contactTrusted ? email : null,
 		phone: contactTrusted ? phone : null,
 		address: contactTrusted ? address : null,
@@ -123,8 +125,8 @@ export async function getOrCreateSupplierId(
 		paymentTerms: contactTrusted ? paymentTerms : null,
 	};
 
-	if (contactTrusted && normalizedCif && taxIdDecidesIdentity(normalizedCif, contact.cifConfidence)) {
-		const byTaxId = await findByTaxId(exec, restaurantId, normalizedCif);
+	if (identityCif) {
+		const byTaxId = await findByTaxId(exec, restaurantId, identityCif);
 		if (byTaxId) {
 			await mergeContactInto(exec, restaurantId, byTaxId.id, merge);
 			if (!isSameSupplierName(byTaxId.name, trimmed)) {
@@ -142,7 +144,7 @@ export async function getOrCreateSupplierId(
 
 	const rows = await exec.execute<{ id: number }>(sql`
 		INSERT INTO suppliers (restaurant_id, name, category, cif, normalized_cif, contact_email, contact_phone, address, iban, payment_terms)
-		VALUES (${restaurantId}, ${trimmed}, ${resolved}, ${cif}, ${normalizedCif}, ${email}, ${phone}, ${address}, ${iban}, ${paymentTerms})
+		VALUES (${restaurantId}, ${trimmed}, ${resolved}, ${cif}, ${identityCif}, ${email}, ${phone}, ${address}, ${iban}, ${paymentTerms})
 		ON CONFLICT (restaurant_id, lower(name))
 		DO UPDATE SET
 			name = suppliers.name,
