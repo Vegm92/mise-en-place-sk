@@ -8,6 +8,13 @@
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
+  let query = $state('');
+  let statusSel = $state('');
+  const visibleAccounts = $derived(data.accounts.filter(a =>
+    (!statusSel || a.access_status === statusSel) &&
+    (!query || a.email.toLowerCase().includes(query.toLowerCase()))
+  ));
+
   function day(v: string) { return new Date(v).toLocaleDateString('en-GB'); }
 </script>
 
@@ -41,6 +48,21 @@
   {/if}
 
   <HudPanel title={$t('admin.access.accounts')}>
+    <div style="padding:10px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;border-bottom:1px solid rgba(255,255,255,0.08);">
+      <input
+        type="search"
+        bind:value={query}
+        placeholder={$t('admin.access.searchPh')}
+        class="input"
+        style="flex:1;min-width:200px;height:30px;"
+      />
+      <select bind:value={statusSel} class="input" style="height:30px;">
+        <option value="">{$t('admin.all')}</option>
+        <option value="approved">{$t('admin.access.approved')}</option>
+        <option value="pending">{$t('admin.access.pending')}</option>
+      </select>
+      <span class="num text-xs text-fg-3">{visibleAccounts.length}/{data.accounts.length}</span>
+    </div>
     <AdminTableScroll>
       <table class="hud-table">
         <thead>
@@ -52,7 +74,7 @@
           </tr>
         </thead>
         <tbody>
-          {#each data.accounts as a}
+          {#each visibleAccounts as a}
             <tr>
               <td>
                 {a.email}
