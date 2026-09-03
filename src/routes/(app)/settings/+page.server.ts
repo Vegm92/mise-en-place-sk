@@ -342,54 +342,33 @@ export const actions: Actions = {
 		return { section: 'restaurant', ok: 'set.profile.ok.restaurant' };
 	},
 
-	addCategory: async ({ request, locals }) => {
-		const rid = locals.restaurantId;
-		if (!rid) redirect(303, '/onboarding');
-		if (!(await requireOwner(rid, locals.user!.id))) {
-			return fail(403, { section: 'categorias', error: 'set.categories.err.notOwner' });
-		}
-
-		const data = await request.formData();
+	addCategory: withCategoryOwner(async (rid, data) => {
 		const name = ((data.get('name') as string) ?? '').trim();
 		const result = await createCategory(rid, name);
 		if (!result.ok) return fail(422, { section: 'categorias', error: CATEGORY_ERRORS[result.reason] });
 
 		return { section: 'categorias', ok: 'set.categories.ok.added' };
-	},
+	}),
 
-	renameCategory: async ({ request, locals }) => {
-		const rid = locals.restaurantId;
-		if (!rid) redirect(303, '/onboarding');
-		if (!(await requireOwner(rid, locals.user!.id))) {
-			return fail(403, { section: 'categorias', error: 'set.categories.err.notOwner' });
-		}
+	renameCategory: withCategoryOwner(async (rid, data) => {
+		const id = requiredCategoryId(data);
+		if (id === null) return fail(422, { section: 'categorias', error: 'set.categories.err.invalid' });
 
-		const data = await request.formData();
-		const id = Number(data.get('id'));
 		const name = ((data.get('name') as string) ?? '').trim();
-		if (!Number.isInteger(id)) return fail(422, { section: 'categorias', error: 'set.categories.err.invalid' });
-
 		const result = await renameCategoryRow(rid, id, name);
 		if (!result.ok) return fail(422, { section: 'categorias', error: CATEGORY_ERRORS[result.reason] });
 
 		return { section: 'categorias', ok: 'set.categories.ok.renamed' };
-	},
+	}),
 
-	setCategoryHidden: async ({ request, locals }) => {
-		const rid = locals.restaurantId;
-		if (!rid) redirect(303, '/onboarding');
-		if (!(await requireOwner(rid, locals.user!.id))) {
-			return fail(403, { section: 'categorias', error: 'set.categories.err.notOwner' });
-		}
+	setCategoryHidden: withCategoryOwner(async (rid, data) => {
+		const id = requiredCategoryId(data);
+		if (id === null) return fail(422, { section: 'categorias', error: 'set.categories.err.invalid' });
 
-		const data = await request.formData();
-		const id = Number(data.get('id'));
 		const hidden = data.get('hidden') === '1';
-		if (!Number.isInteger(id)) return fail(422, { section: 'categorias', error: 'set.categories.err.invalid' });
-
 		await setCategoryHiddenRow(rid, id, hidden);
 		return { section: 'categorias', ok: hidden ? 'set.categories.ok.hidden' : 'set.categories.ok.shown' };
-	},
+	}),
 
 	saveFiscalIdentity: async ({ request, locals }) => {
 		const rid = locals.restaurantId;
@@ -509,4 +488,20 @@ async function requireOwner(restaurantId: string, userId: string): Promise<boole
 		.where(forTenant(restaurantId).scope(userRestaurants.restaurantId, eq(userRestaurants.userId, userId)))
 		.limit(1);
 	return membership?.role === 'owner';
+}
+
+function withCategoryOwner<T>(handler: (rid: string, data: FormData) => Promise<T>) {
+	return async ({ request, locals }: { request: Request; locals: App.Locals }) => {
+		const rid = locals.restaurantId;
+		if (!rid) redirect(303, '/onboarding');
+		if (!(await requireOwner(rid, locals.user!.id))) {
+			return fail(403, { section: 'categorias', error: 'set.categories.err.notOwner' });
+		}
+		return handler(rid, await request.formData());
+	};
+}
+
+function requiredCategoryId(data: FormData): number | null {
+	const id = Number(data.get('id'));
+	return Number.isInteger(id) ? id : null;
 }
