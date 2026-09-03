@@ -698,11 +698,34 @@ export interface ProductMatch {
 	productName: string;
 	status: ProductMatchStatus;
 	score: number | null;
+	suggestedTaxRate: number | null;
 }
 
 export interface ProductMatchInput {
 	description: string;
 	supplierSku?: string | null;
+}
+
+/**
+ * A product's tax rate when every confirmed invoice line for it agrees on one —
+ * null if the product has no confirmed lines yet or its history disagrees.
+ */
+export async function productTaxRateHistory(
+	database: Database,
+	restaurantId: string,
+	productIds: number[],
+): Promise<Map<number, number>> {
+	const ids = [...new Set(productIds)];
+	if (!ids.length) return new Map();
+	const idList = sql.join(ids.map((id) => sql`${id}`), sql`, `);
+	const rows = await database.execute<{ product_id: number; tax_rate: number }>(sql`
+		SELECT product_id, MIN(tax_rate) AS tax_rate
+		FROM invoice_line_items
+		WHERE restaurant_id = ${restaurantId} AND product_id IN (${idList}) AND tax_rate IS NOT NULL
+		GROUP BY product_id
+		HAVING COUNT(DISTINCT tax_rate) = 1
+	`);
+	return new Map(rows.map((r) => [r.product_id, Number(r.tax_rate)]));
 }
 
 export async function previewLineProducts(
@@ -718,7 +741,7 @@ export async function previewLineProducts(
 		const raw = (line.description ?? '').trim();
 		const key = normalizeProductKey(raw);
 		if (!key) {
-			out.push({ description: raw, productId: null, productName: raw, status: 'new', score: null });
+			out.push({ description: raw, productId: null, productName: raw, status: 'new', score: null, suggestedTaxRate: null });
 			continue;
 		}
 		const cached = seen.get(key);
@@ -729,6 +752,16 @@ export async function previewLineProducts(
 		const match = await previewOne(database, restaurantId, supplierId, raw, key, line.supplierSku ?? null);
 		seen.set(key, match);
 		out.push(match);
+	}
+
+	const matchedIds = out.map((m) => m.productId).filter((id): id is number => id !== null);
+	if (matchedIds.length) {
+		const history = await productTaxRateHistory(database, restaurantId, matchedIds);
+		for (const match of out) {
+			if (match.productId !== null && history.has(match.productId)) {
+				match.suggestedTaxRate = history.get(match.productId)!;
+			}
+		}
 	}
 	return out;
 }
@@ -761,6 +794,7 @@ async function previewOne(
 			productName: aliasRows[0].canonical_name,
 			status: 'exact',
 			score: null,
+			suggestedTaxRate: null,
 		};
 	}
 
@@ -782,10 +816,11 @@ async function previewOne(
 			productName: fuzzyRows[0].canonical_name,
 			status: 'fuzzy',
 			score: Number(fuzzyRows[0].score),
+			suggestedTaxRate: null,
 		};
 	}
 
-	return { description: raw, productId: null, productName: raw, status: 'new', score: null };
+	return { description: raw, productId: null, productName: raw, status: 'new', score: null, suggestedTaxRate: null };
 }
 
 export async function getProductName(

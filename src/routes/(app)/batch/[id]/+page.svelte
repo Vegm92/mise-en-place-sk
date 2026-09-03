@@ -191,6 +191,7 @@
     productName: string;
     status: 'exact' | 'fuzzy' | 'new';
     score: number | null;
+    suggestedTaxRate: number | null;
   };
 
   // svelte-ignore state_referenced_locally — the batch id in the route param never changes without a remount
@@ -288,11 +289,18 @@
       tax_rate: percentInputValue(item.tax_rate),
     };
   }
-  function fillMissingLineRates(items: LineItem[]): LineItem[] {
-    const known = lineRateFractions(items.map(i => ({ totalPrice: i.total_price, rate: i.tax_rate })));
-    if (known.length !== 1) return items;
+  function fillMissingLineRates(items: LineItem[], matches: ProductMatch[]): LineItem[] {
+    // Highest-confidence signal first: the matched product's own tax rate history, when unanimous.
+    const withProductRates = items.map((i, idx) => {
+      if (percentToFraction(i.tax_rate) !== null) return i;
+      const suggested = matches[idx]?.suggestedTaxRate;
+      return suggested != null ? { ...i, tax_rate: percentInputValue(suggested) } : i;
+    });
+    // Fall back to this invoice's own single agreed-upon rate for anything still missing.
+    const known = lineRateFractions(withProductRates.map(i => ({ totalPrice: i.total_price, rate: i.tax_rate })));
+    if (known.length !== 1) return withProductRates;
     const fallback = percentInputValue(known[0]);
-    return items.map(i => (percentToFraction(i.tax_rate) === null ? { ...i, tax_rate: fallback } : i));
+    return withProductRates.map(i => (percentToFraction(i.tax_rate) === null ? { ...i, tax_rate: fallback } : i));
   }
   $effect(() => {
     const raw = data.review?.data?.line_items;
@@ -302,7 +310,7 @@
     const draft = data.review?.itemId ? readDraft(data.review.itemId) : null;
     lineItems = draft?.lineItems
       ? draft.lineItems.map((item, i) => (item.product_name === undefined ? normalizeLine(item, matches[i]) : item))
-      : fillMissingLineRates(Array.isArray(raw) ? (raw as LineItem[]).map((item, i) => normalizeLine(item, matches[i])) : []);
+      : fillMissingLineRates(Array.isArray(raw) ? (raw as LineItem[]).map((item, i) => normalizeLine(item, matches[i])) : [], matches);
   });
 
   // svelte-ignore state_referenced_locally — reading the initial value is the point
