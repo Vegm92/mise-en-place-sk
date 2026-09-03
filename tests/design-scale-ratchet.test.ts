@@ -21,7 +21,7 @@ import path from 'node:path';
 import { ROOT, svelteFiles } from './helpers/svelte-sources';
 
 /** Lower these as the drift is paid down. Never raise them. */
-const BUDGET = { fontSize: 352, borderRadius: 77 };
+const BUDGET = { fontSize: 352, borderRadius: 76 };
 
 const TYPE_SCALE = new Set(['11px', '13px', '16px', '20px', '24px', '32px']);
 const RADIUS_SCALE = new Set([
