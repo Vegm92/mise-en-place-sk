@@ -52,7 +52,7 @@
       {#if danger}
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
           <AlertTriangle size={18} style="color:var(--mep-neg);flex-shrink:0;" />
-          <strong style="font-size:15px;font-weight:600;color:var(--mep-fg);">{$t('action.irreversible')}</strong>
+          <strong style="font-size:15px;font-weight:600;color:var(--mep-fg);">{t('action.irreversible')}</strong>
         </div>
       {/if}
       <p style="font-size:13.5px;color:var(--mep-fg-2);line-height:1.6;margin:0 0 20px;">{message}</p>
@@ -65,13 +65,13 @@
       <div style="display:flex;gap:8px;justify-content:flex-end;">
         <button type="button" class="btn btn-secondary" style="height:36px;font-size:13px;"
           onclick={handleCancel}>
-          {cancelLabel || $t('action.cancel')}
+          {cancelLabel || t('action.cancel')}
         </button>
         <button type="button"
           class="btn btn-primary"
           style="height:36px;font-size:13px;{danger ? 'background:var(--mep-neg);' : ''}"
           onclick={handleConfirm}>
-          {confirmLabel || $t('action.confirm')}
+          {confirmLabel || t('action.confirm')}
         </button>
       </div>
     </div>

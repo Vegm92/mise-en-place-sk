@@ -13,7 +13,7 @@ const SOURCE_PATH = 'src/routes/(app)/settings/+page.svelte';
 const source = readFileSync(SOURCE_PATH, 'utf8');
 
 function extractDeleteAccountBlock(src: string): string {
-  const descIndex = src.indexOf("$t('set.deleteDesc')");
+  const descIndex = src.indexOf("t('set.deleteDesc')");
   expect(descIndex, `expected to find set.deleteDesc in ${SOURCE_PATH}`).toBeGreaterThan(-1);
 
   const gate = src.lastIndexOf('{#if dangerOpen}', descIndex);
@@ -21,7 +21,7 @@ function extractDeleteAccountBlock(src: string): string {
   const wrapperStart = src.indexOf('<div', gate);
   expect(wrapperStart, 'expected the delete-account wrapper <div> inside the disclosure').toBeGreaterThan(-1);
 
-  const errorMarker = "$t('set.deleteBtn')";
+  const errorMarker = "t('set.deleteBtn')";
   const btnIndex = src.indexOf(errorMarker, descIndex);
   expect(btnIndex, 'expected the delete button label after set.deleteDesc').toBeGreaterThan(-1);
 
@@ -52,7 +52,7 @@ describe('account deletion danger styling (issue #578)', () => {
 
   it('keeps the existing type-to-confirm flow intact', () => {
     expect(block).toContain("bind:value={deleteConfirm}");
-    expect(block).toContain("$t('set.deleteConfirmWord')");
+    expect(block).toContain("t('set.deleteConfirmWord')");
   });
 
   it('keeps the delete button red via the existing --mep-neg token', () => {

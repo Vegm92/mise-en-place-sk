@@ -31,7 +31,7 @@ describe('/chat composer refuses a submission it would 402 on (#546)', () => {
 
 	it('offers an inline upgrade CTA to the billing page', () => {
 		expect(CHAT_PAGE).toContain('/billing?upgrade=assistant');
-		expect(CHAT_PAGE).toContain("$t('chat.err.upgradeRequired')");
+		expect(CHAT_PAGE).toContain("t('chat.err.upgradeRequired')");
 	});
 
 	it('reads the locked flag off the load data', () => {

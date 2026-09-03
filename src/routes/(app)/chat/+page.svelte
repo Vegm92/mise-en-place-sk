@@ -64,13 +64,13 @@
       const d = await res.json();
       if (res.status === 402) {
         const text = d.error === 'plan_upgrade_required'
-          ? $t('chat.err.upgradeRequired')
-          : $t('chat.err.trialExpired');
+          ? t('chat.err.upgradeRequired')
+          : t('chat.err.trialExpired');
         messages = [...messages, { role: 'assistant', text }];
         return;
       }
       if (!res.ok) {
-        messages = [...messages, { role: 'assistant', text: $t('chat.error') }];
+        messages = [...messages, { role: 'assistant', text: t('chat.error') }];
         return;
       }
       if (d.sessionId && d.sessionId !== activeSessionId) {
@@ -79,10 +79,10 @@
         url.searchParams.set('session', String(d.sessionId));
         goto(url.toString(), { replaceState: true, noScroll: true });
       }
-      messages = [...messages, { role: 'assistant', text: d.reply ?? $t('chat.error'), actions: d.actions }];
+      messages = [...messages, { role: 'assistant', text: d.reply ?? t('chat.error'), actions: d.actions }];
       invalidateAll();
     } catch {
-      messages = [...messages, { role: 'assistant', text: $t('chat.error') }];
+      messages = [...messages, { role: 'assistant', text: t('chat.error') }];
     } finally {
       chatLoading = false;
       scrollToBottom();
@@ -142,13 +142,13 @@
         style="width:100%;height:36px;gap:6px;justify-content:center;"
       >
         <Plus size={14} />
-        {$t('chat.newChat')}
+        {t('chat.newChat')}
       </button>
     </div>
 
     <div style="flex:1;overflow-y:auto;padding:8px 6px;">
       {#if data.sessions.length === 0}
-        <p style="font-size:12px;color:var(--mep-fg-3);text-align:center;padding:24px 8px;">{$t('chat.noHistory')}</p>
+        <p style="font-size:12px;color:var(--mep-fg-3);text-align:center;padding:24px 8px;">{t('chat.noHistory')}</p>
       {/if}
       {#each data.sessions as session}
         {@const isActive = session.id === activeSessionId}
@@ -179,7 +179,7 @@
               type="button"
               class="btn btn-ghost"
               style="width:24px;height:24px;padding:0;justify-content:center;opacity:0.5;"
-              title={$t('action.irreversible')}
+              title={t('action.irreversible')}
               onclick={() => { deleteSessionId = session.id; deleteSessionOpen = true; }}
             >
               <Trash2 size={11} />
@@ -199,17 +199,17 @@
         onclick={() => (mobileSidebarOpen = !mobileSidebarOpen)}
         class="btn btn-ghost"
         style="padding:0 10px;gap:6px;font-size:13px;font-weight:500;"
-        aria-label={$t('chat.historyAria')}
+        aria-label={t('chat.historyAria')}
       >
         <History size={15} />
-        {$t('chat.history')}
+        {t('chat.history')}
       </button>
       <button
         onclick={newChat}
         class="btn btn-ghost"
         style="width:36px;height:36px;padding:0;justify-content:center;flex-shrink:0;"
-        aria-label={$t('chat.newChat')}
-        title={$t('chat.newChat')}
+        aria-label={t('chat.newChat')}
+        title={t('chat.newChat')}
       >
         <Plus size={18} />
       </button>
@@ -231,21 +231,21 @@
               <MessageCircle size={22} style="color:var(--mep-acc);" />
             {/if}
           </div>
-          <h2 style="font-size:18px;font-weight:600;margin:0 0 8px;">{$t('chat.title')}</h2>
+          <h2 style="font-size:18px;font-weight:600;margin:0 0 8px;">{t('chat.title')}</h2>
           {#if locked}
-            <p style="font-size:13px;color:var(--mep-fg-3);margin:0 0 20px;">{$t('chat.err.upgradeRequired')}</p>
+            <p style="font-size:13px;color:var(--mep-fg-3);margin:0 0 20px;">{t('chat.err.upgradeRequired')}</p>
             <a href="/billing?upgrade=assistant" class="btn btn-primary" style="text-decoration:none;">
-              {$t('sidebar.upgradeCta')}
+              {t('sidebar.upgradeCta')}
             </a>
           {:else}
-            <p style="font-size:13px;color:var(--mep-fg-3);margin:0 0 20px;">{$t('chat.empty')}</p>
+            <p style="font-size:13px;color:var(--mep-fg-3);margin:0 0 20px;">{t('chat.empty')}</p>
             <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">
               {#each STARTER_CHIPS as key}
                 <button
-                  onclick={() => sendMessage($t(key))}
+                  onclick={() => sendMessage(t(key))}
                   class="btn btn-secondary"
                   style="font-size:12px;padding:0 14px;border-radius:99px;"
-                >{$t(key)}</button>
+                >{t(key)}</button>
               {/each}
             </div>
           {/if}
@@ -262,7 +262,7 @@
               ">
                 <MessageCircle size={12} style="color:var(--mep-acc);" />
               </div>
-              <span style="font-size:11px;font-weight:600;color:var(--mep-fg-2);">{$t('chat.assistant')}</span>
+              <span style="font-size:11px;font-weight:600;color:var(--mep-fg-2);">{t('chat.assistant')}</span>
             </div>
           {/if}
           <div style="
@@ -312,20 +312,20 @@
             border-radius:var(--mep-r-input);padding:8px 14px;font-size:13px;margin:0 0 10px;
           ">
             <Lock size={13} style="flex-shrink:0;" />
-            <span>{$t('chat.err.upgradeRequired')}</span>
+            <span>{t('chat.err.upgradeRequired')}</span>
             <a href="/billing?upgrade=assistant" class="btn btn-primary" style="height:28px;font-size:13px;padding:0 10px;text-decoration:none;">
-              {$t('sidebar.upgradeCta')}
+              {t('sidebar.upgradeCta')}
             </a>
           </div>
         {:else}
-          <p style="font-size:11px;color:var(--mep-fg-4);text-align:center;margin:0 0 8px;">{$t('chat.privacy')}</p>
+          <p style="font-size:11px;color:var(--mep-fg-4);text-align:center;margin:0 0 8px;">{t('chat.privacy')}</p>
         {/if}
         <div style="display:flex;gap:10px;align-items:center;">
           <input
             type="text"
             bind:value={chatInput}
             onkeydown={onKeydown}
-            placeholder={$t('chat.placeholder')}
+            placeholder={t('chat.placeholder')}
             disabled={chatLoading || locked}
             aria-disabled={locked}
             class="input flex-1"
@@ -334,7 +334,7 @@
           <button
             onclick={() => sendMessage()}
             disabled={!chatInput.trim() || chatLoading || locked}
-            aria-label={$t('chat.send')}
+            aria-label={t('chat.send')}
             class="btn btn-primary flex-shrink-0"
             style="width:42px;height:42px;padding:0;justify-content:center;"
           >
@@ -349,7 +349,7 @@
 
 <ConfirmDialog
   bind:open={deleteSessionOpen}
-  message={$t('chat.confirmDelete')}
+  message={t('chat.confirmDelete')}
   danger={true}
   onconfirm={() => {
     if (deleteSessionId != null) {

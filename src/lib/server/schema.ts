@@ -87,6 +87,7 @@ export const invoices = pgTable('invoices', {
 	status:          text('status').default('pending'),
 	reviewState:     text('review_state').notNull().default('revisado'),
 	incidenceKind:   text('incidence_kind'),
+	incidenceReasons: text('incidence_reasons').array(),
 	sourceFile:      text('source_file'),
 	confidence:      real('confidence'),
 	contentHash:     text('content_hash'),

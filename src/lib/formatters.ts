@@ -28,9 +28,67 @@ const ONE_DECIMAL_OPTS: Intl.NumberFormatOptions = {
 	minimumFractionDigits: 1,
 	maximumFractionDigits: 1,
 };
+const EUR_OPTS: Intl.NumberFormatOptions = { style: 'currency', currency: 'EUR' };
+const EUR_COMPACT_OPTS: Intl.NumberFormatOptions = {
+	style: 'currency',
+	currency: 'EUR',
+	maximumFractionDigits: 0,
+};
+const YOY_OPTS: Intl.NumberFormatOptions = {
+	maximumFractionDigits: 1,
+	signDisplay: 'exceptZero',
+};
+
+const DATE_OPTS: Intl.DateTimeFormatOptions = {
+	day: '2-digit',
+	month: 'short',
+	year: 'numeric',
+};
+const DATE_SHORT_OPTS: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short' };
+const MONTH_SHORT_OPTS: Intl.DateTimeFormatOptions = { month: 'short' };
 
 const numberFormatters = new Map<string, Intl.NumberFormat>();
 const dateTimeFormatters = new Map<string, Intl.DateTimeFormat>();
+
+const eurFormatters: Record<Locale, Intl.NumberFormat> = {
+	es: new Intl.NumberFormat('es-ES', EUR_OPTS),
+	en: new Intl.NumberFormat('en-GB', EUR_OPTS),
+};
+
+const eurCompactFormatters: Record<Locale, Intl.NumberFormat> = {
+	es: new Intl.NumberFormat('es-ES', EUR_COMPACT_OPTS),
+	en: new Intl.NumberFormat('en-GB', EUR_COMPACT_OPTS),
+};
+
+const yoyFormatters: Record<Locale, Intl.NumberFormat> = {
+	es: new Intl.NumberFormat('es-ES', YOY_OPTS),
+	en: new Intl.NumberFormat('en-GB', YOY_OPTS),
+};
+
+const integerFormatters: Record<Locale, Intl.NumberFormat> = {
+	es: new Intl.NumberFormat('es-ES', INTEGER_OPTS),
+	en: new Intl.NumberFormat('en-GB', INTEGER_OPTS),
+};
+
+const oneDecimalFormatters: Record<Locale, Intl.NumberFormat> = {
+	es: new Intl.NumberFormat('es-ES', ONE_DECIMAL_OPTS),
+	en: new Intl.NumberFormat('en-GB', ONE_DECIMAL_OPTS),
+};
+
+const dateFormatters: Record<Locale, Intl.DateTimeFormat> = {
+	es: new Intl.DateTimeFormat('es-ES', DATE_OPTS),
+	en: new Intl.DateTimeFormat('en-GB', DATE_OPTS),
+};
+
+const dateShortFormatters: Record<Locale, Intl.DateTimeFormat> = {
+	es: new Intl.DateTimeFormat('es-ES', DATE_SHORT_OPTS),
+	en: new Intl.DateTimeFormat('en-GB', DATE_SHORT_OPTS),
+};
+
+const monthShortFormatters: Record<Locale, Intl.DateTimeFormat> = {
+	es: new Intl.DateTimeFormat('es-ES', MONTH_SHORT_OPTS),
+	en: new Intl.DateTimeFormat('en-GB', MONTH_SHORT_OPTS),
+};
 
 function getNumberFormatter(locale: Locale, options: Intl.NumberFormatOptions): Intl.NumberFormat {
 	const intlLoc = toIntlLocale(locale);
@@ -55,22 +113,21 @@ function getDateTimeFormatter(locale: Locale, options: Intl.DateTimeFormatOption
 }
 
 export function fmtSize(bytes: number, locale: Locale = 'es'): string {
-	if (bytes < 1024) return getNumberFormatter(locale, INTEGER_OPTS).format(bytes) + ' B';
-	if (bytes < 1024 * 1024)
-		return getNumberFormatter(locale, ONE_DECIMAL_OPTS).format(bytes / 1024) + ' KB';
-	return getNumberFormatter(locale, ONE_DECIMAL_OPTS).format(bytes / (1024 * 1024)) + ' MB';
+	const fmtInt = integerFormatters[locale] ?? integerFormatters.es;
+	const fmtDec = oneDecimalFormatters[locale] ?? oneDecimalFormatters.es;
+	if (bytes < 1024) return fmtInt.format(bytes) + ' B';
+	if (bytes < 1024 * 1024) return fmtDec.format(bytes / 1024) + ' KB';
+	return fmtDec.format(bytes / (1024 * 1024)) + ' MB';
 }
 
 export function fmtEur(n: number, locale: Locale = 'es'): string {
-	return getNumberFormatter(locale, { style: 'currency', currency: 'EUR' }).format(n);
+	const fmtInst = eurFormatters[locale] ?? eurFormatters.es;
+	return fmtInst.format(n);
 }
 
 export function fmtEurCompact(n: number, locale: Locale = 'es'): string {
-	return getNumberFormatter(locale, {
-		style: 'currency',
-		currency: 'EUR',
-		maximumFractionDigits: 0,
-	}).format(Math.round(n));
+	const fmtInst = eurCompactFormatters[locale] ?? eurCompactFormatters.es;
+	return fmtInst.format(Math.round(n));
 }
 
 export function fmtEurSigned(n: number, locale: Locale = 'es'): string {
@@ -83,7 +140,8 @@ export function fmtEurSigned(n: number, locale: Locale = 'es'): string {
 
 export function formatYoyPct(pct: number | null, locale: Locale = 'es'): string {
 	if (pct === null || !Number.isFinite(pct)) return '—';
-	return getNumberFormatter(locale, { maximumFractionDigits: 1, signDisplay: 'exceptZero' }).format(pct) + ' %';
+	const fmtInst = yoyFormatters[locale] ?? yoyFormatters.es;
+	return fmtInst.format(pct) + ' %';
 }
 
 const BUDGET_WARN_PCT = 80;
@@ -97,16 +155,19 @@ export function semColor(pct: number): string {
 
 export function fmtDate(d: string | null, locale: Locale = 'es'): string {
 	if (!d) return '—';
-	return getDateTimeFormatter(locale, { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(d));
+	const fmtInst = dateFormatters[locale] ?? dateFormatters.es;
+	return fmtInst.format(new Date(d));
 }
 
 export function fmtDateShort(d: string | null, locale: Locale = 'es'): string {
 	if (!d) return '—';
-	return getDateTimeFormatter(locale, { day: '2-digit', month: 'short' }).format(new Date(d));
+	const fmtInst = dateShortFormatters[locale] ?? dateShortFormatters.es;
+	return fmtInst.format(new Date(d));
 }
 
 export function fmtMonthShort(ym: string, locale: Locale = 'es'): string {
-	return getDateTimeFormatter(locale, { month: 'short' }).format(new Date(`${ym}-01T00:00:00`));
+	const fmtInst = monthShortFormatters[locale] ?? monthShortFormatters.es;
+	return fmtInst.format(new Date(`${ym}-01T00:00:00`));
 }
 
 export function initials(name: string): string {

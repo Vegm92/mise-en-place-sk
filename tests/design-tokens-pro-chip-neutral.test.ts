@@ -24,7 +24,7 @@ const NEUTRAL_CHIP =
 	/background:var\(--mep-hover\);color:var\(--mep-fg-2\);border:1px solid var\(--mep-border\);/;
 
 /** Every span rendering the PRO badge translation key, wherever it sits in the file. */
-const chipSpans = [...layout.matchAll(/<span\s+style="([^"]*)">\{\$t\('nav\.badge\.pro'\)\}<\/span>/g)].map(
+const chipSpans = [...layout.matchAll(/<span\s+style="([^"]*)">\{t\('nav\.badge\.pro'\)\}<\/span>/g)].map(
 	m => m[1],
 );
 

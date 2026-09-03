@@ -45,8 +45,8 @@ describe('budgets mobile disclosure (issue #653)', () => {
 	it('inactive categories sit behind a disclosure toggle with a count', () => {
 		const mobile = mobileBlock();
 		expect(mobile).toMatch(/aria-expanded=\{showAllCats\}/);
-		expect(mobile).toMatch(/\$ti\('bud\.showAllCategories',\s*\{\s*n:\s*inactiveRows\.length\s*\}\)/);
-		expect(mobile).toMatch(/\$t\('bud\.hideAllCategories'\)/);
+		expect(mobile).toMatch(/ti\('bud\.showAllCategories',\s*\{\s*n:\s*inactiveRows\.length\s*\}\)/);
+		expect(mobile).toMatch(/t\('bud\.hideAllCategories'\)/);
 		expect(mobile).toMatch(/\{#each inactiveRows as r/);
 	});
 

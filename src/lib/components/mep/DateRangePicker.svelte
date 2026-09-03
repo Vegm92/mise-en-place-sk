@@ -18,12 +18,12 @@
 </script>
 
 <div class="drp" style="flex-shrink:0;">
-  <div class="drp-seg" role="group" aria-label={$t('dateRangePicker.label')}>
+  <div class="drp-seg" role="group" aria-label={t('dateRangePicker.label')}>
     {#each PERIODS as p}
       <button
         type="button"
         aria-pressed={p === active}
-        aria-label={$t(`dateRangePicker.${p}`)}
+        aria-label={t(`dateRangePicker.${p}`)}
         onclick={() => pick(p)}
         style="font-size:11px;font-weight:600;padding:4px 8px;border-radius:4px;border:none;background:{p === active ? 'var(--mep-acc)' : 'transparent'};color:{p === active ? 'var(--mep-acc-fg)' : 'var(--mep-fg-3)'};cursor:pointer;white-space:nowrap;"
       >{p}</button>
@@ -35,7 +35,7 @@
     class="drp-trigger"
     aria-haspopup="dialog"
     aria-expanded={open}
-    aria-label={$t('dateRangePicker.label')}
+    aria-label={t('dateRangePicker.label')}
     onclick={() => open = !open}
     style="align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--mep-acc-fg);background:var(--mep-acc);border:none;border-radius:6px;padding:5px 10px;cursor:pointer;white-space:nowrap;"
   >
@@ -48,16 +48,16 @@
 
 {#if open}
   <div role="presentation" class="drp-backdrop" onclick={() => open = false}></div>
-  <div class="drp-sheet" role="dialog" aria-modal="true" aria-label={$t('dateRangePicker.label')}>
+  <div class="drp-sheet" role="dialog" aria-modal="true" aria-label={t('dateRangePicker.label')}>
     <div class="drp-sheet-handle"></div>
-    <div class="drp-sheet-title">{$t('dateRangePicker.label')}</div>
+    <div class="drp-sheet-title">{t('dateRangePicker.label')}</div>
     {#each PERIODS as p}
       <button
         type="button"
         onclick={() => pick(p)}
         style="display:flex;align-items:center;justify-content:space-between;width:100%;text-align:left;font-size:13px;font-weight:{p === active ? '600' : '400'};padding:11px 14px;border-radius:var(--mep-r-input);border:none;background:{p === active ? 'var(--mep-acc-soft)' : 'transparent'};color:{p === active ? 'var(--mep-fg)' : 'var(--mep-fg-2)'};cursor:pointer;"
       >
-        <span>{$t(`dateRangePicker.${p}`)}</span>
+        <span>{t(`dateRangePicker.${p}`)}</span>
         {#if p === active}
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
             <path d="M20 6 9 17l-5-5"></path>

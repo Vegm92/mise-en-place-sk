@@ -13,7 +13,7 @@
 </script>
 
 <svelte:head>
-	<title>{$t('verifyEmail.heading')} · Mise en Place</title>
+	<title>{t('verifyEmail.heading')} · Mise en Place</title>
 </svelte:head>
 
 <div class="mep" data-accent="tinta" data-density="default"
@@ -21,15 +21,15 @@
 	       padding:24px;background:var(--mep-bg);">
 	<div style="width:100%;max-width:380px;">
 		<div class="card" style="padding:28px;text-align:center;">
-			<h1 style="font-size:17px;font-weight:600;color:var(--mep-fg);margin:0 0 8px;">{$t('verifyEmail.heading')}</h1>
+			<h1 style="font-size:17px;font-weight:600;color:var(--mep-fg);margin:0 0 8px;">{t('verifyEmail.heading')}</h1>
 			{#if failed}
-				<p style="font-size:13px;color:var(--mep-fg-3);margin:0 0 16px;line-height:1.5;">{$t('verifyEmail.invalidBody')}</p>
-				<a href="/signup" style="color:var(--mep-acc);font-size:13px;">{$t('verifyEmail.backToSignup')}</a>
+				<p style="font-size:13px;color:var(--mep-fg-3);margin:0 0 16px;line-height:1.5;">{t('verifyEmail.invalidBody')}</p>
+				<a href="/signup" style="color:var(--mep-acc);font-size:13px;">{t('verifyEmail.backToSignup')}</a>
 			{:else if !confirmed}
-				<p style="font-size:13px;color:var(--mep-fg-3);margin:0 0 20px;line-height:1.5;">{$t('verifyEmail.confirmBody')}</p>
+				<p style="font-size:13px;color:var(--mep-fg-3);margin:0 0 20px;line-height:1.5;">{t('verifyEmail.confirmBody')}</p>
 				<form method="POST">
 					<button type="submit" class="btn btn-primary" style="height:36px;width:100%;justify-content:center;">
-						{$t('verifyEmail.confirmButton')}
+						{t('verifyEmail.confirmButton')}
 					</button>
 				</form>
 			{/if}

@@ -9,8 +9,7 @@
  */
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { get } from 'svelte/store';
-import { locale, t as tStore, loadAllMessages } from '../src/lib/i18n';
+import { setLocale, t as tStore, loadAllMessages } from '../src/lib/i18n';
 
 await loadAllMessages();
 
@@ -184,18 +183,18 @@ describe('supplier products table columns (issue #575)', () => {
 	);
 
 	it('renders a total-spend column in the desktop products table', () => {
-		expect(desktop).toContain("$t('sup.products.colSpend')");
+		expect(desktop).toContain("t('sup.products.colSpend')");
 		expect(desktop).toContain('p.totalSpend');
 	});
 
 	it('renders a units-purchased column in the desktop products table', () => {
-		expect(desktop).toContain("$t('sup.products.colUnits')");
+		expect(desktop).toContain("t('sup.products.colUnits')");
 		expect(desktop).toContain('p.totalQty');
 	});
 
 	it('renders both aggregates in the mobile products list too (ADR-020)', () => {
-		expect(mobile).toContain("$t('sup.products.colSpend')");
-		expect(mobile).toContain("$t('sup.products.colUnits')");
+		expect(mobile).toContain("t('sup.products.colSpend')");
+		expect(mobile).toContain("t('sup.products.colUnits')");
 		expect(mobile).toContain('prod.totalSpend');
 		expect(mobile).toContain('prod.totalQty');
 	});
@@ -203,17 +202,17 @@ describe('supplier products table columns (issue #575)', () => {
 
 describe('supplier products column labels (issue #575)', () => {
 	it('labels both columns in Spanish', () => {
-		locale.set('es');
-		const t = get(tStore);
+		setLocale('es');
+		const t = tStore;
 		expect(t('sup.products.colSpend')).toBe('Gasto total');
 		expect(t('sup.products.colUnits')).toBe('Unidades compradas');
 	});
 
 	it('labels both columns in English', () => {
-		locale.set('en');
-		const t = get(tStore);
+		setLocale('en');
+		const t = tStore;
 		expect(t('sup.products.colSpend')).toBe('Total spend');
 		expect(t('sup.products.colUnits')).toBe('Units purchased');
-		locale.set('es');
+		setLocale('es');
 	});
 });

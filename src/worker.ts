@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import './lib/server/env-file.js';
 
 import * as Sentry from '@sentry/sveltekit';
 import { PgBoss, type JobWithMetadata } from 'pg-boss';
