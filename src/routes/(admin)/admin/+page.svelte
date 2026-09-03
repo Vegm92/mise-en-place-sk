@@ -26,24 +26,24 @@
 
   const chips = $derived([
     {
-      label: $t('admin.chip.errors'),
+      label: t('admin.chip.errors'),
       value: data.sentry.configured ? data.sentry.unresolved : '—',
       status: sentryStatus(data.sentry),
       href: '/admin/errors',
     },
     {
-      label: $t('admin.chip.dlq'),
+      label: t('admin.chip.dlq'),
       value: data.deadLetters.pending,
       status: countStatus(data.deadLetters.pending, 25),
       href: '/admin/dead-letters',
     },
     {
-      label: $t('admin.chip.stuck'),
+      label: t('admin.chip.stuck'),
       value: data.queue.stuck,
       status: countStatus(data.queue.stuck, 10),
     },
     {
-      label: $t('admin.chip.pendingNotifs'),
+      label: t('admin.chip.pendingNotifs'),
       value: data.pendingNotifs,
       status: (data.pendingNotifs > 0 ? 'warn' : 'ok') as ChipStatus,
       href: '/admin/events',
@@ -60,67 +60,67 @@
   function relative(iso: string): string {
     const diff = Date.now() - new Date(iso).getTime();
     const mins = Math.round(diff / 60000);
-    if (mins < 1) return $t('admin.justNow');
-    if (mins < 60) return $ti('admin.minsAgo', { n: mins });
+    if (mins < 1) return t('admin.justNow');
+    if (mins < 60) return ti('admin.minsAgo', { n: mins });
     const hours = Math.round(mins / 60);
-    if (hours < 24) return $ti('admin.hoursAgo', { n: hours });
-    return $ti('admin.daysAgo', { n: Math.round(hours / 24) });
+    if (hours < 24) return ti('admin.hoursAgo', { n: hours });
+    return ti('admin.daysAgo', { n: Math.round(hours / 24) });
   }
 </script>
 
-<AdminPageHead route="/admin" title={$t('admin.overview')} subtitle={$t('admin.overviewSubtitle')} />
+<AdminPageHead route="/admin" title={t('admin.overview')} subtitle={t('admin.overviewSubtitle')} />
 
 <div class="hud-page px-3 md:px-6 pb-6 flex flex-col gap-2.5">
 
   <AdminSystemBanner
     status={data.overall}
     checkedAt={data.checkedAt}
-    caption={$t('admin.systemStatus')}
+    caption={t('admin.systemStatus')}
     {chips}
   />
 
   {#if data.degraded}
     <div class="card" style="padding:12px 16px;font-size:13px;color:var(--mep-neg);background:var(--mep-neg-soft);border-color:var(--mep-neg-soft);">
-      {$t('admin.degradedNotice')}
+      {t('admin.degradedNotice')}
     </div>
   {/if}
 
   <div class="hud-grid hud-grid-2">
-    <HudPanel title={$t('admin.last7days')}>
+    <HudPanel title={t('admin.last7days')}>
       <div class="hud-kpi-row">
         <div class="hud-kpi">
-          <span class="hud-kpi-label">{$t('admin.invoicesSaved')}</span>
+          <span class="hud-kpi-label">{t('admin.invoicesSaved')}</span>
           <span class="hud-kpi-value" class:warn={delta < 0}>{fmt(data.invoices7d)}</span>
           <span style="font:500 10px/1.3 ui-monospace, monospace;color:#5b6472;">
             {deltaPct === null
-              ? $ti('admin.prevPeriod', { n: data.invoicesPrev7d })
-              : $ti('admin.vsPrevPct', { pct: (deltaPct > 0 ? '+' : '') + deltaPct })}
+              ? ti('admin.prevPeriod', { n: data.invoicesPrev7d })
+              : ti('admin.vsPrevPct', { pct: (deltaPct > 0 ? '+' : '') + deltaPct })}
           </span>
         </div>
         <div class="hud-kpi">
-          <span class="hud-kpi-label">{$t('admin.activeRestaurants')}</span>
+          <span class="hud-kpi-label">{t('admin.activeRestaurants')}</span>
           <span class="hud-kpi-value">{fmt(data.activeRestaurants7d)}</span>
-          <span style="font:500 10px/1.3 ui-monospace, monospace;color:#5b6472;">{$ti('admin.ofTotal', { n: data.totalRestaurants })}</span>
+          <span style="font:500 10px/1.3 ui-monospace, monospace;color:#5b6472;">{ti('admin.ofTotal', { n: data.totalRestaurants })}</span>
         </div>
         <div class="hud-kpi">
-          <span class="hud-kpi-label">{$t('admin.pendingExtractions')}</span>
+          <span class="hud-kpi-label">{t('admin.pendingExtractions')}</span>
           <span class="hud-kpi-value" class:warn={data.pendingExtractions > 0}>{fmt(data.pendingExtractions)}</span>
         </div>
       </div>
     </HudPanel>
 
-    <HudPanel title={$t('admin.allTimeTotals')}>
+    <HudPanel title={t('admin.allTimeTotals')}>
       <div class="hud-kpi-row">
         <div class="hud-kpi">
-          <span class="hud-kpi-label">{$t('admin.restaurants')}</span>
+          <span class="hud-kpi-label">{t('admin.restaurants')}</span>
           <span class="hud-kpi-value">{fmt(data.totalRestaurants)}</span>
         </div>
         <div class="hud-kpi">
-          <span class="hud-kpi-label">{$t('admin.invoices')}</span>
+          <span class="hud-kpi-label">{t('admin.invoices')}</span>
           <span class="hud-kpi-value">{fmt(data.totalInvoices)}</span>
         </div>
         <div class="hud-kpi">
-          <span class="hud-kpi-label">{$t('admin.suppliers')}</span>
+          <span class="hud-kpi-label">{t('admin.suppliers')}</span>
           <span class="hud-kpi-value">{fmt(data.totalSuppliers)}</span>
         </div>
       </div>
@@ -129,7 +129,7 @@
 
   <div class="hud-grid hud-grid-2">
 
-    <HudPanel title={$t('admin.recentActivity')}>
+    <HudPanel title={t('admin.recentActivity')}>
       <AdminTableScroll>
         <table class="hud-table">
           <tbody>
@@ -153,25 +153,25 @@
                 <td class="r dim nowrap">{relative(ev.created_at)}</td>
               </tr>
             {:else}
-              <tr><td colspan="2" class="empty">{$t('admin.noActivity')}</td></tr>
+              <tr><td colspan="2" class="empty">{t('admin.noActivity')}</td></tr>
             {/each}
           </tbody>
         </table>
       </AdminTableScroll>
       <div style="padding:8px 12px;border-top:1px solid rgba(255,255,255,0.08);text-align:right;">
-        <a href="/admin/events" style="font-size:11px;color:#38bdf8;text-decoration:none;">{$t('admin.viewAll')}</a>
+        <a href="/admin/events" style="font-size:11px;color:#38bdf8;text-decoration:none;">{t('admin.viewAll')}</a>
       </div>
     </HudPanel>
 
-    <HudPanel title={$t('admin.recentRestaurants')}>
+    <HudPanel title={t('admin.recentRestaurants')}>
       <AdminTableScroll>
         <table class="hud-table">
           <thead>
             <tr>
-              <th scope="col" class="l">{$t('admin.colName')}</th>
-              <th scope="col" class="r">{$t('admin.invoices')}</th>
-              <th scope="col" class="r">{$t('admin.suppliers')}</th>
-              <th scope="col" class="r">{$t('admin.colCreated')}</th>
+              <th scope="col" class="l">{t('admin.colName')}</th>
+              <th scope="col" class="r">{t('admin.invoices')}</th>
+              <th scope="col" class="r">{t('admin.suppliers')}</th>
+              <th scope="col" class="r">{t('admin.colCreated')}</th>
             </tr>
           </thead>
           <tbody>
@@ -183,7 +183,7 @@
                 <td class="num r dim nowrap">{new Date(r.created_at).toLocaleDateString('en-GB')}</td>
               </tr>
             {:else}
-              <tr><td colspan="4" class="empty">{$t('admin.noRestaurants')}</td></tr>
+              <tr><td colspan="4" class="empty">{t('admin.noRestaurants')}</td></tr>
             {/each}
           </tbody>
         </table>

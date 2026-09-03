@@ -39,7 +39,7 @@ describe('issue #747 — dashboard vs. budgets spend basis is labelled', () => {
 		expect(translations.en['bud.exVat']).toMatch(/excl\. VAT/);
 
 		const source = readFileSync(path.join(ROOT, 'routes', '(app)', 'budgets', '+page.svelte'), 'utf8');
-		const occurrences = source.split("$t('bud.exVat')").length - 1;
+		const occurrences = source.split("t('bud.exVat')").length - 1;
 		expect(occurrences, 'expected the note on both the desktop and mobile totals').toBeGreaterThanOrEqual(2);
 	});
 });

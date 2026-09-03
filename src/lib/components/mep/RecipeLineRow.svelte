@@ -104,25 +104,25 @@
     </form>
 
     <div class="flex flex-col gap-1">
-      <div class="rl-seg" role="group" aria-label={$t('rec.line.kind')}>
+      <div class="rl-seg" role="group" aria-label={t('rec.line.kind')}>
         {#each RECIPE_LINE_KINDS as k}
           <button type="button" class="rl-seg-btn" class:rl-seg-on={kind === k} aria-pressed={kind === k}
             onclick={() => { kind = k; if (k !== 'product') productId = 0; if (k !== 'recipe') childRecipeId = 0; }}>
-            {$t(`rec.line.kind.${k}`)}
+            {t(`rec.line.kind.${k}`)}
           </button>
         {/each}
       </div>
 
       {#if kind === 'product'}
         <select class="input" style="padding:0 8px;min-width:170px;" bind:value={productId}
-          aria-label={$t('rec.line.product')}
+          aria-label={t('rec.line.product')}
           onchange={() => { const p = catalog.find((c) => c.id === productId); if (p) { name = p.name; if (p.baseUnit && units.includes(p.baseUnit)) unit = p.baseUnit; } }}>
           <option value={0}>—</option>
           {#each catalog as p (p.id)}<option value={p.id}>{p.name}</option>{/each}
         </select>
       {:else if kind === 'recipe'}
         <select class="input" style="padding:0 8px;min-width:170px;" bind:value={childRecipeId}
-          aria-label={$t('rec.line.child')}
+          aria-label={t('rec.line.child')}
           onchange={() => { const r = linkableRecipes.find((c) => c.id === childRecipeId); if (r) { name = r.name; if (r.yieldUnit && units.includes(r.yieldUnit)) unit = r.yieldUnit; } }}>
           <option value={0}>—</option>
           {#each linkableRecipes as r (r.id)}
@@ -132,18 +132,18 @@
       {/if}
 
       <input class="input" style="padding:0 8px;min-width:170px;" bind:value={name} form={isNew ? 'rec-add' : `rec-line-${line!.id}`}
-        name="name" required placeholder={$t('rec.line.name')} aria-label={$t('rec.line.name')} />
+        name="name" required placeholder={t('rec.line.name')} aria-label={t('rec.line.name')} />
 
       {#if cost || picked.size > 0}
         <span class="flex items-center gap-1 flex-wrap">
           {#if cost}
             <span class="body text-fg-3" style="font-size:11px;">
-              {[$t(`rec.src.${cost.priceSource}`), cost.priceAsOf, cost.supplierName].filter(Boolean).join(' · ')}
+              {[t(`rec.src.${cost.priceSource}`), cost.priceAsOf, cost.supplierName].filter(Boolean).join(' · ')}
             </span>
           {/if}
           {#if picked.size > 0}
-            <span class="badge badge-pending" title={[...picked].map((c) => $t(`rec.allergen.${c}`)).join(', ')}>
-              {$ti('rec.line.allergenCount', { n: picked.size })}
+            <span class="badge badge-pending" title={[...picked].map((c) => t(`rec.allergen.${c}`)).join(', ')}>
+              {ti('rec.line.allergenCount', { n: picked.size })}
             </span>
           {/if}
         </span>
@@ -151,57 +151,57 @@
 
       {#each shownWarnings as w}
         <span class="body text-warn flex items-center gap-1" style="font-size:11px;">
-          <AlertTriangle size={11} />{$t(WARN_KEY[w])}
+          <AlertTriangle size={11} />{t(WARN_KEY[w])}
         </span>
       {/each}
     </div>
   </td>
 
-  <td class="num rl-cell" data-label={$t('rec.line.gross')}>
+  <td class="num rl-cell" data-label={t('rec.line.gross')}>
     <input class="input" type="number" step="0.0001" min="0" style="padding:0 6px;max-width:76px;text-align:right;"
-      value={gross} aria-label={$t('rec.line.gross')}
+      value={gross} aria-label={t('rec.line.gross')}
       oninput={(e) => setGross(Number((e.currentTarget as HTMLInputElement).value))} />
   </td>
 
-  <td class="num rl-cell" data-label={$t('rec.line.waste')}>
+  <td class="num rl-cell" data-label={t('rec.line.waste')}>
     <input class="input" type="number" step="0.01" min="0" max="99.99" style="padding:0 6px;max-width:62px;text-align:right;"
-      bind:value={waste} aria-label={$t('rec.line.waste')} />
+      bind:value={waste} aria-label={t('rec.line.waste')} />
   </td>
 
-  <td class="num rl-cell" data-label={$t('rec.line.net')}>
+  <td class="num rl-cell" data-label={t('rec.line.net')}>
     <input class="input" type="number" step="0.0001" min="0" style="padding:0 6px;max-width:76px;text-align:right;"
-      bind:value={net} aria-label={$t('rec.line.net')} />
+      bind:value={net} aria-label={t('rec.line.net')} />
   </td>
 
-  <td class="rl-cell" data-label={$t('rec.line.unit')}>
-    <select class="input" style="padding:0 6px;max-width:66px;" bind:value={unit} aria-label={$t('rec.line.unit')}>
+  <td class="rl-cell" data-label={t('rec.line.unit')}>
+    <select class="input" style="padding:0 6px;max-width:66px;" bind:value={unit} aria-label={t('rec.line.unit')}>
       {#each units as u}<option value={u}>{u}</option>{/each}
     </select>
   </td>
 
-  <td class="num rl-cell" data-label={$t('rec.line.unitCost')}>
+  <td class="num rl-cell" data-label={t('rec.line.unitCost')}>
     <input class="input" type="text" inputmode="decimal" style="padding:0 6px;max-width:80px;text-align:right;"
-      bind:value={unitCost} aria-label={$t('rec.line.unitCost')}
+      bind:value={unitCost} aria-label={t('rec.line.unitCost')}
       placeholder={kind === 'free' ? '' : (resolvedRate ?? '')} />
   </td>
 
-  <td class="num rl-cell" data-label={$t('rec.line.amount')}>
+  <td class="num rl-cell" data-label={t('rec.line.amount')}>
     {cost ? fmtEur(cost.costCents / 100) : '—'}
   </td>
 
   <td class="rl-cell">
     <div class="flex items-center gap-1">
       <button type="button" class="btn btn-ghost" style="padding:0 6px;" onclick={() => (open = !open)}
-        aria-expanded={open} aria-label={$t('rec.line.macros')} title={$t('rec.line.macros')}>
+        aria-expanded={open} aria-label={t('rec.line.macros')} title={t('rec.line.macros')}>
         <ChevronDown size={13} />
       </button>
       <button type="submit" class="btn btn-primary" style="padding:0 8px;" form={isNew ? 'rec-add' : `rec-line-${line!.id}`}
-        title={isNew ? $t('rec.line.add') : $t('rec.line.save')} aria-label={isNew ? $t('rec.line.add') : $t('rec.line.save')}>
+        title={isNew ? t('rec.line.add') : t('rec.line.save')} aria-label={isNew ? t('rec.line.add') : t('rec.line.save')}>
         {#if isNew}<Plus size={13} />{:else}<Check size={13} />{/if}
       </button>
       {#if !isNew}
         <button type="submit" class="btn btn-ghost" style="padding:0 6px;" form="rec-del-{line!.id}"
-          title={$t('rec.line.delete')} aria-label={$t('rec.line.delete')}>
+          title={t('rec.line.delete')} aria-label={t('rec.line.delete')}>
           <Trash2 size={13} />
         </button>
       {/if}
@@ -219,36 +219,36 @@
     <td colspan="8">
       <div class="flex flex-col gap-3 p-3" style="background:var(--mep-surface-2);">
         <div class="flex flex-col gap-2">
-          <span class="label text-fg-3">{$t('rec.sec.allergens')}</span>
+          <span class="label text-fg-3">{t('rec.sec.allergens')}</span>
           <div class="flex flex-wrap gap-1">
             {#each EU_ALLERGENS as code}
               <button type="button" class="rl-seg-btn rl-allergen" class:rl-seg-on={picked.has(code)}
                 aria-pressed={picked.has(code)} onclick={() => toggleAllergen(code)}>
-                {$t(`rec.allergen.${code}`)}
+                {t(`rec.allergen.${code}`)}
               </button>
             {/each}
           </div>
         </div>
         <div class="flex flex-wrap gap-2 items-end">
-          <span class="label text-fg-3" style="width:100%;">{$t('rec.nut.per100')}</span>
+          <span class="label text-fg-3" style="width:100%;">{t('rec.nut.per100')}</span>
           <label class="flex flex-col gap-1">
-            <span class="label text-fg-3">{$t('rec.nut.kcal')}</span>
+            <span class="label text-fg-3">{t('rec.nut.kcal')}</span>
             <input class="input" style="padding:0 6px;max-width:92px;" inputmode="decimal" bind:value={kcal100} />
           </label>
           <label class="flex flex-col gap-1">
-            <span class="label text-fg-3">{$t('rec.nut.protein')}</span>
+            <span class="label text-fg-3">{t('rec.nut.protein')}</span>
             <input class="input" style="padding:0 6px;max-width:92px;" inputmode="decimal" bind:value={protein100} />
           </label>
           <label class="flex flex-col gap-1">
-            <span class="label text-fg-3">{$t('rec.nut.carbs')}</span>
+            <span class="label text-fg-3">{t('rec.nut.carbs')}</span>
             <input class="input" style="padding:0 6px;max-width:92px;" inputmode="decimal" bind:value={carbs100} />
           </label>
           <label class="flex flex-col gap-1">
-            <span class="label text-fg-3">{$t('rec.nut.fat')}</span>
+            <span class="label text-fg-3">{t('rec.nut.fat')}</span>
             <input class="input" style="padding:0 6px;max-width:92px;" inputmode="decimal" bind:value={fat100} />
           </label>
           <label class="flex flex-col gap-1" style="flex:1;min-width:170px;">
-            <span class="label text-fg-3">{$t('rec.line.note')}</span>
+            <span class="label text-fg-3">{t('rec.line.note')}</span>
             <input class="input" style="padding:0 6px;" bind:value={note} />
           </label>
         </div>

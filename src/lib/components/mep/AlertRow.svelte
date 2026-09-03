@@ -31,7 +31,7 @@
 
   const p = $derived(palettes[alert.sev]);
   const Icon = $derived(icons[alert.kind] ?? Info);
-  const displayText = $derived(alert.messageKey ? $tiv(alert.messageKey, alert.messageVars ?? {}) : alert.text);
+  const displayText = $derived(alert.messageKey ? tiv(alert.messageKey, alert.messageVars ?? {}) : alert.text);
 
   let shareBusy = $state(false);
   let shareUrl = $state<string | null>(null);
@@ -81,28 +81,28 @@
           <button
             type="button"
             onclick={copyShareUrl}
-            aria-label={$t('ashare.linkLabel')}
+            aria-label={t('ashare.linkLabel')}
             style="display:inline-flex;align-items:center;gap:4px;background:none;border:none;cursor:pointer;
                    color:var(--mep-fg-3);font-size:11px;padding:0;"
           >
             <Copy size={12} />
-            {shareCopied ? $t('dshare.copied') : $t('dshare.copy')}
+            {shareCopied ? t('dshare.copied') : t('dshare.copy')}
           </button>
         {:else}
           <button
             type="button"
             onclick={shareAlert}
             disabled={shareBusy}
-            aria-label={$t('ashare.button')}
+            aria-label={t('ashare.button')}
             style="display:inline-flex;align-items:center;gap:4px;background:none;border:none;cursor:pointer;
                    color:var(--mep-fg-3);font-size:11px;padding:0;"
           >
             <Share size={12} />
-            {$t('ashare.button')}
+            {t('ashare.button')}
           </button>
         {/if}
         {#if shareFailed}
-          <span style="font-size:11px;color:var(--mep-neg);margin-left:6px;">{$t('dshare.error')}</span>
+          <span style="font-size:11px;color:var(--mep-neg);margin-left:6px;">{t('dshare.error')}</span>
         {/if}
       </div>
     {/if}

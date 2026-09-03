@@ -47,22 +47,22 @@
   const totalSpent = $derived(rows.reduce((s, r) => s + r.spent, 0));
   const totalPct   = $derived(totalLimit > 0 ? (totalSpent / totalLimit) * 100 : 0);
 
-  const monthLabel = $derived(new Date(data.selectedMonth + '-02').toLocaleString($locale, { month: 'long', year: 'numeric' }));
+  const monthLabel = $derived(new Date(data.selectedMonth + '-02').toLocaleString(locale.current, { month: 'long', year: 'numeric' }));
 </script>
 
 <div class="hidden md:flex" style="height:100%;flex-direction:column;overflow:hidden;">
   <div style="padding:20px 24px 0;display:flex;flex-direction:column;gap:14px;flex:1;min-height:0;">
 
     <div class="card" style="padding:18px 20px;flex-shrink:0;" data-coach="budgets-main">
-      <div class="label" style="margin-bottom:6px;text-transform:capitalize;">{monthLabel} · {$t('bud.atDay')} {today}</div>
+      <div class="label" style="margin-bottom:6px;text-transform:capitalize;">{monthLabel} · {t('bud.atDay')} {today}</div>
       <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
         <div class="num" style="font-size:32px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.7px;line-height:1;">
-          {fmtEur(totalSpent, $locale)}
+          {fmtEur(totalSpent, locale.current)}
         </div>
         <div style="font-size:13px;color:var(--mep-fg-3);">
-          {$t('bud.of')} <span class="num" style="color:var(--mep-fg-2);font-weight:500;">{fmtEur(totalLimit, $locale)}</span>
+          {t('bud.of')} <span class="num" style="color:var(--mep-fg-2);font-weight:500;">{fmtEur(totalLimit, locale.current)}</span>
         </div>
-        <span style="font-size:11px;color:var(--mep-fg-4);">{$t('bud.exVat')}</span>
+        <span style="font-size:11px;color:var(--mep-fg-4);">{t('bud.exVat')}</span>
       </div>
       {#if totalLimit > 0}
         <div style="height:8px;border-radius:4px;background:var(--mep-surface-2);overflow:hidden;display:flex;">
@@ -75,20 +75,20 @@
         <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--mep-fg-3);margin-top:8px;">
           <span>
             <span class="num" style="color:{semColor(totalPct)};font-weight:600;">{totalPct.toFixed(1).replace('.',',')}%</span>
-            {$t('bud.used')} · {$t('bud.projectionClose')} {(totalPct * 31 / today).toFixed(0)}% {$t('bud.atClose')}
+            {t('bud.used')} · {t('bud.projectionClose')} {(totalPct * 31 / today).toFixed(0)}% {t('bud.atClose')}
           </span>
-          <span class="num">{fmtEur(totalLimit - totalSpent, $locale)} {$t('bud.remaining')}</span>
+          <span class="num">{fmtEur(totalLimit - totalSpent, locale.current)} {t('bud.remaining')}</span>
         </div>
       {:else}
-        <div style="font-size:13px;color:var(--mep-fg-3);">{$t('bud.emptyDesktop')}</div>
+        <div style="font-size:13px;color:var(--mep-fg-3);">{t('bud.emptyDesktop')}</div>
       {/if}
     </div>
 
     <div class="card" style="padding:0;overflow:hidden;flex:1;display:flex;flex-direction:column;">
       <div style="padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--mep-divider);flex-shrink:0;">
         <div>
-          <div class="subtitle">{$t('bud.tableTitle')}</div>
-          <div style="font-size:12px;color:var(--mep-fg-3);margin-top:2px;">{$t('bud.tableSub')}</div>
+          <div class="subtitle">{t('bud.tableTitle')}</div>
+          <div style="font-size:12px;color:var(--mep-fg-3);margin-top:2px;">{t('bud.tableSub')}</div>
         </div>
         <PeriodPicker prevUrl={prevMonthUrl} nextUrl={nextMonthUrl} {canGoForward} label={monthLabel} compact />
       </div>
@@ -100,13 +100,13 @@
           <table class="tbl" style="table-layout:fixed;">
             <thead>
               <tr>
-                <th style="width:22%;">{$t('bud.colCategory')}</th>
-                <th class="num" style="width:160px;">{$t('bud.colBudget')}</th>
-                <th class="num" style="width:130px;">{$t('bud.colSpent')}</th>
-                <th class="num" style="width:130px;">{$t('bud.colRemaining')}</th>
-                <th style="min-width:120px;">{$t('bud.colProgress')}</th>
+                <th style="width:22%;">{t('bud.colCategory')}</th>
+                <th class="num" style="width:160px;">{t('bud.colBudget')}</th>
+                <th class="num" style="width:130px;">{t('bud.colSpent')}</th>
+                <th class="num" style="width:130px;">{t('bud.colRemaining')}</th>
+                <th style="min-width:120px;">{t('bud.colProgress')}</th>
                 <th class="num" style="width:70px;">%</th>
-                <th style="width:100px;">{$t('bud.colProjection')}</th>
+                <th style="width:100px;">{t('bud.colProjection')}</th>
               </tr>
             </thead>
             <tbody>
@@ -116,26 +116,26 @@
                   <td>
                     <div style="display:flex;align-items:center;gap:8px;">
                       <span style="width:14px;height:14px;border-radius:3px;background:{r.color};flex-shrink:0;"></span>
-                      <span style="font-size:13px;font-weight:500;color:var(--mep-fg);">{$tcat(r.cat)}</span>
+                      <span style="font-size:13px;font-weight:500;color:var(--mep-fg);">{tcat(r.cat)}</span>
                     </div>
                   </td>
                   <td class="num">
                     {#if isPastMonth}
                       <div class="num" style="height:30px;font-size:12.5px;width:130px;text-align:right;display:flex;align-items:center;justify-content:flex-end;padding:0 8px;background:var(--mep-surface-2);border-bottom:1px solid var(--mep-divider);color:var(--mep-fg-2);">
-                        {r.limit > 0 ? r.limit : $t('bud.noLimit')}
+                        {r.limit > 0 ? r.limit : t('bud.noLimit')}
                       </div>
                     {:else}
                       <input type="number" step="0.01" min="0"
                         name={r.cat}
                         value={r.limit > 0 ? r.limit : ''}
-                        placeholder={$t('bud.noLimit')}
+                        placeholder={t('bud.noLimit')}
                         class="input"
                         style="height:30px;width:130px;text-align:right;" />
                     {/if}
                   </td>
-                  <td class="num" style="color:var(--mep-fg-2);">{fmtEur(r.spent, $locale)}</td>
+                  <td class="num" style="color:var(--mep-fg-2);">{fmtEur(r.spent, locale.current)}</td>
                   <td class="num" style="color:{r.limit > 0 && r.remaining < 0 ? 'var(--mep-neg)' : 'var(--mep-fg-2)'};font-weight:{r.limit > 0 && r.remaining < 0 ? 500 : 400};">
-                    {r.limit > 0 ? fmtEur(r.remaining, $locale) : '—'}
+                    {r.limit > 0 ? fmtEur(r.remaining, locale.current) : '—'}
                   </td>
                   <td>
                     {#if r.limit > 0}
@@ -149,7 +149,7 @@
                         <div style="position:absolute;left:80%;top:-3px;bottom:-3px;width:1.5px;background:var(--mep-fg-3);opacity:0.4;"></div>
                       </div>
                     {:else}
-                      <span style="font-size:11.5px;color:var(--mep-fg-4);">{$t('bud.noBudget')}</span>
+                      <span style="font-size:11.5px;color:var(--mep-fg-4);">{t('bud.noBudget')}</span>
                     {/if}
                   </td>
                   <td class="num" style="color:{r.limit > 0 ? semColor(r.pct) : 'var(--mep-fg-3)'};font-weight:600;">
@@ -177,15 +177,15 @@
                         <input
                           type="text" maxlength="80"
                           bind:value={newCatName}
-                          placeholder={$t('bud.namePlaceholder')}
+                          placeholder={t('bud.namePlaceholder')}
                           class="input"
                           style="height:30px;width:220px;"
                           onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCategory(); } }}
                         />
                         <button type="button" class="btn btn-primary" style="height:30px;font-size:12.5px;"
-                          onclick={addCategory}>{$t('bud.add')}</button>
+                          onclick={addCategory}>{t('bud.add')}</button>
                         <button type="button" class="btn btn-ghost" style="height:30px;font-size:12.5px;"
-                          onclick={() => { showAddForm = false; newCatName = ''; }}>{$t('edit.cancel')}</button>
+                          onclick={() => { showAddForm = false; newCatName = ''; }}>{t('edit.cancel')}</button>
                       </div>
                     </td>
                   </tr>
@@ -198,7 +198,7 @@
                         <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8">
                           <line x1="6" y1="1" x2="6" y2="11"/><line x1="1" y1="6" x2="11" y2="6"/>
                         </svg>
-                        {$t('bud.addCategory')}
+                        {t('bud.addCategory')}
                       </button>
                     </td>
                   </tr>
@@ -208,10 +208,10 @@
             {#if totalLimit > 0}
               <tfoot>
                 <tr>
-                  <td style="font-weight:600;color:var(--mep-fg);font-size:13px;padding:12px;">{$t('bud.total')}</td>
-                  <td class="num" style="font-weight:600;font-size:13px;">{fmtEur(totalLimit, $locale)}</td>
-                  <td class="num" style="font-weight:600;font-size:13px;">{fmtEur(totalSpent, $locale)}</td>
-                  <td class="num" style="font-weight:600;font-size:13px;color:var(--mep-fg-2);">{fmtEur(totalLimit - totalSpent, $locale)}</td>
+                  <td style="font-weight:600;color:var(--mep-fg);font-size:13px;padding:12px;">{t('bud.total')}</td>
+                  <td class="num" style="font-weight:600;font-size:13px;">{fmtEur(totalLimit, locale.current)}</td>
+                  <td class="num" style="font-weight:600;font-size:13px;">{fmtEur(totalSpent, locale.current)}</td>
+                  <td class="num" style="font-weight:600;font-size:13px;color:var(--mep-fg-2);">{fmtEur(totalLimit - totalSpent, locale.current)}</td>
                   <td colspan={2} class="num" style="font-weight:600;font-size:13px;color:{semColor(totalPct)};">
                     {totalPct.toFixed(1).replace('.',',')}%
                   </td>
@@ -222,7 +222,7 @@
           </table>
           {#if !isPastMonth}
             <div style="padding:14px 16px;border-top:1px solid var(--mep-divider);">
-              <button type="submit" class="btn btn-primary" style="height:36px;">{$t('bud.save')}</button>
+              <button type="submit" class="btn btn-primary" style="height:36px;">{t('bud.save')}</button>
             </div>
           {/if}
         </form>
@@ -241,18 +241,18 @@
 
       <div class="card" style="padding:16px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-          <div class="label">{$t('bud.atDay')} {today}</div>
+          <div class="label">{t('bud.atDay')} {today}</div>
           <PeriodPicker prevUrl={prevMonthUrl} nextUrl={nextMonthUrl} {canGoForward} label={monthLabel} compact />
         </div>
         <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px;flex-wrap:wrap;">
           <div class="num" style="font-size:30px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.6px;line-height:1;">
-            {fmtEur(totalSpent, $locale)}
+            {fmtEur(totalSpent, locale.current)}
           </div>
           <div style="font-size:12.5px;color:var(--mep-fg-3);">
-            {$t('bud.of')} <span class="num" style="color:var(--mep-fg-2);font-weight:500;">{fmtEur(totalLimit, $locale)}</span>
+            {t('bud.of')} <span class="num" style="color:var(--mep-fg-2);font-weight:500;">{fmtEur(totalLimit, locale.current)}</span>
           </div>
         </div>
-        <div style="font-size:11px;color:var(--mep-fg-4);margin-bottom:8px;">{$t('bud.exVat')}</div>
+        <div style="font-size:11px;color:var(--mep-fg-4);margin-bottom:8px;">{t('bud.exVat')}</div>
         {#if totalLimit > 0}
           <div style="height:8px;border-radius:4px;background:var(--mep-surface-2);overflow:hidden;display:flex;margin-bottom:10px;">
             {#each activeRows as r}
@@ -264,19 +264,19 @@
           <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--mep-fg-3);">
             <span>
               <span class="num" style="color:{semColor(totalPct)};font-weight:600;">{totalPct.toFixed(1).replace('.',',')}%</span>
-              · {$t('bud.projectionClose')} {(totalPct * 31 / today).toFixed(0)}% {$t('bud.atClose')}
+              · {t('bud.projectionClose')} {(totalPct * 31 / today).toFixed(0)}% {t('bud.atClose')}
             </span>
-            <span class="num">{fmtEur(totalLimit - totalSpent, $locale)} {$t('bud.remaining')}</span>
+            <span class="num">{fmtEur(totalLimit - totalSpent, locale.current)} {t('bud.remaining')}</span>
           </div>
         {:else}
           <div style="font-size:13px;color:var(--mep-fg-3);">
-            {$t('bud.emptyMobile')}
+            {t('bud.emptyMobile')}
           </div>
         {/if}
       </div>
 
       <div style="padding:4px 2px 0;">
-        <div class="subtitle" style="font-size:14px;">{$t('bud.tableTitle')}</div>
+        <div class="subtitle" style="font-size:14px;">{t('bud.tableTitle')}</div>
       </div>
 
       {#snippet budgetCard(r: (typeof rows)[number])}
@@ -286,13 +286,13 @@
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
             <span style="width:8px;height:28px;border-radius:2px;background:{r.color};flex-shrink:0;"></span>
             <span style="flex:1;min-width:0;font-size:14px;font-weight:500;color:var(--mep-fg);
-              overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{$tcat(r.cat)}</span>
+              overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{tcat(r.cat)}</span>
             {#if r.limit > 0}
               <span class="num" style="
                 font-size:11px;font-weight:500;padding:2px 7px;border-radius:4px;min-width:0;
                 background:{projOver ? 'var(--mep-neg-soft)' : 'var(--mep-pos-soft)'};
                 color:{projOver ? 'var(--mep-neg)' : 'var(--mep-pos)'};
-              ">{projOver ? '↑' : '✓'} {Math.round(r.projected)}% {$t('bud.closeShort')}</span>
+              ">{projOver ? '↑' : '✓'} {Math.round(r.projected)}% {t('bud.closeShort')}</span>
             {/if}
           </div>
 
@@ -310,9 +310,9 @@
 
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
             <div>
-              <span class="num" style="font-size:13.5px;font-weight:600;color:var(--mep-fg);">{fmtEur(r.spent, $locale)}</span>
+              <span class="num" style="font-size:13.5px;font-weight:600;color:var(--mep-fg);">{fmtEur(r.spent, locale.current)}</span>
               {#if r.limit > 0}
-                <span style="font-size:11.5px;color:var(--mep-fg-3);"> · {fmtEur(r.limit, $locale)}</span>
+                <span style="font-size:11.5px;color:var(--mep-fg-3);"> · {fmtEur(r.limit, locale.current)}</span>
               {/if}
             </div>
             <span class="num" style="font-size:13.5px;font-weight:600;color:{r.limit > 0 ? semColor(r.pct) : 'var(--mep-fg-3)'};">
@@ -321,17 +321,17 @@
           </div>
 
           <div style="display:flex;align-items:center;gap:8px;">
-            <label for="budget-{r.cat}" style="font-size:11px;color:var(--mep-fg-3);font-weight:500;white-space:nowrap;">{$t('bud.colBudget')}</label>
+            <label for="budget-{r.cat}" style="font-size:11px;color:var(--mep-fg-3);font-weight:500;white-space:nowrap;">{t('bud.colBudget')}</label>
             {#if isPastMonth}
               <div class="num" style="flex:1;height:34px;font-size:13px;text-align:right;display:flex;align-items:center;justify-content:flex-end;padding:0 8px;background:var(--mep-surface-2);border-bottom:1px solid var(--mep-divider);color:var(--mep-fg-2);">
-                {r.limit > 0 ? r.limit : $t('bud.noLimit')}
+                {r.limit > 0 ? r.limit : t('bud.noLimit')}
               </div>
             {:else}
               <input type="number" step="0.01" min="0"
                 id="budget-{r.cat}"
                 name={r.cat}
                 value={r.limit > 0 ? r.limit : ''}
-                placeholder={$t('bud.noLimit')}
+                placeholder={t('bud.noLimit')}
                 class="input"
                 style="flex:1;height:34px;text-align:right;" />
             {/if}
@@ -355,7 +355,7 @@
             style="transform:rotate({showAllCats ? 180 : 0}deg);transition:transform 0.15s;">
             <path d="M2 4.5 L6 8.5 L10 4.5" />
           </svg>
-          {showAllCats ? $t('bud.hideAllCategories') : $ti('bud.showAllCategories', { n: inactiveRows.length })}
+          {showAllCats ? t('bud.hideAllCategories') : ti('bud.showAllCategories', { n: inactiveRows.length })}
         </button>
         <div style:display={showAllCats ? 'flex' : 'none'} style="flex-direction:column;gap:12px;">
           {#each inactiveRows as r (r.cat)}
@@ -367,11 +367,11 @@
       {#if !isPastMonth}
       {#if showAddForm}
         <div class="card" style="padding:14px;display:flex;flex-direction:column;gap:10px;">
-          <div style="font-size:13px;font-weight:500;color:var(--mep-fg);">{$t('bud.newCategory')}</div>
+          <div style="font-size:13px;font-weight:500;color:var(--mep-fg);">{t('bud.newCategory')}</div>
           <input
             type="text" maxlength="80"
             bind:value={newCatName}
-            placeholder={$t('bud.namePlaceholder')}
+            placeholder={t('bud.namePlaceholder')}
             class="input"
             style="height:40px;"
             onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCategory(); } }}
@@ -379,10 +379,10 @@
           <div style="display:flex;gap:8px;">
             <button type="button" class="btn btn-primary"
               style="flex:2;height:40px;justify-content:center;font-size:14px;"
-              onclick={addCategory}>{$t('bud.add')}</button>
+              onclick={addCategory}>{t('bud.add')}</button>
             <button type="button" class="btn btn-ghost"
               style="flex:1;height:40px;justify-content:center;font-size:14px;"
-              onclick={() => { showAddForm = false; newCatName = ''; }}>{$t('edit.cancel')}</button>
+              onclick={() => { showAddForm = false; newCatName = ''; }}>{t('edit.cancel')}</button>
           </div>
         </div>
       {:else}
@@ -395,7 +395,7 @@
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
             <line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/>
           </svg>
-          {$t('bud.addCategory')}
+          {t('bud.addCategory')}
         </button>
       {/if}
       {/if}
@@ -411,7 +411,7 @@
     ">
       <button type="submit" class="btn btn-primary"
         style="width:100%;height:44px;justify-content:center;font-size:15px;font-weight:600;">
-        {$t('bud.save')}
+        {t('bud.save')}
       </button>
     </div>
     {/if}

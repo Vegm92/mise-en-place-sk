@@ -44,13 +44,13 @@
   }
 
   function label(value: Label): string {
-    return typeof value === 'string' ? $t(value) : $tiv(value.key, value.vars);
+    return typeof value === 'string' ? t(value) : tiv(value.key, value.vars);
   }
 
   function text(cell: Cell): string {
     const kind = cellKind(cell);
-    if (kind === 'cat') return $tcat(cellText(cell));
-    if (kind === 'key') return $t(cellText(cell));
+    if (kind === 'cat') return tcat(cellText(cell));
+    if (kind === 'key') return t(cellText(cell));
     return cellText(cell);
   }
 
@@ -95,22 +95,22 @@
   <div class="report-toolbar" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;">
     <a href="/reports" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--mep-fg-3);">
       <ArrowLeft size={14} />
-      {$t('rep.back')}
+      {t('rep.back')}
     </a>
     <div style="flex:1;"></div>
     <button type="button" onclick={() => window.print()} class="rep-action">
       <Printer size={14} />
-      {$t('rep.printPdf')}
+      {t('rep.printPdf')}
     </button>
     <a href={csvHref} class="rep-action" data-sveltekit-reload>
       <Download size={14} />
-      {$t('rep.downloadCsv')}
+      {t('rep.downloadCsv')}
     </a>
     {#if data.shareWeek && !shareToken}
       <form method="post" action="?/share" use:enhance={shareResult} style="display:contents;">
         <button type="submit" class="rep-action" disabled={shareSubmitting}>
           <Share size={14} />
-          {$t('dshare.button')}
+          {t('dshare.button')}
         </button>
       </form>
     {/if}
@@ -121,37 +121,37 @@
       <input
         readonly
         value={shareUrl}
-        aria-label={$t('dshare.linkLabel')}
+        aria-label={t('dshare.linkLabel')}
         class="input"
         style="flex:1;min-width:200px;"
         onclick={(e) => (e.currentTarget as HTMLInputElement).select()}
       />
       <button type="button" class="rep-action" onclick={copyShareLink}>
         <Copy size={14} />
-        {shareCopied ? $t('dshare.copied') : $t('dshare.copy')}
+        {shareCopied ? t('dshare.copied') : t('dshare.copy')}
       </button>
       <form method="post" action="?/revokeShare" use:enhance={shareResult} style="display:contents;">
         <button type="submit" class="rep-action" disabled={shareSubmitting}>
           <X size={14} />
-          {$t('dshare.revoke')}
+          {t('dshare.revoke')}
         </button>
       </form>
     </div>
   {/if}
   {#if shareError}
-    <p style="font-size:11px;color:var(--mep-neg);margin:0;">{$t('dshare.error')}</p>
+    <p style="font-size:11px;color:var(--mep-neg);margin:0;">{t('dshare.error')}</p>
   {/if}
 
   <div class="report-toolbar" style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;">
     <div style="display:flex;gap:6px;align-items:center;">
-      <span style="font-size:11px;color:var(--mep-fg-3);">{$t('rep.section.style')}</span>
+      <span style="font-size:11px;color:var(--mep-fg-3);">{t('rep.section.style')}</span>
       {#each REPORT_STYLES as style (style)}
-        <a href={href({ style })} class="rep-pill" data-on={data.style === style}>{$t(`rep.style.${style}`)}</a>
+        <a href={href({ style })} class="rep-pill" data-on={data.style === style}>{t(`rep.style.${style}`)}</a>
       {/each}
     </div>
     {#if data.periods.length > 1}
       <div style="display:flex;gap:6px;align-items:center;">
-        <span style="font-size:11px;color:var(--mep-fg-3);">{$t('rep.section.period')}</span>
+        <span style="font-size:11px;color:var(--mep-fg-3);">{t('rep.section.period')}</span>
         {#each data.periods as period (period)}
           <a href={href({ period })} class="rep-pill" data-on={doc.periodIso === period}>{period}</a>
         {/each}
@@ -164,27 +164,27 @@
     <div class="rep-head">
       <div style="display:flex;flex-direction:column;gap:1px;">
         <span class="rep-brand">Mise en Place</span>
-        <span class="rep-muted">{$t('rep.internalDoc')}</span>
+        <span class="rep-muted">{t('rep.internalDoc')}</span>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
-        <span class="rep-eyebrow">{$t(doc.eyebrow)}</span>
-        <span class="rep-muted">{$ti('rep.generatedAt', { at: doc.generatedAt })}</span>
+        <span class="rep-eyebrow">{t(doc.eyebrow)}</span>
+        <span class="rep-muted">{ti('rep.generatedAt', { at: doc.generatedAt })}</span>
       </div>
     </div>
 
     <div style="display:flex;flex-direction:column;gap:4px;">
-      <h1 class="rep-title">{$t(doc.heading)}</h1>
+      <h1 class="rep-title">{t(doc.heading)}</h1>
       <p class="rep-sub">{label(doc.subheading)}</p>
     </div>
 
     {#if doc.empty}
-      <p class="rep-empty">{$t('rep.empty')}</p>
+      <p class="rep-empty">{t('rep.empty')}</p>
     {:else}
 
       <div class="rep-kpis">
         {#each doc.kpis as kpi (kpi.label)}
           <div class="rep-kpi" data-warn={kpi.tone === 'warn'}>
-            <span class="rep-kpi-label">{$t(kpi.label)}</span>
+            <span class="rep-kpi-label">{t(kpi.label)}</span>
             <span class="rep-kpi-value num">{kpi.value}</span>
             {#if kpi.note}
               <span class="rep-kpi-note num" style="color:{kpiColor(kpi.tone)};">{label(kpi.note)}</span>
@@ -195,7 +195,7 @@
 
       {#if doc.summary}
         <div class="rep-summary">
-          <span class="rep-eyebrow">{$t('rep.summary')}</span>
+          <span class="rep-eyebrow">{t('rep.summary')}</span>
           <p class="rep-summary-text">{doc.summary}</p>
         </div>
       {/if}
@@ -203,8 +203,8 @@
       {#if doc.bars.length}
         <div class="rep-chart-block">
           <div style="display:flex;align-items:baseline;justify-content:space-between;gap:16px;">
-            <h2 class="rep-h2">{$t(doc.chartTitle ?? '')}</h2>
-            {#if doc.chartNote}<span class="rep-muted">{$t(doc.chartNote)}</span>{/if}
+            <h2 class="rep-h2">{t(doc.chartTitle ?? '')}</h2>
+            {#if doc.chartNote}<span class="rep-muted">{t(doc.chartNote)}</span>{/if}
           </div>
           <div class="rep-chart">
             {#each doc.bars as bar (label(bar.label))}
@@ -223,13 +223,13 @@
       {/if}
 
       <div style="display:flex;flex-direction:column;gap:9px;">
-        <h2 class="rep-h2">{$t(doc.tableTitle)}</h2>
-        <ScrollStrip padding="0" leadIn="0" gap="0" label={$t(doc.tableTitle)}>
+        <h2 class="rep-h2">{t(doc.tableTitle)}</h2>
+        <ScrollStrip padding="0" leadIn="0" gap="0" label={t(doc.tableTitle)}>
         <table class="rep-table">
           <thead>
             <tr>
               {#each doc.columns as col (col.key)}
-                <th class:n={col.numeric}>{$t(col.label)}</th>
+                <th class:n={col.numeric}>{t(col.label)}</th>
               {/each}
             </tr>
           </thead>
@@ -260,7 +260,7 @@
     {/if}
 
     <div class="rep-foot">
-      <span>{$t('rep.internalDoc')}</span>
+      <span>{t('rep.internalDoc')}</span>
       <span class="num">{doc.periodIso}</span>
     </div>
 

@@ -21,9 +21,9 @@ describe('DesktopSupplierDetail danger-button color token (issue #608)', () => {
 
   it('uses the neg token utility for the confirm-delete title text', () => {
     expect(source).toContain(
-      'class="body-strong text-neg mb-2">{$t(\'sup.confirmDelete.title\')}',
+      'class="body-strong text-neg mb-2">{t(\'sup.confirmDelete.title\')}',
     );
-    expect(source).not.toContain("style=\"color:#E05555;margin-bottom:8px;\">{$t('sup.confirmDelete.title')}");
+    expect(source).not.toContain("style=\"color:#E05555;margin-bottom:8px;\">{t('sup.confirmDelete.title')}");
   });
 
   it('uses the neg/neg-fg token utilities for the confirm-delete submit button background/border', () => {

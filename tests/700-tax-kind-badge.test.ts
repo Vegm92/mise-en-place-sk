@@ -42,12 +42,12 @@ describe('review footer tax-kind badges (PR #700)', () => {
 		const foot = footer();
 		expect(foot).toMatch(/\{#each bandKinds as kind\}/);
 		expect(foot).toMatch(/kind === 'rec' \? 'badge-pending' : 'badge-exported'/);
-		expect(foot).toMatch(/kind === 'rec' \? \$t\('review\.taxRec'\) : \$t\('review\.taxIva'\)/);
+		expect(foot).toMatch(/kind === 'rec' \? t\('review\.taxRec'\) : t\('review\.taxIva'\)/);
 	});
 
 	it('spells out the surcharge on hover rather than leaving REC unexplained', () => {
 		expect(footer()).toMatch(
-			/title=\{kind === 'rec' \? \$t\('review\.taxRecFull'\) : \$t\('review\.taxIva'\)\}/
+			/title=\{kind === 'rec' \? t\('review\.taxRecFull'\) : t\('review\.taxIva'\)\}/
 		);
 	});
 

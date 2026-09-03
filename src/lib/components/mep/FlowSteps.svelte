@@ -4,7 +4,7 @@
 
 	const { active = 0, size = 'md' }: { active?: number; size?: 'sm' | 'md' } = $props();
 
-	const STEPS = $derived([$t('steps.upload'), $t('steps.extract'), $t('steps.review')]);
+	const STEPS = $derived([t('steps.upload'), t('steps.extract'), t('steps.review')]);
 
 	const dot = $derived(size === 'sm' ? 18 : 22);
 	const label = $derived(size === 'sm' ? 12 : 13);

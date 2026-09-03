@@ -42,8 +42,8 @@
     class="btn btn-ghost"
     style="width:34px;height:34px;padding:0;justify-content:center;position:relative;"
     onclick={toggleOpen}
-    title={$t('a11y.notifications')}
-    aria-label={count > 0 ? $tiv('a11y.notificationsCount', { n: count > 9 ? '9+' : count }) : $t('a11y.notifications')}
+    title={t('a11y.notifications')}
+    aria-label={count > 0 ? tiv('a11y.notificationsCount', { n: count > 9 ? '9+' : count }) : t('a11y.notifications')}
   >
     <Bell size={15} />
     {#if count > 0}
@@ -77,18 +77,18 @@
       "
     >
       <div style="padding:12px 14px 8px;border-bottom:1px solid var(--mep-divider);display:flex;align-items:center;justify-content:space-between;">
-        <span style="font-size:13px;font-weight:600;color:var(--mep-fg);">{$t('notif.title')}</span>
+        <span style="font-size:13px;font-weight:600;color:var(--mep-fg);">{t('notif.title')}</span>
         {#if count > 0}
           <button
             style="font-size:11px;color:var(--mep-fg-3);background:none;border:none;cursor:pointer;padding:0;"
             onclick={async () => { for (const n of [...items]) await dismiss(n.id); }}
-          >{$t('notif.clearAll')}</button>
+          >{t('notif.clearAll')}</button>
         {/if}
       </div>
 
       {#if items.length === 0}
         <div style="padding:24px 14px;text-align:center;color:var(--mep-fg-3);font-size:13px;">
-          {$t('notif.empty')}
+          {t('notif.empty')}
         </div>
       {:else}
         {#each preview as n (n.id)}
@@ -103,12 +103,12 @@
               <Ic size={14} />
             </div>
             <div style="flex:1;min-width:0;font-size:12.5px;color:var(--mep-fg);line-height:1.4;">
-              {notificationMessage(n, $tiv)}
+              {notificationMessage(n, tiv)}
             </div>
             <button
               style="flex-shrink:0;background:none;border:none;cursor:pointer;color:var(--mep-fg-3);padding:2px;margin-top:-1px;"
               onclick={() => dismiss(n.id)}
-              aria-label={$t('a11y.dismiss')}
+              aria-label={t('a11y.dismiss')}
             >
               <X size={12} />
             </button>
@@ -123,7 +123,7 @@
           padding:10px 14px;text-align:center;font-size:12px;font-weight:600;
           color:var(--mep-acc);text-decoration:none;border-top:1px solid var(--mep-divider);
         "
-      >{$t('action.allAlerts')}</a>
+      >{t('action.allAlerts')}</a>
     </div>
   {/if}
 </div>

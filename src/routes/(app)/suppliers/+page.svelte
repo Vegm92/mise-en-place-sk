@@ -31,9 +31,9 @@
   const hasFilters         = $derived(Boolean(data.search || data.category || data.uncategorizedOnly || data.badge));
 
   const unassignedSub = $derived.by(() => {
-    if (unassigned === 0) return $t('dsup.allAssigned');
+    if (unassigned === 0) return t('dsup.allAssigned');
     if (unassigned === 1) return firstUnassigned;
-    return $ti('dsup.nSuppliers', { n: unassigned });
+    return ti('dsup.nSuppliers', { n: unassigned });
   });
 
   let view    = $state<'list' | 'chart'>('list');
@@ -74,7 +74,7 @@
   const periodPills = $derived(PERIOD_PILLS.map(p => {
     const params = new URLSearchParams(page.url.searchParams);
     params.set('period', p.value);
-    return { value: p.value, label: $t(p.labelKey), href: `/suppliers?${params.toString()}` };
+    return { value: p.value, label: t(p.labelKey), href: `/suppliers?${params.toString()}` };
   }));
 
   let trendSelection = $state<string[]>([]);
@@ -125,20 +125,20 @@
   <ListPageTemplate
     dataCoach="suppliers-main"
     bind:view
-    viewLabels={{ list: $t('tpl.view.list'), chart: $t('tpl.view.chart') }}
+    viewLabels={{ list: t('tpl.view.list'), chart: t('tpl.view.chart') }}
     kpis={[
-      { key: 'count',     label: $t('dsup.activeSuppliers'), value: data.suppliers.length, sub: $t('dsup.inTotal') },
-      { key: 'spend',     label: $t('spend.totalSpend'),     value: fmtEur(totalSpend, $locale),     sub: $t('dash.category.sub') },
-      { key: 'invoices',  label: $t('nav.invoices'),         value: totalMonthInvoices,     sub: $t('dash.category.sub') },
-      { key: 'unassigned',label: $t('dsup.unassigned'),      value: unassigned, sub: unassignedSub, variant: unassigned > 0 ? 'warn' : 'default' },
+      { key: 'count',     label: t('dsup.activeSuppliers'), value: data.suppliers.length, sub: t('dsup.inTotal') },
+      { key: 'spend',     label: t('spend.totalSpend'),     value: fmtEur(totalSpend, locale.current),     sub: t('dash.category.sub') },
+      { key: 'invoices',  label: t('nav.invoices'),         value: totalMonthInvoices,     sub: t('dash.category.sub') },
+      { key: 'unassigned',label: t('dsup.unassigned'),      value: unassigned, sub: unassignedSub, variant: unassigned > 0 ? 'warn' : 'default' },
     ]}
-    trendTitle={$t('sup.trend.title')}
+    trendTitle={t('sup.trend.title')}
     trendBadges={data.trendData.series.map(s => ({ key: s.key, label: s.label, color: categoryColor(s.key), active: activeTrendKeys.includes(s.key) }))}
     onToggleTrendBadge={toggleTrendBadge}
     trendXLabels={data.trendData.xLabels}
     {trendSeries}
     trendValueFormatter={fmtEur}
-    trendEmptyLabel={$t('tpl.trend.empty')}
+    trendEmptyLabel={t('tpl.trend.empty')}
   >
     {#snippet filters()}
       <button type="button" class="btn btn-ghost"
@@ -147,7 +147,7 @@
         aria-controls="sup-filter-panel"
         onclick={() => (filtersOpen = !filtersOpen)}>
         <SlidersHorizontal size={13} />
-        {$t('tpl.filter.toggle')}
+        {t('tpl.filter.toggle')}
         {#if activeFilterCount > 0}
           <span class="badge bg-acc-soft text-acc border border-acc"
             style="min-width:18px;height:18px;padding:0 5px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;">
@@ -161,7 +161,7 @@
 
       {#if activeFilterCount > 0}
         <button type="button" class="btn btn-ghost" style="font-size:13px;" onclick={clearFilters}>
-          {$t('tpl.filter.clear')}
+          {t('tpl.filter.clear')}
         </button>
       {/if}
 
@@ -169,7 +169,7 @@
       <button class="btn btn-secondary"
         style="font-size:12.5px;display:inline-flex;align-items:center;gap:6px;"
         onclick={() => showAdd = true}>
-        <Plus size={13} /> {$t('dsup.addSupplier')}
+        <Plus size={13} /> {t('dsup.addSupplier')}
       </button>
 
       <div id="sup-filter-panel" style="width:100%;">
@@ -179,20 +179,20 @@
               <span class="search-icon"><Search size={13} /></span>
               <input type="search" class="input"
                 style="padding-left:32px;min-width:220px;"
-                placeholder={$t('sup.searchPlaceholder')}
-                aria-label={$t('sup.searchPlaceholder')}
+                placeholder={t('sup.searchPlaceholder')}
+                aria-label={t('sup.searchPlaceholder')}
                 bind:value={search} />
             </div>
 
             <div style="position:relative;">
               <select class="btn btn-secondary"
                 style="appearance:none;padding:0 28px 0 10px;cursor:pointer;min-width:130px;"
-                aria-label={$t('sup.filterAllCategories')}
+                aria-label={t('sup.filterAllCategories')}
                 value={data.category}
                 onchange={(e) => applyFilters({ category: e.currentTarget.value || null })}>
-                <option value="">{$t('sup.filterAllCategories')}</option>
+                <option value="">{t('sup.filterAllCategories')}</option>
                 {#each data.categories as cat}
-                  <option value={cat}>{$tcat(cat)}</option>
+                  <option value={cat}>{tcat(cat)}</option>
                 {/each}
               </select>
               <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:11px;">▾</span>
@@ -201,24 +201,24 @@
             <div style="position:relative;">
               <select class="btn btn-secondary"
                 style="appearance:none;padding:0 28px 0 10px;cursor:pointer;min-width:160px;"
-                aria-label={$t('dsup.activityAll')}
+                aria-label={t('dsup.activityAll')}
                 value={data.badge}
                 onchange={(e) => applyFilters({ badge: e.currentTarget.value || null })}>
-                <option value="">{$t('dsup.activityAll')}</option>
-                <option value="overdue">{$t('status.overdue')}</option>
-                <option value="due_soon">{$t('status.due_soon')}</option>
-                <option value="paid_up">{$t('status.paid')}</option>
+                <option value="">{t('dsup.activityAll')}</option>
+                <option value="overdue">{t('status.overdue')}</option>
+                <option value="due_soon">{t('status.due_soon')}</option>
+                <option value="paid_up">{t('status.paid')}</option>
               </select>
               <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:11px;">▾</span>
             </div>
             <div style="position:relative;">
               <select class="btn btn-secondary"
                 style="appearance:none;padding:0 28px 0 10px;cursor:pointer;min-width:190px;"
-                aria-label={$t('sup.sort.label')}
+                aria-label={t('sup.sort.label')}
                 value={data.sort}
                 onchange={(e) => applyFilters({ sort: e.currentTarget.value })}>
                 {#each SUPPLIER_SORT_KEYS as key}
-                  <option value={key}>{$t(SUPPLIER_SORT_LABEL_KEYS[key])}</option>
+                  <option value={key}>{t(SUPPLIER_SORT_LABEL_KEYS[key])}</option>
                 {/each}
               </select>
               <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:11px;">▾</span>
@@ -230,7 +230,7 @@
                 border-color:{data.uncategorizedOnly ? 'var(--mep-acc)' : 'var(--mep-border)'};
                 color:{data.uncategorizedOnly ? 'var(--mep-acc)' : 'var(--mep-fg-2)'};"
               onclick={() => applyFilters({ uncategorized: data.uncategorizedOnly ? null : '1' })}>
-              {$t('sup.filterUncategorized')}
+              {t('sup.filterUncategorized')}
             </button>
           </div>
         {/if}
@@ -241,12 +241,12 @@
       {#if !data.suppliers.length}
         <div style="text-align:center;padding:48px 24px;display:flex;flex-direction:column;align-items:center;gap:8px;">
           {#if hasFilters}
-            <p class="body" style="color:var(--mep-fg-3);">{$t('sup.noResults')}</p>
+            <p class="body" style="color:var(--mep-fg-3);">{t('sup.noResults')}</p>
           {:else}
             <div style="font-size:28px;margin-bottom:4px;opacity:0.3;">🏪</div>
-            <p class="body-strong" style="color:var(--mep-fg-2);">{$t('sup.emptyTitle')}</p>
-            <p class="body" style="color:var(--mep-fg-3);max-width:320px;">{$t('sup.emptyDesc')}</p>
-            <a href="/" class="btn btn-primary" style="height:34px;font-size:13px;text-decoration:none;margin-top:8px;">{$t('action.upload')}</a>
+            <p class="body-strong" style="color:var(--mep-fg-2);">{t('sup.emptyTitle')}</p>
+            <p class="body" style="color:var(--mep-fg-3);max-width:320px;">{t('sup.emptyDesc')}</p>
+            <a href="/" class="btn btn-primary" style="height:34px;font-size:13px;text-decoration:none;margin-top:8px;">{t('action.upload')}</a>
           {/if}
         </div>
       {:else}
@@ -254,15 +254,15 @@
           <table class="tbl" style="table-layout:fixed;">
             <thead>
               <tr>
-                <th style="width:24%;">{$t('tbl.supplier')}</th>
-                <th style="width:100px;">{$t('sup.field.cif')}</th>
-                <th style="width:120px;">{$t('sup.field.category')}</th>
-                <th class="num" style="width:75px;">{$t('nav.invoices')}</th>
-                <th class="num" style="width:115px;">{$t('tbl.spendMonth')}</th>
-                <th class="num" style="width:115px;">{$t('tbl.spendTotal')}</th>
-                <th style="width:90px;">{$t('tbl.trend')}</th>
+                <th style="width:24%;">{t('tbl.supplier')}</th>
+                <th style="width:100px;">{t('sup.field.cif')}</th>
+                <th style="width:120px;">{t('sup.field.category')}</th>
+                <th class="num" style="width:75px;">{t('nav.invoices')}</th>
+                <th class="num" style="width:115px;">{t('tbl.spendMonth')}</th>
+                <th class="num" style="width:115px;">{t('tbl.spendTotal')}</th>
+                <th style="width:90px;">{t('tbl.trend')}</th>
                 <th class="num" style="width:65px;">Δ</th>
-                <th style="width:100px;">{$t('tbl.lastOrder')}</th>
+                <th style="width:100px;">{t('tbl.lastOrder')}</th>
                 <th style="width:32px;"></th>
               </tr>
             </thead>
@@ -284,7 +284,7 @@
                           flex-shrink:0;font-size:11px;font-weight:700;
                           background:var(--mep-acc-soft);color:var(--mep-acc);
                           padding:1px 5px;border-radius:999px;letter-spacing:0.03em;
-                        ">{$t('dsup.newBadge')}</span>
+                        ">{t('dsup.newBadge')}</span>
                       {/if}
                     </div>
                   </td>
@@ -294,12 +294,12 @@
                       color:{s.category === 'Other' ? 'var(--mep-fg-3)' : 'var(--mep-fg-2)'};
                       font-style:{s.category === 'Other' ? 'italic' : 'normal'};">
                       <span class="swatch" style="background:{categoryColor(s.category)};"></span>
-                      {$tcat(s.category)}
+                      {tcat(s.category)}
                     </span>
                   </td>
                   <td class="num" style="font-size:12.5px;color:var(--mep-fg-2);">{s.invoice_count}</td>
-                  <td class="num" style="font-weight:500;">{fmtEur(s.month_spend ?? 0, $locale)}</td>
-                  <td class="num" style="font-size:12.5px;color:var(--mep-fg-2);">{fmtEur(s.total_spend ?? 0, $locale)}</td>
+                  <td class="num" style="font-weight:500;">{fmtEur(s.month_spend ?? 0, locale.current)}</td>
+                  <td class="num" style="font-size:12.5px;color:var(--mep-fg-2);">{fmtEur(s.total_spend ?? 0, locale.current)}</td>
                   <td style="padding:0 8px;">
                     {#if s.price_trend && s.price_trend.length >= 3}
                       <Sparkline values={s.price_trend} width={80} height={24} />
@@ -318,7 +318,7 @@
                       </span>
                     {/if}
                   </td>
-                  <td class="num" style="font-size:12.5px;color:var(--mep-fg-2);">{fmtDateShort(s.last_invoice_date, $locale)}</td>
+                  <td class="num" style="font-size:12.5px;color:var(--mep-fg-2);">{fmtDateShort(s.last_invoice_date, locale.current)}</td>
                   <td style="text-align:right;">
                     <ChevronRight size={13} style="color:var(--mep-fg-3);" />
                   </td>
@@ -339,26 +339,26 @@
     onkeydown={(e) => { if (e.key === 'Escape') showAdd = false; }}>
     <div class="card" style="width:360px;padding:24px;display:flex;flex-direction:column;gap:16px;"
       role="presentation" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
-      <p class="body-strong" style="font-size:16px;margin:0;">{$t('dsup.addSupplier')}</p>
+      <p class="body-strong" style="font-size:16px;margin:0;">{t('dsup.addSupplier')}</p>
       <form method="POST" action="?/create" style="display:flex;flex-direction:column;gap:12px;">
         <div style="display:flex;flex-direction:column;gap:4px;">
-          <label class="label" for="sup-name">{$t('tbl.supplier')}</label>
+          <label class="label" for="sup-name">{t('tbl.supplier')}</label>
           <input id="sup-name" name="name" class="input" required
             style="height:36px;" />
         </div>
         <div style="display:flex;flex-direction:column;gap:4px;">
-          <label class="label" for="sup-cat">{$t('sup.field.category')}</label>
+          <label class="label" for="sup-cat">{t('sup.field.category')}</label>
           <select id="sup-cat" name="category" class="input" style="height:36px;">
             <option value="">—</option>
             {#each data.categories as cat}
-              <option value={cat}>{$tcat(cat)}</option>
+              <option value={cat}>{tcat(cat)}</option>
             {/each}
           </select>
         </div>
         <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">
           <button type="button" class="btn btn-secondary" style="height:34px;font-size:13px;"
-            onclick={() => showAdd = false}>{$t('action.cancel')}</button>
-          <button type="submit" class="btn btn-primary" style="height:34px;font-size:13px;">{$t('set.save')}</button>
+            onclick={() => showAdd = false}>{t('action.cancel')}</button>
+          <button type="submit" class="btn btn-primary" style="height:34px;font-size:13px;">{t('set.save')}</button>
         </div>
       </form>
     </div>

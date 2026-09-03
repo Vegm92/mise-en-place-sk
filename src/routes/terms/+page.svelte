@@ -1,10 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { locale, initLocale } from '$lib/i18n';
+  import { locale, initLocale, toggleLocale } from '$lib/i18n';
 
   onMount(() => { initLocale(); });
 
-  function toggleLocale() { locale.update((l) => (l === 'es' ? 'en' : 'es')); }
 
   const copy = {
     es: {
@@ -135,7 +134,7 @@
     },
   } as const;
 
-  const c = $derived(copy[$locale]);
+  const c = $derived(copy[locale.current]);
 </script>
 
 <svelte:head>
@@ -146,7 +145,7 @@
   <article>
     <div class="topbar">
       <a class="back" href="/">{c.back}</a>
-      <button type="button" class="lang-toggle" onclick={toggleLocale}>{$locale === 'es' ? 'EN' : 'ES'}</button>
+      <button type="button" class="lang-toggle" onclick={toggleLocale}>{locale.current === 'es' ? 'EN' : 'ES'}</button>
     </div>
 
     <h1>{c.title}</h1>

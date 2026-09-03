@@ -15,27 +15,27 @@
   };
 </script>
 
-<AdminPageHead route="/admin/health" title={$t('admin.systemHealth')} subtitle={$t('admin.healthSubtitle')} />
+<AdminPageHead route="/admin/health" title={t('admin.systemHealth')} subtitle={t('admin.healthSubtitle')} />
 
 <div class="hud-page px-3 md:px-6 pb-6 flex flex-col gap-2.5">
 
-  <HudPanel title={$t('admin.status')} sub={$ti('admin.checkedAt', { time: new Date(data.checkedAt).toLocaleString('en-GB') })}>
+  <HudPanel title={t('admin.status')} sub={ti('admin.checkedAt', { time: new Date(data.checkedAt).toLocaleString('en-GB') })}>
     <div class="hud-kpi-row">
       <div class="hud-kpi">
-        <div class="hud-kpi-label">{$t('admin.status')}</div>
+        <div class="hud-kpi-label">{t('admin.status')}</div>
         <div class="hud-kpi-value" class:good={isOk} class:bad={!isOk}>{data.overallStatus.toUpperCase()}</div>
       </div>
     </div>
   </HudPanel>
 
-  <HudPanel title={$t('admin.checksTitle')}>
+  <HudPanel title={t('admin.checksTitle')}>
     <AdminTableScroll>
       <table class="hud-table">
         <thead>
           <tr>
-            <th scope="col" class="l">{$t('admin.colCheck')}</th>
-            <th scope="col" class="l">{$t('admin.colStatus')}</th>
-            <th scope="col" class="l">{$t('admin.colDetail')}</th>
+            <th scope="col" class="l">{t('admin.colCheck')}</th>
+            <th scope="col" class="l">{t('admin.colStatus')}</th>
+            <th scope="col" class="l">{t('admin.colDetail')}</th>
           </tr>
         </thead>
         <tbody>
@@ -57,16 +57,16 @@
   </HudPanel>
 
   {#if data.stuckItems.length > 0}
-    <HudPanel title={$t('admin.health.stuckTitle')} sub={$t('admin.health.stuckSubtitle')}>
+    <HudPanel title={t('admin.health.stuckTitle')} sub={t('admin.health.stuckSubtitle')}>
       <AdminTableScroll>
         <table class="hud-table">
           <thead>
             <tr>
-              <th scope="col" class="l">{$t('admin.colRestaurant')}</th>
-              <th scope="col" class="l">{$t('admin.health.colFile')}</th>
-              <th scope="col" class="l">{$t('admin.colStatus')}</th>
-              <th scope="col" class="r">{$t('admin.health.colStuckSince')}</th>
-              <th scope="col" class="r">{$t('admin.dlq.colActions')}</th>
+              <th scope="col" class="l">{t('admin.colRestaurant')}</th>
+              <th scope="col" class="l">{t('admin.health.colFile')}</th>
+              <th scope="col" class="l">{t('admin.colStatus')}</th>
+              <th scope="col" class="r">{t('admin.health.colStuckSince')}</th>
+              <th scope="col" class="r">{t('admin.dlq.colActions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -82,7 +82,7 @@
                   <form method="POST" action="?/retry" class="inline">
                     <input type="hidden" name="id" value={item.id} />
                     <input type="hidden" name="restaurantId" value={item.restaurantId} />
-                    <button type="submit" class="btn btn-secondary text-[11px] px-2 py-[3px]">{$t('admin.health.retry')}</button>
+                    <button type="submit" class="btn btn-secondary text-[11px] px-2 py-[3px]">{t('admin.health.retry')}</button>
                   </form>
                 </td>
               </tr>
@@ -94,16 +94,16 @@
   {/if}
 
   {#if data.whatsapp}
-    <HudPanel title={$t('admin.wa.numberHealth')}>
+    <HudPanel title={t('admin.wa.numberHealth')}>
       <div class="p-3 flex flex-col gap-3">
         {#if !data.whatsapp.health.everReported}
           <p class="m-0 text-[12px]" style="color:#5b6472;">
-            {$ti('admin.wa.noEvents', { fields: 'account_update / phone_number_quality_update' })}
+            {ti('admin.wa.noEvents', { fields: 'account_update / phone_number_quality_update' })}
           </p>
         {:else}
           <div class="hud-kpi-row">
             <div class="hud-kpi">
-              <div class="hud-kpi-label">{$t('admin.wa.quality')}</div>
+              <div class="hud-kpi-label">{t('admin.wa.quality')}</div>
               <div class="hud-kpi-value"
                 class:good={data.whatsapp.health.qualityRating === 'GREEN'}
                 class:warn={data.whatsapp.health.qualityRating === 'YELLOW'}
@@ -112,11 +112,11 @@
               </div>
             </div>
             <div class="hud-kpi">
-              <div class="hud-kpi-label">{$t('admin.wa.messagingLimit')}</div>
+              <div class="hud-kpi-label">{t('admin.wa.messagingLimit')}</div>
               <div class="hud-kpi-value">{data.whatsapp.health.messagingLimit ?? 'unknown'}</div>
             </div>
             <div class="hud-kpi">
-              <div class="hud-kpi-label">{$t('admin.wa.worst30d')}</div>
+              <div class="hud-kpi-label">{t('admin.wa.worst30d')}</div>
               <div><AdminStatusBadge status={SEVERITY_STATUS[data.whatsapp.health.severity]} /></div>
             </div>
           </div>
@@ -127,10 +127,10 @@
             <table class="hud-table">
               <thead>
                 <tr>
-                  <th scope="col" class="l">{$t('admin.wa.colWhen')}</th>
-                  <th scope="col" class="l">{$t('admin.wa.colEvent')}</th>
-                  <th scope="col" class="l">{$t('admin.wa.colSeverity')}</th>
-                  <th scope="col" class="l">{$t('admin.wa.quality')}</th>
+                  <th scope="col" class="l">{t('admin.wa.colWhen')}</th>
+                  <th scope="col" class="l">{t('admin.wa.colEvent')}</th>
+                  <th scope="col" class="l">{t('admin.wa.colSeverity')}</th>
+                  <th scope="col" class="l">{t('admin.wa.quality')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -150,7 +150,7 @@
         {/if}
 
         {#if data.whatsapp.tenants.length > 0}
-          <div style="font:600 10px/1 ui-monospace, monospace;letter-spacing:0.12em;text-transform:uppercase;color:#e7edf5;">{$t('admin.wa.tenantSenders')}</div>
+          <div style="font:600 10px/1 ui-monospace, monospace;letter-spacing:0.12em;text-transform:uppercase;color:#e7edf5;">{t('admin.wa.tenantSenders')}</div>
           <AdminTableScroll>
             <table class="hud-table">
               <tbody>
@@ -169,13 +169,13 @@
   {/if}
 
   {#if data.tableCounts.length > 0}
-    <HudPanel title={$t('admin.tableRowCounts')}>
+    <HudPanel title={t('admin.tableRowCounts')}>
       <AdminTableScroll>
         <table class="hud-table">
           <thead>
             <tr>
-              <th scope="col" class="l">{$t('admin.colTable')}</th>
-              <th scope="col" class="r">{$t('admin.colRowsEst')}</th>
+              <th scope="col" class="l">{t('admin.colTable')}</th>
+              <th scope="col" class="r">{t('admin.colRowsEst')}</th>
             </tr>
           </thead>
           <tbody>
@@ -191,6 +191,6 @@
     </HudPanel>
   {/if}
 
-  <a href="/admin" class="text-[13px] text-acc no-underline">{$t('admin.backToOverview')}</a>
+  <a href="/admin" class="text-[13px] text-acc no-underline">{t('admin.backToOverview')}</a>
 
 </div>

@@ -18,8 +18,8 @@
 		if (!data.createdAt) return null;
 		const d = new Date(data.createdAt);
 		if (isNaN(d.getTime())) return null;
-		const day = d.toLocaleDateString($locale, { day: 'numeric', month: 'short' });
-		const time = d.toLocaleTimeString($locale, { hour: '2-digit', minute: '2-digit' });
+		const day = d.toLocaleDateString(locale.current, { day: 'numeric', month: 'short' });
+		const time = d.toLocaleTimeString(locale.current, { hour: '2-digit', minute: '2-digit' });
 		return `${day} · ${time}`;
 	});
 
@@ -30,20 +30,20 @@
 	);
 
 	const steps = $derived([
-		{ key: 'done', title: $t('waitroom.step.created'), meta: createdLabel },
+		{ key: 'done', title: t('waitroom.step.created'), meta: createdLabel },
 		{
 			key: 'now',
-			title: $t('waitroom.step.queue'),
+			title: t('waitroom.step.queue'),
 			meta: data.queuePosition !== null && data.queueTotal !== null
-				? $ti('waitroom.step.queueMeta', { position: data.queuePosition, total: data.queueTotal })
+				? ti('waitroom.step.queueMeta', { position: data.queuePosition, total: data.queueTotal })
 				: null,
 		},
-		{ key: 'next', title: $t('waitroom.step.open'), meta: $t('waitroom.step.openMeta') },
+		{ key: 'next', title: t('waitroom.step.open'), meta: t('waitroom.step.openMeta') },
 	]);
 </script>
 
 <svelte:head>
-	<title>{$t('waitroom.title')} · Mise en Place</title>
+	<title>{t('waitroom.title')} · Mise en Place</title>
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
@@ -57,9 +57,9 @@
 		<div class="auth-spacer"></div>
 
 		<div class="auth-copy">
-			<div class="auth-eyebrow">{$t('waitroom.aside.eyebrow')}</div>
-			<div class="auth-aside-title">{$t('waitroom.aside.title')}</div>
-			<div class="auth-aside-body">{$t('waitroom.aside.body')}</div>
+			<div class="auth-eyebrow">{t('waitroom.aside.eyebrow')}</div>
+			<div class="auth-aside-title">{t('waitroom.aside.title')}</div>
+			<div class="auth-aside-body">{t('waitroom.aside.body')}</div>
 		</div>
 
 		<ol class="auth-steps">
@@ -87,7 +87,7 @@
 
 		<div class="auth-spacer"></div>
 
-		<p class="auth-aside-note">{$t('waitroom.aside.note')}</p>
+		<p class="auth-aside-note">{t('waitroom.aside.note')}</p>
 	</aside>
 
 	<main class="auth-main">
@@ -95,10 +95,10 @@
 
 			<div class="auth-head">
 				<span class="badge badge-pending auth-mono auth-status">
-					<Clock size={10} /> {$t('waitroom.waiting')}
+					<Clock size={10} /> {t('waitroom.waiting')}
 				</span>
-				<h1 class="auth-h1">{$t('waitroom.headline')}</h1>
-				<p class="auth-sub">{$t('waitroom.body')}</p>
+				<h1 class="auth-h1">{t('waitroom.headline')}</h1>
+				<p class="auth-sub">{t('waitroom.body')}</p>
 			</div>
 
 			{#if data.queuePosition !== null}
@@ -106,11 +106,11 @@
 					<div class="auth-queue-head">
 						<div class="auth-queue-figure">
 							<span class="num auth-mono auth-queue-num">{data.queuePosition}</span>
-							<span class="auth-mono auth-queue-unit">{$t('waitroom.position')}</span>
+							<span class="auth-mono auth-queue-unit">{t('waitroom.position')}</span>
 						</div>
 						{#if data.queueTotal !== null}
 							<div class="auth-mono auth-queue-total">
-								{$ti('waitroom.ofTotal', { total: data.queueTotal })}
+								{ti('waitroom.ofTotal', { total: data.queueTotal })}
 							</div>
 						{/if}
 					</div>
@@ -121,7 +121,7 @@
 								<div class="auth-bar-fill" style="width:{seatsPct}%;"></div>
 							</div>
 							<div class="auth-mono auth-bar-label">
-								{$ti('waitroom.seats', { taken: data.seatsTaken ?? 0, total: data.seatsTotal })}
+								{ti('waitroom.seats', { taken: data.seatsTaken ?? 0, total: data.seatsTotal })}
 							</div>
 						</div>
 					{/if}
@@ -131,25 +131,25 @@
 			<div class="auth-account">
 				<span class="auth-account-icon"><Mail size={14} /></span>
 				<div class="auth-account-body">
-					<div class="auth-mono auth-account-label">{$t('waitroom.signedInAs')}</div>
+					<div class="auth-mono auth-account-label">{t('waitroom.signedInAs')}</div>
 					<div class="auth-account-email">{data.email}</div>
 				</div>
 			</div>
 
 			<div class="auth-actions">
 				<a href="/waitlist" class="auth-submit auth-submit-link">
-					{$t('waitroom.waitlist')}
+					{t('waitroom.waitlist')}
 					<ChevronRight size={14} />
 				</a>
 				<form method="POST" action="/logout">
-					<button type="submit" class="auth-ghost auth-ghost-block">{$t('waitroom.signOut')}</button>
+					<button type="submit" class="auth-ghost auth-ghost-block">{t('waitroom.signOut')}</button>
 				</form>
 			</div>
 
 			<div class="auth-footer-links">
-				<a href="/privacy">{$t('waitroom.privacy')}</a>
+				<a href="/privacy">{t('waitroom.privacy')}</a>
 				<span aria-hidden="true">·</span>
-				<a href="/terms">{$t('waitroom.terms')}</a>
+				<a href="/terms">{t('waitroom.terms')}</a>
 			</div>
 
 		</div>

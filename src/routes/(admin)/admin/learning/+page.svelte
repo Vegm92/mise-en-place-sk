@@ -16,13 +16,13 @@
   const maxTrend = $derived(Math.max(1, ...data.trend.map(p => p.corrections)));
 
   const SOURCE_LABEL: Record<string, string> = $derived({
-    exact: $t('admin.learning.source.exact'),
-    fuzzy: $t('admin.learning.source.fuzzy'),
-    user:  $t('admin.learning.source.user'),
+    exact: t('admin.learning.source.exact'),
+    fuzzy: t('admin.learning.source.fuzzy'),
+    user:  t('admin.learning.source.user'),
   });
 </script>
 
-<AdminPageHead route="/admin/learning" title={$t('admin.learning.title')} subtitle={$ti('admin.learning.subtitle', { days: data.summary.windowDays })} />
+<AdminPageHead route="/admin/learning" title={t('admin.learning.title')} subtitle={ti('admin.learning.subtitle', { days: data.summary.windowDays })} />
 
 <div class="hud-page px-3 md:px-6 pb-6 flex flex-col gap-2.5">
 
@@ -34,14 +34,14 @@
   />
 
   <div class="hud-grid hud-grid-3">
-    <HudPanel title={$t('admin.learning.byFieldTitle')}>
+    <HudPanel title={t('admin.learning.byFieldTitle')}>
       <AdminTableScroll>
         <table class="hud-table">
           <thead>
             <tr>
-              <th scope="col" class="l">{$t('admin.learning.colField')}</th>
-              <th scope="col" class="r">{$t('admin.learning.colCorrections')}</th>
-              <th scope="col" class="r">{$t('admin.learning.colAvgConfidence')}</th>
+              <th scope="col" class="l">{t('admin.learning.colField')}</th>
+              <th scope="col" class="r">{t('admin.learning.colCorrections')}</th>
+              <th scope="col" class="r">{t('admin.learning.colAvgConfidence')}</th>
             </tr>
           </thead>
           <tbody>
@@ -52,21 +52,21 @@
                 <td class="num r dim">{row.avgConfidence !== null ? row.avgConfidence.toFixed(2) : '—'}</td>
               </tr>
             {:else}
-              <tr><td colspan="3" class="empty">{$t('admin.learning.empty')}</td></tr>
+              <tr><td colspan="3" class="empty">{t('admin.learning.empty')}</td></tr>
             {/each}
           </tbody>
         </table>
       </AdminTableScroll>
     </HudPanel>
 
-    <HudPanel title={$t('admin.learning.bySupplierTitle')}>
+    <HudPanel title={t('admin.learning.bySupplierTitle')}>
       <AdminTableScroll>
         <table class="hud-table">
           <thead>
             <tr>
-              <th scope="col" class="l">{$t('admin.learning.colSupplier')}</th>
-              <th scope="col" class="l">{$t('admin.colRestaurant')}</th>
-              <th scope="col" class="r">{$t('admin.learning.colCorrections')}</th>
+              <th scope="col" class="l">{t('admin.learning.colSupplier')}</th>
+              <th scope="col" class="l">{t('admin.colRestaurant')}</th>
+              <th scope="col" class="r">{t('admin.learning.colCorrections')}</th>
             </tr>
           </thead>
           <tbody>
@@ -77,22 +77,22 @@
                 <td class="num r">{row.corrections.toLocaleString('en-US')}</td>
               </tr>
             {:else}
-              <tr><td colspan="3" class="empty">{$t('admin.learning.empty')}</td></tr>
+              <tr><td colspan="3" class="empty">{t('admin.learning.empty')}</td></tr>
             {/each}
           </tbody>
         </table>
       </AdminTableScroll>
     </HudPanel>
 
-    <HudPanel title={$t('admin.learning.byTenantTitle')}>
+    <HudPanel title={t('admin.learning.byTenantTitle')}>
       <AdminTableScroll>
         <table class="hud-table">
           <thead>
             <tr>
-              <th scope="col" class="l">{$t('admin.colRestaurant')}</th>
-              <th scope="col" class="r">{$t('admin.learning.colCorrections')}</th>
-              <th scope="col" class="r">{$t('admin.learning.colInvoices')}</th>
-              <th scope="col" class="r">{$t('admin.learning.colRate')}</th>
+              <th scope="col" class="l">{t('admin.colRestaurant')}</th>
+              <th scope="col" class="r">{t('admin.learning.colCorrections')}</th>
+              <th scope="col" class="r">{t('admin.learning.colInvoices')}</th>
+              <th scope="col" class="r">{t('admin.learning.colRate')}</th>
             </tr>
           </thead>
           <tbody>
@@ -104,7 +104,7 @@
                 <td class="num r" class:bad={row.rate !== null && row.rate > 0.5}>{pct(row.rate)}</td>
               </tr>
             {:else}
-              <tr><td colspan="4" class="empty">{$t('admin.learning.empty')}</td></tr>
+              <tr><td colspan="4" class="empty">{t('admin.learning.empty')}</td></tr>
             {/each}
           </tbody>
         </table>
@@ -112,19 +112,19 @@
     </HudPanel>
   </div>
 
-  <HudPanel title={$t('admin.learning.promptVersionTitle')} sub={$t('admin.learning.promptVersionSub')}>
+  <HudPanel title={t('admin.learning.promptVersionTitle')} sub={t('admin.learning.promptVersionSub')}>
     <AdminTableScroll>
       <table class="hud-table">
         <thead>
           <tr>
-            <th scope="col" class="l">{$t('admin.learning.colPromptVersion')}</th>
-            <th scope="col" class="r">{$t('admin.learning.colDocuments')}</th>
-            <th scope="col" class="r">{$t('admin.learning.colAvgConfidence')}</th>
-            <th scope="col" class="r">{$t('admin.learning.colMismatches')}</th>
-            <th scope="col" class="r">{$t('admin.learning.colInvoices')}</th>
-            <th scope="col" class="r">{$t('admin.learning.colCorrections')}</th>
-            <th scope="col" class="r">{$t('admin.learning.colRate')}</th>
-            <th scope="col" class="r">{$t('admin.dlq.colLastSeen')}</th>
+            <th scope="col" class="l">{t('admin.learning.colPromptVersion')}</th>
+            <th scope="col" class="r">{t('admin.learning.colDocuments')}</th>
+            <th scope="col" class="r">{t('admin.learning.colAvgConfidence')}</th>
+            <th scope="col" class="r">{t('admin.learning.colMismatches')}</th>
+            <th scope="col" class="r">{t('admin.learning.colInvoices')}</th>
+            <th scope="col" class="r">{t('admin.learning.colCorrections')}</th>
+            <th scope="col" class="r">{t('admin.learning.colRate')}</th>
+            <th scope="col" class="r">{t('admin.dlq.colLastSeen')}</th>
           </tr>
         </thead>
         <tbody>
@@ -140,7 +140,7 @@
               <td class="num r dim nowrap">{row.lastSeen ? new Date(row.lastSeen).toLocaleDateString('en-GB', { dateStyle: 'short' }) : '—'}</td>
             </tr>
           {:else}
-            <tr><td colspan="8" class="empty">{$t('admin.learning.empty')}</td></tr>
+            <tr><td colspan="8" class="empty">{t('admin.learning.empty')}</td></tr>
           {/each}
         </tbody>
       </table>
@@ -148,13 +148,13 @@
   </HudPanel>
 
   <div class="hud-grid hud-grid-3">
-    <HudPanel title={$t('admin.learning.trendTitle')}>
+    <HudPanel title={t('admin.learning.trendTitle')}>
       <AdminTableScroll>
         <table class="hud-table">
           <thead>
             <tr>
-              <th scope="col" class="l">{$t('admin.learning.colWeek')}</th>
-              <th scope="col" class="r">{$t('admin.learning.colCorrections')}</th>
+              <th scope="col" class="l">{t('admin.learning.colWeek')}</th>
+              <th scope="col" class="r">{t('admin.learning.colCorrections')}</th>
               <th scope="col" class="l w45"></th>
             </tr>
           </thead>
@@ -168,21 +168,21 @@
                 </td>
               </tr>
             {:else}
-              <tr><td colspan="3" class="empty">{$t('admin.learning.empty')}</td></tr>
+              <tr><td colspan="3" class="empty">{t('admin.learning.empty')}</td></tr>
             {/each}
           </tbody>
         </table>
       </AdminTableScroll>
     </HudPanel>
 
-    <HudPanel title={$t('admin.learning.matchingTitle')} sub={$t('admin.learning.matchingSubtitle')}>
+    <HudPanel title={t('admin.learning.matchingTitle')} sub={t('admin.learning.matchingSubtitle')}>
       <AdminTableScroll>
         <table class="hud-table">
           <thead>
             <tr>
-              <th scope="col" class="l">{$t('admin.learning.colSource')}</th>
-              <th scope="col" class="r">{$t('admin.learning.colTotal')}</th>
-              <th scope="col" class="r">{$t('admin.learning.colPending')}</th>
+              <th scope="col" class="l">{t('admin.learning.colSource')}</th>
+              <th scope="col" class="r">{t('admin.learning.colTotal')}</th>
+              <th scope="col" class="r">{t('admin.learning.colPending')}</th>
             </tr>
           </thead>
           <tbody>
@@ -193,22 +193,22 @@
                 <td class="num r" class:warn={row.pending > 0}>{row.pending.toLocaleString('en-US')}</td>
               </tr>
             {:else}
-              <tr><td colspan="3" class="empty">{$t('admin.learning.empty')}</td></tr>
+              <tr><td colspan="3" class="empty">{t('admin.learning.empty')}</td></tr>
             {/each}
           </tbody>
         </table>
       </AdminTableScroll>
     </HudPanel>
 
-    <HudPanel title={$t('admin.learning.fuzzyOutcomesTitle')} sub={$t('admin.learning.fuzzyOutcomesSub')}>
+    <HudPanel title={t('admin.learning.fuzzyOutcomesTitle')} sub={t('admin.learning.fuzzyOutcomesSub')}>
       <AdminTableScroll>
         <table class="hud-table">
           <thead>
             <tr>
-              <th scope="col" class="r">{$t('admin.learning.colTotal')}</th>
-              <th scope="col" class="r">{$t('admin.learning.colConfirmed')}</th>
-              <th scope="col" class="r">{$t('admin.learning.colRejected')}</th>
-              <th scope="col" class="r">{$t('admin.learning.colAccuracy')}</th>
+              <th scope="col" class="r">{t('admin.learning.colTotal')}</th>
+              <th scope="col" class="r">{t('admin.learning.colConfirmed')}</th>
+              <th scope="col" class="r">{t('admin.learning.colRejected')}</th>
+              <th scope="col" class="r">{t('admin.learning.colAccuracy')}</th>
             </tr>
           </thead>
           <tbody>
@@ -225,15 +225,15 @@
   </div>
 
   {#if data.pendingFuzzy.length > 0}
-    <HudPanel title={$t('admin.learning.pendingFuzzyTitle')}>
+    <HudPanel title={t('admin.learning.pendingFuzzyTitle')}>
       <AdminTableScroll>
         <table class="hud-table">
           <thead>
             <tr>
-              <th scope="col" class="l">{$t('admin.colRestaurant')}</th>
-              <th scope="col" class="l">{$t('admin.learning.colProduct')}</th>
-              <th scope="col" class="l">{$t('admin.learning.colRawText')}</th>
-              <th scope="col" class="r">{$t('admin.learning.colCreated')}</th>
+              <th scope="col" class="l">{t('admin.colRestaurant')}</th>
+              <th scope="col" class="l">{t('admin.learning.colProduct')}</th>
+              <th scope="col" class="l">{t('admin.learning.colRawText')}</th>
+              <th scope="col" class="r">{t('admin.learning.colCreated')}</th>
             </tr>
           </thead>
           <tbody>
@@ -251,6 +251,6 @@
     </HudPanel>
   {/if}
 
-  <a href="/admin" class="text-[13px] text-acc no-underline">{$t('admin.backToOverview')}</a>
+  <a href="/admin" class="text-[13px] text-acc no-underline">{t('admin.backToOverview')}</a>
 
 </div>

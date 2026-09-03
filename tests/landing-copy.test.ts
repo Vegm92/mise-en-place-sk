@@ -4,7 +4,7 @@
  * `overrideFor`/`interpolate` are the pure core LandingPage.svelte builds its
  * locally-scoped `t`/`ti` shadow stores from — a variant key falls back to
  * the base i18n table when it has no override, in both locales, and an
- * interpolated (`$ti`-style) override still substitutes `{vars}` the same
+ * interpolated (`ti`-style) override still substitutes `{vars}` the same
  * way the base `ti` store does.
  */
 import { describe, it, expect } from 'vitest';
@@ -22,7 +22,7 @@ describe('overrideFor', () => {
 		expect(overrideFor(OVERRIDES, 'en', 'waitlist.headline')).toBe('EN override headline');
 	});
 
-	it('falls back to undefined (not the base string) for a key with no override, so the caller can fall back to $t itself', () => {
+	it('falls back to undefined (not the base string) for a key with no override, so the caller can fall back to t itself', () => {
 		expect(overrideFor(OVERRIDES, 'es', 'waitlist.sub')).toBeUndefined();
 		expect(overrideFor(OVERRIDES, 'en', 'waitlist.sub')).toBeUndefined();
 	});
@@ -39,7 +39,7 @@ describe('overrideFor', () => {
 	});
 });
 
-describe('a $t-shaped resolver built on overrideFor: override-or-base, in both locales', () => {
+describe('a t-shaped resolver built on overrideFor: override-or-base, in both locales', () => {
 	function tv(overrides: LandingOverrides | null, loc: 'es' | 'en', key: string): string {
 		return overrideFor(overrides, loc, key) ?? (translations[loc] as Record<string, string>)[key];
 	}
@@ -67,7 +67,7 @@ describe('interpolate', () => {
 		expect(interpolate('{a} plus {b} is {c}', { a: 1, b: 2, c: 3 })).toBe('1 plus 2 is 3');
 	});
 
-	it('matches the base $ti store\'s substitution semantics (replaceAll of {key})', () => {
+	it('matches the base ti store\'s substitution semantics (replaceAll of {key})', () => {
 		const vars = { starter: 29, pro: 59, business: 129 };
 		const baseRendered = Object.entries(vars).reduce(
 			(s, [k, v]) => s.replaceAll(`{${k}}`, String(v)),

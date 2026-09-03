@@ -19,8 +19,7 @@
  *    and wrong in the other, which is exactly what nobody notices in review.
  */
 import { describe, it, expect } from 'vitest';
-import { get } from 'svelte/store';
-import { locale, t } from '../src/lib/i18n';
+import { setLocale, t } from '../src/lib/i18n';
 import { translations } from '../src/lib/i18n-messages';
 import { TOUR_PAGES, TOUR_FEATURE_REQUIREMENT, tourPageAccessible } from '../src/lib/tour-gating';
 import { HELP_TIPS } from '../src/lib/help-content';
@@ -37,15 +36,15 @@ describe('the tour renders the help-centre copy', () => {
 
 	it('resolves a title and a body for every step in both locales', () => {
 		for (const lc of ['es', 'en'] as const) {
-			locale.set(lc);
+			setLocale(lc);
 			for (const page of TOUR_PAGES) {
 				for (const suffix of ['title', 'body']) {
 					const key = `help.tip.${page.tip}.${suffix}`;
-					expect(get(t)(key), `${key} missing from ${lc}`).not.toBe(key);
+					expect(t(key), `${key} missing from ${lc}`).not.toBe(key);
 				}
 			}
 		}
-		locale.set('es');
+		setLocale('es');
 	});
 
 	it('reads those keys from the tour page rather than a step number', () => {
@@ -55,8 +54,8 @@ describe('the tour renders the help-centre copy', () => {
 	});
 
 	it('shows the review step the same guide copy, not a second version of it', () => {
-		expect(SHELL).toContain("$t('help.start.review.title')");
-		expect(SHELL).toContain("$t('help.start.review.body')");
+		expect(SHELL).toContain("t('help.start.review.title')");
+		expect(SHELL).toContain("t('help.start.review.body')");
 	});
 
 	it('keeps only chrome strings under the tour namespace', () => {
@@ -65,13 +64,13 @@ describe('the tour renders the help-centre copy', () => {
 			expect(perStep, 'per-step tour copy is the help centre now').toEqual([]);
 		}
 		for (const key of ['tour.next.review', 'tour.next.finish', 'tour.complete.title', 'tour.nudge.title']) {
-			expect(get(t)(key)).not.toBe(key);
+			expect(t(key)).not.toBe(key);
 		}
 	});
 
 	it('labels the last step as the end of the tour without hard-coding its number', () => {
 		expect(SHELL).toContain('tourIndex === tourPages.length - 1');
-		expect(SHELL).toContain("$t('tour.next.finish')");
+		expect(SHELL).toContain("t('tour.next.finish')");
 	});
 
 	it('starts the nudge at the first tour page rather than a literal step', () => {
@@ -114,12 +113,12 @@ describe('the tour counts only the steps this plan can reach', () => {
 	});
 
 	it('tells the nudge how many steps there actually are', () => {
-		expect(SHELL).toContain("$ti('tour.nudge.body', { n: tourPages.length })");
+		expect(SHELL).toContain("ti('tour.nudge.body', { n: tourPages.length })");
 		for (const lc of ['es', 'en'] as const) {
-			locale.set(lc);
-			expect(get(t)('tour.nudge.body')).toContain('{n}');
+			setLocale(lc);
+			expect(t('tour.nudge.body')).toContain('{n}');
 		}
-		locale.set('es');
+		setLocale('es');
 	});
 });
 
@@ -194,7 +193,7 @@ describe('advancing a step cannot be undone by the next page load', () => {
 	 * to reach the rest of the walkthrough. It stalled at a different step each
 	 * time, which is what made it look like a rendering glitch.
 	 */
-	const STORE = read('src/lib/stores/tutorial.ts');
+	const STORE = read('src/lib/stores/tutorial.svelte.ts');
 
 	it('persists the step before navigating', () => {
 		expect(SHELL).toContain('await setTutorialStep(next.step as TutorialStep)');

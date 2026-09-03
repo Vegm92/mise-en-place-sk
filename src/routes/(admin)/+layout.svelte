@@ -26,21 +26,21 @@
   }
 
   const pageTitle = $derived(
-    page.data.title ? $t(page.data.title) : $t('admin.banner')
+    page.data.title ? t(page.data.title) : t('admin.banner')
   );
 
   const p = $derived(page.url.pathname);
   const navItems = $derived([
-    { href: '/admin',         label: $t('admin.overview') },
-    { href: '/admin/access',  label: $t('admin.access.nav') },
-    { href: '/admin/revenue', label: $t('admin.revenue') },
-    { href: '/admin/feature-flags', label: $t('admin.featureFlags.nav') },
-    { href: '/admin/events',  label: $t('admin.events') },
-    { href: '/admin/whatsapp', label: $t('admin.whatsapp.nav') },
-    { href: '/admin/dead-letters', label: $t('admin.dlq.nav') },
-    { href: '/admin/errors',  label: $t('admin.errors') },
-    { href: '/admin/learning', label: $t('admin.learning.nav') },
-    { href: '/admin/health',  label: $t('admin.health') },
+    { href: '/admin',         label: t('admin.overview') },
+    { href: '/admin/access',  label: t('admin.access.nav') },
+    { href: '/admin/revenue', label: t('admin.revenue') },
+    { href: '/admin/feature-flags', label: t('admin.featureFlags.nav') },
+    { href: '/admin/events',  label: t('admin.events') },
+    { href: '/admin/whatsapp', label: t('admin.whatsapp.nav') },
+    { href: '/admin/dead-letters', label: t('admin.dlq.nav') },
+    { href: '/admin/errors',  label: t('admin.errors') },
+    { href: '/admin/learning', label: t('admin.learning.nav') },
+    { href: '/admin/health',  label: t('admin.health') },
   ]);
   const isActive = (href: string) => p === href || (href !== '/admin' && p.startsWith(href));
 
@@ -68,7 +68,7 @@
       text-decoration:none;padding:4px 8px 4px 4px;border-radius:5px;
     ">
       <ChevronLeft size={13} />
-      <span class="hidden md:inline">{$t('admin.backToApp')}</span>
+      <span class="hidden md:inline">{t('admin.backToApp')}</span>
     </a>
 
     <div class="hidden md:block" style="width:1px;height:18px;background:var(--mep-divider);"></div>
@@ -83,7 +83,7 @@
         font-size:11px;font-weight:700;letter-spacing:0.12em;
         line-height:14px;text-transform:uppercase;
       ">
-        {$t('admin.banner')}
+        {t('admin.banner')}
       </span>
     </div>
 
@@ -112,7 +112,7 @@
       class="btn btn-ghost"
       style="width:30px;height:30px;padding:0;justify-content:center;flex-shrink:0;"
       onclick={toggleTheme}
-      title={$t('a11y.switchTheme')}
+      title={t('a11y.switchTheme')}
     >
       {#if theme === 'dark'}<Sun size={14} />{:else}<Moon size={14} />{/if}
     </button>

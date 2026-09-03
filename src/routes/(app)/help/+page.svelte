@@ -4,7 +4,7 @@
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
   import { HELP_STEPS, HELP_TIPS, HELP_FAQ } from '$lib/help-content';
   import { TOUR_PAGES } from '$lib/tour-gating';
-  import { setTutorialStep } from '$lib/stores/tutorial';
+  import { setTutorialStep } from '$lib/stores/tutorial.svelte';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
@@ -45,10 +45,10 @@
   }
 
   const areas = $derived([
-    { id: 'steps', label: $t('help.nav.steps'), title: $t('help.start.title'), sub: $t('help.start.sub'), icon: CirclePlay },
-    { id: 'tour',  label: $t('help.nav.tour'),  title: $t('help.tour.title'),  sub: $t('help.tour.sub'),  icon: Compass },
-    { id: 'tips',  label: $t('help.nav.tips'),  title: $t('help.tips.title'),  sub: $t('help.tips.sub'),  icon: Lightbulb },
-    { id: 'faq',   label: $t('help.nav.faq'),   title: $t('help.faq.title'),   sub: $t('help.faq.sub'),   icon: CircleHelp },
+    { id: 'steps', label: t('help.nav.steps'), title: t('help.start.title'), sub: t('help.start.sub'), icon: CirclePlay },
+    { id: 'tour',  label: t('help.nav.tour'),  title: t('help.tour.title'),  sub: t('help.tour.sub'),  icon: Compass },
+    { id: 'tips',  label: t('help.nav.tips'),  title: t('help.tips.title'),  sub: t('help.tips.sub'),  icon: Lightbulb },
+    { id: 'faq',   label: t('help.nav.faq'),   title: t('help.faq.title'),   sub: t('help.faq.sub'),   icon: CircleHelp },
   ]);
 
   let area = $state('steps');
@@ -66,7 +66,7 @@
     query.trim().length === 0
       ? []
       : searchIndex.filter((entry) =>
-          `${$t(entry.key)} ${$t(entry.body)}`.toLowerCase().includes(query.trim().toLowerCase()),
+          `${t(entry.key)} ${t(entry.body)}`.toLowerCase().includes(query.trim().toLowerCase()),
         ),
   );
 
@@ -84,9 +84,9 @@
   <nav class="help-rail">
     <div class="help-search">
       <Search size={13} style="color:var(--mep-fg-3);flex-shrink:0;" />
-      <input type="text" bind:value={query} placeholder={$t('help.search')} aria-label={$t('help.search')} />
+      <input type="text" bind:value={query} placeholder={t('help.search')} aria-label={t('help.search')} />
       {#if searching}
-        <button type="button" class="help-search-clear" aria-label={$t('help.searchClear')} onclick={() => (query = '')}>
+        <button type="button" class="help-search-clear" aria-label={t('help.searchClear')} onclick={() => (query = '')}>
           <X size={13} />
         </button>
       {/if}
@@ -105,9 +105,9 @@
 
     <span class="help-rail-spacer"></span>
     <div class="help-rail-foot">
-      <p class="help-hint">{$t('help.assistant.hint')}</p>
+      <p class="help-hint">{t('help.assistant.hint')}</p>
       <a href="/chat" class="btn btn-secondary help-rail-btn">
-        <MessageCircle size={13} /> {$t('help.assistant.btn')}
+        <MessageCircle size={13} /> {t('help.assistant.btn')}
       </a>
     </div>
   </nav>
@@ -115,18 +115,18 @@
   <div class="help-content">
     {#if searching}
       <div class="card help-results">
-        <div class="card-header"><span class="subtitle">{$tp('help.searchCount', results.length)}</span></div>
+        <div class="card-header"><span class="subtitle">{tp('help.searchCount', results.length)}</span></div>
         {#each results as entry (entry.key)}
           <button type="button" class="help-result" onclick={() => goToArea(entry.area)}>
             <span class="help-result-copy">
-              <span class="body-strong">{$t(entry.key)}</span>
-              <span class="help-hint">{excerpt($t(entry.body))}</span>
+              <span class="body-strong">{t(entry.key)}</span>
+              <span class="help-hint">{excerpt(t(entry.body))}</span>
             </span>
             <span class="badge badge-neutral">{areaOf(entry.area).label}</span>
             <ChevronRight size={14} style="color:var(--mep-fg-3);flex-shrink:0;" />
           </button>
         {:else}
-          <div class="help-empty"><p class="body">{$t('help.searchEmpty')}</p></div>
+          <div class="help-empty"><p class="body">{t('help.searchEmpty')}</p></div>
         {/each}
       </div>
     {:else}
@@ -140,13 +140,13 @@
           <ol class="help-steps">
             {#each HELP_STEPS as step, i (step.key)}
               <li class="help-step">
-                <span class="help-step-num num" aria-label={$ti('help.step', { n: i + 1 })}>{i + 1}</span>
+                <span class="help-step-num num" aria-label={ti('help.step', { n: i + 1 })}>{i + 1}</span>
                 <div class="help-step-body">
-                  <div class="body-strong">{$t(`help.start.${step.key}.title`)}</div>
-                  <p class="body help-prose">{$t(`help.start.${step.key}.body`)}</p>
+                  <div class="body-strong">{t(`help.start.${step.key}.title`)}</div>
+                  <p class="body help-prose">{t(`help.start.${step.key}.body`)}</p>
                   {#if step.href && step.actionKey}
                     <a href={step.href} class="btn btn-ghost help-action">
-                      {$t(step.actionKey)} <ArrowRight size={12} />
+                      {t(step.actionKey)} <ArrowRight size={12} />
                     </a>
                   {/if}
                 </div>
@@ -158,29 +158,29 @@
         <button type="button" class="card help-teaser" onclick={() => goToArea('tour')}>
           <span class="help-icon"><Compass size={17} /></span>
           <span class="help-teaser-copy">
-            <span class="body-strong">{$t('help.tourTeaser')}</span>
-            <span class="help-hint">{$t('help.tourTeaserBody')}</span>
+            <span class="body-strong">{t('help.tourTeaser')}</span>
+            <span class="help-hint">{t('help.tourTeaserBody')}</span>
           </span>
           <ChevronRight size={15} style="color:var(--mep-fg-3);flex-shrink:0;" />
         </button>
       {/if}
 
       {#if area === 'tour'}
-        <SectionCard title={$t('help.tour.title')}>
+        <SectionCard title={t('help.tour.title')}>
           <div class="help-tour">
             <span class="help-icon help-icon-lg"><Compass size={22} /></span>
             <div class="help-step-body">
-              <p class="body help-prose">{$t('help.tour.body')}</p>
+              <p class="body help-prose">{t('help.tour.body')}</p>
               <div class="help-stops">
                 {#each TOUR_PAGES as page, i (page.step)}
                   <span class="help-stop">
                     <span class="help-stop-num num">{i + 1}</span>
-                    {$t(`help.tip.${page.tip}.title`)}
+                    {t(`help.tip.${page.tip}.title`)}
                   </span>
                 {/each}
               </div>
               <button type="button" class="btn btn-primary help-action" onclick={startTour} disabled={startingTour}>
-                {$t('help.tour.btn')} <ArrowRight size={12} />
+                {t('help.tour.btn')} <ArrowRight size={12} />
               </button>
             </div>
           </div>
@@ -194,12 +194,12 @@
             <div class="help-tip">
               <div class="help-tip-head">
                 <Icon size={15} />
-                <span class="body-strong">{$t(`help.tip.${tip.key}.title`)}</span>
-                {#if tip.pro}<span class="help-tip-pro">{$t('nav.badge.pro')}</span>{/if}
+                <span class="body-strong">{t(`help.tip.${tip.key}.title`)}</span>
+                {#if tip.pro}<span class="help-tip-pro">{t('nav.badge.pro')}</span>{/if}
               </div>
-              <p class="body help-prose help-tip-body">{$t(`help.tip.${tip.key}.body`)}</p>
+              <p class="body help-prose help-tip-body">{t(`help.tip.${tip.key}.body`)}</p>
               <a href={tip.href} class="btn btn-ghost help-action">
-                {$t(`help.tip.${tip.key}.action`)} <ArrowRight size={12} />
+                {t(`help.tip.${tip.key}.action`)} <ArrowRight size={12} />
               </a>
             </div>
           {/each}
@@ -211,10 +211,10 @@
           {#each HELP_FAQ as item, i (item)}
             <details class="help-faq-item" open={i === 0}>
               <summary class="help-faq-q">
-                <span class="body-strong">{$t(`help.faq.${item}.q`)}</span>
+                <span class="body-strong">{t(`help.faq.${item}.q`)}</span>
                 <span class="help-faq-chevron"><ChevronDown size={14} /></span>
               </summary>
-              <p class="body help-prose help-faq-a">{$t(`help.faq.${item}.a`)}</p>
+              <p class="body help-prose help-faq-a">{t(`help.faq.${item}.a`)}</p>
             </details>
           {/each}
         </div>
@@ -222,8 +222,8 @@
         <a href="/settings" class="card help-teaser">
           <span class="help-icon"><Settings size={17} /></span>
           <span class="help-teaser-copy">
-            <span class="body-strong">{$t('help.more.title')}</span>
-            <span class="help-hint">{$t('help.more.body')}</span>
+            <span class="body-strong">{t('help.more.title')}</span>
+            <span class="help-hint">{t('help.more.body')}</span>
           </span>
           <ChevronRight size={15} style="color:var(--mep-fg-3);flex-shrink:0;" />
         </a>

@@ -47,7 +47,7 @@ function routeOf(dir: string): string {
 
 /**
  * The i18n key a route hands to the shell header. The shell reads
- * `page.data.title` and resolves it through `$t`, so anything that is not a
+ * `page.data.title` and resolves it through `t`, so anything that is not a
  * single-quoted key (a template literal, a missing load) yields null here.
  */
 function titleKeyOf(dir: string): string | null {
@@ -211,7 +211,7 @@ describe('issue #660 — the shell header has a mobile branch', () => {
 		expect(
 			upload.slice(0, upload.indexOf('</a>')),
 			'the upload button must carry a label, not just an icon',
-		).toMatch(/\$t\('upload\.btn'\)/);
+		).toMatch(/t\('upload\.btn'\)/);
 		expect(
 			css,
 			'only icon-only header controls give their padding back to the title',
