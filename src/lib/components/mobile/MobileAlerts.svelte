@@ -95,11 +95,11 @@
                         </div>
                       {/if}
                     </div>
-                    <div style="text-align: right; flex-shrink: 0;">
+                    <div style="text-align: right; flex-shrink: 0; max-width: 130px;">
                       <div class="num" style="font-size: 14px; font-weight: 600; color: var(--mep-fg);">{fmtAmount(r.display_amount)}</div>
                       <span class="badge badge-overdue">{$t('inv.review.incidencia')}</span>
                       <div class="mt-0.5">
-                        <IncidenceKindBadge kind={r.incidence_kind} small />
+                        <IncidenceKindBadge kind={r.incidence_kind} small hint />
                       </div>
                     </div>
                   </div>
