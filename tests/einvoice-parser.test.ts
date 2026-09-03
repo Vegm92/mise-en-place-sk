@@ -411,6 +411,27 @@ describe('parseFacturae322', () => {
 		expect(parseFacturae322(xml).line_items[0].unit).toBeNull();
 	});
 
+	it('extracts per-line tax_rate from InvoiceLine/TaxesOutputs/Tax/TaxRate (issue #919)', () => {
+		const xml = FACTURAE_322_XML.replace(
+			'<ItemDescription>Aceite de oliva virgen extra 5L</ItemDescription>',
+			`<ItemDescription>Aceite de oliva virgen extra 5L</ItemDescription>
+			<TaxesOutputs>
+				<Tax>
+					<TaxTypeCode>01</TaxTypeCode>
+					<TaxRate>10.00</TaxRate>
+				</Tax>
+			</TaxesOutputs>`,
+		);
+		const result = parseFacturae322(xml);
+		expect(result.line_items[0].tax_rate).toBeCloseTo(0.10, 5);
+	});
+
+	it('yields null line tax_rate when the line prints no TaxesOutputs (issue #919)', () => {
+		const result = parseFacturae322(FACTURAE_322_XML);
+		expect(result.line_items[0].tax_rate).toBeNull();
+		expect(result.line_items[1].tax_rate).toBeNull();
+	});
+
 	it('sets confidence to 1.0 for all fields', () => {
 		const result = parseFacturae322(FACTURAE_322_XML);
 		expect(result.confidence).toBe(1.0);
@@ -605,6 +626,23 @@ describe('parseUbl21Invoice', () => {
 	it('yields null unit for an unknown unitCode instead of the raw code', () => {
 		const xml = UBL_21_XML.replace('unitCode="BTL"', 'unitCode="ZZ9"');
 		expect(parseUbl21Invoice(xml).line_items[0].unit).toBeNull();
+	});
+
+	it('extracts per-line tax_rate from InvoiceLine/Item/ClassifiedTaxCategory/Percent (issue #919)', () => {
+		const xml = UBL_21_XML.replace(
+			'</cac:Item>',
+			`<cac:ClassifiedTaxCategory>
+				<cbc:Percent>21</cbc:Percent>
+			</cac:ClassifiedTaxCategory>
+			</cac:Item>`,
+		);
+		const result = parseUbl21Invoice(xml);
+		expect(result.line_items[0].tax_rate).toBeCloseTo(0.21, 5);
+	});
+
+	it('yields null line tax_rate when the line prints no ClassifiedTaxCategory (issue #919)', () => {
+		const result = parseUbl21Invoice(UBL_21_XML);
+		expect(result.line_items[0].tax_rate).toBeNull();
 	});
 
 	it('sets confidence to 1.0', () => {

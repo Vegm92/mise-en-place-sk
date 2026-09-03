@@ -75,6 +75,7 @@ Return ONLY valid JSON with this exact structure:
       "unit": "string or null",
       "unit_price": number or null,
       "total_price": number or null,
+      "tax_rate": the % IVA / tipo / IVA printed in that line's own column, as a decimal (0.04, 0.10, 0.21) — or null if the line prints no rate of its own,
       "allergens": array of allergen codes PRINTED ON THE DOCUMENT for this line, or null,
       "confidence": 0.0 to 1.0
     }
@@ -102,6 +103,7 @@ Rules:
 - When a global discount (descuento, dto., pronto pago) is printed: tax_base = gross_amount − discount_amount. Report gross_amount and discount_amount.
 - When an IRPF retention is printed (retención, IRPF, ret. — typically 7%, 15%, 19% or 21% on professional-services invoices such as consultoría, gestoría, freelance cocineros, música): total_amount = tax_base + Σ tax_amount − retention_amount. Report retention_rate and retention_amount.
 - tax_breakdown must reflect what is printed on the document or arithmetically inferred (see Tax fallback below) — do not guess rates you cannot derive.
+- line_items[].tax_rate: read the % IVA / tipo / IVA column printed on that specific line. When no per-line column exists but the whole document prints a single IVA rate (one rate in tax_breakdown, or one rate stated once for the invoice), apply that same rate to every line. When the document mixes rates across lines and does not print which rate applies to which line, leave tax_rate null for those lines rather than guessing — do not allocate tax_breakdown amounts across lines by their price.
 - If a document shows both IVA and Recargo de Equivalencia (REC) columns, emit two separate entries in tax_breakdown: one with type "iva" and one with type "rec".
 - If the document is an albarán with no prices, set total_amount to null and still extract all line item quantities and descriptions.
 
@@ -233,6 +235,7 @@ export interface ExtractedInvoice {
 		unit: string | null;
 		unit_price: number | null;
 		total_price: number | null;
+		tax_rate?: number | null;
 		allergens?: string[] | null;
 		confidence?: number;
 	}>;
@@ -262,10 +265,11 @@ const LINE_ITEM_SCHEMA: Schema = {
 		unit: { type: Type.STRING, nullable: true },
 		unit_price: { type: Type.NUMBER, nullable: true },
 		total_price: { type: Type.NUMBER, nullable: true },
+		tax_rate: { type: Type.NUMBER, nullable: true },
 		allergens: { type: Type.ARRAY, items: { type: Type.STRING }, nullable: true },
 		confidence: { type: Type.NUMBER },
 	},
-	required: ['description', 'quantity', 'unit', 'unit_price', 'total_price', 'confidence'],
+	required: ['description', 'quantity', 'unit', 'unit_price', 'total_price', 'tax_rate', 'confidence'],
 };
 
 const FIELD_CONFIDENCES_SCHEMA: Schema = {
