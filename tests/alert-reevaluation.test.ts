@@ -213,6 +213,33 @@ describe.skipIf(!hasDbEnv)('alert re-evaluation on correction (issue #831)', () 
 		);
 	});
 
+	it('re-raises budget_overage after a resolved one when spend crosses the threshold again', async () => {
+		const supplier = '__reeval_budget_rearm__';
+		const category = 'Congelados';
+		const todayIso = new Date().toISOString().slice(0, 10);
+		const invoiceId = await setupBudgetWarning(supplier, category, 'BOR', todayIso);
+		await expectNotificationStatus(invoiceId, 'budget_overage', 'pending');
+
+		// Correcting the total drops month-to-date spend to 10 % of the budget: the alert resolves.
+		const version = await invoiceVersion(invoiceId);
+		await runAndExpectResolved(
+			runEdit(invoiceId, editForm({ supplier, invoiceNumber: 'BOR-002', invoiceDate: todayIso, totalAmount: '5.00', version })),
+			invoiceId, 'budget_overage',
+		);
+
+		// A later invoice pushes the same category back to 85 %. The resolved row must not
+		// suppress the repeat the way a pending/dismissed one does — this is a new crossing.
+		const rearmed = await saveReviewedInvoice(
+			fakeItem(),
+			saveForm({ supplier, invoiceNumber: 'BOR-003', invoiceDate: todayIso, totalAmount: '75.00' }),
+			rid,
+		);
+		assertSaved(rearmed);
+
+		const raised = await expectNotificationStatus(rearmed.invoiceId, 'budget_overage', 'pending');
+		expect(raised.payload.level).toBe('warning');
+	});
+
 	it('resolves possible_duplicate_purchase once the corrected total no longer matches', async () => {
 		const supplier = '__reeval_dupe__';
 
