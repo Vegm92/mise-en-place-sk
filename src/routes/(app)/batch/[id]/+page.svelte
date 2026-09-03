@@ -288,10 +288,6 @@
       tax_rate: percentInputValue(item.tax_rate),
     };
   }
-  // The extractor already fills tax_rate from what's printed per line (or the
-  // header rate when the whole document carries a single one). This only
-  // backfills lines it left null — e.g. older extractions saved before this
-  // field existed — and only when every other line agrees on one rate.
   function fillMissingLineRates(items: LineItem[]): LineItem[] {
     const known = lineRateFractions(items.map(i => ({ totalPrice: i.total_price, rate: i.tax_rate })));
     if (known.length !== 1) return items;
