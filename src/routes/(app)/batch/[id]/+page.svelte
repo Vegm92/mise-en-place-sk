@@ -290,15 +290,11 @@
     };
   }
   function fillMissingLineRates(items: LineItem[], matches: ProductMatch[]): LineItem[] {
-    const withProductRates = items.map((i, idx) => {
+    return items.map((i, idx) => {
       if (percentToFraction(i.tax_rate) !== null) return i;
       const suggested = matches[idx]?.suggestedTaxRate;
       return suggested != null ? { ...i, tax_rate: percentInputValue(suggested) } : i;
     });
-    const known = lineRateFractions(withProductRates.map(i => ({ totalPrice: i.total_price, rate: i.tax_rate })));
-    if (known.length !== 1) return withProductRates;
-    const fallback = percentInputValue(known[0]);
-    return withProductRates.map(i => (percentToFraction(i.tax_rate) === null ? { ...i, tax_rate: fallback } : i));
   }
   $effect(() => {
     const raw = data.review?.data?.line_items;
