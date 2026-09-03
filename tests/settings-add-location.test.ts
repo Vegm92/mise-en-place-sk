@@ -16,13 +16,10 @@
  */
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 
-vi.mock('../src/lib/server/db', async () => {
-	const { testDb } = await import('./helpers/test-db');
-	const { forTenant } = await import('../src/lib/server/tenant');
-	return { db: testDb, forTenant, runAsSystem: (fn: () => unknown) => fn(), runWithTenantContext: (_rid: unknown, fn: () => unknown) => fn() };
-});
+vi.mock('../src/lib/server/db', async () => (await import('./helpers/db-suite')).testDbModule());
 
 import { testSql, closeDb, cleanupTestRestaurant, hasDbEnv } from './helpers/test-db';
+import { runFormAction } from './helpers/action-result';
 import { memoizeEntitlements, TIERS } from '../src/lib/server/billing';
 import { actions } from '../src/routes/(app)/settings/+page.server';
 
@@ -94,33 +91,15 @@ function locals(userId: string, restaurantId: string) {
 	};
 }
 
-type ActionResult =
-	| { kind: 'redirect'; status: number; location: string }
-	| { kind: 'fail'; status: number; data: { section?: string; error?: string } }
-	| { kind: 'other'; value: unknown };
-
-async function runAddLocation(userId: string, restaurantId: string, name: string): Promise<ActionResult> {
+function runAddLocation(userId: string, restaurantId: string, name: string) {
 	const body = new FormData();
 	body.append('name', name);
 	const request = new Request('http://localhost/settings?/addLocation', { method: 'POST', body });
-	try {
-		const value = await (actions.addLocation as (e: unknown) => Promise<unknown>)({
-			request,
-			locals: locals(userId, restaurantId),
-			cookies: { set: vi.fn(), delete: vi.fn() },
-		});
-		if (value && typeof value === 'object' && 'status' in value && 'data' in value) {
-			const v = value as { status: number; data: { section?: string; error?: string } };
-			return { kind: 'fail', status: v.status, data: v.data };
-		}
-		return { kind: 'other', value };
-	} catch (thrown) {
-		const t = thrown as { status?: number; location?: string };
-		if (typeof t.status === 'number' && typeof t.location === 'string') {
-			return { kind: 'redirect', status: t.status, location: t.location };
-		}
-		throw thrown;
-	}
+	return runFormAction(actions.addLocation as (e: unknown) => Promise<unknown>, {
+		request,
+		locals: locals(userId, restaurantId),
+		cookies: { set: vi.fn(), delete: vi.fn() },
+	});
 }
 
 beforeAll(async () => {
