@@ -36,7 +36,14 @@ consistent i18n rendering and actionable CTAs, plus the unified reminders hub.
   `invoice-save.ts`): `price_shock`,
   `low_stock_forecast`, `budget_overage`, `supplier_uncategorized`,
   `supplier_category_suggested`, `unit_conversion_needed`, `product_suggestion`,
-  `verifactu_qr_mismatch`.
+  `verifactu_qr_mismatch`, `restaurant_phone_mismatch` (issue #918).
+- **Producer** (`invoice-save.ts` `resolveRestaurantPhoneSignal`, #918):
+  `restaurant_phone_mismatch` — raised post-commit when a confirmed invoice's
+  `receiver_phone` disagrees with a `restaurants.phone` the owner already has
+  on file. Informational only: the mismatch is never applied, so this is the
+  one alert whose payload never changes any row — it just links back to
+  Settings so the owner decides. A blank `restaurants.phone` is filled inside
+  the save transaction instead (no notification, nothing to decide).
 - **Producer** (`alerts.ts` `runLineItemReconciliation`, #886): `line_item_mismatch`
   — raised as a post-save effect right after duplicate-purchase detection, only
   when the just-saved invoice has a `linkedInvoiceId` (document-level linking,
@@ -71,8 +78,8 @@ consistent i18n rendering and actionable CTAs, plus the unified reminders hub.
   to a disabled preference before the insert, so a disabled type produces no
   row at all. `supplier_category_suggested` rides on the
   `supplier_uncategorized` toggle; alert types with no toggle
-  (`unit_conversion_needed`, `product_suggestion`, `verifactu_qr_mismatch`) are
-  never filtered. The two email jobs check their own toggle before doing any
+  (`unit_conversion_needed`, `product_suggestion`, `verifactu_qr_mismatch`,
+  `restaurant_phone_mismatch`) are never filtered. The two email jobs check their own toggle before doing any
   work (`weekly_digest`, `invoice_reminders`).
   `notificationType` is free-form `text`, so a new type needs no migration —
   `/reminders` selects every pending row and unknown types degrade to a bell.
@@ -243,11 +250,12 @@ Type ∈ known set; payload shape per type; tenant scope.
 
 - Called after an invoice is soft-deleted. Closes `price_shock`,
   `possible_duplicate_purchase`, `related_document_found`,
-  `verifactu_qr_mismatch`, and `line_item_mismatch` (#886) alerts tied to that
-  invoice — there is nothing left to re-compare, so they are marked `resolved`
-  outright rather than orphaned against a gone invoice. `budget_overage` is
-  handled separately (`reevaluateBudgetAlertsForInvoice`) since it is
-  category-wide, not specific to the deleted invoice.
+  `verifactu_qr_mismatch`, `line_item_mismatch` (#886), and
+  `restaurant_phone_mismatch` (#918) alerts tied to that invoice — there is
+  nothing left to re-compare, so they are marked `resolved` outright rather
+  than orphaned against a gone invoice. `budget_overage` is handled separately
+  (`reevaluateBudgetAlertsForInvoice`) since it is category-wide, not specific
+  to the deleted invoice.
 
 **`function resolveSupplierCategoryAlerts`** (#831)
 

@@ -74,6 +74,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				legalName: restaurants.legalName,
 				cifNif: restaurants.cifNif,
 				fiscalAddress: restaurants.fiscalAddress,
+				phone: restaurants.phone,
 			})
 				.from(restaurants)
 				.where(eq(restaurants.id, rid)),
@@ -120,6 +121,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				legalName: restaurantRow[0]?.legalName ?? '',
 				cifNif: restaurantRow[0]?.cifNif ?? '',
 				fiscalAddress: restaurantRow[0]?.fiscalAddress ?? '',
+				phone: restaurantRow[0]?.phone ?? '',
 			},
 			canRenameRestaurant: membership[0]?.role === 'owner',
 			locations: locationRows.map(loc => ({ ...loc, locked: locals.lockedRestaurantIds.includes(loc.id) })),
@@ -336,13 +338,15 @@ export const actions: Actions = {
 		const legalName = ((data.get('legalName') as string) ?? '').trim();
 		const fiscalAddress = ((data.get('fiscalAddress') as string) ?? '').trim();
 		const cifNif = normalizeTaxId((data.get('cifNif') as string) ?? '');
+		const phone = ((data.get('phone') as string) ?? '').trim();
 
 		if (legalName.length > 200) return fail(422, { section: 'fiscal', error: 'set.fiscal.err.legalNameTooLong' });
 		if (fiscalAddress.length > 300) return fail(422, { section: 'fiscal', error: 'set.fiscal.err.addressTooLong' });
 		if (cifNif && !isValidSpanishTaxId(cifNif)) return fail(422, { section: 'fiscal', error: 'set.fiscal.err.taxId' });
+		if (phone.length > 40) return fail(422, { section: 'fiscal', error: 'set.fiscal.err.phoneTooLong' });
 
 		await db.update(restaurants)
-			.set({ legalName: legalName || null, cifNif, fiscalAddress: fiscalAddress || null })
+			.set({ legalName: legalName || null, cifNif, fiscalAddress: fiscalAddress || null, phone: phone || null })
 			.where(eq(restaurants.id, rid));
 
 		return { section: 'fiscal', ok: 'set.fiscal.ok.saved' };

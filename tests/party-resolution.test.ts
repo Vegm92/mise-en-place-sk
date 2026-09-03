@@ -152,6 +152,76 @@ describe('resolveInvoiceParties — name fallback', () => {
 	});
 });
 
+describe('resolveInvoiceParties — contact fallback (issue #918)', () => {
+	const noTaxIds = { supplier_nif: null, receiver_nif: null };
+
+	it('swaps on a matching email when the tax ids are missing', () => {
+		const out = resolveInvoiceParties(
+			invoice({ ...noTaxIds, supplier_email: 'hola@clinica.example', receiver_email: 'ventas@elaboradental.example' }),
+			{ email: 'hola@clinica.example' },
+		);
+		expect(out.swapped).toBe(true);
+		expect(out.reason).toBe('contact');
+		expect(out.invoice.supplier_name).toBe('Elaboradental SL');
+	});
+
+	it('matches email case- and whitespace-insensitively', () => {
+		const out = resolveInvoiceParties(
+			invoice({ ...noTaxIds, supplier_email: '  Hola@Clinica.example ' }),
+			{ email: 'hola@clinica.example' },
+		);
+		expect(out.swapped).toBe(true);
+		expect(out.reason).toBe('contact');
+	});
+
+	it('swaps on a matching phone when there is no email match', () => {
+		const out = resolveInvoiceParties(
+			invoice({ ...noTaxIds, supplier_email: null, supplier_phone: '971 00 11 22', receiver_email: null }),
+			{ phone: '+34 971 00 11 22' },
+		);
+		expect(out.swapped).toBe(true);
+		expect(out.reason).toBe('contact');
+	});
+
+	it('carries the receiver contact fields onto the supplier fields it becomes', () => {
+		const out = resolveInvoiceParties(
+			invoice({
+				...noTaxIds,
+				supplier_email: 'hola@clinica.example',
+				supplier_phone: '+34 971 00 11 22',
+				receiver_email: 'compras@elaboradental.example',
+				receiver_phone: '+34 900 11 22 33',
+			}),
+			{ email: 'hola@clinica.example' },
+		);
+		expect(out.invoice.supplier_email).toBe('compras@elaboradental.example');
+		expect(out.invoice.supplier_phone).toBe('+34 900 11 22 33');
+		expect(out.invoice.receiver_email).toBe('hola@clinica.example');
+		expect(out.invoice.receiver_phone).toBe('+34 971 00 11 22');
+	});
+
+	it('does not swap when both parties carry the own contact', () => {
+		const out = resolveInvoiceParties(
+			invoice({ ...noTaxIds, supplier_email: 'hola@clinica.example', receiver_email: 'hola@clinica.example' }),
+			{ email: 'hola@clinica.example' },
+		);
+		expect(out.swapped).toBe(false);
+	});
+
+	it('believes a printed tax id over a matching contact', () => {
+		const out = resolveInvoiceParties(
+			invoice({ supplier_email: 'hola@clinica.example', supplier_nif: 'B99999997', receiver_nif: null }),
+			{ taxId: OWN_NIF, email: 'hola@clinica.example' },
+		);
+		expect(out.swapped).toBe(false);
+	});
+
+	it('is skipped when the restaurant has no email or phone on file', () => {
+		const out = resolveInvoiceParties(invoice({ ...noTaxIds, supplier_email: 'hola@clinica.example' }), {});
+		expect(out.swapped).toBe(false);
+	});
+});
+
 describe('resolveInvoiceParties — nothing to swap to', () => {
 	it('never swaps a party in when the document printed no receiver', () => {
 		const out = resolveInvoiceParties(
