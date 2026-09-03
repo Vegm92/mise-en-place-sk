@@ -20,6 +20,17 @@
   } = $props();
 
   const Ic = $derived(notificationIcon(notification.notificationType));
+
+  const TYPES_WITH_ACTION = new Set([
+    'supplier_uncategorized',
+    'supplier_category_suggested',
+    'unit_conversion_needed',
+    'whatsapp_pending_save',
+    'whatsapp_needs_review',
+    'product_suggestion',
+    'restaurant_phone_mismatch',
+  ]);
+  const hasSpecificAction = $derived(TYPES_WITH_ACTION.has(notification.notificationType));
 </script>
 
 <div style="display:flex;align-items:flex-start;gap:10px;">
@@ -84,26 +95,6 @@
         </div>
       {/if}
     {/if}
-    {#if ['price_shock', 'low_stock_forecast', 'budget_overage', 'line_item_mismatch'].includes(notification.notificationType)}
-      {#if notification.invoiceId}
-        <div style="margin-top:6px;">
-          <a
-            href="/invoice/{notification.invoiceId}"
-            class="btn btn-primary"
-            style="height:26px;font-size:11px;padding:0 10px;text-decoration:none;display:inline-flex;align-items:center;"
-          >{$t('notif.viewInvoice')}</a>
-        </div>
-      {/if}
-    {/if}
-    {#if notification.notificationType === 'locations_locked'}
-      <div style="margin-top:6px;">
-        <a
-          href="/billing"
-          class="btn btn-primary"
-          style="height:26px;font-size:11px;padding:0 10px;text-decoration:none;display:inline-flex;align-items:center;"
-        >{$t('billing.manage')}</a>
-      </div>
-    {/if}
     {#if notification.notificationType === 'restaurant_phone_mismatch'}
       <div style="margin-top:6px;">
         <a
@@ -128,6 +119,25 @@
           onclick={() => onDecideProduct(notification, false)}
         >{$t('notif.prodReject')}</button>
       </div>
+    {/if}
+    {#if !hasSpecificAction}
+      {#if notification.invoiceId}
+        <div style="margin-top:6px;">
+          <a
+            href="/invoice/{notification.invoiceId}"
+            class="btn btn-secondary"
+            style="height:26px;font-size:11px;padding:0 10px;text-decoration:none;display:inline-flex;align-items:center;"
+          >{$t('notif.viewDetail')}</a>
+        </div>
+      {:else if notification.notificationType === 'locations_locked'}
+        <div style="margin-top:6px;">
+          <a
+            href="/billing"
+            class="btn btn-secondary"
+            style="height:26px;font-size:11px;padding:0 10px;text-decoration:none;display:inline-flex;align-items:center;"
+          >{$t('notif.viewBilling')}</a>
+        </div>
+      {/if}
     {/if}
     {#if notification.createdAt}
       <div style="font-size:11px;color:var(--mep-fg-3);margin-top:2px;">
