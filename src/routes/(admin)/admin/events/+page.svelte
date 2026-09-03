@@ -98,8 +98,8 @@
           {#each data.events as ev}
             <tr>
               <td class="mono dim">{ev.notification_type}</td>
-              <td class="nowrap" style="max-width:360px;overflow:hidden;text-overflow:ellipsis;">{ev.message}</td>
-              <td class="dim">{ev.restaurant_name ?? '—'}</td>
+              <td class="nowrap" style="width:360px;max-width:360px;overflow:hidden;text-overflow:ellipsis;">{ev.message}</td>
+              <td class="dim" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{ev.restaurant_name ?? '—'}</td>
               <td class="mono" class:good={ev.status === 'resolved'} class:warn={ev.status === 'pending'} class:dim={ev.status === 'dismissed'}>{ev.status}</td>
               <td class="num r dim nowrap">
                 {new Date(ev.created_at).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
