@@ -22,7 +22,8 @@ import { renderTemplate } from '$lib/i18n-messages';
 import { DAY_MS } from '$lib/constants';
 
 const secretKey = STRIPE_SECRET_KEY;
-export const stripe: Stripe | null = secretKey ? new Stripe(secretKey) : null;
+export const STRIPE_API_VERSION = '2026-06-24.dahlia';
+export const stripe: Stripe | null = secretKey ? new Stripe(secretKey, { apiVersion: STRIPE_API_VERSION }) : null;
 
 export const WEBHOOK_SECRET = STRIPE_WEBHOOK_SECRET;
 export const TRIAL_DAYS         = 14;
