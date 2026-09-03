@@ -224,6 +224,35 @@
     </HudPanel>
   </div>
 
+  {#if data.proposals.length > 0}
+    <HudPanel title={t('admin.learning.proposalsTitle')} sub={t('admin.learning.proposalsSub')}>
+      <AdminTableScroll>
+        <table class="hud-table">
+          <thead>
+            <tr>
+              <th scope="col" class="l">{t('admin.learning.colArea')}</th>
+              <th scope="col" class="l">{t('admin.learning.colRationale')}</th>
+              <th scope="col" class="l">{t('admin.learning.colProposedChange')}</th>
+              <th scope="col" class="l">{t('admin.learning.colStatus')}</th>
+              <th scope="col" class="r">{t('admin.learning.colCreated')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each data.proposals as row (row.id)}
+              <tr>
+                <td class="mono">{row.targetArea}</td>
+                <td class="dim">{row.rationale}</td>
+                <td class="mono dim">{row.proposedDiff}</td>
+                <td>{row.status}</td>
+                <td class="num r dim nowrap">{new Date(row.createdAt).toLocaleDateString('en-GB', { dateStyle: 'short' })}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </AdminTableScroll>
+    </HudPanel>
+  {/if}
+
   {#if data.pendingFuzzy.length > 0}
     <HudPanel title={t('admin.learning.pendingFuzzyTitle')}>
       <AdminTableScroll>

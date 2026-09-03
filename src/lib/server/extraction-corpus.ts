@@ -24,6 +24,7 @@ export interface ExtractionResultInput {
 	source?: string;
 	runKind?: ExtractionRunKind;
 	promptVersion: string;
+	pipelineVersion?: string | null;
 	model?: string | null;
 	extractedData: Record<string, unknown>;
 	conversionNotes?: string[] | null;
@@ -83,6 +84,7 @@ function toInsertRow(input: ExtractionResultInput): typeof extractionResults.$in
 		source: input.source ?? 'web',
 		runKind: input.runKind ?? 'live',
 		promptVersion: input.promptVersion,
+		pipelineVersion: input.pipelineVersion ?? null,
 		model: input.model ?? null,
 		extractedData: input.extractedData,
 		fieldConfidences: fieldConfidences(input.extractedData),

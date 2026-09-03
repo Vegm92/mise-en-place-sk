@@ -20,6 +20,7 @@ import {
 	type SegmentationOutcome,
 } from './document-segmentation.js';
 import { recordExtractionResult } from './extraction-corpus.js';
+import { getPipelineVersion } from './pipeline-version.js';
 import { annotateLineItems } from './products.js';
 import { ownPartyIdentity, resolveInvoiceParties } from './party.js';
 import {
@@ -157,6 +158,7 @@ async function archiveExtraction(
 			source: item.source,
 			runKind: 'live',
 			promptVersion: isXml ? EINVOICE_PARSER_VERSION : EXTRACTION_PROMPT_VERSION,
+			pipelineVersion: isXml ? null : getPipelineVersion(),
 			model,
 			extractedData,
 			conversionNotes,
