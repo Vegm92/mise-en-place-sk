@@ -48,12 +48,10 @@ async function backfillProductLinks(database: Database, restaurantId: string): P
 	`);
 	if (rows.length === 0) return 0;
 
-	const bySupplier = new Map<number, Array<{ description: string; unit: string | null }>>();
-	for (const r of rows) {
-		const list = bySupplier.get(r.supplier_id) ?? [];
-		list.push({ description: r.description, unit: r.unit });
-		bySupplier.set(r.supplier_id, list);
-	}
+	const bySupplier = Map.groupBy(
+		rows.map((r) => ({ supplierId: r.supplier_id, description: r.description, unit: r.unit })),
+		(r) => r.supplierId,
+	);
 
 	let linked = 0;
 	for (const [supplierId, lines] of bySupplier) {

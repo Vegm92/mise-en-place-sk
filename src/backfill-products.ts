@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import './lib/server/env-file.js';
 import { db } from './lib/server/db.js';
 import { restaurants } from './lib/server/schema.js';
 import { backfillRestaurant } from './lib/server/backfill.js';

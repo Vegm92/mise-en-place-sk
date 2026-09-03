@@ -244,6 +244,13 @@ the inventory template, issue #885) is a different route entirely.
 
 ## Server core (DB, extraction, billing, jobs)
 
+### `src/lib/server/with-timeout.ts`
+
+**`function withTimeout`**
+
+- Races the work against a deadline **and** hands the work an `AbortSignal` that is aborted (with the same `TimeoutError` as its reason) when the deadline passes (issue #851). The race is kept on purpose: the callers in `hooks.server.ts` and `load-guard.ts` wrap Postgres queries that never observe a signal, so a signal-only design would wait for them forever. Work that does observe the signal (the Gemini provider forwards it as `config.abortSignal`) genuinely stops instead of running to completion after the wrapper has already rejected. An optional outer signal is merged in with `AbortSignal.any()` so a caller's own cancellation reaches the work too.
+- `TimeoutError` keeps its `"<label> timed out after <ms>ms"` message; log greps and assertions depend on it.
+
 ### `src/lib/server/waitlist-db.ts`
 
 **`function insertWaitlistEmail`**
