@@ -18,6 +18,16 @@ import { translations } from '../src/lib/i18n-messages';
 const DESKTOP = path.resolve(__dirname, '..', 'src', 'routes', '(app)', 'reminders', '+page.svelte');
 const MOBILE = path.resolve(__dirname, '..', 'src', 'lib', 'components', 'mobile', 'MobileAlerts.svelte');
 
+function elseBranch(file: string, ifMarker: string): string {
+	const source = readFileSync(file, 'utf8');
+	const ifAt = source.indexOf(ifMarker);
+	expect(ifAt).toBeGreaterThan(-1);
+	const elseAt = source.indexOf('{:else}', ifAt);
+	const endAt = source.indexOf('{/if}', elseAt);
+	expect(elseAt).toBeGreaterThan(ifAt);
+	return source.slice(elseAt, endAt);
+}
+
 describe('issue #747 — reminders page names an empty incidencias section', () => {
 	it('rem.noIncidencias is defined in both locales', () => {
 		expect(translations.es['rem.noIncidencias']).toBeTruthy();
@@ -32,22 +42,10 @@ describe('issue #747 — reminders page names an empty incidencias section', () 
 	});
 
 	it('desktop reminders page renders rem.noIncidencias when incidencias.length is 0', () => {
-		const source = readFileSync(DESKTOP, 'utf8');
-		const ifAt = source.indexOf('{#if data.incidencias.length}');
-		expect(ifAt).toBeGreaterThan(-1);
-		const elseAt = source.indexOf('{:else}', ifAt);
-		const endAt = source.indexOf('{/if}', elseAt);
-		expect(elseAt).toBeGreaterThan(ifAt);
-		expect(source.slice(elseAt, endAt)).toContain("t('rem.noIncidencias')");
+		expect(elseBranch(DESKTOP, '{#if data.incidencias.length}')).toContain("t('rem.noIncidencias')");
 	});
 
 	it('mobile alerts view renders rem.noIncidencias when incidencias.length is 0', () => {
-		const source = readFileSync(MOBILE, 'utf8');
-		const ifAt = source.indexOf('{#if incidencias.length}');
-		expect(ifAt).toBeGreaterThan(-1);
-		const elseAt = source.indexOf('{:else}', ifAt);
-		const endAt = source.indexOf('{/if}', elseAt);
-		expect(elseAt).toBeGreaterThan(ifAt);
-		expect(source.slice(elseAt, endAt)).toContain("t('rem.noIncidencias')");
+		expect(elseBranch(MOBILE, '{#if incidencias.length}')).toContain("t('rem.noIncidencias')");
 	});
 });

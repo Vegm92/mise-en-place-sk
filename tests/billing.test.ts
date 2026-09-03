@@ -9,6 +9,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { setLocale, t, loadAllMessages } from '../src/lib/i18n';
+import { untranslated } from './helpers/i18n-setup';
 
 await loadAllMessages();
 
@@ -403,15 +404,7 @@ describe('plan display names go through the i18n table (follow-up to #661)', () 
   });
 
   it('resolves every tier name key in both locales', () => {
-    const missing: string[] = [];
-    for (const lc of ['es', 'en'] as const) {
-      setLocale(lc);
-      for (const tier of order) {
-        const key = TIERS[tier].nameKey;
-        if (tr(key) === key) missing.push(`${lc}:${key}`);
-      }
-    }
-    expect(missing).toEqual([]);
+    expect(untranslated(order.map((tier) => TIERS[tier].nameKey))).toEqual([]);
   });
 
   it('translates the trial plan instead of showing Spanish to English readers', () => {

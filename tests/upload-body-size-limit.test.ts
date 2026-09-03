@@ -23,6 +23,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { setLocale, t, ti, loadAllMessages } from '../src/lib/i18n';
+import { untranslated } from './helpers/i18n-setup';
 import {
 	MAX_UPLOAD_BYTES,
 	MAX_UPLOAD_TOTAL_BYTES,
@@ -143,11 +144,6 @@ describe('the 413 is reported as an oversized upload, not a parse failure', () =
 	});
 
 	it('has both message keys translated in both locales', () => {
-		for (const l of ['es', 'en'] as const) {
-			setLocale(l);
-			for (const key of ['upload.err.totalTooLarge', 'upload.err.serverError']) {
-				expect(t(key), `${key} missing for ${l}`).not.toBe(key);
-			}
-		}
+		expect(untranslated(['upload.err.totalTooLarge', 'upload.err.serverError'])).toEqual([]);
 	});
 });

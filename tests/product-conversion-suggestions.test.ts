@@ -17,6 +17,7 @@ import {
 	loadConversionPrompts, defineUnitConversion, annotateLineItems,
 } from '../src/lib/server/products';
 import { setLocale, t, loadAllMessages } from '../src/lib/i18n';
+import { untranslated } from './helpers/i18n-setup';
 import { translations } from '../src/lib/i18n-messages';
 
 await loadAllMessages();
@@ -340,10 +341,6 @@ describe('i18n keys for the suggestions-tab conversion prompt', () => {
 	});
 
 	it('resolves in Spanish and English', () => {
-		for (const lc of ['es', 'en'] as const) {
-			setLocale(lc);
-			for (const key of keys) expect(t(key)).not.toBe(key);
-		}
-		setLocale('es');
+		expect(untranslated(keys)).toEqual([]);
 	});
 });
