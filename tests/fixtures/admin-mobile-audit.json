@@ -1,14 +1,14 @@
 {
-  "generatedAt": "2026-09-02T22:04:01.025Z",
-  "base": "http://127.0.0.1:5209",
+  "generatedAt": "2026-09-03T13:30:39.563Z",
+  "base": "http://127.0.0.1:5207",
   "viewport": {
     "width": 390,
     "height": 844
   },
-  "tag": "final",
+  "tag": "after",
   "totals": {
     "routes": 9,
-    "tables": 27,
+    "tables": 28,
     "clipped": 0
   },
   "routes": [
@@ -19,9 +19,9 @@
           "index": 0,
           "label": "",
           "columns": 2,
-          "renderedWidth": 647,
+          "renderedWidth": 516.2,
           "containerWidth": 364,
-          "overflowPx": 283,
+          "overflowPx": 152.2,
           "containerKind": "scroller",
           "scrollable": true,
           "clipped": false
@@ -41,7 +41,7 @@
       "tableCount": 2,
       "clippedCount": 0,
       "documentOverflowPx": 0,
-      "screenshot": "..\\..\\..\\AppData\\Local\\Temp\\admin-audit-shots\\final-390-admin.png"
+      "screenshot": "shots/after-390-admin.png"
     },
     {
       "route": "/admin/access",
@@ -50,9 +50,9 @@
           "index": 0,
           "label": "Email / Estado / Alta / Acción",
           "columns": 4,
-          "renderedWidth": 494,
+          "renderedWidth": 531.3,
           "containerWidth": 364,
-          "overflowPx": 130,
+          "overflowPx": 167.3,
           "containerKind": "scroller",
           "scrollable": true,
           "clipped": false
@@ -61,9 +61,9 @@
           "index": 1,
           "label": "Email / Se apuntó / Acción",
           "columns": 3,
-          "renderedWidth": 385.5,
+          "renderedWidth": 414.4,
           "containerWidth": 364,
-          "overflowPx": 21.5,
+          "overflowPx": 50.4,
           "containerKind": "scroller",
           "scrollable": true,
           "clipped": false
@@ -72,7 +72,7 @@
       "tableCount": 2,
       "clippedCount": 0,
       "documentOverflowPx": 0,
-      "screenshot": "..\\..\\..\\AppData\\Local\\Temp\\admin-audit-shots\\final-390-admin_access.png"
+      "screenshot": "shots/after-390-admin_access.png"
     },
     {
       "route": "/admin/revenue",
@@ -103,9 +103,9 @@
           "index": 2,
           "label": "Cohorte / Clientes / MRR inicial / Mes +3 / Mes +6 / Mes +12",
           "columns": 6,
-          "renderedWidth": 383,
+          "renderedWidth": 405.7,
           "containerWidth": 364,
-          "overflowPx": 19,
+          "overflowPx": 41.7,
           "containerKind": "scroller",
           "scrollable": true,
           "clipped": false
@@ -136,9 +136,9 @@
           "index": 5,
           "label": "Mes / Categoría / Importe / Nota / ",
           "columns": 5,
-          "renderedWidth": 369.7,
+          "renderedWidth": 395.3,
           "containerWidth": 364,
-          "overflowPx": 5.7,
+          "overflowPx": 31.3,
           "containerKind": "scroller",
           "scrollable": true,
           "clipped": false
@@ -147,18 +147,18 @@
       "tableCount": 6,
       "clippedCount": 0,
       "documentOverflowPx": 0,
-      "screenshot": "..\\..\\..\\AppData\\Local\\Temp\\admin-audit-shots\\final-390-admin_revenue.png"
+      "screenshot": "shots/after-390-admin_revenue.png"
     },
     {
       "route": "/admin/events",
       "tables": [
         {
           "index": 0,
-          "label": "Tipo / Mensaje / Restaurante / Estado / Fecha",
-          "columns": 5,
-          "renderedWidth": 794.1,
+          "label": "Tipo / Mensaje / Restaurante / Estado / Fecha / Acciones",
+          "columns": 6,
+          "renderedWidth": 1059.2,
           "containerWidth": 364,
-          "overflowPx": 430.1,
+          "overflowPx": 695.2,
           "containerKind": "scroller",
           "scrollable": true,
           "clipped": false
@@ -167,7 +167,7 @@
       "tableCount": 1,
       "clippedCount": 0,
       "documentOverflowPx": 0,
-      "screenshot": "..\\..\\..\\AppData\\Local\\Temp\\admin-audit-shots\\final-390-admin_events.png"
+      "screenshot": "shots/after-390-admin_events.png"
     },
     {
       "route": "/admin/dead-letters",
@@ -176,9 +176,9 @@
           "index": 0,
           "label": "Cola / Error / Restaurante / Veces / Estado / Último / Accio",
           "columns": 7,
-          "renderedWidth": 1038.2,
+          "renderedWidth": 1143.5,
           "containerWidth": 364,
-          "overflowPx": 674.2,
+          "overflowPx": 779.5,
           "containerKind": "scroller",
           "scrollable": true,
           "clipped": false
@@ -187,7 +187,7 @@
       "tableCount": 1,
       "clippedCount": 0,
       "documentOverflowPx": 0,
-      "screenshot": "..\\..\\..\\AppData\\Local\\Temp\\admin-audit-shots\\final-390-admin_dead-letters.png"
+      "screenshot": "shots/after-390-admin_dead-letters.png"
     },
     {
       "route": "/admin/errors",
@@ -249,9 +249,9 @@
           "index": 3,
           "label": "Versión de prompt / Documentos / Confianza media / Descuadre",
           "columns": 8,
-          "renderedWidth": 720.4,
+          "renderedWidth": 768,
           "containerWidth": 364,
-          "overflowPx": 356.4,
+          "overflowPx": 404,
           "containerKind": "scroller",
           "scrollable": true,
           "clipped": false
@@ -291,20 +291,31 @@
         },
         {
           "index": 7,
+          "label": "Campo / área / Justificación / Cambio propuesto / Estado / C",
+          "columns": 5,
+          "renderedWidth": 478.8,
+          "containerWidth": 364,
+          "overflowPx": 114.8,
+          "containerKind": "scroller",
+          "scrollable": true,
+          "clipped": false
+        },
+        {
+          "index": 8,
           "label": "Restaurante / Producto sugerido / Texto original / Creado",
           "columns": 4,
-          "renderedWidth": 439.1,
+          "renderedWidth": 471.1,
           "containerWidth": 364,
-          "overflowPx": 75.1,
+          "overflowPx": 107.1,
           "containerKind": "scroller",
           "scrollable": true,
           "clipped": false
         }
       ],
-      "tableCount": 8,
+      "tableCount": 9,
       "clippedCount": 0,
       "documentOverflowPx": 0,
-      "screenshot": "..\\..\\..\\AppData\\Local\\Temp\\admin-audit-shots\\final-390-admin_learning.png"
+      "screenshot": "shots/after-390-admin_learning.png"
     },
     {
       "route": "/admin/health",
@@ -313,9 +324,9 @@
           "index": 0,
           "label": "Comprobación / Estado / Detalle",
           "columns": 3,
-          "renderedWidth": 413.1,
+          "renderedWidth": 443.7,
           "containerWidth": 364,
-          "overflowPx": 49.1,
+          "overflowPx": 79.7,
           "containerKind": "scroller",
           "scrollable": true,
           "clipped": false
@@ -324,9 +335,9 @@
           "index": 1,
           "label": "Restaurante / Archivo / Estado / Atascado desde / Acciones",
           "columns": 5,
-          "renderedWidth": 569.7,
+          "renderedWidth": 684.3,
           "containerWidth": 364,
-          "overflowPx": 205.7,
+          "overflowPx": 320.3,
           "containerKind": "scroller",
           "scrollable": true,
           "clipped": false
@@ -335,9 +346,9 @@
           "index": 2,
           "label": "Cuándo / Evento / Gravedad / Calidad",
           "columns": 4,
-          "renderedWidth": 567.7,
+          "renderedWidth": 610.5,
           "containerWidth": 340,
-          "overflowPx": 227.7,
+          "overflowPx": 270.5,
           "containerKind": "scroller",
           "scrollable": true,
           "clipped": false
@@ -368,7 +379,7 @@
       "tableCount": 5,
       "clippedCount": 0,
       "documentOverflowPx": 0,
-      "screenshot": "..\\..\\..\\AppData\\Local\\Temp\\admin-audit-shots\\final-390-admin_health.png"
+      "screenshot": "shots/after-390-admin_health.png"
     },
     {
       "route": "/admin/feature-flags",
@@ -388,7 +399,7 @@
       "tableCount": 1,
       "clippedCount": 0,
       "documentOverflowPx": 0,
-      "screenshot": "..\\..\\..\\AppData\\Local\\Temp\\admin-audit-shots\\final-390-admin_feature-flags.png"
+      "screenshot": "shots/after-390-admin_feature-flags.png"
     }
   ]
 }

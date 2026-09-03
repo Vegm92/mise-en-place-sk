@@ -526,6 +526,13 @@
       "when": 1788440737022,
       "tag": "0074_supplier_cif_merge",
       "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1788442788564,
+      "tag": "0075_solid_blacklash",
+      "breakpoints": true
     }
   ]
 }
