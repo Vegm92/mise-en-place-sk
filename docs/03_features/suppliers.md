@@ -50,6 +50,13 @@ price-shock history.
   is indexed per tenant. A supplier already holding the document's tax id wins
   over any name, so a razón social and a nombre comercial that share a NIF stay
   one row.
+- **Tax-id trust gate** (`taxIdDecidesIdentity`, issue #905 task 3): a tax id
+  only resolves identity when it passes the Spanish checksum and its
+  `field_confidences.supplier_nif` is at least 0.85. Storage is unaffected —
+  every extracted id is still written to `cif`/`normalized_cif` — but a misread
+  digit or a foreign VAT number falls through to name/alias matching instead of
+  merging two unrelated businesses into one row, which nothing in the app can
+  undo today.
 - **Alias capture**: when the tax id resolves a supplier whose stored name is a
   different entity name (`isSameSupplierName` says no), the printed name is
   written to `supplier_aliases` so a later document that prints only that name —
@@ -312,6 +319,7 @@ issue #881); name non-empty; tenant scope. List search params validated by
 **`function getOrCreateSupplierId`**
 - Contact fields filled with `COALESCE`, never overwritten — an existing non-null value (user-typed or earlier capture) always beats a new extraction.
 - `contactTrusted` (issue #905) says whether the reviewed supplier name still matches the one the document printed. Untrusted contact data is applied on INSERT but withheld from the DO UPDATE arm: a row created by this save is the document's issuer whatever name the reviewer gave it, while an existing row may be an unrelated supplier the reviewer retargeted to, and must not inherit another document's CIF. Without the split, correcting a printed trade name to the legal name discarded the NIF for exactly the entities whose names vary between documents.
+- `contact.cifConfidence` is the model's legibility score for `supplier_nif`, passed through from `resolveSupplierInfo`; absent (e-invoice XML, the edit screen, a caller with no extraction behind it) means no evidence against the reading, so it is treated as legible.
 - Untrusted contact data also disables tax-id *matching* (issue #905 task 3), not just the merge. The reviewer having renamed the supplier away from what the document printed is exactly the case where the printed NIF may belong to a different entity than the name being saved.
 
 ### `src/lib/tax-id.ts`
@@ -319,6 +327,11 @@ issue #881); name non-empty; tenant scope. List search params validated by
 **`function normalizeTaxId`**
 - Canonical form for any tax id before it is stored or compared (issue #905): uppercase, drop every separator, and strip a leading `ES` only when what remains is still a full 9-character id — otherwise a razón social beginning with "Es…" would lose its first two letters.
 - Normalisation is deliberately independent of validation. Extracted supplier ids must be comparable even when they are foreign VAT numbers that no Spanish checksum accepts.
+
+**`function taxIdDecidesIdentity`**
+
+- The single gate every identity decision goes through (issue #905 task 3): supplier resolution and the receiver check both ask it, so the two cannot drift apart. Validity is required because a tax id read off a scan is the one field where a single wrong character silently points at a different legal entity — and the checksum catches almost every OCR digit slip, which no confidence score can. Confidence is required on top because a checksum can be passed by a legible-looking guess.
+- The cost is deliberate: a foreign VAT number no Spanish checksum accepts never merges two names, it only falls back to name/alias matching. Missing a merge leaves two supplier rows a human can still reconcile; a wrong merge silently attributes one business's invoices to another and has no undo until the merge tooling exists.
 
 **`function isValidSpanishTaxId`**
 - Real checksums (DNI/NIE mod 23, CIF control character), not a shape regex, and it enforces the control *kind* each CIF entity letter allows — a digit for A/B/E/H, a letter for K/P/Q/R/S/N/W. A shape check would accept most single-character typos, which is precisely the input this exists to reject.

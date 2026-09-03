@@ -61,6 +61,28 @@ describe.skipIf(!hasDbEnv)('#905 CIF-first supplier resolution', () => {
 		expect(await rowsFor(rid)).toHaveLength(2);
 	}));
 
+	it('does not match two names onto a tax id that fails the checksum', () => withRestaurant('cif-invalid', async (rid) => {
+		const first = await getOrCreateSupplierId(rid, 'Fruites Mateu', testDb, CAT, { cif: 'B99999998' });
+		const second = await getOrCreateSupplierId(rid, 'Mateu Distribucions', testDb, CAT, { cif: 'B99999998' });
+		expect(second).not.toBe(first);
+		expect(await rowsFor(rid)).toHaveLength(2);
+	}));
+
+	it('stores the tax id it refused to match on', () => withRestaurant('cif-invalid-store', async (rid) => {
+		await getOrCreateSupplierId(rid, 'Fruites Mateu', testDb, CAT, { cif: 'B-99.999.998' });
+		const [row] = await rowsFor(rid);
+		expect(row.cif).toBe('B-99.999.998');
+		expect(row.normalizedCif).toBe('B99999998');
+	}));
+
+	it('does not match on a tax id the model reports as barely legible', () => withRestaurant('cif-low-conf', async (rid) => {
+		const first = await getOrCreateSupplierId(rid, 'Peixos Roig', testDb, CAT, { cif: 'B99999997' });
+		const second = await getOrCreateSupplierId(
+			rid, 'Roig Germans', testDb, CAT, { cif: 'B99999997', cifConfidence: 0.5 },
+		);
+		expect(second).not.toBe(first);
+	}));
+
 	it('does not match on a tax id the caller marked untrusted', () => withRestaurant('cif-untrusted', async (rid) => {
 		const first = await getOrCreateSupplierId(rid, 'Bodega Central', testDb, CAT, { cif: 'B99999997' });
 		const second = await getOrCreateSupplierId(

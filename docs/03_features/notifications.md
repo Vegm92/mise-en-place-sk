@@ -36,7 +36,19 @@ consistent i18n rendering and actionable CTAs, plus the unified reminders hub.
   `invoice-save.ts`): `price_shock`,
   `low_stock_forecast`, `budget_overage`, `supplier_uncategorized`,
   `supplier_category_suggested`, `unit_conversion_needed`, `product_suggestion`,
-  `verifactu_qr_mismatch`, `restaurant_phone_mismatch` (issue #918).
+  `verifactu_qr_mismatch`, `restaurant_phone_mismatch` (issue #918),
+  `restaurant_tax_id_mismatch` (issue #905).
+- **Producer** (`invoice-save.ts` `resolveRestaurantTaxIdSignal`, #905 task 3):
+  `restaurant_tax_id_mismatch` — raised post-commit when a confirmed document
+  is addressed to a `receiver_nif` that is not the restaurant's own `cif_nif`.
+  A warning, never a block: the document is saved either way, because the
+  wrong side of the mismatch may be the profile rather than the document.
+  Silent unless both ids are known and the extracted one is checksum-valid and
+  legible (`taxIdDecidesIdentity`) — a misread digit must not accuse the owner
+  of filing someone else's invoice. Nothing is auto-filled from it: unlike the
+  phone below, a blank `restaurants.cif_nif` is left blank, since a fiscal
+  identity taken from a document that may not be ours is exactly the value this
+  alert exists to doubt.
 - **Producer** (`invoice-save.ts` `resolveRestaurantPhoneSignal`, #918):
   `restaurant_phone_mismatch` — raised post-commit when a confirmed invoice's
   `receiver_phone` disagrees with a `restaurants.phone` the owner already has
@@ -79,7 +91,7 @@ consistent i18n rendering and actionable CTAs, plus the unified reminders hub.
   row at all. `supplier_category_suggested` rides on the
   `supplier_uncategorized` toggle; alert types with no toggle
   (`unit_conversion_needed`, `product_suggestion`, `verifactu_qr_mismatch`,
-  `restaurant_phone_mismatch`) are never filtered. The two email jobs check their own toggle before doing any
+  `restaurant_phone_mismatch`, `restaurant_tax_id_mismatch`) are never filtered. The two email jobs check their own toggle before doing any
   work (`weekly_digest`, `invoice_reminders`).
   `notificationType` is free-form `text`, so a new type needs no migration —
   `/reminders` selects every pending row and unknown types degrade to a bell.
@@ -251,7 +263,8 @@ Type ∈ known set; payload shape per type; tenant scope.
 - Called after an invoice is soft-deleted. Closes `price_shock`,
   `possible_duplicate_purchase`, `related_document_found`,
   `verifactu_qr_mismatch`, `line_item_mismatch` (#886), and
-  `restaurant_phone_mismatch` (#918) alerts tied to that invoice — there is
+  `restaurant_phone_mismatch` (#918) and `restaurant_tax_id_mismatch` (#905)
+  alerts tied to that invoice — there is
   nothing left to re-compare, so they are marked `resolved` outright rather
   than orphaned against a gone invoice. `budget_overage` is handled separately
   (`reevaluateBudgetAlertsForInvoice`) since it is category-wide, not specific
