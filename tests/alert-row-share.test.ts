@@ -36,8 +36,8 @@ describe('AlertRow share affordance (issue #329)', () => {
 	});
 
 	it('reuses the same tokenised mechanism as the digest share (copy/copied i18n keys)', () => {
-		expect(SRC).toContain("$t('dshare.copy')");
-		expect(SRC).toContain("$t('dshare.copied')");
-		expect(SRC).toContain("$t('ashare.button')");
+		expect(SRC).toContain("t('dshare.copy')");
+		expect(SRC).toContain("t('dshare.copied')");
+		expect(SRC).toContain("t('ashare.button')");
 	});
 });

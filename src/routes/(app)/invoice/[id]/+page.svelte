@@ -25,12 +25,12 @@
 
   function fmt(n: number | null | undefined) {
     if (n == null) return '—';
-    return fmtEur(n, $locale);
+    return fmtEur(n, locale.current);
   }
   function fmtDate(s: Date | string | null | undefined) {
     if (!s) return '—';
     const d = new Date(s);
-    return isNaN(d.getTime()) ? s : d.toLocaleDateString($locale, { day: '2-digit', month: 'short', year: 'numeric' });
+    return isNaN(d.getTime()) ? s : d.toLocaleDateString(locale.current, { day: '2-digit', month: 'short', year: 'numeric' });
   }
 
   const timelineEvents = $derived([
@@ -51,7 +51,7 @@
 
   <nav style="display:flex;align-items:center;gap:6px;">
     <a href="/invoices" class="body" style="color:var(--mep-fg-3);text-decoration:none;">
-      {$t('nav.invoices')}
+      {t('nav.invoices')}
     </a>
     <span class="body" style="color:var(--mep-fg-4);">/</span>
     <span class="body-strong">{invoice.invoice_number ?? `#${invoice.id}`}</span>
@@ -67,9 +67,9 @@
           </span>
         </div>
         <div style="display:flex;gap:4px;">
-          <button class="btn btn-ghost" style="width:28px;height:28px;padding:0;justify-content:center;font-size:15px;" title={$t('a11y.zoomOut')}>−</button>
+          <button class="btn btn-ghost" style="width:28px;height:28px;padding:0;justify-content:center;font-size:15px;" title={t('a11y.zoomOut')}>−</button>
           <span class="body" style="align-self:center;padding:0 4px;font-size:12px;">100%</span>
-          <button class="btn btn-ghost" style="width:28px;height:28px;padding:0;justify-content:center;font-size:15px;" title={$t('a11y.zoomIn')}>+</button>
+          <button class="btn btn-ghost" style="width:28px;height:28px;padding:0;justify-content:center;font-size:15px;" title={t('a11y.zoomIn')}>+</button>
         </div>
       </div>
 
@@ -87,7 +87,7 @@
           padding:32px;
         ">
           <span class="body" style="color:var(--mep-fg-4);">
-            {invoice.source_file ? $t('inv.detail.noPreview') : $t('inv.detail.noFile')}
+            {invoice.source_file ? t('inv.detail.noPreview') : t('inv.detail.noFile')}
           </span>
         </div>
       {/if}
@@ -108,70 +108,70 @@
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;">
           <div style="display:flex;flex-direction:column;gap:2px;">
-            <span class="label">{$t('field.supplier')}</span>
+            <span class="label">{t('field.supplier')}</span>
             <span class="body-strong">{invoice.supplier_name ?? '—'}</span>
           </div>
           <div style="display:flex;flex-direction:column;gap:2px;">
-            <span class="label">{$t('field.invoiceNum')}</span>
+            <span class="label">{t('field.invoiceNum')}</span>
             <span class="body-strong">{invoice.invoice_number ?? '—'}</span>
           </div>
           {#if invoice.document_type}
             <div style="display:flex;flex-direction:column;gap:2px;">
-              <span class="label">{$t('field.documentType')}</span>
-              <span class="body-strong">{$t(`field.documentType.${invoice.document_type}`)}</span>
+              <span class="label">{t('field.documentType')}</span>
+              <span class="body-strong">{t(`field.documentType.${invoice.document_type}`)}</span>
             </div>
           {/if}
           <div style="display:flex;flex-direction:column;gap:2px;">
-            <span class="label">{$t('field.invoiceDate')}</span>
+            <span class="label">{t('field.invoiceDate')}</span>
             <span class="body-strong">{fmtDate(invoice.invoice_date)}</span>
           </div>
           <div style="display:flex;flex-direction:column;gap:2px;">
-            <span class="label">{$t('field.dueDate')}</span>
+            <span class="label">{t('field.dueDate')}</span>
             <span class="body-strong">{fmtDate(invoice.due_date)}</span>
           </div>
           <div style="display:flex;flex-direction:column;gap:2px;">
-            <span class="label">{$t('field.totalAmount')}</span>
+            <span class="label">{t('field.totalAmount')}</span>
             <span class="num body-strong" style="font-size:17px;">{fmt(invoice.total_amount)}</span>
           </div>
           {#if invoice.payment_method}
             <div style="display:flex;flex-direction:column;gap:2px;">
-              <span class="label">{$t('field.paymentMethod')}</span>
-              <span class="body-strong">{$t(`field.paymentMethod.${invoice.payment_method}`)}</span>
+              <span class="label">{t('field.paymentMethod')}</span>
+              <span class="body-strong">{t(`field.paymentMethod.${invoice.payment_method}`)}</span>
             </div>
           {/if}
           {#if invoice.payment_terms}
             <div style="display:flex;flex-direction:column;gap:2px;">
-              <span class="label">{$t('field.paymentTerms')}</span>
+              <span class="label">{t('field.paymentTerms')}</span>
               <span class="body-strong">{invoice.payment_terms}</span>
             </div>
           {/if}
           {#if invoice.iban}
             <div style="display:flex;flex-direction:column;gap:2px;">
-              <span class="label">{$t('field.iban')}</span>
+              <span class="label">{t('field.iban')}</span>
               <span class="body-strong">{invoice.iban}</span>
             </div>
           {/if}
           {#if invoice.purchase_order}
             <div style="display:flex;flex-direction:column;gap:2px;">
-              <span class="label">{$t('field.purchaseOrder')}</span>
+              <span class="label">{t('field.purchaseOrder')}</span>
               <span class="body-strong">{invoice.purchase_order}</span>
             </div>
           {/if}
           {#if invoice.seller_name}
             <div style="display:flex;flex-direction:column;gap:2px;">
-              <span class="label">{$t('field.sellerName')}</span>
+              <span class="label">{t('field.sellerName')}</span>
               <span class="body-strong">{invoice.seller_name}</span>
             </div>
           {/if}
           {#if invoice.delivery_date}
             <div style="display:flex;flex-direction:column;gap:2px;">
-              <span class="label">{$t('field.deliveryDate')}</span>
+              <span class="label">{t('field.deliveryDate')}</span>
               <span class="body-strong">{fmtDate(invoice.delivery_date)}</span>
             </div>
           {/if}
           {#if invoice.delivery_address}
             <div style="display:flex;flex-direction:column;gap:2px;">
-              <span class="label">{$t('field.deliveryAddress')}</span>
+              <span class="label">{t('field.deliveryAddress')}</span>
               <span class="body-strong">{invoice.delivery_address}</span>
             </div>
           {/if}
@@ -181,34 +181,34 @@
           <div class="divider"></div>
           <div class="flex flex-wrap items-baseline gap-1.5 text-[11px] text-fg-3">
             {#if invoice.gross_amount != null}
-              <span>{$t('extract.grossAmount')} <span class="num text-fg-2">{fmt(invoice.gross_amount)}</span></span>
+              <span>{t('extract.grossAmount')} <span class="num text-fg-2">{fmt(invoice.gross_amount)}</span></span>
               <span class="opacity-60">→</span>
             {/if}
             {#if invoice.discount_amount != null}
-              <span>{$t('extract.discountAmount')} <span class="num text-fg-2">−{fmt(invoice.discount_amount)}</span></span>
+              <span>{t('extract.discountAmount')} <span class="num text-fg-2">−{fmt(invoice.discount_amount)}</span></span>
               <span class="opacity-60">→</span>
             {/if}
             {#if invoice.retention_amount != null}
               <span>
-                {$t('extract.retention')}{invoice.retention_rate != null ? ` (${(invoice.retention_rate * 100).toLocaleString($locale)}%)` : ''}
+                {t('extract.retention')}{invoice.retention_rate != null ? ` (${(invoice.retention_rate * 100).toLocaleString(locale.current)}%)` : ''}
                 <span class="num text-fg-2">−{fmt(invoice.retention_amount)}</span>
               </span>
               <span class="opacity-60">→</span>
             {/if}
-            <span class="body-strong text-fg">{$t('field.totalAmount')} <span class="num">{fmt(invoice.total_amount)}</span></span>
+            <span class="body-strong text-fg">{t('field.totalAmount')} <span class="num">{fmt(invoice.total_amount)}</span></span>
           </div>
         {/if}
 
         {#if invoice.notes}
           <div style="display:flex;flex-direction:column;gap:2px;">
-            <span class="label">{$t('inv.detail.notes')}</span>
+            <span class="label">{t('inv.detail.notes')}</span>
             <span class="body" style="line-height:1.5;">{invoice.notes}</span>
           </div>
         {/if}
 
         {#if invoice.printed_notes}
           <div style="display:flex;flex-direction:column;gap:2px;">
-            <span class="label">{$t('field.printedNotes')}</span>
+            <span class="label">{t('field.printedNotes')}</span>
             <span class="body" style="line-height:1.5;">{invoice.printed_notes}</span>
           </div>
         {/if}
@@ -217,14 +217,14 @@
           <div class="divider"></div>
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
             <div style="display:flex;flex-direction:column;gap:2px;">
-              <span class="label">{$t('inv.detail.linkedDocument')}</span>
+              <span class="label">{t('inv.detail.linkedDocument')}</span>
               <span class="body-strong">
-                {invoice.linked_invoice.document_type ? $t(`field.documentType.${invoice.linked_invoice.document_type}`) : ''}
+                {invoice.linked_invoice.document_type ? t(`field.documentType.${invoice.linked_invoice.document_type}`) : ''}
                 {invoice.linked_invoice.invoice_number ?? `#${invoice.linked_invoice.id}`}
               </span>
             </div>
             <a href="/invoice/{invoice.linked_invoice.id}" class="btn btn-ghost" style="height:30px;font-size:13px;">
-              {$t('inv.detail.viewLinked')}
+              {t('inv.detail.viewLinked')}
             </a>
           </div>
         {/if}
@@ -236,7 +236,7 @@
           class="btn btn-primary"
           style="text-decoration:none;"
         >
-          {$t('action.edit')}
+          {t('action.edit')}
         </a>
         {#if invoice.source_file}
           <a
@@ -245,7 +245,7 @@
             download
             style="text-decoration:none;"
           >
-            {$t('inv.detail.downloadOriginal')}
+            {t('inv.detail.downloadOriginal')}
           </a>
         {/if}
         {#if !confirmDelete}
@@ -254,16 +254,16 @@
             style="color:var(--mep-neg);"
             onclick={() => confirmDelete = true}
           >
-            {$t('inv.detail.delete')}
+            {t('inv.detail.delete')}
           </button>
         {:else}
           <form method="post" action="?/delete" style="display:flex;gap:6px;align-items:center;">
-            <span class="body" style="color:var(--mep-neg);font-size:12px;">{$t('inv.detail.sure')}</span>
+            <span class="body" style="color:var(--mep-neg);font-size:12px;">{t('inv.detail.sure')}</span>
             <button type="submit" class="btn btn-secondary" style="color:var(--mep-neg);border-color:var(--mep-neg);">
-              {$t('inv.detail.confirmDelete')}
+              {t('inv.detail.confirmDelete')}
             </button>
             <button type="button" class="btn btn-ghost" onclick={() => confirmDelete = false}>
-              {$t('edit.cancel')}
+              {t('edit.cancel')}
             </button>
           </form>
         {/if}
@@ -273,35 +273,35 @@
 
   {#if claim.sentAt}
     <div class="card p-4">
-      <span class="body-strong">{$ti('inv.claim.sentLine', { date: String(fmtDate(claim.sentAt)) })}</span>
+      <span class="body-strong">{ti('inv.claim.sentLine', { date: String(fmtDate(claim.sentAt)) })}</span>
     </div>
   {:else if claim.eligible}
     <div class="card p-4 flex flex-col gap-3">
       {#if !claimOpen}
         <button type="button" class="btn btn-primary self-start" onclick={() => claimOpen = true}>
-          {$t('inv.claim.button')}
+          {t('inv.claim.button')}
         </button>
       {:else}
         <form method="post" action="?/requestCorrection" use:enhance class="flex flex-col gap-3">
           {#if form?.claim}
-            <span class="body text-neg">{$t(`inv.claim.error.${form.claim}`)}</span>
+            <span class="body text-neg">{t(`inv.claim.error.${form.claim}`)}</span>
           {/if}
           <div class="flex flex-col gap-1">
-            <span class="label">{$t('inv.claim.form.to')}</span>
+            <span class="label">{t('inv.claim.form.to')}</span>
             <span class="body-strong">{claim.to}</span>
           </div>
           <div class="flex flex-col gap-1">
-            <label class="label" for="claim-subject">{$t('inv.claim.form.subject')}</label>
+            <label class="label" for="claim-subject">{t('inv.claim.form.subject')}</label>
             <input id="claim-subject" name="subject" class="input" value={claim.subject} maxlength={200} required />
           </div>
           <div class="flex flex-col gap-1">
-            <label class="label" for="claim-body">{$t('inv.claim.form.body')}</label>
+            <label class="label" for="claim-body">{t('inv.claim.form.body')}</label>
             <textarea id="claim-body" name="body" class="input min-h-32 resize-y" maxlength={4000} required>{claim.body}</textarea>
           </div>
-          <span class="body text-fg-3">{$t('inv.claim.form.hint')}</span>
+          <span class="body text-fg-3">{t('inv.claim.form.hint')}</span>
           <div class="flex gap-2">
-            <button type="submit" class="btn btn-primary">{$t('inv.claim.form.submit')}</button>
-            <button type="button" class="btn btn-ghost" onclick={() => claimOpen = false}>{$t('edit.cancel')}</button>
+            <button type="submit" class="btn btn-primary">{t('inv.claim.form.submit')}</button>
+            <button type="button" class="btn btn-ghost" onclick={() => claimOpen = false}>{t('edit.cancel')}</button>
           </div>
         </form>
       {/if}
@@ -312,17 +312,17 @@
     <div class="card" style="overflow:hidden;">
       <div class="card-header">
         <div class="section-title">
-          <span class="subtitle">{$t('extract.lineItems')}</span>
+          <span class="subtitle">{t('extract.lineItems')}</span>
         </div>
       </div>
       {#if unlinkedLineCount > 0}
         <div class="p-4 flex flex-wrap items-center gap-3 border-b border-divider">
           <span class="body text-warn">
-            {$ti('inv.detail.unlinkedLines', { n: unlinkedLineCount })}
+            {ti('inv.detail.unlinkedLines', { n: unlinkedLineCount })}
           </span>
           <form method="post" action="?/relinkProducts">
             <button type="submit" class="btn btn-secondary">
-              {$t('inv.detail.relink')}
+              {t('inv.detail.relink')}
             </button>
           </form>
         </div>
@@ -330,11 +330,11 @@
       <table class="tbl">
         <thead>
           <tr>
-            <th>{$t('tbl.desc')}</th>
-            <th class="num">{$t('tbl.qty')}</th>
-            <th>{$t('tbl.unit')}</th>
-            <th class="num">{$t('tbl.unitPrice')}</th>
-            <th class="num">{$t('tbl.total')}</th>
+            <th>{t('tbl.desc')}</th>
+            <th class="num">{t('tbl.qty')}</th>
+            <th>{t('tbl.unit')}</th>
+            <th class="num">{t('tbl.unitPrice')}</th>
+            <th class="num">{t('tbl.total')}</th>
           </tr>
         </thead>
         <tbody>
@@ -353,7 +353,7 @@
   {/if}
 
   <div class="card p-4" style="display:flex;flex-direction:column;gap:12px;">
-    <span class="subtitle" style="font-size:15px;">{$t('inv.detail.activity')}</span>
+    <span class="subtitle" style="font-size:15px;">{t('inv.detail.activity')}</span>
     <div style="display:flex;flex-direction:column;gap:0;">
       {#each timelineEvents as ev, i}
         <div style="display:flex;gap:12px;align-items:flex-start;{i < timelineEvents.length - 1 ? 'padding-bottom:14px;' : ''}">
@@ -364,7 +364,7 @@
             {/if}
           </div>
           <div style="display:flex;flex-direction:column;gap:1px;">
-            <span class="body-strong" style="font-size:12.5px;">{$t(ev.labelKey)}</span>
+            <span class="body-strong" style="font-size:12.5px;">{t(ev.labelKey)}</span>
             {#if ev.ts}
               <span class="body" style="font-size:11px;">{fmtDate(ev.ts)}</span>
             {/if}

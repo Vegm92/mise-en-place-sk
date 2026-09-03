@@ -22,8 +22,8 @@
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { get } from 'svelte/store';
-import { locale, t, ti, loadAllMessages } from '../src/lib/i18n';
+import { setLocale, t, ti, loadAllMessages } from '../src/lib/i18n';
+import { untranslated } from './helpers/i18n-setup';
 import {
 	MAX_UPLOAD_BYTES,
 	MAX_UPLOAD_TOTAL_BYTES,
@@ -120,10 +120,10 @@ describe('form-action failures reach the user', () => {
 	});
 
 	it('interpolates the limit into the message the failure carries', () => {
-		locale.set('es');
-		expect(get(ti)('upload.err.totalTooLarge', { mb: 100 })).toContain('100 MB');
-		locale.set('en');
-		expect(get(ti)('upload.err.totalTooLarge', { mb: 100 })).toContain('100 MB');
+		setLocale('es');
+		expect(ti('upload.err.totalTooLarge', { mb: 100 })).toContain('100 MB');
+		setLocale('en');
+		expect(ti('upload.err.totalTooLarge', { mb: 100 })).toContain('100 MB');
 	});
 
 	it('a plain JSON.parse of that same response yields no error — the original bug', () => {
@@ -144,11 +144,6 @@ describe('the 413 is reported as an oversized upload, not a parse failure', () =
 	});
 
 	it('has both message keys translated in both locales', () => {
-		for (const l of ['es', 'en'] as const) {
-			locale.set(l);
-			for (const key of ['upload.err.totalTooLarge', 'upload.err.serverError']) {
-				expect(get(t)(key), `${key} missing for ${l}`).not.toBe(key);
-			}
-		}
+		expect(untranslated(['upload.err.totalTooLarge', 'upload.err.serverError'])).toEqual([]);
 	});
 });

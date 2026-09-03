@@ -20,20 +20,20 @@
   }
 </script>
 
-<AdminPageHead route="/admin/events" title={$t('admin.events')} subtitle={$t('admin.eventsSubtitle')}>
+<AdminPageHead route="/admin/events" title={t('admin.events')} subtitle={t('admin.eventsSubtitle')}>
   {#snippet right()}
-    <span class="num text-[13px] text-fg-3">{$ti('admin.totalSuffix', { n: data.total.toLocaleString('en-US') })}</span>
+    <span class="num text-[13px] text-fg-3">{ti('admin.totalSuffix', { n: data.total.toLocaleString('en-US') })}</span>
   {/snippet}
 </AdminPageHead>
 
 <div class="hud-page px-3 md:px-6 pb-6 flex flex-col gap-2.5">
 
   <div class="flex gap-1.5 flex-wrap items-center">
-    <span class="text-xs text-fg-3">{$t('admin.typeLabel')}</span>
+    <span class="text-xs text-fg-3">{t('admin.typeLabel')}</span>
     <a
       href={buildUrl({ page: 1, status: data.statusFilter, q: data.q })}
       class={pillClass(!data.typeFilter)}
-    >{$t('admin.all')}</a>
+    >{t('admin.all')}</a>
     {#each data.availableTypes as type}
       <a
         href={buildUrl({ page: 1, type: type.type, status: data.statusFilter, q: data.q })}
@@ -43,11 +43,11 @@
   </div>
 
   <div class="flex gap-1.5 flex-wrap items-center">
-    <span class="text-xs text-fg-3">{$t('admin.statusLabel')}</span>
+    <span class="text-xs text-fg-3">{t('admin.statusLabel')}</span>
     <a
       href={buildUrl({ page: 1, type: data.typeFilter, q: data.q })}
       class={pillClass(!data.statusFilter)}
-    >{$t('admin.all')}</a>
+    >{t('admin.all')}</a>
     {#each STATUS_FILTERS as s}
       <a
         href={buildUrl({ page: 1, type: data.typeFilter, status: s, q: data.q })}
@@ -64,34 +64,34 @@
         type="search"
         name="q"
         value={data.q}
-        placeholder={$t('admin.eventSearchPh')}
+        placeholder={t('admin.eventSearchPh')}
         class="input flex-1 min-w-[180px] h-[30px]"
       />
     </form>
     <form method="POST" action="?/resolveFiltered" use:enhance>
       <input type="hidden" name="type" value={data.typeFilter} />
       <input type="hidden" name="q" value={data.q} />
-      <button type="submit" class="btn btn-secondary h-[30px] px-3 text-xs">{$t('admin.resolveFiltered')}</button>
+      <button type="submit" class="btn btn-secondary h-[30px] px-3 text-xs">{t('admin.resolveFiltered')}</button>
     </form>
   </div>
 
   {#if form?.error}
     <div style="background:#0a0c11;border:1px solid rgba(248,113,113,0.35);border-radius:10px;padding:12px 14px;font:500 12px/1.4 ui-monospace, monospace;color:#f87171;">
-      {$t('admin.actionFailed')}
+      {t('admin.actionFailed')}
     </div>
   {/if}
 
-  <HudPanel title={$t('admin.events')}>
+  <HudPanel title={t('admin.events')}>
     <AdminTableScroll>
       <table class="hud-table">
         <thead>
           <tr>
-            <th scope="col" class="l">{$t('admin.colType')}</th>
-            <th scope="col" class="l">{$t('admin.colMessage')}</th>
-            <th scope="col" class="l">{$t('admin.colRestaurant')}</th>
-            <th scope="col" class="l">{$t('admin.colStatus')}</th>
-            <th scope="col" class="r">{$t('admin.colDate')}</th>
-            <th scope="col" class="r">{$t('admin.colActions')}</th>
+            <th scope="col" class="l">{t('admin.colType')}</th>
+            <th scope="col" class="l">{t('admin.colMessage')}</th>
+            <th scope="col" class="l">{t('admin.colRestaurant')}</th>
+            <th scope="col" class="l">{t('admin.colStatus')}</th>
+            <th scope="col" class="r">{t('admin.colDate')}</th>
+            <th scope="col" class="r">{t('admin.colActions')}</th>
           </tr>
         </thead>
         <tbody>
@@ -110,18 +110,18 @@
                     <form method="POST" action="?/setStatus" use:enhance class="inline">
                       <input type="hidden" name="id" value={ev.id} />
                       <input type="hidden" name="status" value="resolved" />
-                      <button type="submit" class="btn btn-secondary text-[11px] px-2 py-[3px]">{$t('admin.resolve')}</button>
+                      <button type="submit" class="btn btn-secondary text-[11px] px-2 py-[3px]">{t('admin.resolve')}</button>
                     </form>
                     <form method="POST" action="?/setStatus" use:enhance class="inline">
                       <input type="hidden" name="id" value={ev.id} />
                       <input type="hidden" name="status" value="dismissed" />
-                      <button type="submit" class="btn btn-secondary text-[11px] px-2 py-[3px]">{$t('admin.dismiss')}</button>
+                      <button type="submit" class="btn btn-secondary text-[11px] px-2 py-[3px]">{t('admin.dismiss')}</button>
                     </form>
                   {:else}
                     <form method="POST" action="?/setStatus" use:enhance class="inline">
                       <input type="hidden" name="id" value={ev.id} />
                       <input type="hidden" name="status" value="pending" />
-                      <button type="submit" class="btn btn-secondary text-[11px] px-2 py-[3px]">{$t('admin.reopen')}</button>
+                      <button type="submit" class="btn btn-secondary text-[11px] px-2 py-[3px]">{t('admin.reopen')}</button>
                     </form>
                   {/if}
                 </div>
@@ -129,7 +129,7 @@
             </tr>
           {:else}
             <tr>
-              <td colspan="6" class="empty">{$t('admin.noEvents')}</td>
+              <td colspan="6" class="empty">{t('admin.noEvents')}</td>
             </tr>
           {/each}
         </tbody>
@@ -143,14 +143,14 @@
         <a
           href={buildUrl({ page: data.page - 1, type: data.typeFilter, status: data.statusFilter, q: data.q })}
           class="btn btn-secondary no-underline"
-        >{$t('admin.prev')}</a>
+        >{t('admin.prev')}</a>
       {/if}
-      <span class="text-[13px] text-fg-3">{$ti('admin.pageOf', { page: data.page, total: data.totalPages })}</span>
+      <span class="text-[13px] text-fg-3">{ti('admin.pageOf', { page: data.page, total: data.totalPages })}</span>
       {#if data.page < data.totalPages}
         <a
           href={buildUrl({ page: data.page + 1, type: data.typeFilter, status: data.statusFilter, q: data.q })}
           class="btn btn-secondary no-underline"
-        >{$t('admin.next')}</a>
+        >{t('admin.next')}</a>
       {/if}
     </div>
   {/if}
