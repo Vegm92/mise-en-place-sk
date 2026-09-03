@@ -38,6 +38,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 			message:          systemNotifications.message,
 			payload:          systemNotifications.payload,
 			createdAt:        systemNotifications.createdAt,
+			invoiceId:        systemNotifications.invoiceId,
 		})
 			.from(systemNotifications)
 			.where(tdb.scope(systemNotifications.restaurantId, eq(systemNotifications.status, 'pending')))

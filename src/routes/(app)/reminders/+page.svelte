@@ -7,6 +7,7 @@
   import IncidenceKindBadge from '$lib/components/mep/IncidenceKindBadge.svelte';
   import Check from '@lucide/svelte/icons/check';
   import { groupNotifications, type Notif } from '$lib/notification-display';
+  import { dismissNotification, acceptSupplierCategory, decideProductSuggestion } from '$lib/notification-actions';
 
   let { data }: { data: PageData } = $props();
 
@@ -17,68 +18,25 @@
   let decidingCategory = $state<number | null>(null);
   let deciding = $state<number | null>(null);
 
-  async function dismiss(id: number) {
-    const removed = notifItems.find((n) => n.id === id);
-    const removedIndex = notifItems.findIndex((n) => n.id === id);
-    notifItems = notifItems.filter((n) => n.id !== id);
-    try {
-      const resp = await fetch('/api/notifications', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ id }),
-      });
-      if (!resp.ok) throw new Error(`dismiss failed: ${resp.status}`);
-    } catch {
-      if (removed && removedIndex >= 0) {
-        const next = [...notifItems];
-        next.splice(removedIndex, 0, removed);
-        notifItems = next;
-      }
-    }
+  function dismiss(id: number) {
+    return dismissNotification(notifItems, id, (next) => { notifItems = next; });
   }
 
   async function acceptCategory(n: Notif) {
-    const p = n.payload as { supplierId?: number; suggestedCategory?: string } | null;
-    if (typeof p?.supplierId !== 'number' || decidingCategory !== null) return;
+    if (decidingCategory !== null) return;
     decidingCategory = n.id;
     try {
-      const resp = await fetch('/api/supplier-category', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          supplierId: p.supplierId,
-          action: 'accept',
-          category: p.suggestedCategory,
-        }),
-      });
-      if (resp.ok || resp.status === 404) notifItems = notifItems.filter((i) => i.id !== n.id);
-    } catch {
+      if (await acceptSupplierCategory(n)) notifItems = notifItems.filter((i) => i.id !== n.id);
     } finally {
       decidingCategory = null;
     }
   }
 
   async function decideProduct(n: Notif, accept: boolean) {
-    const p = n.payload as { description?: string; source?: string; candidateProductId?: number } | null;
-    const description = p?.description;
-    if (!description || deciding !== null) return;
-    const isLlm = p?.source === 'llm';
-    const bodyObj: Record<string, unknown> = { description };
-    if (accept) {
-      bodyObj.action = 'confirm';
-      if (isLlm && typeof p?.candidateProductId === 'number') bodyObj.targetProductId = p.candidateProductId;
-    } else {
-      bodyObj.action = isLlm ? 'dismiss' : 'reject';
-    }
+    if (deciding !== null) return;
     deciding = n.id;
     try {
-      const resp = await fetch('/api/product-aliases', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(bodyObj),
-      });
-      if (resp.ok) notifItems = notifItems.filter((i) => i.id !== n.id);
-    } catch {
+      if (await decideProductSuggestion(n, accept)) notifItems = notifItems.filter((i) => i.id !== n.id);
     } finally {
       deciding = null;
     }
