@@ -118,7 +118,7 @@ describe.skipIf(!hasDbEnv)('(app) layout load — behavior-preserving after the 
 		const notifications = data.notifications as Array<Record<string, unknown>>;
 		expect(notifications).toHaveLength(3);
 		for (const n of notifications) {
-			expect(Object.keys(n).sort()).toEqual(['createdAt', 'id', 'message', 'notificationType', 'payload']);
+			expect(Object.keys(n).sort()).toEqual(['createdAt', 'id', 'invoiceId', 'message', 'notificationType', 'payload']);
 		}
 		const types = notifications.map(n => n.notificationType).sort();
 		expect(types).toEqual(['budget_overage', 'budget_overage', 'price_shock']);
