@@ -12,6 +12,7 @@
   import Truck from '@lucide/svelte/icons/truck';
   import Bell from '@lucide/svelte/icons/bell';
   import Eye from '@lucide/svelte/icons/eye';
+  import Tag from '@lucide/svelte/icons/tag';
   import MessageCircle from '@lucide/svelte/icons/message-circle';
   import CircleHelp from '@lucide/svelte/icons/circle-help';
   import ShieldCheck from '@lucide/svelte/icons/shield-check';
@@ -84,6 +85,7 @@
   const sections = $derived([
     { id: 'cuenta', label: $t('set.nav.account'), sub: $t('set.sub.account'), icon: SettingsIcon },
     { id: 'negocio', label: $t('set.nav.business'), sub: $t('set.sub.business'), icon: Truck },
+    { id: 'categorias', label: $t('set.nav.categories'), sub: $t('set.sub.categories'), icon: Tag },
     { id: 'campos', label: $t('set.nav.fields'), sub: $t('set.sub.fields'), icon: Eye },
     { id: 'alertas', label: $t('set.nav.alerts'), sub: $t('set.sub.alerts'), icon: Bell },
     ...(data.whatsappEnabled
@@ -114,6 +116,8 @@
     { key: 'set.fiscal.address', section: 'negocio' },
     { key: 'set.fiscal.phone', section: 'negocio' },
     ...(showLocations ? [{ key: 'set.locations.title', section: 'negocio' }] : []),
+    { key: 'set.categories.title', section: 'categorias' },
+    ...data.categories.map((cat) => ({ key: cat.name, section: 'categorias' })),
     { key: 'set.fields.title', section: 'campos' },
     ...data.optionalFields.map((field) => ({ key: `set.fields.label.${field}`, section: 'campos' })),
     { key: 'set.thresholdTitle', section: 'alertas' },
@@ -197,6 +201,13 @@
 
   let pwOpen = $state(false);
   let dangerOpen = $state(false);
+
+  let editingCategoryId = $state<number | null>(null);
+  let editingCategoryName = $state('');
+  function startEditCategory(cat: { id: number; name: string }) {
+    editingCategoryId = cat.id;
+    editingCategoryName = cat.name;
+  }
 </script>
 
 {#snippet feedbackLine(section: string)}
@@ -459,6 +470,53 @@
             </div>
           </SectionCard>
         {/if}
+      {/if}
+
+      {#if section === 'categorias'}
+        <SectionCard title={$t('set.categories.title')} sub={$t('set.categories.sub')} noPad>
+          {#each data.categories as cat (cat.id)}
+            <div class="set-loc">
+              <span class="set-loc-badge">{cat.name.slice(0, 1)}</span>
+              {#if editingCategoryId === cat.id}
+                <form method="POST" action="?/renameCategory" class="set-inline set-grow">
+                  <input type="hidden" name="id" value={cat.id} />
+                  <input name="name" type="text" maxlength="60" required
+                    bind:value={editingCategoryName} class="input set-grow" />
+                  <button type="submit" class="btn btn-secondary set-btn-sm">{$t('set.categories.save')}</button>
+                  <button type="button" class="btn btn-ghost set-btn-sm"
+                    onclick={() => (editingCategoryId = null)}>{$t('set.categories.cancel')}</button>
+                </form>
+              {:else}
+                <span class="set-loc-name">{cat.name}</span>
+                {#if cat.isDefault}<span class="badge badge-neutral">{$t('set.categories.defaultBadge')}</span>{/if}
+                {#if cat.hidden}<span class="badge badge-neutral">{$t('set.categories.hiddenBadge')}</span>{/if}
+                <span class="set-spacer"></span>
+                {#if data.canManageCategories}
+                  <button type="button" class="btn btn-ghost set-btn-sm"
+                    onclick={() => startEditCategory(cat)}>{$t('set.categories.rename')}</button>
+                  <form method="POST" action="?/setCategoryHidden">
+                    <input type="hidden" name="id" value={cat.id} />
+                    <input type="hidden" name="hidden" value={cat.hidden ? '0' : '1'} />
+                    <button type="submit" class="btn btn-ghost set-btn-sm">
+                      {cat.hidden ? $t('set.categories.show') : $t('set.categories.hide')}
+                    </button>
+                  </form>
+                {/if}
+              {/if}
+            </div>
+          {/each}
+
+          {#if data.canManageCategories}
+            <form method="POST" action="?/addCategory" class="set-foot set-foot-fill set-inline">
+              <input name="name" type="text" maxlength="60" required
+                placeholder={$t('set.categories.namePlaceholder')} class="input set-grow" />
+              <button type="submit" class="btn btn-secondary">{$t('set.categories.add')}</button>
+            </form>
+          {:else}
+            <div class="set-foot"><p class="set-lbl-hint">{$t('set.categories.err.notOwner')}</p></div>
+          {/if}
+          {@render feedbackLine('categorias')}
+        </SectionCard>
       {/if}
 
       {#if section === 'campos'}

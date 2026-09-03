@@ -180,6 +180,27 @@ mirroring every production restaurant-creation path — so the existing
 DB-backed suite continues to exercise real restaurants rather than ones with
 an empty category set.
 
+**Part 3 (this cut, issue #881).** A "Categories" settings section
+(`src/routes/(app)/settings/+page.svelte`, `+page.server.ts`) closes the loop:
+owners can add, rename or hide a category from Settings, no code change or
+support ticket required — the acceptance criterion the issue opened with.
+Three new actions — `addCategory`, `renameCategory`, `setCategoryHidden` —
+call straight into `categories.ts`'s existing `createCategory`/`renameCategory`/
+`setCategoryHidden` and map each typed `reason` onto an i18n error key; `load`
+adds `categories: listCategories(rid, { includeHidden: true })` and
+`canManageCategories`. Mutating a restaurant's categories is gated to the
+`owner` role, the same bar as renaming the restaurant or adding a location —
+a rename fans out to every `suppliers`/`products`/`category_budgets` row of
+that tenant (see Decision above), which is not a call a single staff member
+should make unilaterally. The screen follows the existing per-row-action
+pattern (`set-loc`, matching Locations and the WhatsApp contacts list) rather
+than introducing a new component: a badge for `isDefault`/`hidden`, inline
+rename in place of the row, and hide/show as a plain toggle button rather
+than a checkbox, since it is a mutation (fans out to existing rows) and not a
+preference. No UI is offered to un-delete `'Other'` or to reorder
+categories — `sortOrder` stays whatever the seed or a future create appended,
+matching what part 1 shipped.
+
 ## Related
 
 - [ADR-027](./ADR-027-spend-category-comes-from-the-line.md) — `resolveCategory`'s existing contract (product/supplier categorisation) that `resolveCategoryFor` extends per restaurant, and `MIN_CATEGORY_CONFIDENCE`'s origin
