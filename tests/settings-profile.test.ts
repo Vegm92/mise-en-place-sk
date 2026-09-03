@@ -208,18 +208,24 @@ describe('renameRestaurant', () => {
 });
 
 describe('saveFiscalIdentity', () => {
-	const good = { legalName: '  Casa Lua SL  ', cifNif: 'b-99.999.997', fiscalAddress: '  Carrer Major 3  ' };
+	const good = { legalName: '  Casa Lua SL  ', tradeName: '  Can Lua  ', cifNif: 'b-99.999.997', fiscalAddress: '  Carrer Major 3  ' };
 
 	it('stores the tax id normalised and trims the free-text fields (issue #905)', async () => {
 		const result = await actions.saveFiscalIdentity(formEvent({ ...good, cifNif: 'es b99999997' }));
 		expect(result).toEqual({ section: 'fiscal', ok: 'set.fiscal.ok.saved' });
-		expect(updatedRows).toEqual([{ legalName: 'Casa Lua SL', cifNif: 'B99999997', fiscalAddress: 'Carrer Major 3', phone: null }]);
+		expect(updatedRows).toEqual([{ legalName: 'Casa Lua SL', tradeName: 'Can Lua', cifNif: 'B99999997', fiscalAddress: 'Carrer Major 3', phone: null }]);
 	});
 
 	it('clears the fields when submitted empty', async () => {
-		const result = await actions.saveFiscalIdentity(formEvent({ legalName: '', cifNif: '', fiscalAddress: '', phone: '' }));
+		const result = await actions.saveFiscalIdentity(formEvent({ legalName: '', tradeName: '', cifNif: '', fiscalAddress: '', phone: '' }));
 		expect(result).toEqual({ section: 'fiscal', ok: 'set.fiscal.ok.saved' });
-		expect(updatedRows).toEqual([{ legalName: null, cifNif: null, fiscalAddress: null, phone: null }]);
+		expect(updatedRows).toEqual([{ legalName: null, tradeName: null, cifNif: null, fiscalAddress: null, phone: null }]);
+	});
+
+	it('rejects an overlong trade name, without writing', async () => {
+		const result = await actions.saveFiscalIdentity(formEvent({ ...good, tradeName: 'x'.repeat(201) }));
+		expect(result).toMatchObject({ status: 422, data: { error: 'set.fiscal.err.tradeNameTooLong' } });
+		expect(updatedRows).toEqual([]);
 	});
 
 	it('rejects a tax id that fails its checksum, without writing', async () => {
@@ -240,7 +246,7 @@ describe('saveFiscalIdentity', () => {
 	it('stores the phone trimmed', async () => {
 		const result = await actions.saveFiscalIdentity(formEvent({ ...good, phone: '  +34 971 00 11 22  ' }));
 		expect(result).toEqual({ section: 'fiscal', ok: 'set.fiscal.ok.saved' });
-		expect(updatedRows).toEqual([{ legalName: 'Casa Lua SL', cifNif: 'B99999997', fiscalAddress: 'Carrer Major 3', phone: '+34 971 00 11 22' }]);
+		expect(updatedRows).toEqual([{ legalName: 'Casa Lua SL', tradeName: 'Can Lua', cifNif: 'B99999997', fiscalAddress: 'Carrer Major 3', phone: '+34 971 00 11 22' }]);
 	});
 
 	it('rejects an overlong phone, without writing', async () => {
