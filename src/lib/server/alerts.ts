@@ -53,15 +53,12 @@ function buildPriceHistory<K, R extends { unitPrice: string; normalizedUnitPrice
 	rows: R[],
 	getKey: (row: R) => K,
 ): Map<K, PricePoint> {
-	const history = new Map<K, PricePoint[]>();
-	for (const row of rows) {
-		const point = { unitPrice: moneyToNumber(row.unitPrice), normalizedUnitPrice: moneyToNullableNumber(row.normalizedUnitPrice), baseUnit: row.baseUnit };
-		const key = getKey(row);
-		const arr = history.get(key);
-		if (arr) arr.push(point); else history.set(key, [point]);
-	}
+	const history = Map.groupBy(rows, getKey);
 	const map = new Map<K, PricePoint>();
-	for (const [key, points] of history) map.set(key, collapseHistory(points));
+	for (const [key, group] of history) {
+		const points = group.map((row) => ({ unitPrice: moneyToNumber(row.unitPrice), normalizedUnitPrice: moneyToNullableNumber(row.normalizedUnitPrice), baseUnit: row.baseUnit }));
+		map.set(key, collapseHistory(points));
+	}
 	return map;
 }
 
