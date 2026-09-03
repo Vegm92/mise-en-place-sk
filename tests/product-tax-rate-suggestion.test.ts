@@ -38,7 +38,7 @@ async function confirmAlias(productId: number, rawText: string): Promise<void> {
 	`;
 }
 
-async function confirmedLine(productId: number, taxRate: number | null): Promise<void> {
+async function confirmedLine(productId: number, taxRate: number): Promise<void> {
 	await testSql`
 		INSERT INTO invoice_line_items (restaurant_id, product_id, description, tax_rate)
 		VALUES (${rid}, ${productId}, 'line', ${taxRate})
@@ -64,56 +64,59 @@ afterAll(async () => {
 	await closeDb();
 });
 
+const HISTORY_CASES = [
+	{ label: 'every confirmed line for the product agrees', name: 'Aceite de Oliva', rates: [0.10, 0.10], expected: 0.10 },
+	{ label: 'the confirmed history disagrees', name: 'Producto Mixto', rates: [0.21, 0.10], expected: null },
+	{ label: 'the product has no confirmed lines', name: 'Producto Nuevo', rates: [], expected: null },
+] as const;
+
 describe.skipIf(!hasDbEnv)('productTaxRateHistory', () => {
-	it('returns the rate when every confirmed line for the product agrees', async () => {
-		const productId = await makeProduct('Aceite de Oliva');
-		await confirmedLine(productId, 0.10);
-		await confirmedLine(productId, 0.10);
+	it.each(HISTORY_CASES)('resolves the rate when $label', async ({ name, rates, expected }) => {
+		const productId = await makeProduct(name);
+		for (const rate of rates) await confirmedLine(productId, rate);
 
 		const history = await productTaxRateHistory(testDb, rid, [productId]);
-		expect(history.get(productId)).toBeCloseTo(0.10, 5);
-	});
-
-	it('omits the product when its confirmed history disagrees', async () => {
-		const productId = await makeProduct('Producto Mixto');
-		await confirmedLine(productId, 0.21);
-		await confirmedLine(productId, 0.10);
-
-		const history = await productTaxRateHistory(testDb, rid, [productId]);
-		expect(history.has(productId)).toBe(false);
-	});
-
-	it('omits a product with no confirmed lines', async () => {
-		const productId = await makeProduct('Producto Nuevo');
-		const history = await productTaxRateHistory(testDb, rid, [productId]);
-		expect(history.has(productId)).toBe(false);
+		if (expected === null) {
+			expect(history.has(productId)).toBe(false);
+		} else {
+			expect(history.get(productId)).toBeCloseTo(expected, 5);
+		}
 	});
 });
 
+const SUGGESTION_CASES = [
+	{
+		label: 'a matched product with a unanimous confirmed history',
+		productName: 'Harina de Trigo', alias: 'HARINA TRIGO 25KG', rates: [0.04, 0.04],
+		description: 'HARINA TRIGO 25KG', expectMatch: true, expectedRate: 0.04,
+	},
+	{
+		label: 'a matched product with no confirmed history',
+		productName: 'Sal Fina', alias: 'SAL FINA 1KG', rates: [],
+		description: 'SAL FINA 1KG', expectMatch: true, expectedRate: null,
+	},
+	{
+		label: 'an unmatched (new) line',
+		productName: null, alias: null, rates: [],
+		description: 'Producto que no existe', expectMatch: false, expectedRate: null,
+	},
+] as const;
+
 describe.skipIf(!hasDbEnv)('previewLineProducts — suggestedTaxRate (issue #919 follow-up)', () => {
-	it('carries the unanimous historical rate onto the match', async () => {
-		const productId = await makeProduct('Harina de Trigo');
-		await confirmAlias(productId, 'HARINA TRIGO 25KG');
-		await confirmedLine(productId, 0.04);
-		await confirmedLine(productId, 0.04);
+	it.each(SUGGESTION_CASES)('carries the suggestion for $label', async ({ productName, alias, rates, description, expectMatch, expectedRate }) => {
+		let productId: number | null = null;
+		if (productName) {
+			productId = await makeProduct(productName);
+			if (alias) await confirmAlias(productId, alias);
+			for (const rate of rates) await confirmedLine(productId, rate);
+		}
 
-		const matches = await previewLineProducts(testDb, rid, null, [{ description: 'HARINA TRIGO 25KG' }]);
-		expect(matches[0].productId).toBe(productId);
-		expect(matches[0].suggestedTaxRate).toBeCloseTo(0.04, 5);
-	});
-
-	it('leaves suggestedTaxRate null when the product has no confirmed history', async () => {
-		const productId = await makeProduct('Sal Fina');
-		await confirmAlias(productId, 'SAL FINA 1KG');
-
-		const matches = await previewLineProducts(testDb, rid, null, [{ description: 'SAL FINA 1KG' }]);
-		expect(matches[0].productId).toBe(productId);
-		expect(matches[0].suggestedTaxRate).toBeNull();
-	});
-
-	it('leaves suggestedTaxRate null for an unmatched (new) line', async () => {
-		const matches = await previewLineProducts(testDb, rid, null, [{ description: 'Producto que no existe' }]);
-		expect(matches[0].productId).toBeNull();
-		expect(matches[0].suggestedTaxRate).toBeNull();
+		const matches = await previewLineProducts(testDb, rid, null, [{ description }]);
+		expect(matches[0].productId).toBe(expectMatch ? productId : null);
+		if (expectedRate === null) {
+			expect(matches[0].suggestedTaxRate).toBeNull();
+		} else {
+			expect(matches[0].suggestedTaxRate).toBeCloseTo(expectedRate, 5);
+		}
 	});
 });
