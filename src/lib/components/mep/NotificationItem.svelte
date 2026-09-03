@@ -84,6 +84,15 @@
         </div>
       {/if}
     {/if}
+    {#if notification.notificationType === 'restaurant_phone_mismatch'}
+      <div style="margin-top:6px;">
+        <a
+          href="/settings"
+          class="btn btn-primary"
+          style="height:26px;font-size:11px;padding:0 10px;text-decoration:none;display:inline-flex;align-items:center;"
+        >{$t('notif.openSettings')}</a>
+      </div>
+    {/if}
     {#if notification.notificationType === 'product_suggestion'}
       <div style="display:flex;gap:6px;margin-top:6px;">
         <button

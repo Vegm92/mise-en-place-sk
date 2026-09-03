@@ -18,6 +18,7 @@ export const restaurants = pgTable('restaurants', {
 	legalName:          text('legal_name'),
 	cifNif:             text('cif_nif'),
 	fiscalAddress:      text('fiscal_address'),
+	phone:              text('phone'),
 }, (t) => [
 	index('restaurants_parent_idx').on(t.parentId),
 ]);

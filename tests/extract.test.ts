@@ -398,6 +398,46 @@ describe('extractInvoice — supplier contact fields (issue #385)', () => {
   });
 });
 
+// Issue #918: the receiver's own email/phone were never requested either,
+// even though they feed the party-swap check and can pre-fill Settings.
+describe('extractInvoice — receiver contact fields (issue #918)', () => {
+  it('asks the model for receiver_email and receiver_phone', async () => {
+    mockPdfText('FACTURA\nProveedor Test S.L.\nTotal: 1250.00 EUR\n'.repeat(5));
+
+    const generate = makeGenerateFn(JSON.stringify(MOCK_INVOICE_DATA));
+    await extractInvoice('/fake/invoice.pdf', generate);
+
+    const systemInstruction = vi.mocked(generate).mock.calls[0][2] as string;
+    expect(systemInstruction).toContain('receiver_email');
+    expect(systemInstruction).toContain('receiver_phone');
+  });
+
+  it('passes receiver contact fields through when the model returns them', async () => {
+    mockPdfText('FACTURA\nSuministros Alimentarios Goya, S.L.\n'.repeat(5));
+
+    const dataWithContact = {
+      ...MOCK_INVOICE_DATA,
+      receiver_email: 'restaurante@example.es',
+      receiver_phone: '+34 600 11 22 33',
+    };
+    const generate = makeGenerateFn(JSON.stringify(dataWithContact));
+    const result = await extractInvoice('/fake/invoice.pdf', generate);
+
+    expect(result.receiver_email).toBe('restaurante@example.es');
+    expect(result.receiver_phone).toBe('+34 600 11 22 33');
+  });
+
+  it('does not fabricate receiver contact fields absent from the model response', async () => {
+    mockPdfText('ALBARÁN\nSin datos de contacto\n'.repeat(5));
+
+    const generate = makeGenerateFn(JSON.stringify(MOCK_INVOICE_DATA));
+    const result = await extractInvoice('/fake/invoice.pdf', generate);
+
+    expect(result.receiver_email ?? null).toBeNull();
+    expect(result.receiver_phone ?? null).toBeNull();
+  });
+});
+
 // Issue #466: the extracted document is fully attacker-controlled text —
 // free-text fields are length-capped and newline/control-char normalised
 // before the extraction result leaves extract.ts, on every entry point.

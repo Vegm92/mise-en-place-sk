@@ -157,6 +157,8 @@ interface EinvoiceParts extends DocumentReferenceFields {
 	receiver: PartyFields;
 	supplierEmail: string | null;
 	supplierPhone: string | null;
+	receiverEmail: string | null;
+	receiverPhone: string | null;
 	paymentMethod: PaymentMethod | null;
 	iban: string | null;
 	invoiceNumber: string | null;
@@ -185,6 +187,8 @@ function einvoiceResult(parts: EinvoiceParts): ParsedEinvoice {
 		receiver_name: receiver.name,
 		receiver_nif: receiver.nif,
 		receiver_address: receiver.address,
+		receiver_email: parts.receiverEmail,
+		receiver_phone: parts.receiverPhone,
 		payment_method: parts.paymentMethod,
 		iban: parts.iban,
 		payment_terms: null,
@@ -236,7 +240,11 @@ export function parseFacturae322(xml: string): ExtractedInvoice & { e_invoice_fo
 	const supplierEmail = getText(contactDetails?.['ElectronicMail']);
 	const supplierPhone = getText(contactDetails?.['Telephone']);
 
-	const receiver = facturaeParty((parties?.['BuyerParty'] ?? {}) as Record<string, unknown>);
+	const buyer = (parties?.['BuyerParty'] ?? {}) as Record<string, unknown>;
+	const receiver = facturaeParty(buyer);
+	const buyerContactDetails = buyer['ContactDetails'] as Record<string, unknown> | undefined;
+	const receiverEmail = getText(buyerContactDetails?.['ElectronicMail']);
+	const receiverPhone = getText(buyerContactDetails?.['Telephone']);
 
 	const invoicesNode = root['Invoices'] as Record<string, unknown> | undefined;
 	const invoices = getArr(invoicesNode, 'Invoice');
@@ -302,7 +310,7 @@ export function parseFacturae322(xml: string): ExtractedInvoice & { e_invoice_fo
 	const purchaseOrder = getText(getChild(invoice, 'AdditionalData', 'RelatedDocuments', 'ReceiverTransactionReference'));
 
 	return einvoiceResult({
-		supplier, receiver, supplierEmail, supplierPhone, paymentMethod, iban,
+		supplier, receiver, supplierEmail, supplierPhone, receiverEmail, receiverPhone, paymentMethod, iban,
 		invoiceNumber: fullNumber, invoiceDate, dueDate: null,
 		totalAmount, currency, taxBase,
 		grossAmount: discountAmount ? grossAmount : null,
@@ -324,7 +332,11 @@ export function parseUbl21Invoice(xml: string): ExtractedInvoice & { e_invoice_f
 	const supplierEmail = getText(contact?.['ElectronicMail']);
 	const supplierPhone = getText(contact?.['Telephone']);
 
-	const receiver = ublParty(getChild(inv, 'AccountingCustomerParty', 'Party') as Record<string, unknown> | undefined);
+	const customerParty = getChild(inv, 'AccountingCustomerParty', 'Party') as Record<string, unknown> | undefined;
+	const receiver = ublParty(customerParty);
+	const customerContact = customerParty?.['Contact'] as Record<string, unknown> | undefined;
+	const receiverEmail = getText(customerContact?.['ElectronicMail']);
+	const receiverPhone = getText(customerContact?.['Telephone']);
 
 	const invoiceNumber = getText(inv['ID']);
 	const invoiceDate = getText(inv['IssueDate']);
@@ -410,7 +422,7 @@ export function parseUbl21Invoice(xml: string): ExtractedInvoice & { e_invoice_f
 	const printedNotes = joinAddress(getArr(inv, 'Note').map(getText));
 
 	return einvoiceResult({
-		supplier, receiver, supplierEmail, supplierPhone, paymentMethod, iban,
+		supplier, receiver, supplierEmail, supplierPhone, receiverEmail, receiverPhone, paymentMethod, iban,
 		invoiceNumber, invoiceDate, dueDate,
 		totalAmount, currency, taxBase,
 		grossAmount: discountAmount ? grossAmount : null,
