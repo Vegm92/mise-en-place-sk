@@ -201,16 +201,20 @@ async function phoneMismatchNotifications(): Promise<Array<Record<string, unknow
 	return testSql`SELECT * FROM system_notifications WHERE restaurant_id = ${rid} AND notification_type = 'restaurant_phone_mismatch'` as unknown as Promise<Array<Record<string, unknown>>>;
 }
 
-async function saveWithReceiverPhone(supplier: string, invoiceNumber: string, receiverPhone: string | null) {
+async function saveWithExtracted(supplier: string, invoiceNumber: string, extracted: Record<string, unknown>) {
 	const item = batchItem({
 		supplier_name: supplier,
 		invoice_number: invoiceNumber,
 		total_amount: 100,
 		confidence: 0.95,
-		receiver_phone: receiverPhone,
+		...extracted,
 		line_items: [{ description: 'Aceite de oliva', quantity: 1, unit: 'garrafa', unit_price: 100, total_price: 100 }],
 	});
 	return saveReviewedInvoice(item, form(supplier, invoiceNumber), rid);
+}
+
+function saveWithReceiverPhone(supplier: string, invoiceNumber: string, receiverPhone: string | null) {
+	return saveWithExtracted(supplier, invoiceNumber, { receiver_phone: receiverPhone });
 }
 
 describe.skipIf(!hasDbEnv)('saveReviewedInvoice → restaurant phone signal (issue #918)', () => {
@@ -254,17 +258,11 @@ async function taxIdMismatchNotifications(): Promise<Array<Record<string, unknow
 	return testSql`SELECT * FROM system_notifications WHERE restaurant_id = ${rid} AND notification_type = 'restaurant_tax_id_mismatch'` as unknown as Promise<Array<Record<string, unknown>>>;
 }
 
-async function saveWithReceiverNif(supplier: string, invoiceNumber: string, receiverNif: string | null, confidence?: number) {
-	const item = batchItem({
-		supplier_name: supplier,
-		invoice_number: invoiceNumber,
-		total_amount: 100,
-		confidence: 0.95,
+function saveWithReceiverNif(supplier: string, invoiceNumber: string, receiverNif: string | null, confidence?: number) {
+	return saveWithExtracted(supplier, invoiceNumber, {
 		receiver_nif: receiverNif,
 		field_confidences: confidence === undefined ? undefined : { receiver_nif: confidence },
-		line_items: [{ description: 'Aceite de oliva', quantity: 1, unit: 'garrafa', unit_price: 100, total_price: 100 }],
 	});
-	return saveReviewedInvoice(item, form(supplier, invoiceNumber), rid);
 }
 
 describe.skipIf(!hasDbEnv)('saveReviewedInvoice → receiver tax id check (issue #905 task 3)', () => {
