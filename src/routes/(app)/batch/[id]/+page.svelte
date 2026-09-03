@@ -290,13 +290,11 @@
     };
   }
   function fillMissingLineRates(items: LineItem[], matches: ProductMatch[]): LineItem[] {
-    // Highest-confidence signal first: the matched product's own tax rate history, when unanimous.
     const withProductRates = items.map((i, idx) => {
       if (percentToFraction(i.tax_rate) !== null) return i;
       const suggested = matches[idx]?.suggestedTaxRate;
       return suggested != null ? { ...i, tax_rate: percentInputValue(suggested) } : i;
     });
-    // Fall back to this invoice's own single agreed-upon rate for anything still missing.
     const known = lineRateFractions(withProductRates.map(i => ({ totalPrice: i.total_price, rate: i.tax_rate })));
     if (known.length !== 1) return withProductRates;
     const fallback = percentInputValue(known[0]);
