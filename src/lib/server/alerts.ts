@@ -517,18 +517,19 @@ async function monthlyCategorySpend(
 	return out;
 }
 
-async function sentOveragesThisMonth(tdb: ReturnType<typeof forTenant>): Promise<Set<string>> {
+async function openOveragesThisMonth(tdb: ReturnType<typeof forTenant>): Promise<Set<string>> {
 	const monthPrefix = new Date().toISOString().slice(0, 7);
 	const rows = await notificationsForType(
 		tdb, 'budget_overage',
+		ne(systemNotifications.status, 'resolved'),
 		sql`TO_CHAR(${systemNotifications.createdAt}, 'YYYY-MM') = ${monthPrefix}`,
 	);
-	const sent = new Set<string>();
+	const open = new Set<string>();
 	for (const row of rows) {
 		const p = row.payload as { category?: string; level?: string } | null;
-		if (p?.category && p.level) sent.add(`${p.category}:${p.level}`);
+		if (p?.category && p.level) open.add(`${p.category}:${p.level}`);
 	}
-	return sent;
+	return open;
 }
 
 export async function runBudgetCheck(invoiceId: number, supplierId: number, restaurantId: string): Promise<Alert[]> {
@@ -556,15 +557,15 @@ export async function runBudgetCheck(invoiceId: number, supplierId: number, rest
 
 	const spendByCategory = await monthlyCategorySpend(tdb, [...budgets.keys()]);
 
-	const alreadySent = await sentOveragesThisMonth(tdb);
+	const alreadyRaised = await openOveragesThisMonth(tdb);
 
 	const alerts: Alert[] = [];
 	for (const [category, monthlyBudget] of budgets) {
 		const totalSpend = spendByCategory.get(category) ?? 0;
 		const pctFrac = totalSpend / monthlyBudget;
 		const level = budgetOverageLevel(pctFrac, thresholdFrac);
-		if (!level || alreadySent.has(`${category}:${level}`)) continue;
-		alreadySent.add(`${category}:${level}`);
+		if (!level || alreadyRaised.has(`${category}:${level}`)) continue;
+		alreadyRaised.add(`${category}:${level}`);
 
 		const pctDisplay = Math.round(pctFrac * 100);
 		const budgetMessageKey = level === 'exceeded' ? 'notif.msg.budgetExceeded' : 'notif.msg.budgetWarning';
