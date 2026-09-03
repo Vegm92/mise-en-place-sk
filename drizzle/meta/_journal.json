@@ -512,6 +512,13 @@
       "when": 1788400486363,
       "tag": "0072_add_trade_name",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1788432263025,
+      "tag": "0073_supplier_cif_merge",
+      "breakpoints": true
     }
   ]
 }
