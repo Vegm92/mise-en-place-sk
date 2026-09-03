@@ -112,6 +112,7 @@
     { key: 'set.fiscal.legalName', section: 'negocio' },
     { key: 'set.fiscal.cifNif', section: 'negocio' },
     { key: 'set.fiscal.address', section: 'negocio' },
+    { key: 'set.fiscal.phone', section: 'negocio' },
     ...(showLocations ? [{ key: 'set.locations.title', section: 'negocio' }] : []),
     { key: 'set.fields.title', section: 'campos' },
     ...data.optionalFields.map((field) => ({ key: `set.fields.label.${field}`, section: 'campos' })),
@@ -364,6 +365,17 @@
             </div>
 
             <div class="set-row">
+              <label for="{idp}-fiscal-phone" class="set-lbl">
+                <span class="set-lbl-name">{$t('set.fiscal.phone')}</span>
+                <span class="set-lbl-hint">{$t('set.fiscal.phoneHint')}</span>
+              </label>
+              <div>
+                <input id="{idp}-fiscal-phone" name="phone" type="text" maxlength="40"
+                  form="{idp}-form-fiscal" value={data.fiscalIdentity.phone} class="input set-input" />
+              </div>
+            </div>
+
+            <div class="set-row">
               <span class="set-lbl"></span>
               <div>
                 <button type="submit" class="btn btn-primary" form="{idp}-form-fiscal">{$t('set.fiscal.save')}</button>
@@ -396,6 +408,14 @@
                 <span class="set-lbl-hint">{$t('set.fiscal.addressHint')}</span>
               </span>
               <div><span class="set-value">{data.fiscalIdentity.fiscalAddress || $t('set.fiscal.empty')}</span></div>
+            </div>
+
+            <div class="set-row">
+              <span class="set-lbl">
+                <span class="set-lbl-name">{$t('set.fiscal.phone')}</span>
+                <span class="set-lbl-hint">{$t('set.fiscal.phoneHint')}</span>
+              </span>
+              <div><span class="set-value">{data.fiscalIdentity.phone || $t('set.fiscal.empty')}</span></div>
             </div>
           {/if}
         </SectionCard>

@@ -1137,6 +1137,7 @@ export async function reevaluateInvoiceAlerts(input: InvoiceReevaluationInput): 
 
 const INVOICE_BOUND_ALERT_TYPES = [
 	'price_shock', 'possible_duplicate_purchase', 'related_document_found', 'verifactu_qr_mismatch', 'line_item_mismatch',
+	'restaurant_phone_mismatch',
 ];
 
 export async function orphanInvoiceAlerts(invoiceId: number, restaurantId: string): Promise<void> {
