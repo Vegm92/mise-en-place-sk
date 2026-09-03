@@ -315,6 +315,7 @@ Quota, access, classification, JSON shape, error classification.
 
 - Category the model proposes (#315) — raw output, never trusted; run through `resolveCategory` before `suppliers.category`. e-invoicing extensions (optional): `supplier_nif`, `qr_url` (AEAT/TicketBAI verification URL), `qr_mismatch` (QR vs AI conflict), `e_invoice_format` ('facturae_322' | 'ubl_21').
 - `receiver_name` / `receiver_nif` / `receiver_address` (issue #905) are the *other* party, the one being billed. The prompt used to name the cliente only to tell the model to ignore it, which made "which of these two is the supplier?" a decision taken inside the model with no way to check it — and on a document with no emisor/cliente labels it picked wrong, storing the restaurant itself as a new supplier. Reporting both parties moves that decision to `party.ts`, where the restaurant's own tax id can settle it.
+- `receiver_email` / `receiver_phone` (issue #918) are the receptor's own contact fields, the mirror of `supplier_email`/`supplier_phone`. They give `resolveInvoiceParties` a second signal for tenants who have not filled in their fiscal identity yet — the restaurant's own email/phone printed on the supplier block is as strong evidence of a swap as a tax id — and let `saveReviewedInvoice` pre-fill `restaurants.phone` from the first confirmed invoice.
 - `field_confidences` now scores `supplier_nif`, `receiver_name` and `receiver_nif` as well. The receiver scores are what a swap carries onto the supplier fields, so without them a corrected pair would land with confidences describing the wrong party.
 
 **`type GenerateFn`**
@@ -373,7 +374,7 @@ Quota, access, classification, JSON shape, error classification.
 
 **`function anonymizeExtraction`**
 
-- Applied when corpus rows leave the tenant boundary (`corpus:replay --export`), masking supplier contact details and the VERI*FACTU QR URL. Not applied to the stored row: inside the boundary the corpus holds the same data `batch_items` and `invoices` already hold, and redacting `supplier_nif` in place would destroy a field whose extraction accuracy is exactly what the corpus measures.
+- Applied when corpus rows leave the tenant boundary (`corpus:replay --export`), masking supplier *and receiver* contact details (`receiver_email`/`receiver_phone`, issue #918) and the VERI*FACTU QR URL. Not applied to the stored row: inside the boundary the corpus holds the same data `batch_items` and `invoices` already hold, and redacting `supplier_nif` in place would destroy a field whose extraction accuracy is exactly what the corpus measures.
 
 ### `src/lib/server/extraction-worker.ts`
 
@@ -389,14 +390,15 @@ Quota, access, classification, JSON shape, error classification.
 
 - Decides which extracted party is the supplier (issue #905). The reported failure was not a bad reading: the model read both parties fine and assigned them backwards on a document that labelled neither, so the restaurant became a new supplier row and the real issuer — already in the database — was never matched.
 - A tax id equal to the restaurant's own is not evidence about a supplier, it *is* the restaurant, so that case swaps the pair outright rather than asking a human. Deterministic, not a heuristic: the only way it can be wrong is if the restaurant's own CIF/NIF in Settings is wrong.
-- When the restaurant has a tax id on file and the document printed one for either party, the tax ids decide and the name fallback is skipped — a printed id that is not ours means neither party is us, and a name that happens to look like ours is a coincidence, not evidence.
-- The name fallback exists only because most tenants have not filled in their fiscal identity yet; it reuses `isSameSupplierName`, so razón social / nombre comercial variants that differ only by legal form still match. It requires the restaurant to match exactly one of the two parties — a document where both look like us is left alone.
+- When the restaurant has a tax id on file and the document printed one for either party, the tax ids decide and the contact/name fallbacks are skipped — a printed id that is not ours means neither party is us, and a name or contact detail that happens to look like ours is a coincidence, not evidence.
+- Contact fallback (issue #918), evaluated after tax ids and before names: the restaurant's own email or phone printed on the supplier block is a second deterministic signal, for the same reason a tax id is — a business does not print its own contact details as if they belonged to someone it is buying from. Email compares case/whitespace-insensitively; phone through `normalizePhoneNumber` so `971 00 11 22` and `+34 971 00 11 22` agree. Reason `'contact'`, distinct from `'tax_id'`/`'name'` so a swap's cause stays legible.
+- The name fallback exists only because most tenants have not filled in their fiscal identity yet; it reuses `isSameSupplierName`, so razón social / nombre comercial variants that differ only by legal form still match. It requires the restaurant to match exactly one of the two parties — a document where both look like us is left alone. Same rule for the contact fallback: both parties carrying the own email/phone is left alone.
 - A swap never invents a supplier: it returns unchanged when the document printed no receiver at all, since swapping would replace a real name with null.
-- The swap drops `supplier_email`, `supplier_phone` and `supplier_category`, which described the old emisor — the restaurant itself. Carrying them would write the restaurant's own contact details onto a supplier row, and a category judged from the restaurant's name onto an unrelated business.
+- The swap drops `supplier_category`, judged from the old emisor's name — a category judged from the restaurant's name has nothing to do with an unrelated business. `supplier_email`/`supplier_phone` and `receiver_email`/`receiver_phone` are mirrored, not dropped (issue #918): they swap together with the name/nif/address they came printed next to, the same as every other party field.
 
 **`function ownPartyIdentity`**
 
-- The restaurant's side of the comparison: `cif_nif` plus both names it may be printed under (`name`, the commercial name, and `legal_name`, the razón social — both from issue #905 task 1). `runAsSystem` because the extraction worker runs outside a request and holds no tenant context.
+- The restaurant's side of the comparison: `cif_nif` plus both names it may be printed under (`name`, the commercial name, and `legal_name`, the razón social — both from issue #905 task 1), plus `email` (the owner's own `users.email`, issue #918) and `phone` (`restaurants.phone`, blank until something fills it — see `saveReviewedInvoice`). `runAsSystem` because the extraction worker runs outside a request and holds no tenant context.
 
 **`function archiveExtraction`**
 

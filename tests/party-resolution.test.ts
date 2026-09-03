@@ -152,6 +152,46 @@ describe('resolveInvoiceParties — name fallback', () => {
 	});
 });
 
+describe('resolveInvoiceParties — contact fallback (issue #918)', () => {
+	const noTaxIds = { supplier_nif: null, receiver_nif: null };
+
+	it.each([
+		{ label: 'a matching email', overrides: { supplier_email: 'hola@clinica.example' }, own: { email: 'hola@clinica.example' } },
+		{ label: 'email matched case/whitespace-insensitively', overrides: { supplier_email: '  Hola@Clinica.example ' }, own: { email: 'hola@clinica.example' } },
+		{ label: 'a matching phone, with no email printed', overrides: { supplier_email: null, supplier_phone: '971 00 11 22' }, own: { phone: '+34 971 00 11 22' } },
+	])('swaps on $label', ({ overrides, own }) => {
+		const out = resolveInvoiceParties(invoice({ ...noTaxIds, ...overrides }), own);
+		expect(out.swapped).toBe(true);
+		expect(out.reason).toBe('contact');
+	});
+
+	it('carries the receiver contact fields onto the supplier fields it becomes', () => {
+		const out = resolveInvoiceParties(
+			invoice({
+				...noTaxIds,
+				supplier_email: 'hola@clinica.example',
+				supplier_phone: '+34 971 00 11 22',
+				receiver_email: 'compras@elaboradental.example',
+				receiver_phone: '+34 900 11 22 33',
+			}),
+			{ email: 'hola@clinica.example' },
+		);
+		expect(out.invoice.supplier_email).toBe('compras@elaboradental.example');
+		expect(out.invoice.supplier_phone).toBe('+34 900 11 22 33');
+		expect(out.invoice.receiver_email).toBe('hola@clinica.example');
+		expect(out.invoice.receiver_phone).toBe('+34 971 00 11 22');
+	});
+
+	it.each([
+		{ label: 'both parties carry the own contact', overrides: { supplier_email: 'hola@clinica.example', receiver_email: 'hola@clinica.example' }, own: { email: 'hola@clinica.example' } },
+		{ label: 'a printed tax id outranks a matching contact', overrides: { supplier_nif: 'B99999997', receiver_nif: null, supplier_email: 'hola@clinica.example' }, own: { taxId: OWN_NIF, email: 'hola@clinica.example' } },
+		{ label: 'the restaurant has no email or phone on file', overrides: { supplier_email: 'hola@clinica.example' }, own: {} },
+	])('does not swap when $label', ({ overrides, own }) => {
+		const out = resolveInvoiceParties(invoice({ ...noTaxIds, ...overrides }), own);
+		expect(out.swapped).toBe(false);
+	});
+});
+
 describe('resolveInvoiceParties — nothing to swap to', () => {
 	it('never swaps a party in when the document printed no receiver', () => {
 		const out = resolveInvoiceParties(
