@@ -16,6 +16,7 @@ export const restaurants = pgTable('restaurants', {
 	acquisitionSource:  text('acquisition_source'),
 	acquisitionVariant: text('acquisition_variant'),
 	legalName:          text('legal_name'),
+	tradeName:          text('trade_name'),
 	cifNif:             text('cif_nif'),
 	fiscalAddress:      text('fiscal_address'),
 	phone:              text('phone'),

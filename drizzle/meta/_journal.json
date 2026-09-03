@@ -505,6 +505,13 @@
       "when": 1788395585712,
       "tag": "0071_add_restaurant_phone",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1788400486363,
+      "tag": "0072_add_trade_name",
+      "breakpoints": true
     }
   ]
 }

@@ -110,6 +110,7 @@
     { key: 'set.profile.restaurant', section: 'negocio' },
     { key: 'set.business.currencyLabel', section: 'negocio' },
     { key: 'set.fiscal.legalName', section: 'negocio' },
+    { key: 'set.fiscal.tradeName', section: 'negocio' },
     { key: 'set.fiscal.cifNif', section: 'negocio' },
     { key: 'set.fiscal.address', section: 'negocio' },
     { key: 'set.fiscal.phone', section: 'negocio' },
@@ -343,6 +344,17 @@
             </div>
 
             <div class="set-row">
+              <label for="{idp}-fiscal-trade-name" class="set-lbl">
+                <span class="set-lbl-name">{$t('set.fiscal.tradeName')}</span>
+                <span class="set-lbl-hint">{$t('set.fiscal.tradeNameHint')}</span>
+              </label>
+              <div>
+                <input id="{idp}-fiscal-trade-name" name="tradeName" type="text" maxlength="200"
+                  form="{idp}-form-fiscal" value={data.fiscalIdentity.tradeName} class="input set-input" />
+              </div>
+            </div>
+
+            <div class="set-row">
               <label for="{idp}-fiscal-cif" class="set-lbl">
                 <span class="set-lbl-name">{$t('set.fiscal.cifNif')}</span>
                 <span class="set-lbl-hint">{$t('set.fiscal.cifNifHint')}</span>
@@ -392,6 +404,14 @@
                 <span class="set-value">{data.fiscalIdentity.legalName || $t('set.fiscal.empty')}</span>
                 <p class="set-lbl-hint set-msg">{$t('set.business.nameReadonlyHint')}</p>
               </div>
+            </div>
+
+            <div class="set-row">
+              <span class="set-lbl">
+                <span class="set-lbl-name">{$t('set.fiscal.tradeName')}</span>
+                <span class="set-lbl-hint">{$t('set.fiscal.tradeNameHint')}</span>
+              </span>
+              <div><span class="set-value">{data.fiscalIdentity.tradeName || $t('set.fiscal.empty')}</span></div>
             </div>
 
             <div class="set-row">
