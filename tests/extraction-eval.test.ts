@@ -39,15 +39,15 @@ describe('checkRegression', () => {
 
 	it('flags a critical-field mismatch the baseline did not have', () => {
 		const candidate = report({
-			criticalFailures: [{ id: 'vinals-3770', field: 'total_amount', expected: 293.19, actual: 293.9 }],
+			criticalFailures: [{ id: 'case-2', field: 'total_amount', expected: 100, actual: 100.5 }],
 		});
 		const failures = checkRegression(candidate, report());
 		expect(failures).toHaveLength(1);
-		expect(failures[0]).toContain('vinals-3770/total_amount');
+		expect(failures[0]).toContain('case-2/total_amount');
 	});
 
 	it('does not re-flag a critical-field mismatch already present in the baseline', () => {
-		const existing = { id: 'imger-2400028', field: 'supplier_nif', expected: 'B70753322', actual: null };
+		const existing = { id: 'case-1', field: 'supplier_nif', expected: 'B00000000', actual: null };
 		const baseline = report({ criticalFailures: [existing] });
 		const candidate = report({ criticalFailures: [existing] });
 		expect(checkRegression(candidate, baseline)).toEqual([]);
