@@ -21,6 +21,7 @@ import { getStorage } from './storage';
 import { MRR_SNAPSHOT_CRON, MRR_SNAPSHOT_QUEUE, runMrrSnapshotJob } from './revenue-metrics';
 import { purgeDeadLetters, recordDeadLetter } from './dead-letter';
 import { sweepIdempotencyKeys } from './idempotency';
+import { EXTRACTION_IMPROVE_CRON, EXTRACTION_IMPROVE_QUEUE, runExtractionImproveJob } from './extraction-improve';
 import { filterEnabledAlerts, isAlertEnabled } from './alert-preferences';
 import {
 	dispatchTenantJobs,
@@ -1404,6 +1405,7 @@ const JOBS: ScheduledJob[] = [
 	{ queue: ANALYTICS_REFRESH_QUEUE, cron: ANALYTICS_REFRESH_CRON, run: runAnalyticsRefreshJob },
 	{ queue: IDEMPOTENCY_SWEEP_QUEUE, cron: IDEMPOTENCY_SWEEP_CRON, run: runIdempotencySweepJob },
 	{ queue: ORPHAN_SUBSCRIPTIONS_QUEUE, cron: ORPHAN_SUBSCRIPTIONS_CRON, run: runOrphanSubscriptionsJob },
+	{ queue: EXTRACTION_IMPROVE_QUEUE, cron: EXTRACTION_IMPROVE_CRON, run: runExtractionImproveJob },
 ];
 
 export async function registerScheduledJobs(boss: PgBoss): Promise<void> {

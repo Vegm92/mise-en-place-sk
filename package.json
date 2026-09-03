@@ -26,6 +26,8 @@
 		"db:supplier-merge-report": "vite-node --config vite.worker.config.ts src/supplier-merge-report.ts",
 		"db:category-report": "node scripts/category-attribution-report.mjs",
 		"corpus:replay": "vite-node --config vite.worker.config.ts src/extraction-replay.ts",
+		"eval:gate": "vite-node --config vite.worker.config.ts src/extraction-eval.ts -- --gate",
+		"eval:accept-baseline": "vite-node --config vite.worker.config.ts src/extraction-eval.ts -- --out tests/golden/baseline-report.json",
 		"worker": "vite-node --config vite.worker.config.ts src/worker.ts",
 		"worker:prod": "node build/worker.js",
 		"lint:no-sql-raw": "node scripts/lint-invariants.mjs no-sql-raw",
