@@ -371,6 +371,8 @@ export default {
   'notif.msg.whatsappNeedsReview': "⚠️ You flagged '{supplier}'s delivery note ({code}) as wrong over WhatsApp. Review it and fix the data before saving.",
   'notif.msg.restaurantPhoneMismatch': "📞 This invoice prints {extracted} as your restaurant's phone, but Settings has {current} saved. We haven't changed anything — update it in Settings if the printed one is right.",
   'notif.openBatch':               'Open delivery note',
+  'notif.viewDetail':               'View detail',
+  'notif.viewBilling':              'View billing',
   'notif.openSettings':            'Open Settings',
   'dash.alert.priceShockUp':       '{ingredient} is up {pct}%',
   'dash.alert.priceShockDown':     '{ingredient} is down {pct}%',

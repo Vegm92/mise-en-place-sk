@@ -16,6 +16,7 @@ export type Notif = {
   message: string;
   payload: unknown;
   createdAt: Date | null;
+  invoiceId?: number | null;
 };
 
 export function notificationMessage(
