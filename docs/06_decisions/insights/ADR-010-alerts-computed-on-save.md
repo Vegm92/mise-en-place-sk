@@ -73,6 +73,12 @@ suppresses a repeat at the same `(category, level)`. Without it, every invoice
 after crossing 80% would re-warn. The two levels escalate independently: crossing
 80% warns once, crossing 100% warns once more.
 
+The scan counts only rows still standing — `pending` or `sent`. A row marked
+`resolved` (#831) is skipped, because the spend that raised it was corrected back
+under the threshold; crossing that threshold again is a new event and has to warn
+again rather than stay silent for the rest of the month. `sent` still suppresses:
+the user saw that crossing and dismissed it.
+
 ## Consequences
 
 - **An alert only exists if an invoice caused it.** Nothing here is a background

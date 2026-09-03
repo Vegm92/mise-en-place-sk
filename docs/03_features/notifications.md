@@ -234,7 +234,16 @@ Type ∈ known set; payload shape per type; tenant scope.
 
 **`function runBudgetCheck`**
 
-- Supplier category (legacy NULL now falls into the 'Other' bucket instead of silently hiding spend from budget alerts — #301); warning threshold (0-100 in settings, default 80); monthly budget (current month); month spend; level = exceeded | warning | null; dedup one alert per category+level per calendar month.
+- Supplier category (legacy NULL now falls into the 'Other' bucket instead of silently hiding spend from budget alerts — #301); warning threshold (0-100 in settings, default 80); monthly budget (current month); month spend; level = exceeded | warning | null; dedup one alert per category+level per calendar month, counting only rows still standing (`pending`/`sent`) — a `resolved` row (#831) does not suppress a fresh crossing of the same threshold.
+
+**`function openOveragesThisMonth`** (#831)
+
+- The `(category, level)` pairs `runBudgetCheck` dedupes against: this month's
+  `budget_overage` rows that are still standing, i.e. `pending` or `sent`. Rows marked
+  `resolved` are excluded on purpose — the spend that raised them was corrected back
+  under the threshold, so crossing it again is a new event and has to warn again
+  instead of staying silent for the rest of the month. `sent` still suppresses: the
+  user saw that crossing and dismissed it.
 
 **`function reevaluateInvoiceAlerts`** (#831)
 
