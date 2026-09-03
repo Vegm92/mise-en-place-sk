@@ -45,6 +45,7 @@
     display_amount?: number | null;
     review_state: string | null;
     incidence_kind: string | null;
+    incidence_reasons: string[] | null;
     invoice_date: Date | string | null;
     due_date: Date | string | null;
     source_file: string | null;
@@ -154,7 +155,7 @@
         </div>
         <div class="flex flex-col items-end gap-1">
           <StatusBadge status={invoice.review_state ?? 'revisado'} />
-          <IncidenceKindBadge kind={invoice.incidence_kind} hint />
+          <IncidenceKindBadge kind={invoice.incidence_kind} reasons={invoice.incidence_reasons} hint />
         </div>
       </div>
       <div style="
