@@ -288,6 +288,16 @@
       tax_rate: percentInputValue(item.tax_rate),
     };
   }
+  // The extractor already fills tax_rate from what's printed per line (or the
+  // header rate when the whole document carries a single one). This only
+  // backfills lines it left null — e.g. older extractions saved before this
+  // field existed — and only when every other line agrees on one rate.
+  function fillMissingLineRates(items: LineItem[]): LineItem[] {
+    const known = lineRateFractions(items.map(i => ({ totalPrice: i.total_price, rate: i.tax_rate })));
+    if (known.length !== 1) return items;
+    const fallback = percentInputValue(known[0]);
+    return items.map(i => (percentToFraction(i.tax_rate) === null ? { ...i, tax_rate: fallback } : i));
+  }
   $effect(() => {
     const raw = data.review?.data?.line_items;
     if (raw === lineItemsSource) return;
@@ -296,7 +306,7 @@
     const draft = data.review?.itemId ? readDraft(data.review.itemId) : null;
     lineItems = draft?.lineItems
       ? draft.lineItems.map((item, i) => (item.product_name === undefined ? normalizeLine(item, matches[i]) : item))
-      : (Array.isArray(raw) ? (raw as LineItem[]).map((item, i) => normalizeLine(item, matches[i])) : []);
+      : fillMissingLineRates(Array.isArray(raw) ? (raw as LineItem[]).map((item, i) => normalizeLine(item, matches[i])) : []);
   });
 
   // svelte-ignore state_referenced_locally — reading the initial value is the point

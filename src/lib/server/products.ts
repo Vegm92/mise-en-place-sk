@@ -448,6 +448,7 @@ export interface LineItem {
 	unit: string | null;
 	unitPrice: number | null;
 	totalPrice: number | null;
+	taxRate?: number | null;
 	[key: string]: unknown;
 }
 
