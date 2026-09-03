@@ -47,16 +47,22 @@ price-shock history.
   validated against the restaurant's own `categories` (`resolveCategoryFor`,
   ADR-037 part 2, issue #881) else `'Other'`.
 - **Tax-id identity**: `suppliers.normalized_cif` holds `normalizeTaxId(cif)` and
-  is indexed per tenant. A supplier already holding the document's tax id wins
-  over any name, so a razón social and a nombre comercial that share a NIF stay
-  one row.
+  is **unique** per tenant (`suppliers_rid_normalized_cif_idx`, issue #949). A
+  supplier already holding the document's tax id wins over any name, so a razón
+  social and a nombre comercial that share a NIF stay one row — and the database
+  now refuses a second row rather than relying on the resolution order to avoid
+  one.
 - **Tax-id trust gate** (`taxIdDecidesIdentity`, issue #905 task 3): a tax id
   only resolves identity when it passes the Spanish checksum and its
-  `field_confidences.supplier_nif` is at least 0.85. Storage is unaffected —
-  every extracted id is still written to `cif`/`normalized_cif` — but a misread
-  digit or a foreign VAT number falls through to name/alias matching instead of
-  merging two unrelated businesses into one row, which nothing in the app can
-  undo today.
+  `field_confidences.supplier_nif` is at least 0.85. A misread digit or a foreign
+  VAT number falls through to name/alias matching instead of merging two
+  unrelated businesses into one row, which nothing in the app can undo today.
+- **What the gate now also decides is storage** (issue #949): the printed value
+  is always kept in `suppliers.cif`, but `normalized_cif` is written only when
+  the gate passes. The column stopped being "whatever the document printed" and
+  became a matching key the database holds unique, so an id that can never match
+  cannot occupy it — and an id read too faintly to merge on can no longer collide
+  with the row that legitimately holds it.
 - **Alias capture**: when the tax id resolves a supplier whose stored name is a
   different entity name (`isSameSupplierName` says no), the printed name is
   written to `supplier_aliases` so a later document that prints only that name —
@@ -161,6 +167,8 @@ issue #881); name non-empty; tenant scope. List search params validated by
 ## Idempotency rules
 
 - Upsert is idempotent by the lower(name) unique constraint.
+- The #949 merge migration is re-runnable: it recomputes its duplicate groups
+  from the current rows, so a second run finds none and writes nothing.
 - The tax-id branch takes `pg_advisory_xact_lock(restaurant_id, normalized_cif)`
   first, so two concurrent saves for one tax id under two different names
   serialise instead of racing to insert two rows. The lock only spans an
@@ -308,7 +316,7 @@ issue #881); name non-empty; tenant scope. List search params validated by
 - Supplier-level contact fields lifted from an extracted invoice (CIF/NIF, address, email, phone); any may be null/undefined when the source document doesn't print them — never fabricated.
 
 **`function findByTaxId`**
-- The first resolution step (issue #905 task 3), and the only one that can point at a supplier whose name has nothing in common with the document's. Takes the advisory lock before reading, so the read-then-insert window it opens cannot produce two rows for one tax id. `ORDER BY id` makes the winner deterministic while pre-#905 duplicates still exist.
+- The first resolution step (issue #905 task 3), and the only one that can point at a supplier whose name has nothing in common with the document's. Takes the advisory lock before reading, so the read-then-insert window it opens cannot produce two rows for one tax id. The `ORDER BY id` tie-break it used to carry is gone with #949: the partial unique index means the query can match at most one row, so there is nothing left to break a tie between.
 
 **`function findByAlias`**
 - Second step. The `NOT EXISTS` clause is the whole safety property: an alias is a hint recorded from one document, a supplier name is a row someone owns, so a name that exists as both resolves to the supplier and never to the alias' target.
@@ -321,6 +329,25 @@ issue #881); name non-empty; tenant scope. List search params validated by
 - `contactTrusted` (issue #905) says whether the reviewed supplier name still matches the one the document printed. Untrusted contact data is applied on INSERT but withheld from the DO UPDATE arm: a row created by this save is the document's issuer whatever name the reviewer gave it, while an existing row may be an unrelated supplier the reviewer retargeted to, and must not inherit another document's CIF. Without the split, correcting a printed trade name to the legal name discarded the NIF for exactly the entities whose names vary between documents.
 - `contact.cifConfidence` is the model's legibility score for `supplier_nif`, passed through from `resolveSupplierInfo`; absent (e-invoice XML, the edit screen, a caller with no extraction behind it) means no evidence against the reading, so it is treated as legible.
 - Untrusted contact data also disables tax-id *matching* (issue #905 task 3), not just the merge. The reviewer having renamed the supplier away from what the document printed is exactly the case where the printed NIF may belong to a different entity than the name being saved.
+- `identityCif` (issue #949) is the one value both the lookup and every write of `normalized_cif` read, so the column can only ever hold an id that would have resolved identity. Writing an id the gate rejected used to be free; under the unique index it is a save that throws, because the row that legitimately holds that id is already there — which is the case the gate exists to describe.
+
+### `src/lib/server/supplier-merge-report.ts`
+
+**`function reportSupplierMerges`**
+- Dry run for `drizzle/0074_supplier_cif_merge.sql` (issue #949): the duplicate groups, the row each collapses into, and how many invoices move. Read-only, and deliberately runs *before* the migration — so the checksum bar is applied here in TypeScript rather than through the migration's own `mep_valid_spanish_tax_id`, which does not exist yet on the database being inspected.
+- `invoicesBlocked` is the merge's one lossy edge, surfaced before anyone commits to it: `uq_invoices_rid_supplier_number` means two rows in a group printing the same invoice number cannot both sit under the winner, so one invoice stays where it is and its supplier row survives the merge. Counted as `shared - 1` per repeated number, which is exactly how many the migration will leave behind.
+- Run it with `pnpm db:supplier-merge-report`.
+
+### `drizzle/0074_supplier_cif_merge.sql`
+
+**merge order**
+- `supplier_id` is referenced from six tables with three delete behaviours, so the order is the correctness argument: `product_aliases` and `unit_conversions` are `ON DELETE set null` and silently lose their supplier scoping if the loser row goes first, and `invoices`/`extraction_corrections` are `no action` and would abort the migration. Every child is repointed first; `suppliers` rows are deleted last, and only the ones that kept nothing.
+- `supplier_metrics` is the one child that cannot be repointed — it is `UNIQUE (supplier_id)` and derived. Both sides of a merge are dropped instead; the suppliers list recomputes any supplier whose cached score is missing, over the invoices the migration just moved.
+- The loser's own name is inserted as an alias of the winner before anything is deleted. Without it the next document printed with that name would create the duplicate all over again: `getOrCreateSupplierId` only records an alias when a tax-id match lands on a *different* name, so a supplier's own name never has one.
+- A loser that could not give up all its invoices survives, and step 7 takes `normalized_cif` off it anyway. It keeps its printed `cif` for a human to read; the winner owns the matching key, which is what the unique index needs.
+
+**`function mep_valid_spanish_tax_id` / `function mep_supplier_norm_name`**
+- SQL halves of `isValidSpanishTaxId` and `normalizeSupplierName`, in lockstep with the TypeScript by a parity test (`tests/supplier-cif-merge.test.ts`), the same arrangement as `mep_norm_key` in migration 0018. The merge needs both inside one transaction that also creates the unique index — a backfill script the operator might forget to run before deploying would leave the index un-creatable.
 
 ### `src/lib/tax-id.ts`
 

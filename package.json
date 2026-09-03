@@ -23,6 +23,7 @@
 		"db:backfill-products": "vite-node --config vite.worker.config.ts src/backfill-products.ts",
 		"db:backfill-content-hash": "vite-node --config vite.worker.config.ts src/backfill-content-hash.ts",
 		"db:backfill-product-categories": "vite-node --config vite.worker.config.ts src/backfill-product-categories.ts",
+		"db:supplier-merge-report": "vite-node --config vite.worker.config.ts src/supplier-merge-report.ts",
 		"db:category-report": "node scripts/category-attribution-report.mjs",
 		"corpus:replay": "vite-node --config vite.worker.config.ts src/extraction-replay.ts",
 		"worker": "vite-node --config vite.worker.config.ts src/worker.ts",
