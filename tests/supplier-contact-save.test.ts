@@ -8,52 +8,25 @@
  * now only protects supplier rows that already exist: a row created by
  * this save is the document's issuer, whatever name it was given.
  *
+ * Issue #918 — the receiver's own phone is a mirror signal for
+ * `restaurants.phone`: fills it only while blank, raises a notification
+ * instead of overwriting a value the owner already set. Sharing this
+ * file's `rid`/`form`/`batchItem`/db-suite setup rather than a second
+ * DB-backed test file with its own copy of the same boilerplate.
+ *
  * DB-backed; skipped without a local Postgres (see tests/helpers/test-db.ts).
  */
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 
-vi.mock('../src/lib/server/db', async () => {
-	const { testDb } = await import('./helpers/test-db');
-	const { forTenant } = await import('../src/lib/server/tenant');
-	return { db: testDb, forTenant };
-});
+vi.mock('../src/lib/server/db', async () => (await import('./helpers/db-suite')).testDbModule());
 
-import {
-	testSql, closeDb,
-	createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
-} from './helpers/test-db';
+import { testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv } from './helpers/test-db';
 import { saveReviewedInvoice } from '../src/lib/server/invoice-save';
-import type { BatchItem } from '../src/lib/server/batch';
-import { fakeBatchItem } from './helpers/batch-item';
+import { minimalInvoiceForm as form, minimalBatchItem } from './helpers/invoice-save-form';
 
 let rid = '';
 
-function form(supplier: string, invoiceNumber: string): FormData {
-	const fd = new FormData();
-	fd.append('supplier_name', supplier);
-	fd.append('invoice_number', invoiceNumber);
-	fd.append('invoice_date', '2026-07-20');
-	fd.append('total_amount', '100');
-	fd.append('low_confidence_ack', 'true');
-	fd.append('line_descriptions', 'Aceite de oliva');
-	fd.append('line_quantities', '1');
-	fd.append('line_units', 'garrafa');
-	fd.append('line_unit_prices', '100');
-	fd.append('line_total_prices', '100');
-	fd.append('line_tax_rates', '');
-	return fd;
-}
-
-function batchItem(extractedData: Record<string, unknown> | null): BatchItem {
-	return fakeBatchItem({
-		id: 'test-item',
-		batchId: 'test-batch',
-		restaurantId: rid,
-		fileKey: 'test.pdf',
-		displayName: 'test.pdf',
-		extractedData,
-	});
-}
+const batchItem = (extractedData: Record<string, unknown> | null) => minimalBatchItem(rid, extractedData);
 
 async function supplierRow(name: string) {
 	const rows = await testSql`SELECT * FROM suppliers WHERE restaurant_id = ${rid} AND lower(name) = ${name.toLowerCase()}`;
@@ -216,5 +189,63 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → supplier contact fields (iss
 		const row = await supplierRow(otherSupplier);
 		expect(row!.cif).toBeNull();
 		expect(row!.contact_email).toBeNull();
+	});
+});
+
+async function restaurantPhone(): Promise<string | null> {
+	const rows = await testSql`SELECT phone FROM restaurants WHERE id = ${rid}`;
+	return (rows[0]?.phone as string | undefined) ?? null;
+}
+
+async function phoneMismatchNotifications(): Promise<Array<Record<string, unknown>>> {
+	return testSql`SELECT * FROM system_notifications WHERE restaurant_id = ${rid} AND notification_type = 'restaurant_phone_mismatch'` as unknown as Promise<Array<Record<string, unknown>>>;
+}
+
+async function saveWithReceiverPhone(supplier: string, invoiceNumber: string, receiverPhone: string | null) {
+	const item = batchItem({
+		supplier_name: supplier,
+		invoice_number: invoiceNumber,
+		total_amount: 100,
+		confidence: 0.95,
+		receiver_phone: receiverPhone,
+		line_items: [{ description: 'Aceite de oliva', quantity: 1, unit: 'garrafa', unit_price: 100, total_price: 100 }],
+	});
+	return saveReviewedInvoice(item, form(supplier, invoiceNumber), rid);
+}
+
+describe.skipIf(!hasDbEnv)('saveReviewedInvoice → restaurant phone signal (issue #918)', () => {
+	it('fills a blank restaurants.phone from the first confirmed invoice', async () => {
+		const out = await saveWithReceiverPhone('__rphone_fill__', 'RPH-0001', '+34 971 00 11 22');
+		expect(out.type).toBe('saved');
+		expect(await restaurantPhone()).toBe('+34 971 00 11 22');
+	});
+
+	it('never overwrites a phone already on file, and raises a mismatch notification instead', async () => {
+		const before = await restaurantPhone();
+		expect(before).toBe('+34 971 00 11 22');
+
+		const out = await saveWithReceiverPhone('__rphone_mismatch__', 'RPH-0002', '+34 600 11 22 33');
+		expect(out.type).toBe('saved');
+		expect(await restaurantPhone()).toBe(before);
+
+		const notifications = await phoneMismatchNotifications();
+		expect(notifications.length).toBeGreaterThan(0);
+		const payload = notifications[notifications.length - 1].payload as { current?: string; extracted?: string };
+		expect(payload.current).toBe('+34 971 00 11 22');
+		expect(payload.extracted).toBe('+34 600 11 22 33');
+	});
+
+	it('does not raise a notification when the extracted phone matches the one on file', async () => {
+		const before = await phoneMismatchNotifications();
+		const out = await saveWithReceiverPhone('__rphone_match__', 'RPH-0003', '971001122');
+		expect(out.type).toBe('saved');
+		expect((await phoneMismatchNotifications()).length).toBe(before.length);
+	});
+
+	it('does nothing when the document prints no receiver phone', async () => {
+		const before = await restaurantPhone();
+		const out = await saveWithReceiverPhone('__rphone_absent__', 'RPH-0004', null);
+		expect(out.type).toBe('saved');
+		expect(await restaurantPhone()).toBe(before);
 	});
 });

@@ -155,30 +155,12 @@ describe('resolveInvoiceParties — name fallback', () => {
 describe('resolveInvoiceParties — contact fallback (issue #918)', () => {
 	const noTaxIds = { supplier_nif: null, receiver_nif: null };
 
-	it('swaps on a matching email when the tax ids are missing', () => {
-		const out = resolveInvoiceParties(
-			invoice({ ...noTaxIds, supplier_email: 'hola@clinica.example', receiver_email: 'ventas@elaboradental.example' }),
-			{ email: 'hola@clinica.example' },
-		);
-		expect(out.swapped).toBe(true);
-		expect(out.reason).toBe('contact');
-		expect(out.invoice.supplier_name).toBe('Elaboradental SL');
-	});
-
-	it('matches email case- and whitespace-insensitively', () => {
-		const out = resolveInvoiceParties(
-			invoice({ ...noTaxIds, supplier_email: '  Hola@Clinica.example ' }),
-			{ email: 'hola@clinica.example' },
-		);
-		expect(out.swapped).toBe(true);
-		expect(out.reason).toBe('contact');
-	});
-
-	it('swaps on a matching phone when there is no email match', () => {
-		const out = resolveInvoiceParties(
-			invoice({ ...noTaxIds, supplier_email: null, supplier_phone: '971 00 11 22', receiver_email: null }),
-			{ phone: '+34 971 00 11 22' },
-		);
+	it.each([
+		{ label: 'a matching email', overrides: { supplier_email: 'hola@clinica.example' }, own: { email: 'hola@clinica.example' } },
+		{ label: 'email matched case/whitespace-insensitively', overrides: { supplier_email: '  Hola@Clinica.example ' }, own: { email: 'hola@clinica.example' } },
+		{ label: 'a matching phone, with no email printed', overrides: { supplier_email: null, supplier_phone: '971 00 11 22' }, own: { phone: '+34 971 00 11 22' } },
+	])('swaps on $label', ({ overrides, own }) => {
+		const out = resolveInvoiceParties(invoice({ ...noTaxIds, ...overrides }), own);
 		expect(out.swapped).toBe(true);
 		expect(out.reason).toBe('contact');
 	});
@@ -200,24 +182,12 @@ describe('resolveInvoiceParties — contact fallback (issue #918)', () => {
 		expect(out.invoice.receiver_phone).toBe('+34 971 00 11 22');
 	});
 
-	it('does not swap when both parties carry the own contact', () => {
-		const out = resolveInvoiceParties(
-			invoice({ ...noTaxIds, supplier_email: 'hola@clinica.example', receiver_email: 'hola@clinica.example' }),
-			{ email: 'hola@clinica.example' },
-		);
-		expect(out.swapped).toBe(false);
-	});
-
-	it('believes a printed tax id over a matching contact', () => {
-		const out = resolveInvoiceParties(
-			invoice({ supplier_email: 'hola@clinica.example', supplier_nif: 'B99999997', receiver_nif: null }),
-			{ taxId: OWN_NIF, email: 'hola@clinica.example' },
-		);
-		expect(out.swapped).toBe(false);
-	});
-
-	it('is skipped when the restaurant has no email or phone on file', () => {
-		const out = resolveInvoiceParties(invoice({ ...noTaxIds, supplier_email: 'hola@clinica.example' }), {});
+	it.each([
+		{ label: 'both parties carry the own contact', overrides: { supplier_email: 'hola@clinica.example', receiver_email: 'hola@clinica.example' }, own: { email: 'hola@clinica.example' } },
+		{ label: 'a printed tax id outranks a matching contact', overrides: { supplier_nif: 'B99999997', receiver_nif: null, supplier_email: 'hola@clinica.example' }, own: { taxId: OWN_NIF, email: 'hola@clinica.example' } },
+		{ label: 'the restaurant has no email or phone on file', overrides: { supplier_email: 'hola@clinica.example' }, own: {} },
+	])('does not swap when $label', ({ overrides, own }) => {
+		const out = resolveInvoiceParties(invoice({ ...noTaxIds, ...overrides }), own);
 		expect(out.swapped).toBe(false);
 	});
 });
