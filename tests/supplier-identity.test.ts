@@ -68,12 +68,13 @@ describe.skipIf(!hasDbEnv)('#905 CIF-first supplier resolution', () => {
 		expect(await rowsFor(rid)).toHaveLength(2);
 	}));
 
-	it('stores the tax id it refused to match on', () => withRestaurant('cif-invalid-store', async (rid) => {
-		await getOrCreateSupplierId(rid, 'Fruites Mateu', testDb, CAT, { cif: 'B-99.999.998' });
-		const [row] = await rowsFor(rid);
-		expect(row.cif).toBe('B-99.999.998');
-		expect(row.normalizedCif).toBe('B99999998');
-	}));
+	it('keeps the printed tax id it refused to match on, but not as a matching key (#949)', () =>
+		withRestaurant('cif-invalid-store', async (rid) => {
+			await getOrCreateSupplierId(rid, 'Fruites Mateu', testDb, CAT, { cif: 'B-99.999.998' });
+			const [row] = await rowsFor(rid);
+			expect(row.cif).toBe('B-99.999.998');
+			expect(row.normalizedCif).toBeNull();
+		}));
 
 	it('does not match on a tax id the model reports as barely legible', () => withRestaurant('cif-low-conf', async (rid) => {
 		const first = await getOrCreateSupplierId(rid, 'Peixos Roig', testDb, CAT, { cif: 'B99999997' });

@@ -52,7 +52,7 @@ export const suppliers = pgTable('suppliers', {
 	iban:               text('iban'),
 }, (t) => [
 	uniqueIndex('uq_suppliers_rid_name').on(t.restaurantId, sql`lower(${t.name})`),
-	index('suppliers_rid_normalized_cif_idx').on(t.restaurantId, t.normalizedCif).where(sql`${t.normalizedCif} IS NOT NULL`),
+	uniqueIndex('suppliers_rid_normalized_cif_idx').on(t.restaurantId, t.normalizedCif).where(sql`${t.normalizedCif} IS NOT NULL`),
 ]);
 
 export const supplierAliases = pgTable('supplier_aliases', {

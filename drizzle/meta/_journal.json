@@ -519,6 +519,13 @@
       "when": 1788430429162,
       "tag": "0073_add_incidence_reasons",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1788440737022,
+      "tag": "0074_supplier_cif_merge",
+      "breakpoints": true
     }
   ]
 }
