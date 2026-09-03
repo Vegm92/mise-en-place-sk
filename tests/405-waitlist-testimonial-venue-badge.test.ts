@@ -49,6 +49,15 @@ function splitRole(role: string): { roleLine: string; venueType: string | null }
 	return { roleLine: `${title} · ${place}`, venueType };
 }
 
+function testimonialsSection(): string {
+	const eyebrowIdx = PAGE_SRC.indexOf("t('waitlist.testimonialsEyebrow')");
+	const sectionStart = PAGE_SRC.lastIndexOf('<section', eyebrowIdx);
+	const sectionEnd = PAGE_SRC.indexOf('</section>', eyebrowIdx);
+	expect(sectionStart, 'testimonials section not found').toBeGreaterThan(-1);
+	expect(sectionEnd, 'testimonials section not found').toBeGreaterThan(-1);
+	return PAGE_SRC.slice(sectionStart, sectionEnd);
+}
+
 describe('waitlist.testimonials.*.role keys are untouched by this display-only change (issue #405)', () => {
 	for (const key of ROLE_KEYS) {
 		it(`${key} still has the three " · "-joined segments (title · venue type · place) in both locales`, () => {
@@ -85,12 +94,7 @@ describe('LandingPage.svelte renders venue type as a distinct badge, not trailin
 	});
 
 	it('renders one .badge.badge-neutral element per testimonial card, sourced from item.venueType', () => {
-		const eyebrowIdx = PAGE_SRC.indexOf("t('waitlist.testimonialsEyebrow')");
-		const sectionStart = PAGE_SRC.lastIndexOf('<section', eyebrowIdx);
-		const sectionEnd = PAGE_SRC.indexOf('</section>', eyebrowIdx);
-		expect(sectionStart, 'testimonials section not found').toBeGreaterThan(-1);
-		expect(sectionEnd, 'testimonials section not found').toBeGreaterThan(-1);
-		const section = PAGE_SRC.slice(sectionStart, sectionEnd);
+		const section = testimonialsSection();
 
 		expect(section).toContain('class="badge badge-neutral"');
 		expect(section).toContain('{item.venueType}');
@@ -101,10 +105,7 @@ describe('LandingPage.svelte renders venue type as a distinct badge, not trailin
 	});
 
 	it('the badge sits below the name line, not concatenated as trailing text on it', () => {
-		const eyebrowIdx = PAGE_SRC.indexOf("t('waitlist.testimonialsEyebrow')");
-		const sectionStart = PAGE_SRC.lastIndexOf('<section', eyebrowIdx);
-		const sectionEnd = PAGE_SRC.indexOf('</section>', eyebrowIdx);
-		const section = PAGE_SRC.slice(sectionStart, sectionEnd);
+		const section = testimonialsSection();
 
 		const nameIdx = section.indexOf('{item.name}');
 		const badgeIdx = section.indexOf('class="badge badge-neutral"');
@@ -113,10 +114,7 @@ describe('LandingPage.svelte renders venue type as a distinct badge, not trailin
 	});
 
 	it('uses the neutral badge tokens, never the accent color, on the venue-type tag (ADR-026/ADR-027)', () => {
-		const eyebrowIdx = PAGE_SRC.indexOf("t('waitlist.testimonialsEyebrow')");
-		const sectionStart = PAGE_SRC.lastIndexOf('<section', eyebrowIdx);
-		const sectionEnd = PAGE_SRC.indexOf('</section>', eyebrowIdx);
-		const section = PAGE_SRC.slice(sectionStart, sectionEnd);
+		const section = testimonialsSection();
 
 		const badgeIdx = section.indexOf('class="badge badge-neutral"');
 		const rowStart = section.lastIndexOf('<div', badgeIdx);
@@ -132,10 +130,7 @@ describe('LandingPage.svelte renders venue type as a distinct badge, not trailin
 	});
 
 	it('adds no new inline font-size or border-radius (reuses the .badge class already on the type/radius scale)', () => {
-		const eyebrowIdx = PAGE_SRC.indexOf("t('waitlist.testimonialsEyebrow')");
-		const sectionStart = PAGE_SRC.lastIndexOf('<section', eyebrowIdx);
-		const sectionEnd = PAGE_SRC.indexOf('</section>', eyebrowIdx);
-		const section = PAGE_SRC.slice(sectionStart, sectionEnd);
+		const section = testimonialsSection();
 		const badgeIdx = section.indexOf('class="badge badge-neutral"');
 		const tagEnd = section.indexOf('>', badgeIdx);
 		const badgeTag = section.slice(section.lastIndexOf('<span', badgeIdx), tagEnd + 1);
@@ -143,10 +138,7 @@ describe('LandingPage.svelte renders venue type as a distinct badge, not trailin
 	});
 
 	it('stays inside the shared .mep-grid-3 card, which already collapses to one column at 640px and below', () => {
-		const eyebrowIdx = PAGE_SRC.indexOf("t('waitlist.testimonialsEyebrow')");
-		const sectionStart = PAGE_SRC.lastIndexOf('<section', eyebrowIdx);
-		const sectionEnd = PAGE_SRC.indexOf('</section>', eyebrowIdx);
-		const section = PAGE_SRC.slice(sectionStart, sectionEnd);
+		const section = testimonialsSection();
 		expect(section).toContain('mep-grid-3');
 		expect(PAGE_SRC).toMatch(/\.mep-grid-3[^{]*\{[^}]*grid-template-columns:\s*1fr\s*!important/);
 	});

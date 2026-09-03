@@ -22,6 +22,7 @@ import { setLocale, t, loadAllMessages } from '../src/lib/i18n';
 import { translations } from '../src/lib/i18n-messages';
 import { HELP_STEPS, HELP_TIPS, HELP_FAQ, helpContentKeys } from '../src/lib/help-content';
 import { ROUTE_POLICY } from '../src/lib/server/entitlements';
+import { untranslated } from './helpers/i18n-setup';
 
 await loadAllMessages();
 
@@ -88,11 +89,7 @@ describe('every help string resolves in both locales', () => {
 	});
 
 	it('resolves rather than echoing the key back', () => {
-		for (const l of ['es', 'en'] as const) {
-			setLocale(l);
-			for (const key of keys) expect(t(key)).not.toBe(key);
-		}
-		setLocale('es');
+		expect(untranslated(keys)).toEqual([]);
 	});
 });
 

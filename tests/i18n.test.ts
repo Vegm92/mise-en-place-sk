@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { setLocale, t, ti, tp, tcat, tiv, loadAllMessages } from '../src/lib/i18n';
 import { translations } from '../src/lib/i18n-messages';
+import { untranslated } from './helpers/i18n-setup';
 
 await loadAllMessages();
 
@@ -597,12 +598,7 @@ describe('issue #534 — analytics period/filter short labels', () => {
   ];
 
   it('resolves every period/filter key the analytics pages use in both locales', () => {
-    const missing: string[] = [];
-    for (const lc of ['es', 'en'] as const) {
-      setLocale(lc);
-      for (const k of keys) if (tr(k) === k) missing.push(`${lc}:${k}`);
-    }
-    expect(missing).toEqual([]);
+    expect(untranslated(keys)).toEqual([]);
   });
 
   it('keys the previously-hardcoded 30 d / 90 d / 6 m short labels in both locales', () => {
