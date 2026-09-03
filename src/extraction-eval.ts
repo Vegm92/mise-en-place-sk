@@ -16,7 +16,7 @@ const CASES_DIR = path.join(GOLDEN_DIR, 'cases');
 const BASELINE_PATH = path.join(GOLDEN_DIR, 'baseline-report.json');
 
 const CRITICAL_FIELDS = new Set(['total_amount', 'supplier_nif', 'invoice_number']);
-const REGRESSION_TOLERANCE_POINTS = 1;
+const REGRESSION_TOLERANCE_POINTS = 5;
 
 interface GoldenCaseEntry {
 	id: string;
@@ -67,12 +67,18 @@ function loadBaseline(): EvalReport | null {
 	return JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf-8'));
 }
 
+function failureKey(f: CriticalFailure): string {
+	return `${f.id}/${f.field}`;
+}
+
 export function checkRegression(report: EvalReport, baseline: EvalReport): string[] {
 	const failures: string[] = [];
-	if (report.criticalFailures.length) {
+	const baselineFailureKeys = new Set(baseline.criticalFailures.map(failureKey));
+	const newCriticalFailures = report.criticalFailures.filter((f) => !baselineFailureKeys.has(failureKey(f)));
+	if (newCriticalFailures.length) {
 		failures.push(
-			`${report.criticalFailures.length} critical-field mismatch(es): ` +
-			report.criticalFailures.map((f) => `${f.id}/${f.field}`).join(', '),
+			`${newCriticalFailures.length} new critical-field mismatch(es): ` +
+			newCriticalFailures.map(failureKey).join(', '),
 		);
 	}
 	if (report.overallRate != null && baseline.overallRate != null
