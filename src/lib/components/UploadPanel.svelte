@@ -20,6 +20,8 @@
     sweepExpiredEntries,
     type UploadOutcome,
   } from '$lib/offline-queue';
+  import { untrack } from 'svelte';
+  import { online } from 'svelte/reactivity/window';
   import { goto } from '$app/navigation';
   import { deserialize } from '$app/forms';
   import type { ActionResult } from '@sveltejs/kit';
@@ -315,9 +317,13 @@
       pendingOfflineCount = result.remaining.length;
       if (result.remaining.length > 0 && navigator.onLine) retryOfflineUploads();
     });
-    const onOnline = () => retryOfflineUploads();
-    window.addEventListener('online', onOnline);
-    return () => window.removeEventListener('online', onOnline);
+  });
+
+  let wasOnline = online.current;
+  $effect(() => {
+    const nowOnline = online.current;
+    if (nowOnline && wasOnline === false) untrack(retryOfflineUploads);
+    wasOnline = nowOnline;
   });
 </script>
 
