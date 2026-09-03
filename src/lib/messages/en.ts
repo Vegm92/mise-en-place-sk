@@ -370,6 +370,7 @@ export default {
   'notif.msg.whatsappPendingSave': "✅ You confirmed '{supplier}'s delivery note ({code}) over WhatsApp. Save it in the panel so it counts towards your analytics.",
   'notif.msg.whatsappNeedsReview': "⚠️ You flagged '{supplier}'s delivery note ({code}) as wrong over WhatsApp. Review it and fix the data before saving.",
   'notif.openBatch':               'Open delivery note',
+  'notif.viewInvoice':              'View invoice',
   'dash.alert.priceShockUp':       '{ingredient} is up {pct}%',
   'dash.alert.priceShockDown':     '{ingredient} is down {pct}%',
   'dash.alert.budgetPct':          '{category} at {pct}% of monthly budget',
