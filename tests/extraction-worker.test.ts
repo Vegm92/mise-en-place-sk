@@ -564,6 +564,64 @@ describe('processExtractionJob — total mismatch is detected at extraction time
 });
 
 /**
+ * Issue #919: invoice_line_items.tax_rate is filled from what the document
+ * prints on each line — the worker's job is only to carry it from the raw
+ * extraction (or the einvoice parser) through annotateLineItems into
+ * extracted_data.line_items untouched.
+ */
+describe('processExtractionJob — per-line tax_rate passes through to extracted_data (#919)', () => {
+	it('carries each line\'s tax_rate from the raw extraction into batch_items.extracted_data.line_items', async () => {
+		batchMocks.markExtracting.mockResolvedValue(true);
+		extractMocks.extractWithProvider.mockResolvedValue({
+			invoice: {
+				supplier_name: 'Acme',
+				total_amount: 100,
+				line_items: [
+					{ description: 'food', total_price: 50, tax_rate: 0.10 },
+					{ description: 'cleaning', total_price: 50, tax_rate: 0.21 },
+				],
+			},
+			usage: {},
+		});
+
+		await processExtractionJob(job, undefined, RETRIES_LEFT);
+
+		expect(batchMocks.markDone).toHaveBeenCalledWith(
+			item.id,
+			expect.objectContaining({
+				line_items: [
+					expect.objectContaining({ description: 'food', tax_rate: 0.10 }),
+					expect.objectContaining({ description: 'cleaning', tax_rate: 0.21 }),
+				],
+			}),
+			expect.anything(),
+		);
+	});
+
+	it('defaults tax_rate to null when the line printed none', async () => {
+		batchMocks.markExtracting.mockResolvedValue(true);
+		extractMocks.extractWithProvider.mockResolvedValue({
+			invoice: {
+				supplier_name: 'Acme',
+				total_amount: 100,
+				line_items: [{ description: 'mystery item', total_price: 100 }],
+			},
+			usage: {},
+		});
+
+		await processExtractionJob(job, undefined, RETRIES_LEFT);
+
+		expect(batchMocks.markDone).toHaveBeenCalledWith(
+			item.id,
+			expect.objectContaining({
+				line_items: [expect.objectContaining({ description: 'mystery item', tax_rate: null })],
+			}),
+			expect.anything(),
+		);
+	});
+});
+
+/**
  * Composite documents (docs/03_features/multi_invoice_document_detection.md).
  *
  * A supplier packet — one PDF holding a cover listing and seventeen facturas —
