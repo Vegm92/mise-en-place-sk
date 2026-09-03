@@ -3,6 +3,7 @@ import { db, forTenant } from './db';
 import { invoices, invoiceLineItems, extractionCorrections, settings, suppliers, restaurants } from './schema';
 import { eq, and, isNull, inArray, notInArray } from 'drizzle-orm';
 import { normalizePhoneNumber } from '$lib/phone';
+import { normalizeTaxId, taxIdDecidesIdentity } from '$lib/tax-id';
 import { resolveUnit, resolveLineProducts, parsePack, normalizedUnitPrice, applyExtractedAllergens, assignLineProduct, getProductName } from './products';
 import { enqueueCategorize, enqueueNormalize } from './queue';
 import { normalizeProductKey, isSameSupplierName } from './normalize';
@@ -637,6 +638,7 @@ async function resolveSupplierInfo(rid: string, extracted: ExtractedInvoice | un
 			: UNCATEGORIZED_CATEGORY,
 		proposedContact: {
 			cif: extracted?.supplier_nif ?? null,
+			cifConfidence: extracted?.field_confidences?.supplier_nif ?? null,
 			email: extracted?.supplier_email ?? null,
 			phone: extracted?.supplier_phone ?? null,
 			address: extracted?.supplier_address ?? null,
@@ -647,7 +649,7 @@ async function resolveSupplierInfo(rid: string, extracted: ExtractedInvoice | un
 	};
 }
 
-interface RestaurantPhoneMismatch {
+interface ProfileMismatch {
 	current: string;
 	extracted: string;
 }
@@ -656,7 +658,7 @@ async function resolveRestaurantPhoneSignal(
 	tx: BatchDb,
 	rid: string,
 	receiverPhone: string | null,
-): Promise<RestaurantPhoneMismatch | null> {
+): Promise<ProfileMismatch | null> {
 	if (!receiverPhone) return null;
 
 	const [row] = await tx.select({ phone: restaurants.phone }).from(restaurants).where(eq(restaurants.id, rid)).limit(1);
@@ -673,6 +675,23 @@ async function resolveRestaurantPhoneSignal(
 		return { current, extracted: receiverPhone };
 	}
 	return null;
+}
+
+async function resolveRestaurantTaxIdSignal(
+	tx: BatchDb,
+	rid: string,
+	receiverNif: string | null,
+	receiverNifConfidence: number | null,
+): Promise<ProfileMismatch | null> {
+	const extractedNorm = normalizeTaxId(receiverNif);
+	if (!extractedNorm || !taxIdDecidesIdentity(extractedNorm, receiverNifConfidence)) return null;
+
+	const [row] = await tx.select({ cifNif: restaurants.cifNif }).from(restaurants).where(eq(restaurants.id, rid)).limit(1);
+	const current = row?.cifNif ?? null;
+	const currentNorm = normalizeTaxId(current);
+	if (!current || !currentNorm || currentNorm === extractedNorm) return null;
+
+	return { current, extracted: extractedNorm };
 }
 
 async function linkRelatedDocuments(
@@ -729,9 +748,10 @@ async function runPostSaveEffects(params: {
 	proposedCategory: string;
 	reviewState: ReviewState;
 	tdb: ReturnType<typeof forTenant>;
-	restaurantPhoneMismatch: RestaurantPhoneMismatch | null;
+	restaurantPhoneMismatch: ProfileMismatch | null;
+	restaurantTaxIdMismatch: ProfileMismatch | null;
 }): Promise<boolean> {
-	const { invoiceId, supplierId, rid, supplierName, invoiceNumber, invoiceDate, dueDate, totalAmount, documentType, purchaseOrder, confidenceRaw, lineInputs, savedItems, unitConversionAlerts, qrMismatches, extractedData, lineDescriptions, lineQuantities, lineUnits, lineUnitPrices, lineTotalPrices, proposedCategory, reviewState, tdb, restaurantPhoneMismatch } = params;
+	const { invoiceId, supplierId, rid, supplierName, invoiceNumber, invoiceDate, dueDate, totalAmount, documentType, purchaseOrder, confidenceRaw, lineInputs, savedItems, unitConversionAlerts, qrMismatches, extractedData, lineDescriptions, lineQuantities, lineUnits, lineUnitPrices, lineTotalPrices, proposedCategory, reviewState, tdb, restaurantPhoneMismatch, restaurantTaxIdMismatch } = params;
 
 	const { productByKey, productCorrections } = await isolated(
 		'product linking',
@@ -799,19 +819,21 @@ async function runPostSaveEffects(params: {
 		},
 	}] : [];
 
-	const restaurantPhoneVars = restaurantPhoneMismatch && { current: restaurantPhoneMismatch.current, extracted: restaurantPhoneMismatch.extracted };
-	const restaurantPhoneAlerts: Alert[] = restaurantPhoneVars ? [{
-		notificationType: 'restaurant_phone_mismatch',
-		message: renderTemplate('es', 'notif.msg.restaurantPhoneMismatch', restaurantPhoneVars),
-		payload: {
-			...restaurantPhoneVars,
-			messageKey: 'notif.msg.restaurantPhoneMismatch',
-			messageVars: restaurantPhoneVars,
-		},
-	}] : [];
+	const profileMismatchAlerts: Alert[] = [
+		{ mismatch: restaurantPhoneMismatch, type: 'restaurant_phone_mismatch', key: 'notif.msg.restaurantPhoneMismatch' },
+		{ mismatch: restaurantTaxIdMismatch, type: 'restaurant_tax_id_mismatch', key: 'notif.msg.restaurantTaxIdMismatch' },
+	].flatMap(({ mismatch, type, key }) => {
+		if (!mismatch) return [];
+		const vars = { current: mismatch.current, extracted: mismatch.extracted };
+		return [{
+			notificationType: type,
+			message: renderTemplate('es', key, vars),
+			payload: { ...vars, messageKey: key, messageVars: vars },
+		}];
+	});
 
 	await isolated('alert save', undefined, () => saveAlerts(invoiceId, rid, [
-		...unitConversionAlerts, ...Object.values(alertResultsByKey).flat(), ...verifactuAlerts, ...restaurantPhoneAlerts,
+		...unitConversionAlerts, ...Object.values(alertResultsByKey).flat(), ...verifactuAlerts, ...profileMismatchAlerts,
 	]));
 
 	const hasDuplicateWarning = duplicatePurchaseAlerts.some((a) => a.notificationType === 'possible_duplicate_purchase');
@@ -951,7 +973,8 @@ export async function saveReviewedInvoice(
 	let invoiceId: number | null = null;
 	let duplicateOutcome: Extract<SaveOutcome, { type: 'contentDuplicate' | 'numberDuplicate' }> | null = null;
 	let isReplay = false;
-	let restaurantPhoneMismatch: RestaurantPhoneMismatch | null = null;
+	let restaurantPhoneMismatch: ProfileMismatch | null = null;
+	let restaurantTaxIdMismatch: ProfileMismatch | null = null;
 	const savedItems: EnrichedLineItem[] = [];
 	const unitConversionAlerts: Alert[] = [];
 
@@ -970,6 +993,9 @@ export async function saveReviewedInvoice(
 
 		supplierId = await getOrCreateSupplierId(rid, supplierName, tx, proposedCategory, proposedContact, contactTrusted);
 		restaurantPhoneMismatch = await resolveRestaurantPhoneSignal(tx, rid, extracted?.receiver_phone ?? null);
+		restaurantTaxIdMismatch = await resolveRestaurantTaxIdSignal(
+			tx, rid, extracted?.receiver_nif ?? null, extracted?.field_confidences?.receiver_nif ?? null,
+		);
 
 		const outstandingBalance = typeof extracted?.outstanding_balance === 'number' ? String(extracted.outstanding_balance) : null;
 		if (outstandingBalance !== null) {
@@ -1044,7 +1070,7 @@ export async function saveReviewedInvoice(
 		invoiceId: invoiceId!, supplierId, rid, supplierName, invoiceNumber, invoiceDate, dueDate,
 		totalAmount, documentType, purchaseOrder, confidenceRaw, lineInputs, savedItems, unitConversionAlerts,
 		qrMismatches, extractedData, lineDescriptions, lineQuantities, lineUnits, lineUnitPrices,
-		lineTotalPrices, proposedCategory, reviewState, tdb, restaurantPhoneMismatch,
+		lineTotalPrices, proposedCategory, reviewState, tdb, restaurantPhoneMismatch, restaurantTaxIdMismatch,
 	});
 
 	return { type: 'saved', invoiceId: invoiceId!, isFirstInvoice };

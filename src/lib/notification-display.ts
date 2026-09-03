@@ -9,6 +9,7 @@ import Lock from '@lucide/svelte/icons/lock';
 import MessageCircle from '@lucide/svelte/icons/message-circle';
 import FileDiff from '@lucide/svelte/icons/file-diff';
 import Phone from '@lucide/svelte/icons/phone';
+import IdCard from '@lucide/svelte/icons/id-card';
 
 export type Notif = {
   id: number;
@@ -40,6 +41,7 @@ export function notificationIcon(type: string) {
   if (type === 'whatsapp_needs_review')       return MessageCircle;
   if (type === 'line_item_mismatch')          return FileDiff;
   if (type === 'restaurant_phone_mismatch')   return Phone;
+  if (type === 'restaurant_tax_id_mismatch')  return IdCard;
   return Bell;
 }
 
@@ -56,6 +58,7 @@ export function notificationColor(type: string) {
   if (type === 'whatsapp_needs_review')       return 'var(--mep-warn)';
   if (type === 'line_item_mismatch')          return 'var(--mep-warn)';
   if (type === 'restaurant_phone_mismatch')   return 'var(--mep-info)';
+  if (type === 'restaurant_tax_id_mismatch')  return 'var(--mep-warn)';
   return 'var(--mep-fg-2)';
 }
 

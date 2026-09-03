@@ -2,12 +2,13 @@ import { sql } from 'drizzle-orm';
 import { db } from './db';
 import type { BatchDb } from './batch';
 import { UNCATEGORIZED_CATEGORY } from '$lib/constants';
-import { normalizeTaxId } from '$lib/tax-id';
+import { normalizeTaxId, taxIdDecidesIdentity } from '$lib/tax-id';
 import { resolveCategoryFor } from './categories';
 import { isSameSupplierName, normalizeSupplierName } from './normalize';
 
 export interface SupplierContactInfo {
 	cif?: string | null;
+	cifConfidence?: number | null;
 	email?: string | null;
 	phone?: string | null;
 	address?: string | null;
@@ -122,7 +123,7 @@ export async function getOrCreateSupplierId(
 		paymentTerms: contactTrusted ? paymentTerms : null,
 	};
 
-	if (contactTrusted && normalizedCif) {
+	if (contactTrusted && normalizedCif && taxIdDecidesIdentity(normalizedCif, contact.cifConfidence)) {
 		const byTaxId = await findByTaxId(exec, restaurantId, normalizedCif);
 		if (byTaxId) {
 			await mergeContactInto(exec, restaurantId, byTaxId.id, merge);

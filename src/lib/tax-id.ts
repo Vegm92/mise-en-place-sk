@@ -47,3 +47,13 @@ export function isValidSpanishTaxId(value: string | null | undefined): boolean {
 	if (CIF_DIGIT_ONLY.includes(kind)) return control === String(expected);
 	return control === String(expected) || control === CIF_CONTROL_LETTERS[expected];
 }
+
+export const MIN_TAX_ID_MATCH_CONFIDENCE = 0.85;
+
+export function taxIdDecidesIdentity(value: string | null | undefined, confidence?: number | null): boolean {
+	if (!isValidSpanishTaxId(value)) return false;
+	if (typeof confidence === 'number' && !Number.isNaN(confidence) && confidence < MIN_TAX_ID_MATCH_CONFIDENCE) {
+		return false;
+	}
+	return true;
+}

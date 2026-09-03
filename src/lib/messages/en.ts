@@ -369,6 +369,7 @@ export default {
   'notif.msg.lineItemMismatch':     "📋 Delivery note {albaran} and invoice {factura}: {missing} item(s) not invoiced, {qty} with a different quantity.",
   'notif.msg.whatsappPendingSave': "✅ You confirmed '{supplier}'s delivery note ({code}) over WhatsApp. Save it in the panel so it counts towards your analytics.",
   'notif.msg.whatsappNeedsReview': "⚠️ You flagged '{supplier}'s delivery note ({code}) as wrong over WhatsApp. Review it and fix the data before saving.",
+  'notif.msg.restaurantTaxIdMismatch': "🪪 This document is addressed to tax ID {extracted}, but your restaurant's is {current}. We saved it anyway — check the invoice is yours, or correct your tax ID in Settings.",
   'notif.msg.restaurantPhoneMismatch': "📞 This invoice prints {extracted} as your restaurant's phone, but Settings has {current} saved. We haven't changed anything — update it in Settings if the printed one is right.",
   'notif.openBatch':               'Open delivery note',
   'notif.viewDetail':               'View detail',

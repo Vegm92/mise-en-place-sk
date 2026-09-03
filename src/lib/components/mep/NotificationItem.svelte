@@ -29,6 +29,7 @@
     'whatsapp_needs_review',
     'product_suggestion',
     'restaurant_phone_mismatch',
+    'restaurant_tax_id_mismatch',
   ]);
   const hasSpecificAction = $derived(TYPES_WITH_ACTION.has(notification.notificationType));
 </script>
@@ -95,7 +96,7 @@
         </div>
       {/if}
     {/if}
-    {#if notification.notificationType === 'restaurant_phone_mismatch'}
+    {#if notification.notificationType === 'restaurant_phone_mismatch' || notification.notificationType === 'restaurant_tax_id_mismatch'}
       <div style="margin-top:6px;">
         <a
           href="/settings"

@@ -12,7 +12,7 @@
  * are foreign VAT numbers that no Spanish checksum accepts.
  */
 import { describe, it, expect } from 'vitest';
-import { normalizeTaxId, isValidSpanishTaxId } from '../src/lib/tax-id';
+import { normalizeTaxId, isValidSpanishTaxId, taxIdDecidesIdentity, MIN_TAX_ID_MATCH_CONFIDENCE } from '../src/lib/tax-id';
 
 describe('normalizeTaxId', () => {
 	it('uppercases and strips separators', () => {
@@ -66,5 +66,29 @@ describe('isValidSpanishTaxId', () => {
 		expect(isValidSpanishTaxId('B-99881122')).toBe(false);
 		expect(isValidSpanishTaxId('1234567Z')).toBe(false);
 		expect(isValidSpanishTaxId('I99999999')).toBe(false);
+	});
+});
+
+describe('taxIdDecidesIdentity', () => {
+	it('accepts a checksum-valid id the model read clearly', () => {
+		expect(taxIdDecidesIdentity('B99999997', 0.99)).toBe(true);
+		expect(taxIdDecidesIdentity('b-99.999.997', MIN_TAX_ID_MATCH_CONFIDENCE)).toBe(true);
+	});
+
+	it('refuses an id no Spanish checksum accepts', () => {
+		expect(taxIdDecidesIdentity('B99999998', 1)).toBe(false);
+		expect(taxIdDecidesIdentity('FR12345678901', 1)).toBe(false);
+		expect(taxIdDecidesIdentity(null, 1)).toBe(false);
+	});
+
+	it('refuses a valid id the model says it could not read', () => {
+		expect(taxIdDecidesIdentity('B99999997', 0.84)).toBe(false);
+		expect(taxIdDecidesIdentity('B99999997', 0)).toBe(false);
+	});
+
+	it('treats a missing or unusable score as no evidence against the reading', () => {
+		expect(taxIdDecidesIdentity('B99999997')).toBe(true);
+		expect(taxIdDecidesIdentity('B99999997', null)).toBe(true);
+		expect(taxIdDecidesIdentity('B99999997', Number.NaN)).toBe(true);
 	});
 });

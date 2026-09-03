@@ -249,3 +249,53 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → restaurant phone signal (iss
 		expect(await restaurantPhone()).toBe(before);
 	});
 });
+
+async function taxIdMismatchNotifications(): Promise<Array<Record<string, unknown>>> {
+	return testSql`SELECT * FROM system_notifications WHERE restaurant_id = ${rid} AND notification_type = 'restaurant_tax_id_mismatch'` as unknown as Promise<Array<Record<string, unknown>>>;
+}
+
+async function saveWithReceiverNif(supplier: string, invoiceNumber: string, receiverNif: string | null, confidence?: number) {
+	const item = batchItem({
+		supplier_name: supplier,
+		invoice_number: invoiceNumber,
+		total_amount: 100,
+		confidence: 0.95,
+		receiver_nif: receiverNif,
+		field_confidences: confidence === undefined ? undefined : { receiver_nif: confidence },
+		line_items: [{ description: 'Aceite de oliva', quantity: 1, unit: 'garrafa', unit_price: 100, total_price: 100 }],
+	});
+	return saveReviewedInvoice(item, form(supplier, invoiceNumber), rid);
+}
+
+describe.skipIf(!hasDbEnv)('saveReviewedInvoice → receiver tax id check (issue #905 task 3)', () => {
+	beforeAll(async () => {
+		if (!hasDbEnv) return;
+		await testSql`UPDATE restaurants SET cif_nif = 'B99999997' WHERE id = ${rid}`;
+	});
+
+	it('saves the document anyway and warns when it is addressed to another tax id', async () => {
+		const out = await saveWithReceiverNif('__rnif_mismatch__', 'RNIF-0001', '47306879-L');
+		expect(out.type).toBe('saved');
+
+		const notifications = await taxIdMismatchNotifications();
+		expect(notifications).toHaveLength(1);
+		const payload = notifications[0].payload as { current?: string; extracted?: string };
+		expect(payload.current).toBe('B99999997');
+		expect(payload.extracted).toBe('47306879L');
+	});
+
+	it('stays quiet when the receiver tax id is ours, whatever separators it prints', async () => {
+		const before = await taxIdMismatchNotifications();
+		const out = await saveWithReceiverNif('__rnif_ours__', 'RNIF-0002', 'ES B-99.999.997');
+		expect(out.type).toBe('saved');
+		expect(await taxIdMismatchNotifications()).toHaveLength(before.length);
+	});
+
+	it('stays quiet on a tax id that fails the checksum or reads badly', async () => {
+		const before = await taxIdMismatchNotifications();
+		expect((await saveWithReceiverNif('__rnif_junk__', 'RNIF-0003', 'B99999998')).type).toBe('saved');
+		expect((await saveWithReceiverNif('__rnif_blurry__', 'RNIF-0004', '47306879L', 0.4)).type).toBe('saved');
+		expect((await saveWithReceiverNif('__rnif_absent__', 'RNIF-0005', null)).type).toBe('saved');
+		expect(await taxIdMismatchNotifications()).toHaveLength(before.length);
+	});
+});
