@@ -1,35 +1,42 @@
 <script lang="ts">
   import Bell from '@lucide/svelte/icons/bell';
-  import X from '@lucide/svelte/icons/x';
   import { t, tiv } from '$lib/i18n';
-  import { notificationIcon, notificationColor, notificationMessage, type Notif } from '$lib/notification-display';
+  import NotificationItem from '$lib/components/mep/NotificationItem.svelte';
+  import type { Notif } from '$lib/notification-display';
+  import { dismissNotification, acceptSupplierCategory, decideProductSuggestion } from '$lib/notification-actions';
 
   let { notifications: initial }: { notifications: Notif[] } = $props();
 
   // svelte-ignore state_referenced_locally — intentional: seed once from prop
   let items = $state<Notif[]>(initial);
   let open = $state(false);
+  let decidingCategory = $state<number | null>(null);
+  let deciding = $state<number | null>(null);
 
   const count = $derived(items.length);
   const preview = $derived(items.slice(0, 5));
 
-  async function dismiss(id: number) {
-    const removed = items.find((n) => n.id === id);
-    const removedIndex = items.findIndex((n) => n.id === id);
-    items = items.filter((n) => n.id !== id);
+  function dismiss(id: number) {
+    return dismissNotification(items, id, (next) => { items = next; });
+  }
+
+  async function acceptCategory(n: Notif) {
+    if (decidingCategory !== null) return;
+    decidingCategory = n.id;
     try {
-      const resp = await fetch('/api/notifications', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ id }),
-      });
-      if (!resp.ok) throw new Error(`dismiss failed: ${resp.status}`);
-    } catch {
-      if (removed && removedIndex >= 0) {
-        const next = [...items];
-        next.splice(removedIndex, 0, removed);
-        items = next;
-      }
+      if (await acceptSupplierCategory(n)) items = items.filter((i) => i.id !== n.id);
+    } finally {
+      decidingCategory = null;
+    }
+  }
+
+  async function decideProduct(n: Notif, accept: boolean) {
+    if (deciding !== null) return;
+    deciding = n.id;
+    try {
+      if (await decideProductSuggestion(n, accept)) items = items.filter((i) => i.id !== n.id);
+    } finally {
+      deciding = null;
     }
   }
 
@@ -92,26 +99,15 @@
         </div>
       {:else}
         {#each preview as n (n.id)}
-          {@const Ic = notificationIcon(n.notificationType)}
-          <div
-            style="
-              display:flex;align-items:flex-start;gap:10px;
-              padding:10px 14px;border-bottom:1px solid var(--mep-divider);
-            "
-          >
-            <div style="flex-shrink:0;margin-top:1px;color:{notificationColor(n.notificationType)};">
-              <Ic size={14} />
-            </div>
-            <div style="flex:1;min-width:0;font-size:12.5px;color:var(--mep-fg);line-height:1.4;">
-              {notificationMessage(n, $tiv)}
-            </div>
-            <button
-              style="flex-shrink:0;background:none;border:none;cursor:pointer;color:var(--mep-fg-3);padding:2px;margin-top:-1px;"
-              onclick={() => dismiss(n.id)}
-              aria-label={$t('a11y.dismiss')}
-            >
-              <X size={12} />
-            </button>
+          <div style="padding:10px 14px;border-bottom:1px solid var(--mep-divider);">
+            <NotificationItem
+              notification={n}
+              onDismiss={dismiss}
+              onAcceptCategory={acceptCategory}
+              onDecideProduct={decideProduct}
+              decidingCategoryId={decidingCategory}
+              decidingProductId={deciding}
+            />
           </div>
         {/each}
       {/if}
