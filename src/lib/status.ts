@@ -48,6 +48,29 @@ export function incidenceKindHintKey(s: string): string {
 	return isIncidenceKind(s) ? `${INCIDENCE_KIND_KEY[s]}.hint` : s;
 }
 
+export const INCIDENCE_REASONS = [
+	'low_confidence',
+	'total_mismatch',
+	'unit_conversion',
+	'qr_mismatch',
+	'duplicate_purchase',
+	'line_item_mismatch',
+] as const;
+
+export type IncidenceReason = (typeof INCIDENCE_REASONS)[number];
+
+export function isIncidenceReason(s: string): s is IncidenceReason {
+	return (INCIDENCE_REASONS as readonly string[]).includes(s);
+}
+
+export function incidenceReasonKey(s: string): string {
+	return isIncidenceReason(s) ? `inv.review.reason.${s}` : s;
+}
+
+export function incidenceReasons(reasons: readonly string[] | null | undefined): IncidenceReason[] {
+	return (reasons ?? []).filter(isIncidenceReason);
+}
+
 export const STORED_INVOICE_STATUSES = ['pending', 'accepted', 'rejected', 'paid'] as const;
 
 export const DERIVED_INVOICE_STATUSES = ['overdue'] as const;

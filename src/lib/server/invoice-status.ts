@@ -15,7 +15,7 @@ export function invoiceReviewFilter(state: string): SQL | undefined {
 export async function markInvoiceReviewed(id: number, rid: string): Promise<boolean> {
 	const tdb = forTenant(rid);
 	const rows = await db.update(invoices)
-		.set({ reviewState: 'revisado', incidenceKind: null })
+		.set({ reviewState: 'revisado', incidenceKind: null, incidenceReasons: null })
 		.where(and(
 			tdb.scope(invoices.restaurantId, eq(invoices.id, id)),
 			inArray(invoices.reviewState, OPEN_REVIEW_STATES),
@@ -28,7 +28,7 @@ export async function markInvoicesReviewedBulk(ids: number[], rid: string): Prom
 	if (ids.length === 0) return 0;
 	const tdb = forTenant(rid);
 	const rows = await db.update(invoices)
-		.set({ reviewState: 'revisado', incidenceKind: null })
+		.set({ reviewState: 'revisado', incidenceKind: null, incidenceReasons: null })
 		.where(and(
 			tdb.scope(invoices.restaurantId),
 			inArray(invoices.id, ids),
