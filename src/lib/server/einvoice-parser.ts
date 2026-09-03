@@ -297,12 +297,15 @@ export function parseFacturae322(xml: string): ExtractedInvoice & { e_invoice_fo
 	const lines = getArr(items, 'InvoiceLine');
 	const line_items = lines.map((line) => {
 		const uom = getText(getChild(line, 'UnitOfMeasure'));
+		const lineTaxes = getArr(getChild(line, 'TaxesOutputs'), 'Tax');
+		const lineTaxRate = lineTaxes.length ? getNum(getChild(lineTaxes[0], 'TaxRate')) : null;
 		return {
 			description: getText(getChild(line, 'ItemDescription')) ?? '',
 			quantity: getNum(getChild(line, 'Quantity')),
 			unit: (uom ? (FACTURAE_UNIT_CODES[uom] ?? canonicalizeUnit(uom)) : null),
 			unit_price: getNum(getChild(line, 'UnitPriceWithoutTax')),
 			total_price: getNum(getChild(line, 'TotalCost')) ?? getNum(getChild(line, 'GrossAmount')),
+			tax_rate: lineTaxRate !== null ? lineTaxRate / 100 : null,
 			confidence: 1.0,
 		};
 	});
@@ -396,12 +399,14 @@ export function parseUbl21Invoice(xml: string): ExtractedInvoice & { e_invoice_f
 		const unit = typeof unitCodeRaw === 'string' ? canonicalizeUnit(unitCodeRaw) : null;
 		const totalLine = getNum(getChild(line, 'LineExtensionAmount'));
 		const unitPrice = getNum(getChild(line, 'Price', 'PriceAmount'));
+		const lineTaxRate = getNum(getChild(line, 'Item', 'ClassifiedTaxCategory', 'Percent'));
 		return {
 			description: desc,
 			quantity: qty,
 			unit,
 			unit_price: unitPrice,
 			total_price: totalLine,
+			tax_rate: lineTaxRate !== null ? lineTaxRate / 100 : null,
 			confidence: 1.0,
 		};
 	});

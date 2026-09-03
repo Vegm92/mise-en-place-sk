@@ -564,6 +564,48 @@ describe('processExtractionJob — total mismatch is detected at extraction time
 });
 
 /**
+ * Issue #919: invoice_line_items.tax_rate is filled from what the document
+ * prints on each line — the worker's job is only to carry it from the raw
+ * extraction (or the einvoice parser) through annotateLineItems into
+ * extracted_data.line_items untouched.
+ */
+const TAX_RATE_PASSTHROUGH_CASES = [
+	{
+		label: 'a mixed-rate invoice where each line prints its own rate',
+		rawLineItems: [
+			{ description: 'food', total_price: 50, tax_rate: 0.10 },
+			{ description: 'cleaning', total_price: 50, tax_rate: 0.21 },
+		],
+		expectedRates: [0.10, 0.21],
+	},
+	{
+		label: 'a line that printed no rate of its own',
+		rawLineItems: [{ description: 'mystery item', total_price: 100 }],
+		expectedRates: [null],
+	},
+] as const;
+
+describe('processExtractionJob — per-line tax_rate passes through to extracted_data (#919)', () => {
+	it.each(TAX_RATE_PASSTHROUGH_CASES)('carries tax_rate into extracted_data.line_items for $label', async ({ rawLineItems, expectedRates }) => {
+		batchMocks.markExtracting.mockResolvedValue(true);
+		extractMocks.extractWithProvider.mockResolvedValue({
+			invoice: { supplier_name: 'Acme', total_amount: 100, line_items: rawLineItems },
+			usage: {},
+		});
+
+		await processExtractionJob(job, undefined, RETRIES_LEFT);
+
+		expect(batchMocks.markDone).toHaveBeenCalledWith(
+			item.id,
+			expect.objectContaining({
+				line_items: expectedRates.map((tax_rate) => expect.objectContaining({ tax_rate })),
+			}),
+			expect.anything(),
+		);
+	});
+});
+
+/**
  * Composite documents (docs/03_features/multi_invoice_document_detection.md).
  *
  * A supplier packet — one PDF holding a cover listing and seventeen facturas —

@@ -378,6 +378,7 @@ export async function processExtractionJob(
 			unit: i.unit ?? null,
 			unitPrice: i.unit_price ?? null,
 			totalPrice: i.total_price ?? null,
+			taxRate: i.tax_rate ?? null,
 			itemConfidence: typeof i.confidence === 'number' ? i.confidence : undefined,
 		}));
 
@@ -399,6 +400,7 @@ export async function processExtractionJob(
 				unit: li.unit,
 				unit_price: li.unitPrice,
 				total_price: li.totalPrice,
+				tax_rate: (li as Record<string, unknown>).taxRate ?? null,
 				canonical_unit: li.canonicalUnit,
 				requires_unit_conversion: li.requiresUnitConversion,
 				confidence: (li as Record<string, unknown>).itemConfidence,
