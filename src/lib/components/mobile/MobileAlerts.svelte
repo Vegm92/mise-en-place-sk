@@ -14,6 +14,7 @@
     display_amount: number;
     invoice_date: string | null;
     incidence_kind: string | null;
+    incidence_reasons: string[] | null;
     payment_method: string | null;
     iban: string | null;
   }
@@ -99,7 +100,7 @@
                       <div class="num" style="font-size: 14px; font-weight: 600; color: var(--mep-fg);">{fmtAmount(r.display_amount)}</div>
                       <span class="badge badge-overdue">{$t('inv.review.incidencia')}</span>
                       <div class="mt-0.5">
-                        <IncidenceKindBadge kind={r.incidence_kind} small hint />
+                        <IncidenceKindBadge kind={r.incidence_kind} reasons={r.incidence_reasons} small hint />
                       </div>
                     </div>
                   </div>

@@ -28,6 +28,7 @@ import {
 	REVIEW_STATES,
 	STORED_INVOICE_STATUSES,
 	INCIDENCE_KINDS,
+	INCIDENCE_REASONS,
 	badgeClass,
 	statusKey,
 	isReviewState,
@@ -36,6 +37,9 @@ import {
 	incidenceKindBadgeClass,
 	incidenceKindKey,
 	incidenceKindHintKey,
+	isIncidenceReason,
+	incidenceReasonKey,
+	incidenceReasons,
 } from '../src/lib/status';
 import { invoiceReviewFilter } from '../src/lib/server/invoice-status';
 import { translations } from '../src/lib/i18n-messages';
@@ -49,6 +53,11 @@ const sqlText = (q: unknown) => dialect.sqlToQuery(q as never).sql;
 
 function read(rel: string): string {
 	return fs.readFileSync(path.join(ROOT, rel), 'utf8');
+}
+
+function expectLabelledInBothLocales(key: string): void {
+	expect(es[key], `${key} missing from es`).toBeTruthy();
+	expect(en[key], `${key} missing from en`).toBeTruthy();
 }
 
 function expectBadgeClassRegisteredInAppCss(cls: string): void {
@@ -130,8 +139,7 @@ describe('every review state renders', () => {
 		const key = statusKey(state);
 
 		expect(key, `statusKey('${state}') fell through to the raw value`).toBe(`inv.review.${state}`);
-		expect(es[key], `${key} missing from es`).toBeTruthy();
-		expect(en[key], `${key} missing from en`).toBeTruthy();
+		expectLabelledInBothLocales(key);
 	});
 
 	it('falls back to a neutral badge rather than a green one for an unknown state', () => {
@@ -235,10 +243,8 @@ describe('the incidence-kind vocabulary is a second, closed axis (issue #879)', 
 
 		expect(key).toBe(`inv.review.kind.${kind}`);
 		expect(hintKey).toBe(`inv.review.kind.${kind}.hint`);
-		expect(es[key], `${key} missing from es`).toBeTruthy();
-		expect(en[key], `${key} missing from en`).toBeTruthy();
-		expect(es[hintKey], `${hintKey} missing from es`).toBeTruthy();
-		expect(en[hintKey], `${hintKey} missing from en`).toBeTruthy();
+		expectLabelledInBothLocales(key);
+		expectLabelledInBothLocales(hintKey);
 	});
 
 	it('falls back to a neutral badge and the raw value for an unknown kind', () => {
@@ -249,5 +255,45 @@ describe('the incidence-kind vocabulary is a second, closed axis (issue #879)', 
 
 	it('lectura and documento render with visually distinct badge classes', () => {
 		expect(incidenceKindBadgeClass('lectura')).not.toBe(incidenceKindBadgeClass('documento'));
+	});
+});
+
+/**
+ * Issue #935: 'lectura' / 'documento' say which axis the incidence is on, not
+ * what actually went wrong — a reviewer saw a badge and a button and had to
+ * guess. `invoices.incidence_reasons` is the third closed axis: the save path
+ * records every signal that fired, and the badge renders them, so each reason
+ * needs a label in both locales and an unknown one must not render.
+ */
+describe('the incidence-reason vocabulary is a third, closed axis (issue #935)', () => {
+	it.each(INCIDENCE_REASONS)('%s has a label in both locales', (reason) => {
+		const key = incidenceReasonKey(reason);
+
+		expect(key).toBe(`inv.review.reason.${reason}`);
+		expectLabelledInBothLocales(key);
+	});
+
+	it('drops a reason outside the vocabulary rather than rendering a raw code', () => {
+		expect(isIncidenceReason('something-new')).toBe(false);
+		expect(incidenceReasons(['total_mismatch', 'something-new'])).toEqual(['total_mismatch']);
+		expect(incidenceReasons(null)).toEqual([]);
+	});
+
+	it('is written into invoices.incidence_reasons only as vocabulary words', () => {
+		const writes = SOURCE_FILES.flatMap((file) =>
+			[...fs.readFileSync(file, 'utf8').matchAll(/incidenceReasons:\s*\[([^\]]*)\]/g)]
+				.flatMap((m) => [...m[1].matchAll(LITERAL)].map((lit) => lit[1]!))
+				.filter((word) => !isIncidenceReason(word))
+				.map((word) => `${path.relative(ROOT, file)} → '${word}'`)
+		);
+
+		expect(writes).toEqual([]);
+	});
+
+	it('the incidence badge renders a reason list rather than only the generic hint', () => {
+		const badge = read('src/lib/components/mep/IncidenceKindBadge.svelte');
+
+		expect(badge).toContain('incidenceReasonKey');
+		expect(badge).toContain('incidenceKindHintKey');
 	});
 });

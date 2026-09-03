@@ -512,6 +512,13 @@
       "when": 1788400486363,
       "tag": "0072_add_trade_name",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1788430429162,
+      "tag": "0073_add_incidence_reasons",
+      "breakpoints": true
     }
   ]
 }
