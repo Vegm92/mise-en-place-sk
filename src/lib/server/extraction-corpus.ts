@@ -241,6 +241,41 @@ export async function promptVersionStats(dbc: CorpusDb = db): Promise<PromptVers
 	}));
 }
 
+export interface ConfidenceTrendPoint {
+	date: string;
+	documents: number;
+	avgConfidence: number | null;
+	mismatchRate: number | null;
+}
+
+export async function confidenceTrend(days = 30, dbc: CorpusDb = db): Promise<ConfidenceTrendPoint[]> {
+	// tenant-scope-ok: platform-wide extraction-quality trend, same rollup class
+	// as promptVersionStats — aggregates only, never a tenant's rows.
+	const dayExpr = sql<string>`date_trunc('day', ${extractionResults.createdAt})::date`;
+	const rows = await dbc
+		.select({
+			date: dayExpr,
+			documents: count(),
+			avgConfidence: sql<number | null>`avg(${extractionResults.confidence})`,
+			mismatches: sql<number>`count(*) filter (where ${extractionResults.totalMismatch})`,
+		})
+		.from(extractionResults)
+		.where(sql`${extractionResults.runKind} = 'live' and ${extractionResults.createdAt} > now() - (${days} * interval '1 day')`)
+		.groupBy(dayExpr)
+		.orderBy(asc(dayExpr));
+
+	return rows.map((r) => {
+		const documents = Number(r.documents);
+		const mismatches = Number(r.mismatches);
+		return {
+			date: r.date,
+			documents,
+			avgConfidence: r.avgConfidence == null ? null : Number(r.avgConfidence),
+			mismatchRate: documents > 0 ? mismatches / documents : null,
+		};
+	});
+}
+
 export const COMPARED_FIELDS = [
 	'supplier_name',
 	'supplier_nif',
