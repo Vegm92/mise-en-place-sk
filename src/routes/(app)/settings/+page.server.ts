@@ -7,7 +7,13 @@ import { restaurants, settings, userRestaurants } from '$lib/server/schema';
 import { users } from '$lib/server/schema';
 import { asc, eq, sql } from 'drizzle-orm';
 import { applyTierSettings, BILLING_PARENT, TIERS } from '$lib/server/billing';
-import { seedDefaultCategories } from '$lib/server/categories';
+import {
+	createCategory,
+	listCategories,
+	renameCategory as renameCategoryRow,
+	seedDefaultCategories,
+	setCategoryHidden as setCategoryHiddenRow,
+} from '$lib/server/categories';
 import { isBetaFeatureEnabled } from '$lib/server/feature-flags';
 import { randomBytes } from 'node:crypto';
 
@@ -41,6 +47,12 @@ import {
 const THRESHOLD_KEY   = 'budget_warning_threshold';
 const PRICE_ALERT_KEY = 'price_alert_threshold';
 
+const CATEGORY_ERRORS = {
+	duplicate: 'set.categories.err.duplicate',
+	invalid:   'set.categories.err.invalid',
+	reserved:  'set.categories.err.reserved',
+} as const;
+
 const WHATSAPP_ENABLED = Boolean(WHATSAPP_ACCESS_TOKEN && WHATSAPP_PHONE_NUMBER_ID);
 
 const WHATSAPP_BOT_NUMBER = (() => {
@@ -62,7 +74,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
 	return handleLoad('settings', async () => {
-		const [row, priceRow, restaurantRow, membership, locationRows, entitlements, whatsappContactRows, pairingCode, userRow, alertPreferences, multiLocationFlag, fieldVisibility] = await Promise.all([
+		const [row, priceRow, restaurantRow, membership, locationRows, entitlements, whatsappContactRows, pairingCode, userRow, alertPreferences, multiLocationFlag, fieldVisibility, categoryRows] = await Promise.all([
 			db.select({ value: settings.value })
 				.from(settings)
 				.where(tdb.scope(settings.restaurantId, eq(settings.key, THRESHOLD_KEY))),
@@ -97,6 +109,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			loadAlertPreferences(rid),
 			isBetaFeatureEnabled('multiLocation'),
 			loadFieldVisibility(rid),
+			listCategories(rid, { includeHidden: true }),
 		]);
 
 		const features     = entitlements?.features     ?? TIERS.trial.features;
@@ -124,6 +137,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 				phone: restaurantRow[0]?.phone ?? '',
 			},
 			canRenameRestaurant: membership[0]?.role === 'owner',
+			categories: categoryRows.map((c) => ({ id: c.id, name: c.name, hidden: c.hidden, isDefault: c.isDefault })),
+			canManageCategories: membership[0]?.role === 'owner',
 			locations: locationRows.map(loc => ({ ...loc, locked: locals.lockedRestaurantIds.includes(loc.id) })),
 			multiLocation: features.multiLocation && multiLocationFlag,
 			maxLocations,
@@ -327,6 +342,34 @@ export const actions: Actions = {
 		return { section: 'restaurant', ok: 'set.profile.ok.restaurant' };
 	},
 
+	addCategory: withCategoryOwner(async (rid, data) => {
+		const name = ((data.get('name') as string) ?? '').trim();
+		const result = await createCategory(rid, name);
+		if (!result.ok) return fail(422, { section: 'categorias', error: CATEGORY_ERRORS[result.reason] });
+
+		return { section: 'categorias', ok: 'set.categories.ok.added' };
+	}),
+
+	renameCategory: withCategoryOwner(async (rid, data) => {
+		const id = requiredCategoryId(data);
+		if (id === null) return fail(422, { section: 'categorias', error: 'set.categories.err.invalid' });
+
+		const name = ((data.get('name') as string) ?? '').trim();
+		const result = await renameCategoryRow(rid, id, name);
+		if (!result.ok) return fail(422, { section: 'categorias', error: CATEGORY_ERRORS[result.reason] });
+
+		return { section: 'categorias', ok: 'set.categories.ok.renamed' };
+	}),
+
+	setCategoryHidden: withCategoryOwner(async (rid, data) => {
+		const id = requiredCategoryId(data);
+		if (id === null) return fail(422, { section: 'categorias', error: 'set.categories.err.invalid' });
+
+		const hidden = data.get('hidden') === '1';
+		await setCategoryHiddenRow(rid, id, hidden);
+		return { section: 'categorias', ok: hidden ? 'set.categories.ok.hidden' : 'set.categories.ok.shown' };
+	}),
+
 	saveFiscalIdentity: async ({ request, locals }) => {
 		const rid = locals.restaurantId;
 		if (!rid) redirect(303, '/onboarding');
@@ -445,4 +488,20 @@ async function requireOwner(restaurantId: string, userId: string): Promise<boole
 		.where(forTenant(restaurantId).scope(userRestaurants.restaurantId, eq(userRestaurants.userId, userId)))
 		.limit(1);
 	return membership?.role === 'owner';
+}
+
+function withCategoryOwner<T>(handler: (rid: string, data: FormData) => Promise<T>) {
+	return async ({ request, locals }: { request: Request; locals: App.Locals }) => {
+		const rid = locals.restaurantId;
+		if (!rid) redirect(303, '/onboarding');
+		if (!(await requireOwner(rid, locals.user!.id))) {
+			return fail(403, { section: 'categorias', error: 'set.categories.err.notOwner' });
+		}
+		return handler(rid, await request.formData());
+	};
+}
+
+function requiredCategoryId(data: FormData): number | null {
+	const id = Number(data.get('id'));
+	return Number.isInteger(id) ? id : null;
 }

@@ -74,6 +74,18 @@ diseño está anotado abajo.
   número, fecha del documento, importe— no aparecen aquí porque nunca se
   pueden ocultar. Quien vuelva a sembrar `Main.dc.html`/`Movil.dc.html`
   desde el editor debe añadirla a mano si quiere que las láminas la reflejen.
+- **Sección "Categorías" (issue #881, part 3), tampoco está en las láminas.**
+  Añadida tras el lienzo: una fila por categoría del restaurante (ADR-037),
+  con el mismo patrón visual que Locales/WhatsApp (`set-loc`) en vez de
+  `alert-toggle` — renombrar una categoría fanea el nuevo nombre a todas las
+  filas de proveedores, productos y presupuestos que llevaban el antiguo
+  (ADR-037), así que ni renombrar ni ocultar son solo una preferencia de
+  vista. Cada fila lleva una insignia «Predeterminada»/«Oculta», un botón Renombrar
+  que cambia la fila por un campo de texto en el sitio, y un botón
+  Ocultar/Mostrar; el pie añade una categoría nueva. Solo el propietario ve
+  los controles de gestión — los mismos que renombrar el restaurante o
+  añadir un local. `'Other'`/`'Otros'` no aparece en la lista: es el
+  sentinela fijo de `constants.ts`, nunca una fila de `categories`.
 
 ## Dónde vive el código
 
@@ -82,6 +94,7 @@ diseño está anotado abajo.
 | Pantalla de ajustes | `src/routes/(app)/settings/+page.svelte` |
 | Carga y acciones | `src/routes/(app)/settings/+page.server.ts` |
 | Visibilidad de campos opcionales (issue #880) | `src/lib/server/field-visibility.ts` |
+| Categorías por restaurante (issue #881, ADR-037) | `src/lib/server/categories.ts` |
 | Centro de ayuda | `src/routes/(app)/help/+page.svelte` |
 | Contenido de la ayuda | `src/lib/help-content.ts` |
 | Textos | `src/lib/i18n.ts` (claves `set.*` y `help.*`) |
