@@ -6,19 +6,13 @@
  * ProductMatch.suggestedTaxRate; disagreement (or no history) must stay null
  * rather than guess. DB-backed; skipped without DATABASE_URL.
  */
-import { describe, it, expect, beforeAll, afterEach, afterAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import {
 	testDb, testSql, closeDb,
 	createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
 import { previewLineProducts, productTaxRateHistory } from '../src/lib/server/products';
 import { normalizeProductKey } from '../src/lib/server/normalize';
-
-vi.mock('$lib/server/db', async () => {
-	const { testDb } = await import('./helpers/test-db');
-	const { forTenant } = await import('../src/lib/server/tenant');
-	return { db: testDb, forTenant };
-});
 
 let rid = '';
 
@@ -46,21 +40,11 @@ async function confirmedLine(productId: number, taxRate: number): Promise<void> 
 }
 
 beforeAll(async () => {
-	if (!hasDbEnv) return;
-	const r = await createTestRestaurant('taxsug');
-	rid = r.id;
-});
-
-afterEach(async () => {
-	if (!hasDbEnv) return;
-	await testSql`DELETE FROM invoice_line_items WHERE restaurant_id = ${rid}`;
-	await testSql`DELETE FROM product_aliases WHERE restaurant_id = ${rid}`;
-	await testSql`DELETE FROM products WHERE restaurant_id = ${rid}`;
+	if (hasDbEnv) rid = (await createTestRestaurant('taxsug')).id;
 });
 
 afterAll(async () => {
-	if (!hasDbEnv) return;
-	await cleanupTestRestaurant(rid);
+	if (hasDbEnv) await cleanupTestRestaurant(rid);
 	await closeDb();
 });
 

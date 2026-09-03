@@ -706,10 +706,6 @@ export interface ProductMatchInput {
 	supplierSku?: string | null;
 }
 
-/**
- * A product's tax rate when every confirmed invoice line for it agrees on one —
- * null if the product has no confirmed lines yet or its history disagrees.
- */
 export async function productTaxRateHistory(
 	database: Database,
 	restaurantId: string,
