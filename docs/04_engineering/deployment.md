@@ -115,6 +115,11 @@ pnpm db:studio       # open Drizzle Studio browser UI
 
 - `/login?/signInWithGoogle` (the `signInWithGoogle` action, bound to Auth.js's `signIn` in `src/routes/login/+page.server.ts`) is a plain HTML form POST; the action 303-redirects straight to Google's OAuth consent screen. Browsers validate `form-action` against that first redirect hop (not just the form's own same-origin target), so `https://accounts.google.com` must be allowlisted alongside `'self'` or the redirect gets blocked client-side.
 
+### `src/lib/server/env-file.ts`
+
+- The worker (`src/worker.ts`), the three `src/backfill-*.ts` scripts and `src/extraction-replay.ts` import this module first, in place of `dotenv/config` (issue #851). It calls Node 22's built-in `process.loadEnvFile()` and swallows only `ENOENT`, so a missing `.env` (the production containers, where Railway injects variables directly) is a no-op exactly as dotenv was, while a malformed file still throws. It has to be a module import, not a statement in the entrypoint: ESM evaluates imports before the entry body, and `env.ts` / `db.ts` read `process.env` at import time.
+- Node's `--env-file` flag was not an option for these scripts: they run under `vite-node`, and `--env-file` is one of the flags Node refuses inside `NODE_OPTIONS`. `svelte.config.js`, `drizzle.config.ts` and the `scripts/*.mjs` utilities keep `dotenv`, since they are loaded by tooling whose flags we do not control.
+
 ## HTTP API endpoints
 
 ### `src/lib/server/env.ts`

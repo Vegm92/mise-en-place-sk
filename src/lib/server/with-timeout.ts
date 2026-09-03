@@ -5,12 +5,21 @@ export class TimeoutError extends Error {
 	}
 }
 
-export function withTimeout<T>(label: string, ms: number, fn: () => Promise<T>): Promise<T> {
+export function withTimeout<T>(
+	label: string,
+	ms: number,
+	fn: (signal: AbortSignal) => Promise<T>,
+	outer?: AbortSignal,
+): Promise<T> {
+	const controller = new AbortController();
+	const signal = outer ? AbortSignal.any([outer, controller.signal]) : controller.signal;
 	let timer: ReturnType<typeof setTimeout>;
-	return Promise.race([
-		fn(),
-		new Promise<never>((_, reject) => {
-			timer = setTimeout(() => reject(new TimeoutError(label, ms)), ms);
-		}),
-	]).finally(() => clearTimeout(timer)) as Promise<T>;
+	const expiry = new Promise<never>((_, reject) => {
+		timer = setTimeout(() => {
+			const err = new TimeoutError(label, ms);
+			controller.abort(err);
+			reject(err);
+		}, ms);
+	});
+	return Promise.race([fn(signal), expiry]).finally(() => clearTimeout(timer));
 }
