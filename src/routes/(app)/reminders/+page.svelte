@@ -141,9 +141,9 @@
             </div>
             <p class="num font-semibold text-right" style="font-size:13px;">{Math.round(r.display_amount)} EUR</p>
             <p class="body text-fg-3 text-right" style="font-size:12px;">{r.invoice_date ?? '—'}</p>
-            <span class="flex items-center gap-1.5">
+            <span class="flex flex-col items-end gap-1" style="max-width:180px;">
               <span class="badge badge-overdue">{$t('inv.review.incidencia')}</span>
-              <IncidenceKindBadge kind={r.incidence_kind} />
+              <IncidenceKindBadge kind={r.incidence_kind} hint />
             </span>
             </a>
             <form method="post" action="?/markReviewed">
