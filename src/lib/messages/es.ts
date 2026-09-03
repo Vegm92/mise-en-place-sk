@@ -368,6 +368,7 @@ export default {
   'notif.msg.whatsappPendingSave': "✅ Confirmaste por WhatsApp el albarán de '{supplier}' ({code}). Guárdalo en el panel para que cuente en tus análisis.",
   'notif.msg.whatsappNeedsReview': "⚠️ Marcaste por WhatsApp el albarán de '{supplier}' ({code}) como incorrecto. Revísalo y corrige los datos antes de guardarlo.",
   'notif.openBatch':               'Abrir albarán',
+  'notif.viewInvoice':              'Ver factura',
   'dash.alert.priceShockUp':       '{ingredient} subió un {pct}%',
   'dash.alert.priceShockDown':     '{ingredient} bajó un {pct}%',
   'dash.alert.budgetPct':          '{category} al {pct}% del presupuesto mensual',

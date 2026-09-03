@@ -84,6 +84,26 @@
         </div>
       {/if}
     {/if}
+    {#if ['price_shock', 'low_stock_forecast', 'budget_overage', 'line_item_mismatch'].includes(notification.notificationType)}
+      {#if notification.invoiceId}
+        <div style="margin-top:6px;">
+          <a
+            href="/invoice/{notification.invoiceId}"
+            class="btn btn-primary"
+            style="height:26px;font-size:11px;padding:0 10px;text-decoration:none;display:inline-flex;align-items:center;"
+          >{$t('notif.viewInvoice')}</a>
+        </div>
+      {/if}
+    {/if}
+    {#if notification.notificationType === 'locations_locked'}
+      <div style="margin-top:6px;">
+        <a
+          href="/billing"
+          class="btn btn-primary"
+          style="height:26px;font-size:11px;padding:0 10px;text-decoration:none;display:inline-flex;align-items:center;"
+        >{$t('billing.manage')}</a>
+      </div>
+    {/if}
     {#if notification.notificationType === 'product_suggestion'}
       <div style="display:flex;gap:6px;margin-top:6px;">
         <button
