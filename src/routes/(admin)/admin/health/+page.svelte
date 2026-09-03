@@ -72,8 +72,8 @@
           <tbody>
             {#each data.stuckItems as item (item.id)}
               <tr>
-                <td class="dim">{item.restaurantName ?? '—'}</td>
-                <td class="dim" style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{item.displayName}</td>
+                <td class="dim" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{item.restaurantName ?? '—'}</td>
+                <td class="dim" style="width:260px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{item.displayName}</td>
                 <td class="mono dim">{item.status}</td>
                 <td class="num r dim nowrap">
                   {new Date(item.updatedAt).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
