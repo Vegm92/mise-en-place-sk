@@ -76,6 +76,10 @@ const FACTURAE_322_XML = `<?xml version="1.0" encoding="UTF-8"?>
       <LegalEntity>
         <CorporateName>Restaurante El Buen Sabor S.L.</CorporateName>
       </LegalEntity>
+      <ContactDetails>
+        <Telephone>+34911223344</Telephone>
+        <ElectronicMail>restaurante@elbuensabor.es</ElectronicMail>
+      </ContactDetails>
     </BuyerParty>
   </Parties>
   <Invoices>
@@ -218,6 +222,10 @@ const UBL_21_XML = `<?xml version="1.0" encoding="UTF-8"?>
           <cbc:ID>VAT</cbc:ID>
         </cac:TaxScheme>
       </cac:PartyTaxScheme>
+      <cac:Contact>
+        <cbc:Telephone>+34911223344</cbc:Telephone>
+        <cbc:ElectronicMail>restaurante@elbuensabor.es</cbc:ElectronicMail>
+      </cac:Contact>
     </cac:Party>
   </cac:AccountingCustomerParty>
   <cac:TaxTotal>
@@ -306,10 +314,12 @@ describe('parseFacturae322', () => {
 		expect(result.field_confidences?.receiver_nif).toBe(1.0);
 	});
 
-	it('extracts supplier email and phone from ContactDetails (issue #385)', () => {
+	it('extracts supplier and receiver email/phone from ContactDetails (issues #385, #918)', () => {
 		const result = parseFacturae322(FACTURAE_322_XML);
 		expect(result.supplier_email).toBe('facturacion@disalim.es');
 		expect(result.supplier_phone).toBe('+34915552233');
+		expect(result.receiver_email).toBe('restaurante@elbuensabor.es');
+		expect(result.receiver_phone).toBe('+34911223344');
 	});
 
 	it('yields null contact fields when ContactDetails/AddressInSpain are absent', () => {
@@ -320,6 +330,16 @@ describe('parseFacturae322', () => {
 		expect(result.supplier_address).toBeNull();
 		expect(result.supplier_email).toBeNull();
 		expect(result.supplier_phone).toBeNull();
+	});
+
+	it('yields null receiver contact fields when the BuyerParty prints none (issue #918)', () => {
+		const xmlNoBuyerContact = FACTURAE_322_XML.replace(
+			/<ContactDetails>\s*<Telephone>\+34911223344<\/Telephone>[\s\S]*?<\/ContactDetails>/, '',
+		);
+		const result = parseFacturae322(xmlNoBuyerContact);
+		expect(result.receiver_email).toBeNull();
+		expect(result.receiver_phone).toBeNull();
+		expect(result.supplier_email).toBe('facturacion@disalim.es');
 	});
 
 	it('extracts invoice number with series code', () => {
@@ -472,10 +492,12 @@ describe('parseUbl21Invoice', () => {
 		expect(result.receiver_address).toBeNull();
 	});
 
-	it('extracts supplier email and phone from Contact (issue #385)', () => {
+	it('extracts supplier and receiver email/phone from Contact (issues #385, #918)', () => {
 		const result = parseUbl21Invoice(UBL_21_XML);
 		expect(result.supplier_email).toBe('ventas@riojaalta.es');
 		expect(result.supplier_phone).toBe('+34941310000');
+		expect(result.receiver_email).toBe('restaurante@elbuensabor.es');
+		expect(result.receiver_phone).toBe('+34911223344');
 	});
 
 	it('yields null contact fields when PostalAddress/Contact are absent', () => {
@@ -486,6 +508,16 @@ describe('parseUbl21Invoice', () => {
 		expect(result.supplier_address).toBeNull();
 		expect(result.supplier_email).toBeNull();
 		expect(result.supplier_phone).toBeNull();
+	});
+
+	it('yields null receiver contact fields when the customer party prints none (issue #918)', () => {
+		const xmlNoCustomerContact = UBL_21_XML.replace(
+			/<cac:Contact>\s*<cbc:Telephone>\+34911223344<\/cbc:Telephone>[\s\S]*?<\/cac:Contact>/, '',
+		);
+		const result = parseUbl21Invoice(xmlNoCustomerContact);
+		expect(result.receiver_email).toBeNull();
+		expect(result.receiver_phone).toBeNull();
+		expect(result.supplier_email).toBe('ventas@riojaalta.es');
 	});
 
 	it('extracts invoice number (ID)', () => {

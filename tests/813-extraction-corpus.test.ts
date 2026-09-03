@@ -111,6 +111,14 @@ describe('anonymizeExtraction', () => {
 		expect(anonymized.line_items).toEqual(BASELINE.line_items);
 		expect(BASELINE.supplier_email).toBe('pedidos@frutasgarcia.es');
 	});
+
+	it('masks the receiver contact fields too (issue #918)', () => {
+		const withReceiverContact = { ...BASELINE, receiver_email: 'restaurante@example.es', receiver_phone: '600123456' };
+		const anonymized = anonymizeExtraction(withReceiverContact);
+		expect(anonymized.receiver_email).toBe('[redacted]');
+		expect(anonymized.receiver_phone).toBe('[redacted]');
+		expect(withReceiverContact.receiver_email).toBe('restaurante@example.es');
+	});
 });
 
 describe.skipIf(!hasDbEnv)('corpus persistence', () => {

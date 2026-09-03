@@ -498,6 +498,13 @@
       "when": 1788380606171,
       "tag": "0070_same_thor_girl",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1788395585712,
+      "tag": "0071_add_restaurant_phone",
+      "breakpoints": true
     }
   ]
 }
