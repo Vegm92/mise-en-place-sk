@@ -1,7 +1,8 @@
 import { computeInvoiceContentHash } from './dedup';
 import { db, forTenant } from './db';
-import { invoices, invoiceLineItems, extractionCorrections, settings, suppliers } from './schema';
+import { invoices, invoiceLineItems, extractionCorrections, settings, suppliers, restaurants } from './schema';
 import { eq, and, isNull, inArray, notInArray } from 'drizzle-orm';
+import { normalizePhoneNumber } from '$lib/phone';
 import { resolveUnit, resolveLineProducts, parsePack, normalizedUnitPrice, applyExtractedAllergens, assignLineProduct, getProductName } from './products';
 import { enqueueCategorize, enqueueNormalize } from './queue';
 import { normalizeProductKey, isSameSupplierName } from './normalize';
@@ -646,6 +647,34 @@ async function resolveSupplierInfo(rid: string, extracted: ExtractedInvoice | un
 	};
 }
 
+interface RestaurantPhoneMismatch {
+	current: string;
+	extracted: string;
+}
+
+async function resolveRestaurantPhoneSignal(
+	tx: BatchDb,
+	rid: string,
+	receiverPhone: string | null,
+): Promise<RestaurantPhoneMismatch | null> {
+	if (!receiverPhone) return null;
+
+	const [row] = await tx.select({ phone: restaurants.phone }).from(restaurants).where(eq(restaurants.id, rid)).limit(1);
+	const current = row?.phone ?? null;
+
+	if (!current) {
+		await tx.update(restaurants).set({ phone: receiverPhone }).where(and(eq(restaurants.id, rid), isNull(restaurants.phone)));
+		return null;
+	}
+
+	const currentNorm = normalizePhoneNumber(current);
+	const extractedNorm = normalizePhoneNumber(receiverPhone);
+	if (currentNorm.ok && extractedNorm.ok && currentNorm.phone !== extractedNorm.phone) {
+		return { current, extracted: receiverPhone };
+	}
+	return null;
+}
+
 async function linkRelatedDocuments(
 	tdb: ReturnType<typeof forTenant>,
 	invoiceId: number,
@@ -700,8 +729,9 @@ async function runPostSaveEffects(params: {
 	proposedCategory: string;
 	reviewState: ReviewState;
 	tdb: ReturnType<typeof forTenant>;
+	restaurantPhoneMismatch: RestaurantPhoneMismatch | null;
 }): Promise<boolean> {
-	const { invoiceId, supplierId, rid, supplierName, invoiceNumber, invoiceDate, dueDate, totalAmount, documentType, purchaseOrder, confidenceRaw, lineInputs, savedItems, unitConversionAlerts, qrMismatches, extractedData, lineDescriptions, lineQuantities, lineUnits, lineUnitPrices, lineTotalPrices, proposedCategory, reviewState, tdb } = params;
+	const { invoiceId, supplierId, rid, supplierName, invoiceNumber, invoiceDate, dueDate, totalAmount, documentType, purchaseOrder, confidenceRaw, lineInputs, savedItems, unitConversionAlerts, qrMismatches, extractedData, lineDescriptions, lineQuantities, lineUnits, lineUnitPrices, lineTotalPrices, proposedCategory, reviewState, tdb, restaurantPhoneMismatch } = params;
 
 	const { productByKey, productCorrections } = await isolated(
 		'product linking',
@@ -769,8 +799,19 @@ async function runPostSaveEffects(params: {
 		},
 	}] : [];
 
+	const restaurantPhoneVars = restaurantPhoneMismatch && { current: restaurantPhoneMismatch.current, extracted: restaurantPhoneMismatch.extracted };
+	const restaurantPhoneAlerts: Alert[] = restaurantPhoneVars ? [{
+		notificationType: 'restaurant_phone_mismatch',
+		message: renderTemplate('es', 'notif.msg.restaurantPhoneMismatch', restaurantPhoneVars),
+		payload: {
+			...restaurantPhoneVars,
+			messageKey: 'notif.msg.restaurantPhoneMismatch',
+			messageVars: restaurantPhoneVars,
+		},
+	}] : [];
+
 	await isolated('alert save', undefined, () => saveAlerts(invoiceId, rid, [
-		...unitConversionAlerts, ...Object.values(alertResultsByKey).flat(), ...verifactuAlerts,
+		...unitConversionAlerts, ...Object.values(alertResultsByKey).flat(), ...verifactuAlerts, ...restaurantPhoneAlerts,
 	]));
 
 	const hasDuplicateWarning = duplicatePurchaseAlerts.some((a) => a.notificationType === 'possible_duplicate_purchase');
@@ -910,6 +951,7 @@ export async function saveReviewedInvoice(
 	let invoiceId: number | null = null;
 	let duplicateOutcome: Extract<SaveOutcome, { type: 'contentDuplicate' | 'numberDuplicate' }> | null = null;
 	let isReplay = false;
+	let restaurantPhoneMismatch: RestaurantPhoneMismatch | null = null;
 	const savedItems: EnrichedLineItem[] = [];
 	const unitConversionAlerts: Alert[] = [];
 
@@ -927,6 +969,7 @@ export async function saveReviewedInvoice(
 		}
 
 		supplierId = await getOrCreateSupplierId(rid, supplierName, tx, proposedCategory, proposedContact, contactTrusted);
+		restaurantPhoneMismatch = await resolveRestaurantPhoneSignal(tx, rid, extracted?.receiver_phone ?? null);
 
 		const outstandingBalance = typeof extracted?.outstanding_balance === 'number' ? String(extracted.outstanding_balance) : null;
 		if (outstandingBalance !== null) {
@@ -1001,7 +1044,7 @@ export async function saveReviewedInvoice(
 		invoiceId: invoiceId!, supplierId, rid, supplierName, invoiceNumber, invoiceDate, dueDate,
 		totalAmount, documentType, purchaseOrder, confidenceRaw, lineInputs, savedItems, unitConversionAlerts,
 		qrMismatches, extractedData, lineDescriptions, lineQuantities, lineUnits, lineUnitPrices,
-		lineTotalPrices, proposedCategory, reviewState, tdb,
+		lineTotalPrices, proposedCategory, reviewState, tdb, restaurantPhoneMismatch,
 	});
 
 	return { type: 'saved', invoiceId: invoiceId!, isFirstInvoice };

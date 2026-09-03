@@ -387,7 +387,10 @@ export function summarizeComparisons(perDocument: FieldDiff[][]): ComparisonSumm
 	};
 }
 
-const PII_FIELDS = ['supplier_email', 'supplier_phone', 'supplier_nif', 'supplier_address', 'iban'] as const;
+const PII_FIELDS = [
+	'supplier_email', 'supplier_phone', 'supplier_nif', 'supplier_address',
+	'receiver_email', 'receiver_phone', 'iban',
+] as const;
 
 export function anonymizeExtraction(data: Record<string, unknown>): Record<string, unknown> {
 	const out: Record<string, unknown> = { ...data };
