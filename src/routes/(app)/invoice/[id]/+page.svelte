@@ -100,7 +100,7 @@
           <span class="title" style="font-size:18px;">{invoice.invoice_number ?? `Invoice #${invoice.id}`}</span>
           <div class="flex flex-col items-end gap-1">
             <StatusBadge status={invoice.review_state ?? 'revisado'} />
-            <IncidenceKindBadge kind={invoice.incidence_kind} hint />
+            <IncidenceKindBadge kind={invoice.incidence_kind} reasons={invoice.incidence_reasons} hint />
           </div>
         </div>
 

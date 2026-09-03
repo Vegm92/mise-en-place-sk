@@ -801,7 +801,7 @@ async function flipBothToDocumentIncidence(
 	const toFlip = [...states.entries()].filter(([, reviewState]) => reviewState !== 'incidencia').map(([id]) => id);
 	if (toFlip.length === 0) return;
 	await db.update(invoices)
-		.set({ reviewState: 'incidencia', incidenceKind: 'documento' })
+		.set({ reviewState: 'incidencia', incidenceKind: 'documento', incidenceReasons: ['line_item_mismatch'] })
 		.where(tdb.scope(invoices.restaurantId, inArray(invoices.id, toFlip)));
 }
 

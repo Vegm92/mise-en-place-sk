@@ -39,6 +39,7 @@ async function invoiceDetailRow(tdb: ReturnType<typeof forTenant>, id: number) {
 		source_file:      invoices.sourceFile,
 		review_state:     invoices.reviewState,
 		incidence_kind:   invoices.incidenceKind,
+		incidence_reasons: invoices.incidenceReasons,
 		notes:            invoices.notes,
 		created_at:       invoices.createdAt,
 		linked_invoice_id: invoices.linkedInvoiceId,
