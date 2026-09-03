@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import { on } from 'svelte/events';
 
   let {
     children,
@@ -36,11 +37,11 @@
     resize.observe(node);
     const mutate = new MutationObserver(measure);
     mutate.observe(node, { childList: true, subtree: true, characterData: true });
-    window.addEventListener('resize', measure);
+    const offResize = on(window, 'resize', measure);
     return () => {
       resize.disconnect();
       mutate.disconnect();
-      window.removeEventListener('resize', measure);
+      offResize();
     };
   });
 </script>

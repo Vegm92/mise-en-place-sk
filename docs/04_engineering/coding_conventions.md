@@ -18,6 +18,14 @@ enforced by the lint scripts listed, which run in CI.
 
 ## Language / style
 
+- Browser state that Svelte already models reactively comes from its
+  submodules, not from hand-rolled listeners (issue #854):
+  `svelte/reactivity/window` (`online`, `innerWidth`, `scrollY`, …),
+  `MediaQuery` from `svelte/reactivity`, and `on()` from `svelte/events` for
+  any remaining `addEventListener`. `$state(new Map())` is **not** deeply
+  reactive on `.set()` / `.add()` — reach for `SvelteMap` / `SvelteSet` from
+  `svelte/reactivity` when a collection is mutated in place.
+
 - No semicolons (ASI style), 4-space tabs, double quotes in TS, single quotes
   in the rare JS script files. (`Prettier`-ish; follow the file you are in.)
 - Arrow functions preferred; `async/await` everywhere in server code.
