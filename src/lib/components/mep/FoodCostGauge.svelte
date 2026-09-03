@@ -42,7 +42,7 @@
 <div class="gauge flex flex-col items-center gap-1">
   <div class="gauge-plot">
     <svg viewBox="0 0 152 78" width="190" height="98" role="img"
-      aria-label={value === null ? $t('rec.sum.foodCost') : $ti('rec.rail.gaugeLabel', { value: reading, target })}>
+      aria-label={value === null ? t('rec.sum.foodCost') : ti('rec.rail.gaugeLabel', { value: reading, target })}>
       <path d="M {CX - R} {CY} A {R} {R} 0 0 1 {CX + R} {CY}" fill="none"
         stroke="var(--mep-divider)" stroke-width="11" stroke-linecap="round" />
       <path d="M {CX - R} {CY} A {R} {R} 0 0 1 {CX + R} {CY}" fill="none"
@@ -53,10 +53,10 @@
     </svg>
     <div class="gauge-reading flex flex-col items-center">
       <span class="title-lg num" style="line-height:1;">{reading}</span>
-      <span class="label text-fg-3">{$t('rec.sum.foodCost')}</span>
+      <span class="label text-fg-3">{t('rec.sum.foodCost')}</span>
     </div>
   </div>
-  <span class="body text-fg-3" style="font-size:11px;">{$ti('rec.rail.target', { target })}</span>
+  <span class="body text-fg-3" style="font-size:11px;">{ti('rec.rail.target', { target })}</span>
 </div>
 
 <style>

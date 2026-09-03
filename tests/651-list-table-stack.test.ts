@@ -54,9 +54,9 @@ describe('stacked list tables (issue #651)', () => {
 	});
 
 	it('bare numeric columns carry data-label so values survive losing the header', () => {
-		expect(PRODUCTS).toMatch(/data-label=\{\$t\('prod\.col\.suppliers'\)\}/);
-		expect(PRODUCTS).toMatch(/data-label=\{\$t\('prod\.col\.aliases'\)\}/);
-		expect(PLANTILLA).toMatch(/data-label=\{\$t\('tpl\.demo\.col\.spend'\)\}/);
+		expect(PRODUCTS).toMatch(/data-label=\{t\('prod\.col\.suppliers'\)\}/);
+		expect(PRODUCTS).toMatch(/data-label=\{t\('prod\.col\.aliases'\)\}/);
+		expect(PLANTILLA).toMatch(/data-label=\{t\('tpl\.demo\.col\.spend'\)\}/);
 	});
 
 	it('stays opt-in: invoices, suppliers, and the template itself are untouched', () => {

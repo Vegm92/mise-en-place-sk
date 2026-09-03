@@ -49,38 +49,38 @@
 
   <a href="/products" class="btn btn-ghost self-start" style="height:28px;font-size:12px;gap:5px;text-decoration:none;">
     <ChevronLeft size={13} />
-    {$t('prod.detail.back')}
+    {t('prod.detail.back')}
   </a>
 
-  <SectionCard title={product.canonicalName} sub={$t('prod.detail.editTitle')}>
+  <SectionCard title={product.canonicalName} sub={t('prod.detail.editTitle')}>
     <form method="post" action="?/update" class="flex flex-col gap-3">
       <div class="grid grid-cols-2 gap-3 max-[600px]:grid-cols-1">
         <div class="flex flex-col gap-1">
-          <label class="label text-fg-3" for="p-name">{$t('prod.new.name')}</label>
+          <label class="label text-fg-3" for="p-name">{t('prod.new.name')}</label>
           <input id="p-name" name="canonicalName" required value={product.canonicalName}
             class="input" style="padding:0 8px;" />
         </div>
         <div class="flex flex-col gap-1">
-          <label class="label text-fg-3" for="p-cat">{$t('prod.new.category')}</label>
+          <label class="label text-fg-3" for="p-cat">{t('prod.new.category')}</label>
           <select id="p-cat" name="category" class="input" style="padding:0 8px;">
             <option value="">—</option>
-            {#each categories as c}<option value={c} selected={product.category === c}>{$tcat(c)}</option>{/each}
+            {#each categories as c}<option value={c} selected={product.category === c}>{tcat(c)}</option>{/each}
           </select>
         </div>
         <div class="flex flex-col gap-1">
-          <label class="label text-fg-3" for="p-unit">{$t('prod.new.unit')}</label>
+          <label class="label text-fg-3" for="p-unit">{t('prod.new.unit')}</label>
           <input id="p-unit" name="canonicalUnit" value={product.canonicalUnit ?? ''}
             class="input" style="padding:0 8px;" placeholder="kg" />
         </div>
         <div></div>
         <div class="flex flex-col gap-1">
-          <label class="label text-fg-3" for="p-pack">{$t('prod.detail.unitsPerPack')}</label>
+          <label class="label text-fg-3" for="p-pack">{t('prod.detail.unitsPerPack')}</label>
           <input id="p-pack" name="unitsPerPack" type="number" step="any" min="0"
             value={product.unitsPerPack ?? ''}
             class="input" style="padding:0 8px;" placeholder="10" />
         </div>
         <div class="flex flex-col gap-1">
-          <label class="label text-fg-3" for="p-base">{$t('prod.detail.baseUnit')}</label>
+          <label class="label text-fg-3" for="p-base">{t('prod.detail.baseUnit')}</label>
           <input id="p-base" name="baseUnit" value={product.baseUnit ?? ''}
             class="input" style="padding:0 8px;" placeholder="kg" />
         </div>
@@ -89,51 +89,51 @@
         <p class="body text-neg" style="font-size:12px;">{form.error}</p>
       {/if}
       <button type="submit" class="btn btn-primary self-start" style="font-size:12.5px;">
-        {$t('prod.detail.save')}
+        {t('prod.detail.save')}
       </button>
     </form>
   </SectionCard>
 
-  <SectionCard title={$t('prod.facts.title')} sub={$t('prod.facts.sub')}>
+  <SectionCard title={t('prod.facts.title')} sub={t('prod.facts.sub')}>
     <form method="post" action="?/saveFacts" class="flex flex-col gap-3">
       <div class="flex flex-wrap gap-1">
         {#each data.allergens as code (code)}
           <label class="chip" style={pickedAllergens.has(code) ? 'border-color:var(--mep-acc);color:var(--mep-acc);' : ''}>
             <input type="checkbox" name="allergens" value={code} checked={pickedAllergens.has(code)}
               onchange={() => toggleAllergen(code)} style="margin-right:5px;" />
-            {$t(`rec.allergen.${code}`)}
+            {t(`rec.allergen.${code}`)}
           </label>
         {/each}
       </div>
       {#if product.allergensSource}
-        <span class="body text-fg-3" style="font-size:11px;">{$t(`prod.facts.source.${product.allergensSource}`)}</span>
+        <span class="body text-fg-3" style="font-size:11px;">{t(`prod.facts.source.${product.allergensSource}`)}</span>
       {/if}
       <div class="flex flex-wrap gap-2 items-end">
-        <span class="label text-fg-3" style="width:100%;">{$t('rec.nut.per100')}</span>
+        <span class="label text-fg-3" style="width:100%;">{t('rec.nut.per100')}</span>
         <label class="flex flex-col gap-1">
-          <span class="label text-fg-3">{$t('rec.nut.kcal')}</span>
+          <span class="label text-fg-3">{t('rec.nut.kcal')}</span>
           <input class="input" style="padding:0 8px;max-width:110px;" name="kcal100" inputmode="decimal" value={product.kcal100 ?? ''} />
         </label>
         <label class="flex flex-col gap-1">
-          <span class="label text-fg-3">{$t('rec.nut.protein')}</span>
+          <span class="label text-fg-3">{t('rec.nut.protein')}</span>
           <input class="input" style="padding:0 8px;max-width:110px;" name="protein100" inputmode="decimal" value={product.protein100 ?? ''} />
         </label>
         <label class="flex flex-col gap-1">
-          <span class="label text-fg-3">{$t('rec.nut.carbs')}</span>
+          <span class="label text-fg-3">{t('rec.nut.carbs')}</span>
           <input class="input" style="padding:0 8px;max-width:110px;" name="carbs100" inputmode="decimal" value={product.carbs100 ?? ''} />
         </label>
         <label class="flex flex-col gap-1">
-          <span class="label text-fg-3">{$t('rec.nut.fat')}</span>
+          <span class="label text-fg-3">{t('rec.nut.fat')}</span>
           <input class="input" style="padding:0 8px;max-width:110px;" name="fat100" inputmode="decimal" value={product.fat100 ?? ''} />
         </label>
       </div>
-      <button type="submit" class="btn btn-primary" style="font-size:13px;align-self:flex-start;">{$t('prod.facts.save')}</button>
+      <button type="submit" class="btn btn-primary" style="font-size:13px;align-self:flex-start;">{t('prod.facts.save')}</button>
     </form>
   </SectionCard>
 
-  <SectionCard title={$t('prod.detail.linkedSuppliers')} noPad>
+  <SectionCard title={t('prod.detail.linkedSuppliers')} noPad>
     {#if linkedSuppliers.length === 0 && blockedSuppliers.length === 0}
-      <p class="body text-center py-10">{$t('prod.detail.noSuppliers')}</p>
+      <p class="body text-center py-10">{t('prod.detail.noSuppliers')}</p>
     {:else}
       <div class="flex flex-col gap-2 p-4">
         {#each (blockedSuppliers.length > 0 ? blockedSuppliers : linkedSuppliers) as s (s.supplierId)}
@@ -143,7 +143,7 @@
               <input type="hidden" name="supplierId" value={s.supplierId} />
               <button type="button" class="btn btn-ghost text-neg" style="height:26px;font-size:12px;"
                 onclick={() => requestUnlink(s.supplierId, s.supplierName)}>
-                {$t('prod.detail.unlink')}
+                {t('prod.detail.unlink')}
               </button>
             </form>
           </div>
@@ -152,17 +152,17 @@
     {/if}
   </SectionCard>
 
-  <SectionCard title={$t('prod.detail.aliases')} noPad>
+  <SectionCard title={t('prod.detail.aliases')} noPad>
     {#if aliases.length === 0}
-      <p class="body text-center py-10">{$t('prod.detail.noAliases')}</p>
+      <p class="body text-center py-10">{t('prod.detail.noAliases')}</p>
     {:else}
       <table class="tbl">
         <thead>
           <tr>
-            <th>{$t('prod.detail.aliasText')}</th>
-            <th>{$t('prod.col.suppliers')}</th>
-            <th>{$t('prod.detail.aliasSku')}</th>
-            <th>{$t('prod.detail.aliasSource')}</th>
+            <th>{t('prod.detail.aliasText')}</th>
+            <th>{t('prod.col.suppliers')}</th>
+            <th>{t('prod.detail.aliasSku')}</th>
+            <th>{t('prod.detail.aliasSource')}</th>
           </tr>
         </thead>
         <tbody>
@@ -179,17 +179,17 @@
     {/if}
   </SectionCard>
 
-  <SectionCard title={$t('prod.yoy.title')} noPad>
+  <SectionCard title={t('prod.yoy.title')} noPad>
     {#if priceByYear.length === 0}
-      <p class="body text-center py-10">{$t('prod.yoy.empty')}</p>
+      <p class="body text-center py-10">{t('prod.yoy.empty')}</p>
     {:else}
       <table class="tbl">
         <thead>
           <tr>
-            <th>{$t('prod.yoy.year')}</th>
-            <th class="num">{$t('prod.yoy.price')}</th>
-            <th class="num">{$t('prod.yoy.prevPrice')}</th>
-            <th class="num">{$t('prod.yoy.change')}</th>
+            <th>{t('prod.yoy.year')}</th>
+            <th class="num">{t('prod.yoy.price')}</th>
+            <th class="num">{t('prod.yoy.prevPrice')}</th>
+            <th class="num">{t('prod.yoy.change')}</th>
           </tr>
         </thead>
         <tbody>
@@ -200,7 +200,7 @@
               <td class="num">{row.prevPrice != null ? fmt(row.prevPrice) : '—'}</td>
               <td class="num" class:text-neg={row.changePct != null && row.changePct > 0}
                 class:text-pos={row.changePct != null && row.changePct < 0}>
-                {formatYoyPct(row.changePct, $locale)}
+                {formatYoyPct(row.changePct, locale.current)}
               </td>
             </tr>
           {/each}
@@ -209,19 +209,19 @@
     {/if}
   </SectionCard>
 
-  <SectionCard title={$t('prod.detail.priceHistory')} noPad>
+  <SectionCard title={t('prod.detail.priceHistory')} noPad>
     {#if priceHistory.length === 0}
-      <p class="body text-center py-10">{$t('prod.detail.noPriceHistory')}</p>
+      <p class="body text-center py-10">{t('prod.detail.noPriceHistory')}</p>
     {:else}
       <table class="tbl">
         <thead>
           <tr>
-            <th>{$t('inv.filter.from')}</th>
-            <th>{$t('prod.col.suppliers')}</th>
-            <th class="num">{$t('tbl.qty')}</th>
-            <th>{$t('tbl.unit')}</th>
-            <th class="num">{$t('tbl.unitPrice')}</th>
-            <th class="num">{$t('prod.detail.normalizedPrice')}</th>
+            <th>{t('inv.filter.from')}</th>
+            <th>{t('prod.col.suppliers')}</th>
+            <th class="num">{t('tbl.qty')}</th>
+            <th>{t('tbl.unit')}</th>
+            <th class="num">{t('tbl.unitPrice')}</th>
+            <th class="num">{t('prod.detail.normalizedPrice')}</th>
           </tr>
         </thead>
         <tbody>
@@ -240,17 +240,17 @@
     {/if}
   </SectionCard>
 
-  <SectionCard title={$t('prod.detail.dangerZone')}>
+  <SectionCard title={t('prod.detail.dangerZone')}>
     <form id="delete-product-form" method="post" action="?/delete">
       <button type="button" class="btn btn-ghost text-neg" style="font-size:12.5px;gap:5px;"
         disabled={!canDelete}
-        title={canDelete ? '' : $t('prod.detail.deleteBlockedHint')}
+        title={canDelete ? '' : t('prod.detail.deleteBlockedHint')}
         onclick={() => (confirmDeleteOpen = true)}>
         <Trash2 size={13} />
-        {$t('prod.detail.delete')}
+        {t('prod.detail.delete')}
       </button>
       {#if !canDelete}
-        <p class="body text-fg-3" style="font-size:12px;margin-top:6px;">{$t('prod.detail.deleteBlockedHint')}</p>
+        <p class="body text-fg-3" style="font-size:12px;margin-top:6px;">{t('prod.detail.deleteBlockedHint')}</p>
       {/if}
     </form>
   </SectionCard>
@@ -259,7 +259,7 @@
 
 <ConfirmDialog
   bind:open={confirmUnlinkOpen}
-  message={$t('prod.detail.unlinkConfirm').replace('{supplier}', unlinkSupplierName)}
+  message={t('prod.detail.unlinkConfirm').replace('{supplier}', unlinkSupplierName)}
   danger={true}
   onconfirm={executeUnlink}
   oncancel={() => { unlinkSupplierId = null; }}
@@ -267,7 +267,7 @@
 
 <ConfirmDialog
   bind:open={confirmDeleteOpen}
-  message={$t('prod.detail.deleteConfirm')}
+  message={t('prod.detail.deleteConfirm')}
   danger={true}
   onconfirm={executeDelete}
 />

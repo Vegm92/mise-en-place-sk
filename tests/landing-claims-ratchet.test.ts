@@ -97,7 +97,7 @@ describe('illustrative testimonials are marked as such', () => {
 	}
 
 	it('the disclaimer is rendered on the page, not just defined', () => {
-		expect(PAGE_SRC).toContain("$t('waitlist.testimonialsDisclaimer')");
+		expect(PAGE_SRC).toContain("t('waitlist.testimonialsDisclaimer')");
 	});
 });
 

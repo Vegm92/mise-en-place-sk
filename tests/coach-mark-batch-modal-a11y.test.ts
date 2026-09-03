@@ -55,7 +55,7 @@ describe('CoachMark backdrop no longer swallows the first click (#538)', () => {
     expect(tooltipStart).toBeGreaterThan(-1);
     const tooltipBlock = COACH.slice(tooltipStart);
     expect(tooltipBlock).toMatch(/<button[^>]*onclick=\{onSkip\}/);
-    expect(tooltipBlock).toContain("{$t('coach.skip')}");
+    expect(tooltipBlock).toContain("{t('coach.skip')}");
   });
 
   it('still dismisses on Escape', () => {
@@ -141,7 +141,7 @@ describe('the batch/[id] low-confidence and duplicate modals are real dialogs (#
   });
 
   it('the reviewed-all action still submits the save form after closing through the same helper', () => {
-    const btnStart = BATCH.indexOf("{$t('batch.reviewedAll')}");
+    const btnStart = BATCH.indexOf("{t('batch.reviewedAll')}");
     expect(btnStart).toBeGreaterThan(-1);
     const before = BATCH.slice(BATCH.lastIndexOf('onclick={async () => {', btnStart), btnStart);
     expect(before).toContain('lowConfAck = true;');

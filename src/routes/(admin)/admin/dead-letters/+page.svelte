@@ -39,12 +39,12 @@
 
 <AdminPageHead
   route="/admin/dead-letters"
-  title={$t('admin.dlq.title')}
-  subtitle={$t('admin.dlq.subtitle')}
+  title={t('admin.dlq.title')}
+  subtitle={t('admin.dlq.subtitle')}
 >
   {#snippet right()}
     <span class="num text-[13px] {data.pending > 0 ? 'text-neg' : 'text-fg-3'}">
-      {$ti('admin.dlq.pendingSuffix', { n: data.pending.toLocaleString('en-US') })}
+      {ti('admin.dlq.pendingSuffix', { n: data.pending.toLocaleString('en-US') })}
     </span>
   {/snippet}
 </AdminPageHead>
@@ -52,26 +52,26 @@
 <div class="hud-page px-3 md:px-6 pb-6 flex flex-col gap-2.5">
 
   <div class="flex gap-1.5 flex-wrap items-center">
-    <span class="text-xs text-fg-3">{$t('admin.dlq.statusLabel')}</span>
+    <span class="text-xs text-fg-3">{t('admin.dlq.statusLabel')}</span>
     <a
       href={buildUrl({ page: 1, queue: data.queue })}
       class={pillClass(!data.status)}
-    >{$t('admin.all')}</a>
+    >{t('admin.all')}</a>
     {#each STATUS_FILTERS as s}
       <a
         href={buildUrl({ page: 1, status: s, queue: data.queue })}
         class={pillClass(data.status === s)}
-      >{$t(`admin.dlq.status.${s}`)}</a>
+      >{t(`admin.dlq.status.${s}`)}</a>
     {/each}
   </div>
 
   {#if data.breakdown.length > 0}
     <div class="flex gap-1.5 flex-wrap items-center">
-      <span class="text-xs text-fg-3">{$t('admin.dlq.queueLabel')}</span>
+      <span class="text-xs text-fg-3">{t('admin.dlq.queueLabel')}</span>
       <a
         href={buildUrl({ page: 1, status: data.status })}
         class={pillClass(!data.queue)}
-      >{$t('admin.all')}</a>
+      >{t('admin.all')}</a>
       {#each data.breakdown as q}
         <a
           href={buildUrl({ page: 1, status: data.status, queue: q.queue })}
@@ -81,18 +81,18 @@
     </div>
   {/if}
 
-  <HudPanel title={$t('admin.dlq.title')}>
+  <HudPanel title={t('admin.dlq.title')}>
     <AdminTableScroll>
       <table class="hud-table">
         <thead>
           <tr>
-            <th scope="col" class="l">{$t('admin.dlq.colQueue')}</th>
-            <th scope="col" class="l">{$t('admin.dlq.colError')}</th>
-            <th scope="col" class="l">{$t('admin.colRestaurant')}</th>
-            <th scope="col" class="r">{$t('admin.dlq.colOccurrences')}</th>
-            <th scope="col" class="l">{$t('admin.colStatus')}</th>
-            <th scope="col" class="r">{$t('admin.dlq.colLastSeen')}</th>
-            <th scope="col" class="r">{$t('admin.dlq.colActions')}</th>
+            <th scope="col" class="l">{t('admin.dlq.colQueue')}</th>
+            <th scope="col" class="l">{t('admin.dlq.colError')}</th>
+            <th scope="col" class="l">{t('admin.colRestaurant')}</th>
+            <th scope="col" class="r">{t('admin.dlq.colOccurrences')}</th>
+            <th scope="col" class="l">{t('admin.colStatus')}</th>
+            <th scope="col" class="r">{t('admin.dlq.colLastSeen')}</th>
+            <th scope="col" class="r">{t('admin.dlq.colActions')}</th>
           </tr>
         </thead>
         <tbody>
@@ -112,7 +112,7 @@
               <td class="dim" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{entry.restaurantName ?? '—'}</td>
               <td class="num r">{entry.occurrences}</td>
               <td class:good={entry.status === 'replayed'} class:warn={entry.status === 'reviewed'} class:bad={entry.status === 'pending'} class:dim={entry.status === 'discarded'}>
-                {$t(`admin.dlq.status.${entry.status}`)}
+                {t(`admin.dlq.status.${entry.status}`)}
               </td>
               <td class="num r dim nowrap">
                 {new Date(entry.lastSeenAt).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
@@ -122,19 +122,19 @@
                   {#if entry.replayable && entry.status !== 'replayed'}
                     <form method="POST" action="?/replay" class="inline">
                       <input type="hidden" name="id" value={entry.id} />
-                      <button type="submit" class="btn btn-secondary text-[11px] px-2 py-[3px]">{$t('admin.dlq.replay')}</button>
+                      <button type="submit" class="btn btn-secondary text-[11px] px-2 py-[3px]">{t('admin.dlq.replay')}</button>
                     </form>
                   {/if}
                   {#if entry.status === 'pending'}
                     <form method="POST" action="?/setStatus" class="inline">
                       <input type="hidden" name="id" value={entry.id} />
                       <input type="hidden" name="status" value="reviewed" />
-                      <button type="submit" class="btn btn-secondary text-[11px] px-2 py-[3px]">{$t('admin.dlq.markReviewed')}</button>
+                      <button type="submit" class="btn btn-secondary text-[11px] px-2 py-[3px]">{t('admin.dlq.markReviewed')}</button>
                     </form>
                     <form method="POST" action="?/setStatus" class="inline">
                       <input type="hidden" name="id" value={entry.id} />
                       <input type="hidden" name="status" value="discarded" />
-                      <button type="submit" class="btn btn-secondary text-[11px] px-2 py-[3px]">{$t('admin.dlq.discard')}</button>
+                      <button type="submit" class="btn btn-secondary text-[11px] px-2 py-[3px]">{t('admin.dlq.discard')}</button>
                     </form>
                   {/if}
                 </div>
@@ -144,7 +144,7 @@
               <tr>
                 <td colspan="7" style="background:rgba(255,255,255,0.02);padding:12px 14px;">
                   <div style="font:11px/1.4 ui-monospace, monospace;color:#5b6472;margin-bottom:8px;">
-                    {$ti('admin.dlq.detailMeta', {
+                    {ti('admin.dlq.detailMeta', {
                       source: entry.sourceId ?? '—',
                       job: entry.jobId ?? '—',
                       attempt: entry.attempt,
@@ -157,7 +157,7 @@
               </tr>
             {/if}
           {:else}
-            <tr><td colspan="7" class="empty">{$t('admin.dlq.empty')}</td></tr>
+            <tr><td colspan="7" class="empty">{t('admin.dlq.empty')}</td></tr>
           {/each}
         </tbody>
       </table>
@@ -167,11 +167,11 @@
   {#if data.totalPages > 1}
     <div class="flex gap-1.5 items-center justify-center">
       {#if data.page > 1}
-        <a href={buildUrl({ page: data.page - 1, status: data.status, queue: data.queue })} class="btn btn-secondary no-underline">{$t('admin.prev')}</a>
+        <a href={buildUrl({ page: data.page - 1, status: data.status, queue: data.queue })} class="btn btn-secondary no-underline">{t('admin.prev')}</a>
       {/if}
-      <span class="text-[13px] text-fg-3">{$ti('admin.pageOf', { page: data.page, total: data.totalPages })}</span>
+      <span class="text-[13px] text-fg-3">{ti('admin.pageOf', { page: data.page, total: data.totalPages })}</span>
       {#if data.page < data.totalPages}
-        <a href={buildUrl({ page: data.page + 1, status: data.status, queue: data.queue })} class="btn btn-secondary no-underline">{$t('admin.next')}</a>
+        <a href={buildUrl({ page: data.page + 1, status: data.status, queue: data.queue })} class="btn btn-secondary no-underline">{t('admin.next')}</a>
       {/if}
     </div>
   {/if}

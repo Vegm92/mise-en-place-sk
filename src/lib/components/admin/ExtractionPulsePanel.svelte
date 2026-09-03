@@ -59,14 +59,14 @@
 <div class="hud">
   <div class="hud-header">
     <span class="hud-dot" style="--dot: {tierColor(confTier)};"></span>
-    <span class="hud-title">{$t('admin.learning.pulse.title')}</span>
-    <span class="hud-live">{$t('admin.learning.pulse.window')}</span>
+    <span class="hud-title">{t('admin.learning.pulse.title')}</span>
+    <span class="hud-live">{t('admin.learning.pulse.window')}</span>
   </div>
 
   <div class="hud-row">
     <div class="hud-cell">
       <div class="hud-cell-top">
-        <span class="hud-label">{$t('admin.learning.pulse.confidence')}</span>
+        <span class="hud-label">{t('admin.learning.pulse.confidence')}</span>
         {#if confDelta}
           <span class="hud-delta" style="color:{confDelta.up ? 'var(--hud-good)' : 'var(--hud-bad)'};">{confDelta.up ? '▲' : '▼'} {Math.abs(confDelta.pp).toFixed(1)}pp</span>
         {/if}
@@ -77,12 +77,12 @@
           <path d={confPath} pathLength="100" style="stroke:{tierColor(confTier)};" />
         </svg>
       {/if}
-      <span class="hud-caption">{$t('admin.learning.pulse.confidenceTarget')}</span>
+      <span class="hud-caption">{t('admin.learning.pulse.confidenceTarget')}</span>
     </div>
 
     <div class="hud-cell">
       <div class="hud-cell-top">
-        <span class="hud-label">{$t('admin.learning.pulse.mismatch')}</span>
+        <span class="hud-label">{t('admin.learning.pulse.mismatch')}</span>
         {#if mismatchDelta}
           <span class="hud-delta" style="color:{mismatchDelta.up ? 'var(--hud-bad)' : 'var(--hud-good)'};">{mismatchDelta.up ? '▲' : '▼'} {Math.abs(mismatchDelta.pp).toFixed(1)}pp</span>
         {/if}
@@ -93,12 +93,12 @@
           <path d={mismatchPath} pathLength="100" style="stroke:{tierColor(mismatchTier)};" />
         </svg>
       {/if}
-      <span class="hud-caption">{$t('admin.learning.pulse.mismatchTarget')}</span>
+      <span class="hud-caption">{t('admin.learning.pulse.mismatchTarget')}</span>
     </div>
 
     <div class="hud-cell">
       <div class="hud-cell-top">
-        <span class="hud-label">{$t('admin.learning.pulse.volume')}</span>
+        <span class="hud-label">{t('admin.learning.pulse.volume')}</span>
       </div>
       <div class="hud-number hud-number-acc">{Math.round($volumeDisplay).toLocaleString('en-US')}</div>
       <div class="hud-bars">
@@ -106,29 +106,29 @@
           <div class="hud-bar" style="height:{Math.max(6, (p.documents / maxDocs) * 100)}%;" title="{p.date}: {p.documents}"></div>
         {/each}
       </div>
-      <span class="hud-caption">{$t('admin.learning.pulse.volumeSub')}</span>
+      <span class="hud-caption">{t('admin.learning.pulse.volumeSub')}</span>
     </div>
   </div>
 
   <div class="hud-row hud-row-sub">
     <div class="hud-cell hud-cell-sm">
-      <span class="hud-label">{$t('admin.learning.kpiCorrections')}</span>
+      <span class="hud-label">{t('admin.learning.kpiCorrections')}</span>
       <div class="hud-number-sm">{summary.totalCorrections.toLocaleString('en-US')}</div>
     </div>
     <div class="hud-cell hud-cell-sm">
-      <span class="hud-label">{$t('admin.learning.kpiRate')}</span>
+      <span class="hud-label">{t('admin.learning.kpiRate')}</span>
       <div class="hud-number-sm">{summary.correctionRate === null ? '—' : formatPct(summary.correctionRate)}</div>
     </div>
     <div class="hud-cell hud-cell-sm">
-      <span class="hud-label">{$t('admin.learning.kpiPendingFuzzy')}</span>
+      <span class="hud-label">{t('admin.learning.kpiPendingFuzzy')}</span>
       <div class="hud-number-sm" style="color:{fuzzyOutcomes.pending > 0 ? 'var(--hud-warn)' : 'var(--hud-fg)'};">{fuzzyOutcomes.pending.toLocaleString('en-US')}</div>
     </div>
     <div class="hud-cell hud-cell-sm">
-      <span class="hud-label">{$t('admin.learning.kpiAccuracy')}</span>
+      <span class="hud-label">{t('admin.learning.kpiAccuracy')}</span>
       <div class="hud-number-sm">{fuzzyOutcomes.accuracyRate === null ? '—' : formatPct(fuzzyOutcomes.accuracyRate)}</div>
     </div>
     <div class="hud-cell hud-cell-sm">
-      <span class="hud-label">{$t('admin.learning.kpiConfirmedAliases')}</span>
+      <span class="hud-label">{t('admin.learning.kpiConfirmedAliases')}</span>
       <div class="hud-number-sm">{confirmedAliases.toLocaleString('en-US')}</div>
     </div>
   </div>

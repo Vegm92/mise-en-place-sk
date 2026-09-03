@@ -64,9 +64,9 @@ describe('waitlist.trustBar* keys exist in both locales (issue #404)', () => {
 
 describe('LandingPage.svelte renders the trust bar between the FAQ and the final CTA', () => {
 	it('sits after waitlist.faqEyebrow and before waitlist.closeHead in source order', () => {
-		const faqIdx = PAGE_SRC.indexOf("$t('waitlist.faqEyebrow')");
-		const trustIdx = PAGE_SRC.indexOf("aria-label={$t('waitlist.trustBarLabel')}");
-		const closeIdx = PAGE_SRC.indexOf("$t('waitlist.closeHead')");
+		const faqIdx = PAGE_SRC.indexOf("t('waitlist.faqEyebrow')");
+		const trustIdx = PAGE_SRC.indexOf("aria-label={t('waitlist.trustBarLabel')}");
+		const closeIdx = PAGE_SRC.indexOf("t('waitlist.closeHead')");
 		expect(faqIdx, 'waitlist.faqEyebrow not found').toBeGreaterThan(-1);
 		expect(trustIdx, 'trust bar aria-label not found').toBeGreaterThan(-1);
 		expect(closeIdx, 'waitlist.closeHead not found').toBeGreaterThan(-1);
@@ -74,7 +74,7 @@ describe('LandingPage.svelte renders the trust bar between the FAQ and the final
 		expect(trustIdx).toBeLessThan(closeIdx);
 	});
 
-	it('builds the three-item bar from a $derived array using the trustBar i18n keys via $t', () => {
+	it('builds the three-item bar from a $derived array using the trustBar i18n keys via t', () => {
 		const block = PAGE_SRC.match(/const trustBarItems = \$derived\(\[([\s\S]*?)\]\);/);
 		expect(block, 'trustBarItems derived array not found').toBeTruthy();
 		for (const item of ['cadence', 'support', 'privacy']) {
@@ -90,11 +90,11 @@ describe('LandingPage.svelte renders the trust bar between the FAQ and the final
 	});
 
 	it('uses design-system tokens for color and radius, not hex literals', () => {
-		assertSectionUsesTokens(PAGE_SRC, "aria-label={$t('waitlist.trustBarLabel')}", ['rounded-card', 'border-divider']);
+		assertSectionUsesTokens(PAGE_SRC, "aria-label={t('waitlist.trustBarLabel')}", ['rounded-card', 'border-divider']);
 	});
 
 	it('marks the bar up as a list for assistive tech (role="list" / role="listitem")', () => {
-		const startIdx = PAGE_SRC.indexOf("aria-label={$t('waitlist.trustBarLabel')}");
+		const startIdx = PAGE_SRC.indexOf("aria-label={t('waitlist.trustBarLabel')}");
 		const sectionStart = PAGE_SRC.lastIndexOf('<section', startIdx);
 		const sectionEnd = PAGE_SRC.indexOf('</section>', startIdx);
 		const section = PAGE_SRC.slice(sectionStart, sectionEnd);

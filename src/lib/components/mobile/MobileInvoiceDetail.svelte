@@ -82,12 +82,12 @@
 
   function fmt(n: number | null | undefined) {
     if (n == null) return '—';
-    return fmtEur(n, $locale);
+    return fmtEur(n, locale.current);
   }
   function fmtDate(s: Date | string | null | undefined) {
     if (!s) return '—';
     const d = new Date(s as string);
-    return isNaN(d.getTime()) ? String(s) : d.toLocaleDateString($locale, { day: 'numeric', month: 'short', year: 'numeric' });
+    return isNaN(d.getTime()) ? String(s) : d.toLocaleDateString(locale.current, { day: 'numeric', month: 'short', year: 'numeric' });
   }
 
   const shown = $derived(lineItems.slice(0, 5));
@@ -113,7 +113,7 @@
       background: transparent; color: var(--mep-fg); cursor: pointer;
       display: flex; align-items: center; justify-content: center;
       text-decoration: none; flex-shrink: 0;
-    " aria-label={$t('mid.back')}>
+    " aria-label={t('mid.back')}>
       <ChevronLeft size={18} />
     </a>
     <div style="flex: 1; min-width: 0;">
@@ -126,7 +126,7 @@
             flex-shrink: 0; font-size: 11px; font-weight: 500; padding: 1px 6px; border-radius: 10px;
             background: var(--mep-surface-2); color: var(--mep-fg-3);
           ">
-            {$t(`field.documentType.${invoice.document_type}`)}
+            {t(`field.documentType.${invoice.document_type}`)}
           </span>
         {/if}
       </div>
@@ -138,7 +138,7 @@
       width: 44px; height: 44px; border-radius: 999px; border: 0;
       background: transparent; color: var(--mep-fg); cursor: pointer;
       display: flex; align-items: center; justify-content: center;
-    " aria-label={$t('mid.moreOptions')}>
+    " aria-label={t('mid.moreOptions')}>
       <MoreHorizontal size={18} />
     </button>
   </div>
@@ -148,7 +148,7 @@
     <div class="card" style="padding: 16px;">
       <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;">
         <div>
-          <div class="label" style="margin-bottom: 6px;">{$t('mid.totalVat')}</div>
+          <div class="label" style="margin-bottom: 6px;">{t('mid.totalVat')}</div>
           <div class="num" style="font-size: 30px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.6px; line-height: 1;">
             {fmt(invoice.display_amount ?? invoice.total_amount)}
           </div>
@@ -164,21 +164,21 @@
         display: flex; justify-content: space-between; font-size: 12px;
       ">
         <div>
-          <div style="color: var(--mep-fg-3);">{$t('mid.issued')}</div>
+          <div style="color: var(--mep-fg-3);">{t('mid.issued')}</div>
           <div class="num" style="color: var(--mep-fg); font-weight: 500; margin-top: 2px;">{fmtDate(invoice.invoice_date)}</div>
         </div>
         <div>
-          <div style="color: var(--mep-fg-3);">{$t('tbl.due')}</div>
+          <div style="color: var(--mep-fg-3);">{t('tbl.due')}</div>
           <div class="num" style="color: var(--mep-fg); font-weight: 500; margin-top: 2px;">{fmtDate(invoice.due_date)}</div>
         </div>
         <div>
-          <div style="color: var(--mep-fg-3);">{$t('tbl.lines')}</div>
+          <div style="color: var(--mep-fg-3);">{t('tbl.lines')}</div>
           <div class="num" style="color: var(--mep-fg); font-weight: 500; margin-top: 2px;">{lineItems.length}</div>
         </div>
       </div>
       {#if invoice.payment_method || invoice.payment_terms || invoice.iban}
         <div class="border-t border-divider text-fg-2" style="margin-top: 12px; padding-top: 12px; font-size: 11px;">
-          {#if invoice.payment_method}{$t(`field.paymentMethod.${invoice.payment_method}`)}{/if}
+          {#if invoice.payment_method}{t(`field.paymentMethod.${invoice.payment_method}`)}{/if}
           {#if invoice.payment_terms} · {invoice.payment_terms}{/if}
           {#if invoice.iban} · {invoice.iban}{/if}
         </div>
@@ -186,9 +186,9 @@
 
       {#if invoice.purchase_order || invoice.seller_name || invoice.delivery_date || invoice.delivery_address}
         <div class="border-t border-divider text-fg-2" style="margin-top: 12px; padding-top: 12px; font-size: 11px;">
-          {#if invoice.purchase_order}{$t('field.purchaseOrder')}: {invoice.purchase_order}{/if}
-          {#if invoice.seller_name} · {$t('field.sellerName')}: {invoice.seller_name}{/if}
-          {#if invoice.delivery_date} · {$t('field.deliveryDate')}: {fmtDate(invoice.delivery_date)}{/if}
+          {#if invoice.purchase_order}{t('field.purchaseOrder')}: {invoice.purchase_order}{/if}
+          {#if invoice.seller_name} · {t('field.sellerName')}: {invoice.seller_name}{/if}
+          {#if invoice.delivery_date} · {t('field.deliveryDate')}: {fmtDate(invoice.delivery_date)}{/if}
           {#if invoice.delivery_address} · {invoice.delivery_address}{/if}
         </div>
       {/if}
@@ -202,21 +202,21 @@
       {#if invoice.gross_amount != null || invoice.discount_amount != null || invoice.retention_amount != null}
         <div class="border-t border-divider flex flex-wrap items-baseline gap-1.5 text-[11px] text-fg-3" style="margin-top: 12px; padding-top: 12px;">
           {#if invoice.gross_amount != null}
-            <span>{$t('extract.grossAmount')} <span class="num text-fg-2">{fmt(invoice.gross_amount)}</span></span>
+            <span>{t('extract.grossAmount')} <span class="num text-fg-2">{fmt(invoice.gross_amount)}</span></span>
             <span class="opacity-60">→</span>
           {/if}
           {#if invoice.discount_amount != null}
-            <span>{$t('extract.discountAmount')} <span class="num text-fg-2">−{fmt(invoice.discount_amount)}</span></span>
+            <span>{t('extract.discountAmount')} <span class="num text-fg-2">−{fmt(invoice.discount_amount)}</span></span>
             <span class="opacity-60">→</span>
           {/if}
           {#if invoice.retention_amount != null}
             <span>
-              {$t('extract.retention')}{invoice.retention_rate != null ? ` (${(invoice.retention_rate * 100).toLocaleString($locale)}%)` : ''}
+              {t('extract.retention')}{invoice.retention_rate != null ? ` (${(invoice.retention_rate * 100).toLocaleString(locale.current)}%)` : ''}
               <span class="num text-fg-2">−{fmt(invoice.retention_amount)}</span>
             </span>
             <span class="opacity-60">→</span>
           {/if}
-          <span class="body-strong text-fg">{$t('field.totalAmount')} <span class="num">{fmt(invoice.total_amount)}</span></span>
+          <span class="body-strong text-fg">{t('field.totalAmount')} <span class="num">{fmt(invoice.total_amount)}</span></span>
         </div>
       {/if}
     </div>
@@ -233,7 +233,7 @@
           </div>
           <a href="/invoice/{invoice.id}/file" target="_blank"
             style="font-size: 12px; color: var(--mep-acc); font-weight: 500; text-decoration: none; flex-shrink: 0;">
-            {$t('mid.open')}
+            {t('mid.open')}
           </a>
         </div>
       </div>
@@ -242,19 +242,19 @@
     {#if invoice.linked_invoice}
       <a href="/invoice/{invoice.linked_invoice.id}" class="card" style="padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 8px; text-decoration: none;">
         <div>
-          <div class="label" style="margin-bottom: 2px;">{$t('inv.detail.linkedDocument')}</div>
+          <div class="label" style="margin-bottom: 2px;">{t('inv.detail.linkedDocument')}</div>
           <div class="body-strong">
-            {invoice.linked_invoice.document_type ? $t(`field.documentType.${invoice.linked_invoice.document_type}`) : ''}
+            {invoice.linked_invoice.document_type ? t(`field.documentType.${invoice.linked_invoice.document_type}`) : ''}
             {invoice.linked_invoice.invoice_number ?? `#${invoice.linked_invoice.id}`}
           </div>
         </div>
-        <span class="body" style="color: var(--mep-acc); font-weight: 500;">{$t('inv.detail.viewLinked')}</span>
+        <span class="body" style="color: var(--mep-acc); font-weight: 500;">{t('inv.detail.viewLinked')}</span>
       </a>
     {/if}
 
     {#if claim.sentAt}
       <div class="card p-3">
-        <span class="body-strong">{$ti('inv.claim.sentLine', { date: fmtDate(claim.sentAt) })}</span>
+        <span class="body-strong">{ti('inv.claim.sentLine', { date: fmtDate(claim.sentAt) })}</span>
       </div>
     {:else if claim.eligible}
       <div class="card p-3 flex flex-col gap-3">
@@ -264,29 +264,29 @@
             class="btn btn-primary min-h-11"
             onclick={() => claimOpen = true}
           >
-            {$t('inv.claim.button')}
+            {t('inv.claim.button')}
           </button>
         {:else}
           <form method="post" action="/invoice/{invoice.id}?/requestCorrection" use:enhance class="flex flex-col gap-3">
             {#if form?.claim}
-              <span class="body text-neg">{$t(`inv.claim.error.${form.claim}`)}</span>
+              <span class="body text-neg">{t(`inv.claim.error.${form.claim}`)}</span>
             {/if}
             <div class="flex flex-col gap-1">
-              <span class="label">{$t('inv.claim.form.to')}</span>
+              <span class="label">{t('inv.claim.form.to')}</span>
               <span class="body-strong">{claim.to}</span>
             </div>
             <div class="flex flex-col gap-1">
-              <label class="label" for="mid-claim-subject">{$t('inv.claim.form.subject')}</label>
+              <label class="label" for="mid-claim-subject">{t('inv.claim.form.subject')}</label>
               <input id="mid-claim-subject" name="subject" class="input min-h-11" value={claim.subject} maxlength={200} required />
             </div>
             <div class="flex flex-col gap-1">
-              <label class="label" for="mid-claim-body">{$t('inv.claim.form.body')}</label>
+              <label class="label" for="mid-claim-body">{t('inv.claim.form.body')}</label>
               <textarea id="mid-claim-body" name="body" class="input min-h-32 resize-y" maxlength={4000} required>{claim.body}</textarea>
             </div>
-            <span class="body text-fg-3">{$t('inv.claim.form.hint')}</span>
+            <span class="body text-fg-3">{t('inv.claim.form.hint')}</span>
             <div class="flex gap-2">
-              <button type="submit" class="btn btn-primary min-h-11 flex-1">{$t('inv.claim.form.submit')}</button>
-              <button type="button" class="btn btn-ghost min-h-11" onclick={() => claimOpen = false}>{$t('edit.cancel')}</button>
+              <button type="submit" class="btn btn-primary min-h-11 flex-1">{t('inv.claim.form.submit')}</button>
+              <button type="button" class="btn btn-ghost min-h-11" onclick={() => claimOpen = false}>{t('edit.cancel')}</button>
             </div>
           </form>
         {/if}
@@ -296,11 +296,11 @@
     {#if unlinkedLineCount > 0}
       <div class="card" style="padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;">
         <span class="body text-warn">
-          {$ti('inv.detail.unlinkedLines', { n: unlinkedLineCount })}
+          {ti('inv.detail.unlinkedLines', { n: unlinkedLineCount })}
         </span>
         <form method="post" action="/invoice/{invoice.id}?/relinkProducts">
           <button type="submit" class="btn btn-secondary" style="width: 100%;">
-            {$t('inv.detail.relink')}
+            {t('inv.detail.relink')}
           </button>
         </form>
       </div>
@@ -335,7 +335,7 @@
             font-size: 12px; color: var(--mep-acc); font-weight: 500;
             border-top: 1px solid var(--mep-divider); text-decoration: none;
           ">
-            {$ti('mid.viewLines', { n: lineItems.length })}
+            {ti('mid.viewLines', { n: lineItems.length })}
           </a>
         {/if}
       </div>
@@ -343,9 +343,9 @@
 
     <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
       {#each [
-        { icon: Edit, label: $t('mid.actionEdit'), href: `/invoice/${invoice.id}/edit` },
-        { icon: Download, label: $t('mid.actionDownload'), href: invoice.source_file ? `/invoice/${invoice.id}/file` : '#' },
-        { icon: Truck, label: $t('mid.actionSupplier'), href: invoice.supplier_id ? `/suppliers/${invoice.supplier_id}` : '/suppliers' },
+        { icon: Edit, label: t('mid.actionEdit'), href: `/invoice/${invoice.id}/edit` },
+        { icon: Download, label: t('mid.actionDownload'), href: invoice.source_file ? `/invoice/${invoice.id}/file` : '#' },
+        { icon: Truck, label: t('mid.actionSupplier'), href: invoice.supplier_id ? `/suppliers/${invoice.supplier_id}` : '/suppliers' },
       ] as action}
         <a
           href={action.href}

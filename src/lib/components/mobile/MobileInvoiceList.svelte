@@ -137,15 +137,15 @@
     const groups: Map<string, Invoice[]> = new Map();
     for (const inv of shown) {
       const d = inv.invoice_date ? new Date(inv.invoice_date) : null;
-      let label = $t('misc.noDate');
+      let label = t('misc.noDate');
       if (d) {
         d.setHours(0, 0, 0, 0);
         if (d.getTime() === today.getTime()) {
-          label = `${$t('misc.today')} · ${today.toLocaleDateString($locale, { day: 'numeric', month: 'long' })}`;
+          label = `${t('misc.today')} · ${today.toLocaleDateString(locale.current, { day: 'numeric', month: 'long' })}`;
         } else if (d.getTime() === yesterday.getTime()) {
-          label = `${$t('misc.yesterday')} · ${yesterday.toLocaleDateString($locale, { day: 'numeric', month: 'long' })}`;
+          label = `${t('misc.yesterday')} · ${yesterday.toLocaleDateString(locale.current, { day: 'numeric', month: 'long' })}`;
         } else {
-          label = d.toLocaleDateString($locale, { day: 'numeric', month: 'long' });
+          label = d.toLocaleDateString(locale.current, { day: 'numeric', month: 'long' });
         }
       }
       if (!groups.has(label)) groups.set(label, []);
@@ -160,22 +160,22 @@
     <div class="card" style="display: flex; align-items: center; padding: 0;">
       <div style="flex: 1; text-align: center; padding: 10px 6px;">
         <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-pos); letter-spacing: -0.02em; line-height: 1.1;">{stats.reviewed_count}</div>
-        <div style="font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; color: var(--mep-fg-3); margin-top: 2px;">{$t('inv.kpi.reviewed')}</div>
+        <div style="font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; color: var(--mep-fg-3); margin-top: 2px;">{t('inv.kpi.reviewed')}</div>
       </div>
       <div style="width: 1px; height: 30px; background: var(--mep-border); flex-shrink: 0;"></div>
       <div style="flex: 1; text-align: center; padding: 10px 6px;">
         <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-warn); letter-spacing: -0.02em; line-height: 1.1;">{stats.to_review_count}</div>
-        <div style="font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; color: var(--mep-fg-3); margin-top: 2px;">{$t('inv.kpi.toReview')}</div>
+        <div style="font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; color: var(--mep-fg-3); margin-top: 2px;">{t('inv.kpi.toReview')}</div>
       </div>
       <div style="width: 1px; height: 30px; background: var(--mep-border); flex-shrink: 0;"></div>
       <div style="flex: 1; text-align: center; padding: 10px 6px;">
         <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-neg); letter-spacing: -0.02em; line-height: 1.1;">{stats.issue_count}</div>
-        <div style="font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; color: var(--mep-fg-3); margin-top: 2px;">{$t('inv.kpi.issues')}</div>
+        <div style="font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; color: var(--mep-fg-3); margin-top: 2px;">{t('inv.kpi.issues')}</div>
       </div>
       <div style="width: 1px; height: 30px; background: var(--mep-border); flex-shrink: 0;"></div>
       <div style="flex: 1; text-align: center; padding: 10px 6px;">
         <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.02em; line-height: 1.1;">{stats.supplier_count}</div>
-        <div style="font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; color: var(--mep-fg-3); margin-top: 2px;">{$t('inv.kpi.suppliers')}</div>
+        <div style="font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; color: var(--mep-fg-3); margin-top: 2px;">{t('inv.kpi.suppliers')}</div>
       </div>
     </div>
   </div>
@@ -190,43 +190,43 @@
       class="input"
       style="width: 100%; height: 40px; padding-left: 36px; box-sizing: border-box;"
       type="search"
-      placeholder={$t('inv.searchPlaceholder')}
+      placeholder={t('inv.searchPlaceholder')}
       value={q}
       oninput={(e) => onSearch((e.target as HTMLInputElement).value)}
     />
   </div>
 
-  <ScrollStrip label={$t('inv.filterLabel')} extraStyle="flex-shrink:0;">
+  <ScrollStrip label={t('inv.filterLabel')} extraStyle="flex-shrink:0;">
     <button
       class={chipClass(monthActive)}
       aria-pressed={monthActive}
       onclick={toggleMonth}
-    >{$t('minv.filter.month')}</button>
+    >{t('minv.filter.month')}</button>
     <button
       class={chipClass(filters.status === 'por_revisar')}
       aria-pressed={filters.status === 'por_revisar'}
       onclick={() => toggleStatus('por_revisar')}
-    >{$t('minv.filter.toReview')}</button>
+    >{t('minv.filter.toReview')}</button>
     <button
       class={chipClass(filters.status === 'incidencia')}
       aria-pressed={filters.status === 'incidencia'}
       onclick={() => toggleStatus('incidencia')}
-    >{$t('minv.filter.issues')}</button>
+    >{t('minv.filter.issues')}</button>
     <button
       class={chipClass(filters.supplier_id !== '')}
       aria-pressed={filters.supplier_id !== ''}
       aria-haspopup="dialog"
       onclick={() => supplierSheetOpen = true}
-    >{$t('minv.filter.supplier')}</button>
+    >{t('minv.filter.supplier')}</button>
     <button
       class={chipClass(filters.category !== '')}
       aria-pressed={filters.category !== ''}
       aria-haspopup="dialog"
       onclick={() => categorySheetOpen = true}
-    >{$t('minv.filter.category')}</button>
+    >{t('minv.filter.category')}</button>
     <a class="chip" href="/invoices/export" style="gap: 6px;">
       <FileDown size={13} />
-      {$t('inv.export')}
+      {t('inv.export')}
     </a>
   </ScrollStrip>
 
@@ -242,21 +242,21 @@
       <label class="flex items-center gap-2 min-h-[44px]">
         <input type="checkbox" class="accent-acc" checked={allSelected} indeterminate={someSelected}
           onchange={(e) => toggleSelectAll((e.target as HTMLInputElement).checked)} />
-        <span class="body">{$t('inv.selectAll')}</span>
+        <span class="body">{t('inv.selectAll')}</span>
       </label>
       {#if selectedIds.size > 0}
-        <span class="body-strong text-acc">{selectedIds.size} {$t('inv.selected')}</span>
+        <span class="body-strong text-acc">{selectedIds.size} {t('inv.selected')}</span>
         <button type="button" class="chip gap-1.5" onclick={() => submitBulkForm('mobile-bulk-reviewed-form')}>
           <Check size={13} />
-          {$t('inv.markReviewed')}
+          {t('inv.markReviewed')}
         </button>
         <button type="button" class="chip gap-1.5" onclick={() => submitBulkForm('mobile-bulk-delete-form')}>
           <Trash2 size={13} />
-          {$t('inv.delete')}
+          {t('inv.delete')}
         </button>
-        <a href={bulkDownloadHref} data-sveltekit-reload class="chip gap-1.5" title={$t('inv.export.selected.tooltip')}>
+        <a href={bulkDownloadHref} data-sveltekit-reload class="chip gap-1.5" title={t('inv.export.selected.tooltip')}>
           <FileDown size={13} />
-          {$t('inv.export.selected.button')}
+          {t('inv.export.selected.button')}
         </a>
       {/if}
     </div>
@@ -266,17 +266,17 @@
     <button
       type="button"
       class="filter-sheet-backdrop"
-      aria-label={$t('minv.sheet.close')}
+      aria-label={t('minv.sheet.close')}
       onclick={() => supplierSheetOpen = false}
     ></button>
-    <div class="filter-sheet" role="dialog" aria-modal="true" aria-label={$t('minv.sheet.supplierTitle')}>
+    <div class="filter-sheet" role="dialog" aria-modal="true" aria-label={t('minv.sheet.supplierTitle')}>
       <div class="filter-sheet-head">
-        <span class="body-strong">{$t('minv.sheet.supplierTitle')}</span>
-        <button type="button" class="btn btn-ghost" onclick={() => supplierSheetOpen = false}>{$t('minv.sheet.close')}</button>
+        <span class="body-strong">{t('minv.sheet.supplierTitle')}</span>
+        <button type="button" class="btn btn-ghost" onclick={() => supplierSheetOpen = false}>{t('minv.sheet.close')}</button>
       </div>
       <div class="filter-sheet-list">
         <button type="button" class="filter-sheet-option" aria-pressed={!filters.supplier_id} onclick={() => pickSupplier(null)}>
-          <span>{$t('inv.filter.all')}</span>
+          <span>{t('inv.filter.all')}</span>
         </button>
         {#each suppliers as s}
           <button
@@ -296,17 +296,17 @@
     <button
       type="button"
       class="filter-sheet-backdrop"
-      aria-label={$t('minv.sheet.close')}
+      aria-label={t('minv.sheet.close')}
       onclick={() => categorySheetOpen = false}
     ></button>
-    <div class="filter-sheet" role="dialog" aria-modal="true" aria-label={$t('minv.sheet.categoryTitle')}>
+    <div class="filter-sheet" role="dialog" aria-modal="true" aria-label={t('minv.sheet.categoryTitle')}>
       <div class="filter-sheet-head">
-        <span class="body-strong">{$t('minv.sheet.categoryTitle')}</span>
-        <button type="button" class="btn btn-ghost" onclick={() => categorySheetOpen = false}>{$t('minv.sheet.close')}</button>
+        <span class="body-strong">{t('minv.sheet.categoryTitle')}</span>
+        <button type="button" class="btn btn-ghost" onclick={() => categorySheetOpen = false}>{t('minv.sheet.close')}</button>
       </div>
       <div class="filter-sheet-list">
         <button type="button" class="filter-sheet-option" aria-pressed={!filters.category} onclick={() => pickCategory(null)}>
-          <span>{$t('minv.sheet.allCategories')}</span>
+          <span>{t('minv.sheet.allCategories')}</span>
         </button>
         {#each categories as cat}
           <button
@@ -315,7 +315,7 @@
             aria-pressed={filters.category === cat}
             onclick={() => pickCategory(filters.category === cat ? null : cat)}
           >
-            <span>{$tcat(cat)}</span>
+            <span>{tcat(cat)}</span>
           </button>
         {/each}
       </div>
@@ -325,7 +325,7 @@
   <div style="flex: 1; overflow: auto; padding-bottom: 24px;">
     {#if grouped.length === 0}
       <div style="padding: 40px 18px; text-align: center; color: var(--mep-fg-3); font-size: 13px;">
-        {$t('misc.invoice.zero')}
+        {t('misc.invoice.zero')}
       </div>
     {:else}
       {#each grouped as [label, group]}
@@ -376,11 +376,11 @@
                 </div>
                 <div style="text-align: right; flex-shrink: 0;">
                   <div class="num" style="font-size: 14px; font-weight: 600; color: var(--mep-fg);">
-                    {(inv.display_amount ?? inv.total_amount) != null ? fmtEur((inv.display_amount ?? inv.total_amount)!, $locale) : '—'}
+                    {(inv.display_amount ?? inv.total_amount) != null ? fmtEur((inv.display_amount ?? inv.total_amount)!, locale.current) : '—'}
                   </div>
                   {#if inv.line_items && inv.line_items.length > 0}
                     <div class="num" style="font-size: 11px; color: var(--mep-fg-3);">
-                      {inv.line_items.length} {$t('minv.linesSuffix')}
+                      {inv.line_items.length} {t('minv.linesSuffix')}
                     </div>
                   {/if}
                 </div>
@@ -398,11 +398,11 @@
             class="btn btn-secondary"
             style="width: 100%; justify-content: center;"
             onclick={onLoadMore}
-          >{$t('minv.loadMore')}</button>
+          >{t('minv.loadMore')}</button>
         </div>
       {/if}
       <div style="padding: 10px 18px 0; text-align: center; font-size: 13px; color: var(--mep-fg-3);">
-        {$ti('minv.showing', { shown: shown.length, total: pagination.total })}
+        {ti('minv.showing', { shown: shown.length, total: pagination.total })}
       </div>
     {/if}
   </div>

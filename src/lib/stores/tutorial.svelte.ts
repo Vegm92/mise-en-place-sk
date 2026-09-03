@@ -1,17 +1,21 @@
-import { writable } from 'svelte/store';
-
 export type TutorialStep =
 	| '1' | '2' | 'done'
 	| '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | '11'
 	| 'dismissed';
 
-export const tutorialStep = writable<TutorialStep | null>(null);
+let current = $state<TutorialStep | null>(null);
+
+export const tutorialStep = {
+	get current(): TutorialStep | null {
+		return current;
+	},
+};
 
 let pending: TutorialStep | null = null;
 
 export async function setTutorialStep(step: TutorialStep) {
 	pending = step;
-	tutorialStep.set(step);
+	current = step;
 	try {
 		await fetch('/api/tutorial', {
 			method: 'POST',
@@ -26,5 +30,5 @@ export async function setTutorialStep(step: TutorialStep) {
 
 export function seedTutorialStep(step: TutorialStep | null) {
 	if (pending !== null) return;
-	tutorialStep.set(step);
+	current = step;
 }

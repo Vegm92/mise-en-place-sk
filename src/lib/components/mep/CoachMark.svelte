@@ -146,7 +146,7 @@
         "
         onclick={onSkip}
       >
-        {$t('coach.skip')}
+        {t('coach.skip')}
       </button>
     </div>
 
@@ -163,7 +163,7 @@
       style="width:100%;height:36px;justify-content:center;font-size:13px;"
       onclick={onNext}
     >
-      {nextLabel ?? $t('coach.next')}
+      {nextLabel ?? t('coach.next')}
     </button>
   </div>
 {/if}

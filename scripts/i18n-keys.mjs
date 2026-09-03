@@ -1,5 +1,5 @@
 /**
- * Reads the i18n catalog and the `$t` call sites that consume it (issue #661).
+ * Reads the i18n catalog and the `t` call sites that consume it (issue #661).
  *
  * `lint:i18n` bans prose that bypasses the catalog, but a key that is spelled
  * right and simply absent from `src/lib/messages/{es,en}.ts` compiles, ships,
@@ -18,7 +18,7 @@ import ts from 'typescript';
 /** @typedef {{ fn: string, key: string, index: number }} KeyRef */
 /** @typedef {{ ref: KeyRef, locale: string, key: string }} MissingKey */
 
-const CALL = /(?<![\w$])\$(t|ti|tiv|tp)\(\s*(['"])([^'"\n]*)\2\s*[,)]/g;
+const CALL = /(?<![\w$.])(t|ti|tiv|tp)\(\s*(['"])([^'"\n]*)\2\s*[,)]/g;
 
 /** @param {ts.Node} node */
 function unwrap(node) {
@@ -87,7 +87,7 @@ export function localeKeyTables(sourcesByLocale) {
 }
 
 /**
- * Every `$t` / `$ti` / `$tiv` / `$tp` call whose key is a plain string literal.
+ * Every `t` / `ti` / `tiv` / `tp` call whose key is a plain string literal.
  *
  * @param {string} source
  * @returns {KeyRef[]}
@@ -101,7 +101,7 @@ export function keyReferences(source) {
 }
 
 /**
- * The catalog keys a call actually looks up. `$tp` resolves a plural family,
+ * The catalog keys a call actually looks up. `tp` resolves a plural family,
  * so it needs both CLDR forms the app can select; `.zero` is optional.
  *
  * @param {KeyRef} ref

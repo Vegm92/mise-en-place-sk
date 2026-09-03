@@ -6,8 +6,8 @@
 
   let { item, primary = false }: { item: WorkItem; primary?: boolean } = $props();
 
-  const titleVars = $derived(localiseWorkDates(item.titleVars, $locale));
-  const whyVars = $derived(localiseWorkDates(item.whyVars, $locale));
+  const titleVars = $derived(localiseWorkDates(item.titleVars, locale.current));
+  const whyVars = $derived(localiseWorkDates(item.whyVars, locale.current));
   const Icon = $derived(WORK_ICON[item.kind]);
   const color = $derived(WORK_TONE[item.severity][0]);
   const soft = $derived(WORK_TONE[item.severity][1]);
@@ -28,15 +28,15 @@
 
   <div style="min-width:0;">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;">
-      <span class="label">{$t(`turno.kind.${item.kind}`)}</span>
+      <span class="label">{t(`turno.kind.${item.kind}`)}</span>
       <span style="font-size:11px;color:var(--mep-fg-4);">·</span>
-      <span style="font-size:11px;color:var(--mep-fg-3);">{$ti(item.urgencyKey, item.urgencyVars)}</span>
+      <span style="font-size:11px;color:var(--mep-fg-3);">{ti(item.urgencyKey, item.urgencyVars)}</span>
     </div>
     <div class="subtitle" style="line-height:1.3;text-wrap:pretty;">
-      {$tiv(item.titleKey, titleVars)}
+      {tiv(item.titleKey, titleVars)}
     </div>
     <div class="body" style="margin-top:2px;">
-      {$tiv(item.whyKey, whyVars)}
+      {tiv(item.whyKey, whyVars)}
     </div>
   </div>
 
@@ -44,15 +44,15 @@
     {#if item.eur > 0}
       <div style="text-align:right;">
         <div class="num" style="font-size:20px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.02em;line-height:1.1;">
-          {fmtEurCompact(item.eur, $locale)}
+          {fmtEurCompact(item.eur, locale.current)}
         </div>
-        <div class="label">{$t('turno.atStakeUnit')}</div>
+        <div class="label">{t('turno.atStakeUnit')}</div>
       </div>
     {/if}
     <a
       href={item.href}
       class={primary ? 'btn btn-primary' : 'btn btn-secondary'}
       style="height:28px;text-decoration:none;"
-    >{$t(item.actionKey)}</a>
+    >{t(item.actionKey)}</a>
   </div>
 </div>

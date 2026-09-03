@@ -12,8 +12,8 @@
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { get } from 'svelte/store';
-import { locale, t, loadAllMessages } from '../src/lib/i18n';
+import { setLocale, t, loadAllMessages } from '../src/lib/i18n';
+import { untranslated } from './helpers/i18n-setup';
 import {
 	SUPPORTED_UPLOAD_EXTENSIONS,
 	MAX_UPLOAD_BYTES,
@@ -221,14 +221,7 @@ describe('unsupported-file message-key selection (mirrors UploadPanel.svelte#add
 
 	it('resolves the HEIC key and every reason key in both locales', () => {
 		const keys = ['upload.reject.heic', ...REJECT_REASONS.map((r) => `upload.reject.${r}`)];
-		const missing: string[] = [];
-		for (const lc of ['es', 'en'] as const) {
-			locale.set(lc);
-			for (const key of keys) {
-				if (get(t)(key) === key) missing.push(`${lc}:${key}`);
-			}
-		}
-		expect(missing).toEqual([]);
+		expect(untranslated(keys)).toEqual([]);
 	});
 
 	it('the component checks HEIC before validating the rest (source order, not just logic parity)', () => {

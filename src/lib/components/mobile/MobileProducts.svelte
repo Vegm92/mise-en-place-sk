@@ -88,13 +88,13 @@
       class="btn {tab === 'catalog' ? 'btn-primary' : 'btn-secondary'}"
       style="flex: 1; justify-content: center; font-size: 13px;"
       onclick={() => tab = 'catalog'}
-    >{$t('prod.tab.catalog')}</button>
+    >{t('prod.tab.catalog')}</button>
     <button
       class="btn {tab === 'suggestions' ? 'btn-primary' : 'btn-secondary'}"
       style="flex: 1; justify-content: center; font-size: 13px; gap: 6px;"
       onclick={() => tab = 'suggestions'}
     >
-      {$t('prod.tab.suggestions')}
+      {t('prod.tab.suggestions')}
       {#if pendingCount > 0}
         <span class="badge" style="background:var(--mep-warn-soft);color:var(--mep-warn);">{pendingCount}</span>
       {/if}
@@ -111,7 +111,7 @@
       <input
         class="input"
         style="width: 100%; height: 40px; padding-left: 36px; box-sizing: border-box;"
-        placeholder={$t('prod.searchPlaceholder')}
+        placeholder={t('prod.searchPlaceholder')}
         bind:value={search}
       />
     </div>
@@ -119,12 +119,12 @@
     <div class="px-[18px] pb-2.5">
       <select
         class="input w-full h-9"
-        aria-label={$t('prod.sort.label')}
+        aria-label={t('prod.sort.label')}
         value={sort}
         onchange={(e) => onSortChange?.((e.target as HTMLSelectElement).value)}
       >
         {#each PRODUCT_SORT_KEYS as key}
-          <option value={key}>{$t(`prod.sort.${key}`)}</option>
+          <option value={key}>{t(`prod.sort.${key}`)}</option>
         {/each}
       </select>
     </div>
@@ -132,44 +132,44 @@
     <div class="px-[18px] pb-2.5">
       <a href="/products/inventory-template" data-sveltekit-reload
         class="btn btn-secondary w-full justify-center gap-1.5"
-        title={$t('prod.inventoryTemplate.tooltip')}>
+        title={t('prod.inventoryTemplate.tooltip')}>
         <Download size={13} />
-        {$t('prod.inventoryTemplate.link')}
+        {t('prod.inventoryTemplate.link')}
         {#if !features.inventoryTemplate}
-          <span class="badge badge-neutral border border-border">{$t('nav.badge.pro')}</span>
+          <span class="badge badge-neutral border border-border">{t('nav.badge.pro')}</span>
         {/if}
       </a>
     </div>
 
-    <ScrollStrip label={$t('prod.col.category')} extraStyle="flex-shrink:0;">
-      <button class={chipClass(!catFilter)} onclick={() => catFilter = ''}>{$t('sup.allChip')}</button>
+    <ScrollStrip label={t('prod.col.category')} extraStyle="flex-shrink:0;">
+      <button class={chipClass(!catFilter)} onclick={() => catFilter = ''}>{t('sup.allChip')}</button>
       <button class={chipClass(catFilter === UNCATEGORIZED_FILTER)} onclick={() => catFilter = catFilter === UNCATEGORIZED_FILTER ? '' : UNCATEGORIZED_FILTER}>
-        {$t('prod.filter.uncategorized')}
+        {t('prod.filter.uncategorized')}
       </button>
       {#each inlineCategories as cat}
-        <button class={chipClass(catFilter === cat)} onclick={() => catFilter = catFilter === cat ? '' : cat}>{$tcat(cat)}</button>
+        <button class={chipClass(catFilter === cat)} onclick={() => catFilter = catFilter === cat ? '' : cat}>{tcat(cat)}</button>
       {/each}
       {#if hiddenCategories.length > 0}
         <button data-scroll-strip-more class={chipClass(false)} onclick={() => sheetOpen = true}>
-          {$ti('sup.categorySheet.open', { n: hiddenCategories.length })}
+          {ti('sup.categorySheet.open', { n: hiddenCategories.length })}
         </button>
       {/if}
     </ScrollStrip>
 
     {#if sheetOpen}
-      <button type="button" class="filter-sheet-backdrop" aria-label={$t('sup.categorySheet.close')} onclick={() => sheetOpen = false}></button>
-      <div class="filter-sheet" role="dialog" aria-modal="true" aria-label={$t('sup.categorySheet.title')}>
+      <button type="button" class="filter-sheet-backdrop" aria-label={t('sup.categorySheet.close')} onclick={() => sheetOpen = false}></button>
+      <div class="filter-sheet" role="dialog" aria-modal="true" aria-label={t('sup.categorySheet.title')}>
         <div class="filter-sheet-head">
-          <span class="body-strong">{$t('sup.categorySheet.title')}</span>
-          <button type="button" class="btn btn-ghost" onclick={() => sheetOpen = false}>{$t('sup.categorySheet.close')}</button>
+          <span class="body-strong">{t('sup.categorySheet.title')}</span>
+          <button type="button" class="btn btn-ghost" onclick={() => sheetOpen = false}>{t('sup.categorySheet.close')}</button>
         </div>
         <div class="filter-sheet-list">
           <button type="button" class="filter-sheet-option" aria-pressed={!catFilter} onclick={() => pickCategory(null)}>
-            <span>{$t('sup.allChip')}</span>
+            <span>{t('sup.allChip')}</span>
           </button>
           {#each categories as cat}
             <button type="button" class="filter-sheet-option" aria-pressed={catFilter === cat} onclick={() => pickCategory(catFilter === cat ? null : cat)}>
-              <span>{$tcat(cat)}</span>
+              <span>{tcat(cat)}</span>
             </button>
           {/each}
         </div>
@@ -178,7 +178,7 @@
 
     <div style="flex: 1; overflow: auto; padding: 0 18px 16px; display: flex; flex-direction: column; gap: 8px;">
       {#if filtered.length === 0}
-        <div style="padding: 40px 0; text-align: center; color: var(--mep-fg-3); font-size: 13px;">{$t('prod.empty')}</div>
+        <div style="padding: 40px 0; text-align: center; color: var(--mep-fg-3); font-size: 13px;">{t('prod.empty')}</div>
       {:else}
         {#each filtered as p (p.id)}
           <a href="/products/{p.id}" style="
@@ -199,17 +199,17 @@
                 {p.canonicalName}
               </div>
               <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 2px;">
-                {p.category ? $tcat(p.category) : $t('prod.uncategorized')} · {p.supplierCount} {$t('prod.suppliersSuffix')}
+                {p.category ? tcat(p.category) : t('prod.uncategorized')} · {p.supplierCount} {t('prod.suppliersSuffix')}
                 {#if p.yoyChangePct != null}
                   · <span
                     class:text-neg={p.yoyChangePct > 0}
                     class:text-pos={p.yoyChangePct < 0}
-                  >{$t('prod.col.yoy')} {formatYoyPct(p.yoyChangePct, $locale)}</span>
+                  >{t('prod.col.yoy')} {formatYoyPct(p.yoyChangePct, locale.current)}</span>
                 {/if}
               </div>
             </div>
             {#if p.needsConversion}
-              <span title={$t('prod.badge.needsConversion')} style="color: var(--mep-warn); flex-shrink: 0;">
+              <span title={t('prod.badge.needsConversion')} style="color: var(--mep-warn); flex-shrink: 0;">
                 <AlertTriangle size={14} />
               </span>
             {/if}
@@ -217,23 +217,23 @@
           </a>
         {/each}
         <div style="text-align: center; padding: 10px 0 4px; font-size: 11px; color: var(--mep-fg-3);">
-          {$ti('prod.totalCount', { n: products.length })}
+          {ti('prod.totalCount', { n: products.length })}
         </div>
       {/if}
     </div>
   {:else}
     <div style="flex: 1; overflow: auto; padding: 0 18px 16px; display: flex; flex-direction: column; gap: 10px;">
       {#if pendingCount === 0}
-        <div style="padding: 40px 0; text-align: center; color: var(--mep-fg-3); font-size: 13px;">{$t('prod.suggestions.empty')}</div>
+        <div style="padding: 40px 0; text-align: center; color: var(--mep-fg-3); font-size: 13px;">{t('prod.suggestions.empty')}</div>
       {:else}
         {#each conversionPrompts as c (c.notificationId)}
           <div class="card" style="padding: 12px; border-left: 3px solid var(--mep-warn); display: flex; flex-direction: column; gap: 8px;">
             <div style="display: flex; align-items: center; gap: 6px;">
               <AlertTriangle size={12} style="color: var(--mep-warn);" />
-              <span class="badge" style="background:var(--mep-warn-soft);color:var(--mep-warn);font-size:11px;">{$t('prod.conv.badge')}</span>
+              <span class="badge" style="background:var(--mep-warn-soft);color:var(--mep-warn);font-size:11px;">{t('prod.conv.badge')}</span>
             </div>
             <p style="font-size: 13px; color: var(--mep-fg); margin: 0;">
-              {$ti('prod.conv.ask', { unit: c.purchaseUnit, ingredient: c.ingredient, supplier: c.supplierName })}
+              {ti('prod.conv.ask', { unit: c.purchaseUnit, ingredient: c.ingredient, supplier: c.supplierName })}
             </p>
             <form
               style="display: flex; gap: 8px; flex-wrap: wrap;"
@@ -243,9 +243,9 @@
                 onSaveConversion?.(c, String(fd.get('canonical_unit') ?? ''), String(fd.get('conversion_factor') ?? ''));
               }}
             >
-              <input name="canonical_unit" required class="input" style="flex:1;min-width:100px;height:34px;" placeholder={$t('prod.conv.canonicalUnit')} />
-              <input name="conversion_factor" type="number" min="0.001" step="any" required class="input" style="flex:1;min-width:100px;height:34px;" placeholder={$t('prod.conv.factor')} />
-              <button type="submit" class="btn btn-primary" style="height:34px;font-size:13px;">{$t('prod.conv.save')}</button>
+              <input name="canonical_unit" required class="input" style="flex:1;min-width:100px;height:34px;" placeholder={t('prod.conv.canonicalUnit')} />
+              <input name="conversion_factor" type="number" min="0.001" step="any" required class="input" style="flex:1;min-width:100px;height:34px;" placeholder={t('prod.conv.factor')} />
+              <button type="submit" class="btn btn-primary" style="height:34px;font-size:13px;">{t('prod.conv.save')}</button>
             </form>
           </div>
         {/each}
@@ -254,9 +254,9 @@
             <p style="font-size: 13px; color: var(--mep-fg); margin: 0;">{s.message}</p>
             <div style="display: flex; gap: 8px;">
               <button type="button" class="btn btn-ghost text-pos" style="height:30px;font-size:13px;flex:1;justify-content:center;"
-                onclick={() => onRespondSuggestion?.(s.id, 'confirm', s.description)}>{$t('prod.suggestions.confirm')}</button>
+                onclick={() => onRespondSuggestion?.(s.id, 'confirm', s.description)}>{t('prod.suggestions.confirm')}</button>
               <button type="button" class="btn btn-ghost text-neg" style="height:30px;font-size:13px;flex:1;justify-content:center;"
-                onclick={() => onRespondSuggestion?.(s.id, 'reject', s.description)}>{$t('prod.suggestions.reject')}</button>
+                onclick={() => onRespondSuggestion?.(s.id, 'reject', s.description)}>{t('prod.suggestions.reject')}</button>
             </div>
           </div>
         {/each}
