@@ -18,13 +18,10 @@
  */
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 
-vi.mock('../src/lib/server/db', async () => {
-	const { testDb } = await import('./helpers/test-db');
-	const { forTenant } = await import('../src/lib/server/tenant');
-	return { db: testDb, forTenant, runAsSystem: (fn: () => unknown) => fn(), runWithTenantContext: (_rid: unknown, fn: () => unknown) => fn() };
-});
+vi.mock('../src/lib/server/db', async () => (await import('./helpers/db-suite')).testDbModule());
 
 import { testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv } from './helpers/test-db';
+import { runFormAction, type ActionResult } from './helpers/action-result';
 import { memoizeEntitlements } from '../src/lib/server/billing';
 import { actions, load } from '../src/routes/(app)/settings/+page.server';
 
@@ -41,29 +38,17 @@ function locals(userId: string) {
 	};
 }
 
-type ActionResult =
-	| { kind: 'redirect'; status: number; location: string }
-	| { kind: 'fail'; status: number; data: { section?: string; error?: string } }
-	| { kind: 'ok'; value: { section?: string; ok?: string } };
+type CategoryFormResult = ActionResult<{ section?: string; ok?: string }>;
 
-async function runAction(name: keyof typeof actions, userId: string, fields: Record<string, string>): Promise<ActionResult> {
+function runAction(name: keyof typeof actions, userId: string, fields: Record<string, string>): Promise<CategoryFormResult> {
 	const body = new FormData();
 	for (const [key, value] of Object.entries(fields)) body.append(key, value);
 	const request = new Request(`http://localhost/settings?/${name}`, { method: 'POST', body });
-	try {
-		const value = await (actions[name] as (e: unknown) => Promise<unknown>)({ request, locals: locals(userId) });
-		if (value && typeof value === 'object' && 'status' in value && 'data' in value) {
-			const v = value as { status: number; data: { section?: string; error?: string } };
-			return { kind: 'fail', status: v.status, data: v.data };
-		}
-		return { kind: 'ok', value: value as { section?: string; ok?: string } };
-	} catch (thrown) {
-		const t = thrown as { status?: number; location?: string };
-		if (typeof t.status === 'number' && typeof t.location === 'string') {
-			return { kind: 'redirect', status: t.status, location: t.location };
-		}
-		throw thrown;
-	}
+	return runFormAction(actions[name] as (e: unknown) => Promise<unknown>, { request, locals: locals(userId) });
+}
+
+function expectNotOwnerRejection(result: CategoryFormResult) {
+	expect(result).toMatchObject({ kind: 'fail', status: 403, data: { section: 'categorias', error: 'set.categories.err.notOwner' } });
 }
 
 async function loadCategories(userId: string) {
@@ -110,10 +95,9 @@ describe.skipIf(!hasDbEnv)('settings load exposes the restaurant\'s categories (
 });
 
 describe.skipIf(!hasDbEnv)('addCategory action (issue #881 part 3)', () => {
-	it('rejects a non-owner member with 403 set.categories.err.notOwner and adds nothing', async () => {
+	it('rejects a non-owner member and adds nothing', async () => {
 		const before = await loadCategories(ownerId);
-		const result = await runAction('addCategory', memberId, { name: 'Marketing' });
-		expect(result).toMatchObject({ kind: 'fail', status: 403, data: { section: 'categorias', error: 'set.categories.err.notOwner' } });
+		expectNotOwnerRejection(await runAction('addCategory', memberId, { name: 'Marketing' }));
 		expect(await loadCategories(ownerId)).toHaveLength(before.length);
 	});
 
@@ -145,10 +129,9 @@ describe.skipIf(!hasDbEnv)('addCategory action (issue #881 part 3)', () => {
 });
 
 describe.skipIf(!hasDbEnv)('renameCategory action (issue #881 part 3)', () => {
-	it('rejects a non-owner member with 403 set.categories.err.notOwner and renames nothing', async () => {
+	it('rejects a non-owner member and renames nothing', async () => {
 		const [target] = await loadCategories(ownerId);
-		const result = await runAction('renameCategory', memberId, { id: String(target.id), name: 'Hijacked' });
-		expect(result).toMatchObject({ kind: 'fail', status: 403, data: { section: 'categorias', error: 'set.categories.err.notOwner' } });
+		expectNotOwnerRejection(await runAction('renameCategory', memberId, { id: String(target.id), name: 'Hijacked' }));
 		expect((await loadCategories(ownerId)).find((c) => c.id === target.id)!.name).toBe(target.name);
 	});
 
@@ -177,12 +160,11 @@ describe.skipIf(!hasDbEnv)('renameCategory action (issue #881 part 3)', () => {
 });
 
 describe.skipIf(!hasDbEnv)('setCategoryHidden action (issue #881 part 3)', () => {
-	it('rejects a non-owner member with 403 set.categories.err.notOwner and hides nothing', async () => {
+	it('rejects a non-owner member and hides nothing', async () => {
 		const rows = await loadCategories(ownerId);
 		const target = rows.find((c) => c.name === 'Marketing & Ads')!;
 
-		const result = await runAction('setCategoryHidden', memberId, { id: String(target.id), hidden: '1' });
-		expect(result).toMatchObject({ kind: 'fail', status: 403, data: { section: 'categorias', error: 'set.categories.err.notOwner' } });
+		expectNotOwnerRejection(await runAction('setCategoryHidden', memberId, { id: String(target.id), hidden: '1' }));
 		expect((await loadCategories(ownerId)).find((c) => c.id === target.id)!.hidden).toBe(false);
 	});
 
