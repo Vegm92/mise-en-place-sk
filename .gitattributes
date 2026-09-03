@@ -1,0 +1,5 @@
+# drizzle-kit snapshots are machine-generated and must stay tracked:
+# `drizzle-kit migrate` (CI + Railway preDeployCommand) reads meta/_journal.json,
+# and `generate` diffs schema.ts against the latest snapshot. Collapse them in
+# PR diffs instead of deleting them.
+drizzle/meta/*.json linguist-generated=true -diff
