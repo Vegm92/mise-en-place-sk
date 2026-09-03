@@ -2,6 +2,8 @@
   import { page } from '$app/state';
   import { toggleTheme as flipTheme, currentTheme } from '$lib/theme';
   import { onMount, untrack } from 'svelte';
+  import { on } from 'svelte/events';
+  import { MediaQuery } from 'svelte/reactivity';
   import { browser } from '$app/environment';
   import { goto } from '$app/navigation';
   import CoachMark from '$lib/components/mep/CoachMark.svelte';
@@ -58,6 +60,7 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
 
   let sidebarCollapsed = $state(readStoredSidebarCollapsed() ?? untrack(() => data.sidebarCollapsed) ?? false);
   let sidebarHasInteracted = $state(false);
+  const desktopQuery = new MediaQuery('(min-width: 768px)');
   let isDesktop = $state(false);
   let locationOpen = $state(false);
   let locationRef: HTMLDivElement | undefined = $state();
@@ -79,8 +82,7 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
       const past = target.scrollTop > 12;
       if (past !== headerScrolled) headerScrolled = past;
     };
-    document.addEventListener('scroll', onScroll, true);
-    return () => document.removeEventListener('scroll', onScroll, true);
+    return on(document, 'scroll', onScroll, { capture: true });
   });
 
   $effect(() => {
@@ -114,8 +116,7 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
     const onDocClick = (e: MouseEvent) => {
       if (locationRef && !locationRef.contains(e.target as Node)) locationOpen = false;
     };
-    document.addEventListener('mousedown', onDocClick);
-    return () => document.removeEventListener('mousedown', onDocClick);
+    return on(document, 'mousedown', onDocClick);
   });
 
   $effect(() => {
@@ -124,11 +125,11 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
       if (accountRef && !accountRef.contains(e.target as Node)) accountOpen = false;
     };
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') accountOpen = false; };
-    document.addEventListener('mousedown', onDocClick);
-    document.addEventListener('keydown', onKey);
+    const offClick = on(document, 'mousedown', onDocClick);
+    const offKey = on(document, 'keydown', onKey);
     return () => {
-      document.removeEventListener('mousedown', onDocClick);
-      document.removeEventListener('keydown', onKey);
+      offClick();
+      offKey();
     };
   });
 
@@ -137,12 +138,7 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
   );
 
   $effect(() => {
-    if (!browser) return;
-    const mq = window.matchMedia('(min-width: 768px)');
-    isDesktop = mq.matches;
-    const onChange = () => (isDesktop = mq.matches);
-    mq.addEventListener('change', onChange);
-    return () => mq.removeEventListener('change', onChange);
+    isDesktop = desktopQuery.current;
   });
 
   const collapsed = $derived(isDesktop && sidebarCollapsed);
@@ -211,8 +207,7 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
     if (storedTheme && storedTheme !== theme) theme = storedTheme;
     initLocale();
     const close = () => { mobileOpen = false; };
-    document.addEventListener('sveltekit:navigation-start', close);
-    return () => document.removeEventListener('sveltekit:navigation-start', close);
+    return on(document, 'sveltekit:navigation-start', close);
   });
 
   function toggleTheme() {

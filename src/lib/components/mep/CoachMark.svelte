@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
+  import { on } from 'svelte/events';
   import { browser } from '$app/environment';
   import { t } from '$lib/i18n';
 
@@ -60,15 +61,16 @@
 
   onMount(() => {
     pollUntilReady();
-    window.addEventListener('resize', measure);
-    window.addEventListener('scroll', measure, true);
+    const offResize = on(window, 'resize', measure);
+    const offScroll = on(window, 'scroll', measure, { capture: true });
+    return () => {
+      offResize();
+      offScroll();
+    };
   });
 
   onDestroy(() => {
     if (pollTimer) clearTimeout(pollTimer);
-    if (!browser) return;
-    window.removeEventListener('resize', measure);
-    window.removeEventListener('scroll', measure, true);
   });
 
   const spotTop    = $derived(top - PAD);

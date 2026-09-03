@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
+  import { MediaQuery } from 'svelte/reactivity';
   import { goto, invalidateAll } from '$app/navigation';
   import { enhance } from '$app/forms';
   import type { PageData } from './$types';
@@ -719,13 +720,10 @@
   const previewSrc = $derived(review ? `/api/upload/${review.itemId}/${encodeURIComponent(review.filename)}` : '');
   const railWidth = $derived(queueOpen ? RAIL_OPEN_W : RAIL_SHUT_W);
 
+  const mobileQuery = new MediaQuery('(max-width: 900px)');
   let isMobile = $state(false);
   $effect(() => {
-    const mq = window.matchMedia('(max-width: 900px)');
-    isMobile = mq.matches;
-    const onChange = () => { isMobile = mq.matches; };
-    mq.addEventListener('change', onChange);
-    return () => mq.removeEventListener('change', onChange);
+    isMobile = mobileQuery.current;
   });
 
   let docStripOpen = $state(false);
