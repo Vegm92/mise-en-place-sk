@@ -2,9 +2,8 @@
   import type { PageData } from './$types';
   import { t, ti } from '$lib/i18n';
   import AdminPageHead from '$lib/components/admin/AdminPageHead.svelte';
-  import AdminKpiCard from '$lib/components/admin/AdminKpiCard.svelte';
   import AdminSystemBanner from '$lib/components/admin/AdminSystemBanner.svelte';
-  import SectionCard from '$lib/components/mep/SectionCard.svelte';
+  import HudPanel from '$lib/components/admin/HudPanel.svelte';
   import AdminTableScroll from '$lib/components/admin/AdminTableScroll.svelte';
   let { data }: { data: PageData } = $props();
 
@@ -71,7 +70,7 @@
 
 <AdminPageHead route="/admin" title={$t('admin.overview')} subtitle={$t('admin.overviewSubtitle')} />
 
-<div class="px-3 md:px-6" style="padding-bottom:24px;display:flex;flex-direction:column;gap:14px;">
+<div class="hud-page px-3 md:px-6 pb-6 flex flex-col gap-2.5">
 
   <AdminSystemBanner
     status={data.overall}
@@ -86,102 +85,110 @@
     </div>
   {/if}
 
-  <div>
-    <div class="label" style="margin-bottom:10px;">{$t('admin.last7days')}</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;">
-      <AdminKpiCard
-        label={$t('admin.invoicesSaved')}
-        value={fmt(data.invoices7d)}
-        sub={deltaPct === null
-          ? $ti('admin.prevPeriod', { n: data.invoicesPrev7d })
-          : $ti('admin.vsPrevPct', { pct: (deltaPct > 0 ? '+' : '') + deltaPct })}
-        valueColor={delta < 0 ? 'text-warn' : 'text-fg'} />
-      <AdminKpiCard label={$t('admin.activeRestaurants')} value={fmt(data.activeRestaurants7d)}
-        sub={$ti('admin.ofTotal', { n: data.totalRestaurants })} />
-      <AdminKpiCard label={$t('admin.pendingExtractions')} value={fmt(data.pendingExtractions)}
-        valueColor={data.pendingExtractions > 0 ? 'text-warn' : 'text-fg'} />
-    </div>
+  <div class="hud-grid hud-grid-2">
+    <HudPanel title={$t('admin.last7days')}>
+      <div class="hud-kpi-row">
+        <div class="hud-kpi">
+          <span class="hud-kpi-label">{$t('admin.invoicesSaved')}</span>
+          <span class="hud-kpi-value" class:warn={delta < 0}>{fmt(data.invoices7d)}</span>
+          <span style="font:500 10px/1.3 ui-monospace, monospace;color:#5b6472;">
+            {deltaPct === null
+              ? $ti('admin.prevPeriod', { n: data.invoicesPrev7d })
+              : $ti('admin.vsPrevPct', { pct: (deltaPct > 0 ? '+' : '') + deltaPct })}
+          </span>
+        </div>
+        <div class="hud-kpi">
+          <span class="hud-kpi-label">{$t('admin.activeRestaurants')}</span>
+          <span class="hud-kpi-value">{fmt(data.activeRestaurants7d)}</span>
+          <span style="font:500 10px/1.3 ui-monospace, monospace;color:#5b6472;">{$ti('admin.ofTotal', { n: data.totalRestaurants })}</span>
+        </div>
+        <div class="hud-kpi">
+          <span class="hud-kpi-label">{$t('admin.pendingExtractions')}</span>
+          <span class="hud-kpi-value" class:warn={data.pendingExtractions > 0}>{fmt(data.pendingExtractions)}</span>
+        </div>
+      </div>
+    </HudPanel>
+
+    <HudPanel title={$t('admin.allTimeTotals')}>
+      <div class="hud-kpi-row">
+        <div class="hud-kpi">
+          <span class="hud-kpi-label">{$t('admin.restaurants')}</span>
+          <span class="hud-kpi-value">{fmt(data.totalRestaurants)}</span>
+        </div>
+        <div class="hud-kpi">
+          <span class="hud-kpi-label">{$t('admin.invoices')}</span>
+          <span class="hud-kpi-value">{fmt(data.totalInvoices)}</span>
+        </div>
+        <div class="hud-kpi">
+          <span class="hud-kpi-label">{$t('admin.suppliers')}</span>
+          <span class="hud-kpi-value">{fmt(data.totalSuppliers)}</span>
+        </div>
+      </div>
+    </HudPanel>
   </div>
 
-  <div>
-    <div class="label" style="margin-bottom:10px;">{$t('admin.allTimeTotals')}</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;">
-      <AdminKpiCard label={$t('admin.restaurants')} value={fmt(data.totalRestaurants)} />
-      <AdminKpiCard label={$t('admin.invoices')} value={fmt(data.totalInvoices)} />
-      <AdminKpiCard label={$t('admin.suppliers')} value={fmt(data.totalSuppliers)} />
-    </div>
-  </div>
+  <div class="hud-grid hud-grid-2">
 
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(380px,100%),1fr));gap:14px;align-items:start;">
-
-    <SectionCard title={$t('admin.recentActivity')} noPad
-      href="/admin/events" actionLabel={$t('admin.viewAll')}>
+    <HudPanel title={$t('admin.recentActivity')}>
       <AdminTableScroll>
-        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <table class="hud-table">
           <tbody>
             {#each data.recentActivity as ev (ev.id)}
-              <tr style="border-bottom:1px solid var(--mep-divider);">
-                <td style="padding:9px 16px;min-width:0;">
+              <tr>
+                <td>
                   <div style="display:flex;align-items:center;gap:8px;">
-                    <span class="num" style="
-                      font-size:11px;padding:2px 6px;border-radius:4px;flex-shrink:0;
-                      background:var(--mep-acc-soft);color:var(--mep-acc);
-                      text-transform:uppercase;letter-spacing:0.04em;
-                    ">{ev.notification_type.replace(/_/g, ' ')}</span>
+                    <span style="font-size:10px;padding:2px 6px;border-radius:4px;flex-shrink:0;background:rgba(56,189,248,0.12);color:#38bdf8;text-transform:uppercase;letter-spacing:0.04em;">
+                      {ev.notification_type.replace(/_/g, ' ')}
+                    </span>
                     {#if ev.restaurant_name}
-                      <span style="font-size:11.5px;color:var(--mep-fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                      <span style="font-size:11px;color:#5b6472;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                         {ev.restaurant_name}
                       </span>
                     {/if}
                   </div>
-                  <div style="font-size:12px;color:var(--mep-fg-2);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                  <div style="font-size:11.5px;color:#e7edf5;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
                     {ev.message}
                   </div>
                 </td>
-                <td style="padding:9px 16px;text-align:right;color:var(--mep-fg-3);font-size:11.5px;white-space:nowrap;vertical-align:top;">
-                  {relative(ev.created_at)}
-                </td>
+                <td class="r dim nowrap">{relative(ev.created_at)}</td>
               </tr>
             {:else}
-              <tr>
-                <td colspan="2" style="padding:24px 16px;text-align:center;color:var(--mep-fg-4);">{$t('admin.noActivity')}</td>
-              </tr>
+              <tr><td colspan="2" class="empty">{$t('admin.noActivity')}</td></tr>
             {/each}
           </tbody>
         </table>
       </AdminTableScroll>
-    </SectionCard>
+      <div style="padding:8px 12px;border-top:1px solid rgba(255,255,255,0.08);text-align:right;">
+        <a href="/admin/events" style="font-size:11px;color:#38bdf8;text-decoration:none;">{$t('admin.viewAll')}</a>
+      </div>
+    </HudPanel>
 
-    <SectionCard title={$t('admin.recentRestaurants')} noPad>
+    <HudPanel title={$t('admin.recentRestaurants')}>
       <AdminTableScroll>
-        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <table class="hud-table">
           <thead>
-            <tr style="border-bottom:1px solid var(--mep-divider);">
-              <th scope="col" style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colName')}</th>
-              <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.invoices')}</th>
-              <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.suppliers')}</th>
-              <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colCreated')}</th>
+            <tr>
+              <th scope="col" class="l">{$t('admin.colName')}</th>
+              <th scope="col" class="r">{$t('admin.invoices')}</th>
+              <th scope="col" class="r">{$t('admin.suppliers')}</th>
+              <th scope="col" class="r">{$t('admin.colCreated')}</th>
             </tr>
           </thead>
           <tbody>
             {#each data.recentRestaurants as r}
-              <tr style="border-bottom:1px solid var(--mep-divider);">
-                <td style="padding:9px 16px;font-weight:500;color:var(--mep-fg);">{r.name}</td>
-                <td style="padding:9px 16px;text-align:right;color:var(--mep-fg-2);" class="num">{fmt(Number(r.invoice_count))}</td>
-                <td style="padding:9px 16px;text-align:right;color:var(--mep-fg-2);" class="num">{fmt(Number(r.supplier_count))}</td>
-                <td style="padding:9px 16px;text-align:right;color:var(--mep-fg-3);font-size:12px;">
-                  {new Date(r.created_at).toLocaleDateString('en-GB')}
-                </td>
+              <tr>
+                <td>{r.name}</td>
+                <td class="num r dim">{fmt(Number(r.invoice_count))}</td>
+                <td class="num r dim">{fmt(Number(r.supplier_count))}</td>
+                <td class="num r dim nowrap">{new Date(r.created_at).toLocaleDateString('en-GB')}</td>
               </tr>
             {:else}
-              <tr>
-                <td colspan="4" style="padding:24px 16px;text-align:center;color:var(--mep-fg-4);">{$t('admin.noRestaurants')}</td>
-              </tr>
+              <tr><td colspan="4" class="empty">{$t('admin.noRestaurants')}</td></tr>
             {/each}
           </tbody>
         </table>
       </AdminTableScroll>
-    </SectionCard>
+    </HudPanel>
 
   </div>
 

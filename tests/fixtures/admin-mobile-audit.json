@@ -1,14 +1,14 @@
 {
-  "generatedAt": "2026-08-31T15:46:07.179Z",
-  "base": "http://127.0.0.1:5207",
+  "generatedAt": "2026-09-02T22:04:01.025Z",
+  "base": "http://127.0.0.1:5209",
   "viewport": {
     "width": 390,
     "height": 844
   },
-  "tag": "after",
+  "tag": "final",
   "totals": {
-    "routes": 8,
-    "tables": 26,
+    "routes": 9,
+    "tables": 27,
     "clipped": 0
   },
   "routes": [
@@ -17,53 +17,53 @@
       "tables": [
         {
           "index": 0,
-          "label": "Actividad reciente",
+          "label": "",
           "columns": 2,
-          "renderedWidth": 677.4,
+          "renderedWidth": 647,
           "containerWidth": 364,
-          "overflowPx": 313.4,
+          "overflowPx": 283,
           "containerKind": "scroller",
           "scrollable": true,
           "clipped": false
         },
         {
           "index": 1,
-          "label": "Restaurantes recientes",
+          "label": "Nombre / Albaranes / Proveedores / Creado",
           "columns": 4,
-          "renderedWidth": 464.3,
+          "renderedWidth": 364,
           "containerWidth": 364,
-          "overflowPx": 100.3,
+          "overflowPx": 0,
           "containerKind": "scroller",
-          "scrollable": true,
+          "scrollable": false,
           "clipped": false
         }
       ],
       "tableCount": 2,
       "clippedCount": 0,
       "documentOverflowPx": 0,
-      "screenshot": "shots/after-390-admin.png"
+      "screenshot": "..\\..\\..\\AppData\\Local\\Temp\\admin-audit-shots\\final-390-admin.png"
     },
     {
       "route": "/admin/access",
       "tables": [
         {
           "index": 0,
-          "label": "Cuentas",
+          "label": "Email / Estado / Alta / Acción",
           "columns": 4,
-          "renderedWidth": 594.4,
+          "renderedWidth": 494,
           "containerWidth": 364,
-          "overflowPx": 230.4,
+          "overflowPx": 130,
           "containerKind": "scroller",
           "scrollable": true,
           "clipped": false
         },
         {
           "index": 1,
-          "label": "Lista de espera sin cuenta",
+          "label": "Email / Se apuntó / Acción",
           "columns": 3,
-          "renderedWidth": 448.1,
+          "renderedWidth": 385.5,
           "containerWidth": 364,
-          "overflowPx": 84.1,
+          "overflowPx": 21.5,
           "containerKind": "scroller",
           "scrollable": true,
           "clipped": false
@@ -72,278 +72,13 @@
       "tableCount": 2,
       "clippedCount": 0,
       "documentOverflowPx": 0,
-      "screenshot": "shots/after-390-admin_access.png"
+      "screenshot": "..\\..\\..\\AppData\\Local\\Temp\\admin-audit-shots\\final-390-admin_access.png"
     },
     {
       "route": "/admin/revenue",
       "tables": [
         {
           "index": 0,
-          "label": "Movimiento de MRR · 2026-07 → 2026-08",
-          "columns": 2,
-          "renderedWidth": 364,
-          "containerWidth": 364,
-          "overflowPx": 0,
-          "containerKind": "scroller",
-          "scrollable": false,
-          "clipped": false
-        },
-        {
-          "index": 1,
-          "label": "Histórico de MRR",
-          "columns": 4,
-          "renderedWidth": 364,
-          "containerWidth": 364,
-          "overflowPx": 0,
-          "containerKind": "scroller",
-          "scrollable": false,
-          "clipped": false
-        },
-        {
-          "index": 2,
-          "label": "Cohortes de contratación",
-          "columns": 6,
-          "renderedWidth": 503.6,
-          "containerWidth": 364,
-          "overflowPx": 139.6,
-          "containerKind": "scroller",
-          "scrollable": true,
-          "clipped": false
-        },
-        {
-          "index": 3,
-          "label": "Embudo comercial",
-          "columns": 3,
-          "renderedWidth": 364,
-          "containerWidth": 364,
-          "overflowPx": 0,
-          "containerKind": "scroller",
-          "scrollable": false,
-          "clipped": false
-        },
-        {
-          "index": 4,
-          "label": "Fuga de ingresos",
-          "columns": 3,
-          "renderedWidth": 364,
-          "containerWidth": 364,
-          "overflowPx": 0,
-          "containerKind": "scroller",
-          "scrollable": false,
-          "clipped": false
-        },
-        {
-          "index": 5,
-          "label": "Inversión en captación",
-          "columns": 5,
-          "renderedWidth": 453,
-          "containerWidth": 364,
-          "overflowPx": 89,
-          "containerKind": "scroller",
-          "scrollable": true,
-          "clipped": false
-        }
-      ],
-      "tableCount": 6,
-      "clippedCount": 0,
-      "documentOverflowPx": 0,
-      "screenshot": "shots/after-390-admin_revenue.png"
-    },
-    {
-      "route": "/admin/events",
-      "tables": [
-        {
-          "index": 0,
-          "label": "Eventos",
-          "columns": 5,
-          "renderedWidth": 903,
-          "containerWidth": 364,
-          "overflowPx": 539,
-          "containerKind": "scroller",
-          "scrollable": true,
-          "clipped": false
-        }
-      ],
-      "tableCount": 1,
-      "clippedCount": 0,
-      "documentOverflowPx": 0,
-      "screenshot": "shots/after-390-admin_events.png"
-    },
-    {
-      "route": "/admin/dead-letters",
-      "tables": [
-        {
-          "index": 0,
-          "label": "Cola de fallos",
-          "columns": 7,
-          "renderedWidth": 1168.3,
-          "containerWidth": 364,
-          "overflowPx": 804.3,
-          "containerKind": "scroller",
-          "scrollable": true,
-          "clipped": false
-        }
-      ],
-      "tableCount": 1,
-      "clippedCount": 0,
-      "documentOverflowPx": 0,
-      "screenshot": "shots/after-390-admin_dead-letters.png"
-    },
-    {
-      "route": "/admin/errors",
-      "tables": [
-        {
-          "index": 0,
-          "label": "Issues sin resolver",
-          "columns": 5,
-          "renderedWidth": 620.9,
-          "containerWidth": 364,
-          "overflowPx": 256.9,
-          "containerKind": "scroller",
-          "scrollable": true,
-          "clipped": false
-        }
-      ],
-      "tableCount": 1,
-      "clippedCount": 0,
-      "documentOverflowPx": 0,
-      "screenshot": "shots/after-390-admin_errors.png"
-    },
-    {
-      "route": "/admin/learning",
-      "tables": [
-        {
-          "index": 0,
-          "label": "Correcciones por campo Qué campos falla más el modelo, y con",
-          "columns": 3,
-          "renderedWidth": 364,
-          "containerWidth": 364,
-          "overflowPx": 0,
-          "containerKind": "scroller",
-          "scrollable": false,
-          "clipped": false
-        },
-        {
-          "index": 1,
-          "label": "Correcciones por proveedor",
-          "columns": 3,
-          "renderedWidth": 386.3,
-          "containerWidth": 364,
-          "overflowPx": 22.3,
-          "containerKind": "scroller",
-          "scrollable": true,
-          "clipped": false
-        },
-        {
-          "index": 2,
-          "label": "Tasa de corrección por restaurante",
-          "columns": 4,
-          "renderedWidth": 435.5,
-          "containerWidth": 364,
-          "overflowPx": 71.5,
-          "containerKind": "scroller",
-          "scrollable": true,
-          "clipped": false
-        },
-        {
-          "index": 3,
-          "label": "Tendencia semanal",
-          "columns": 3,
-          "renderedWidth": 364,
-          "containerWidth": 364,
-          "overflowPx": 0,
-          "containerKind": "scroller",
-          "scrollable": false,
-          "clipped": false
-        },
-        {
-          "index": 4,
-          "label": "Correcciones por versión de prompt Corpus de evaluación de e",
-          "columns": 8,
-          "renderedWidth": 864.1,
-          "containerWidth": 364,
-          "overflowPx": 500.1,
-          "containerKind": "scroller",
-          "scrollable": true,
-          "clipped": false
-        },
-        {
-          "index": 5,
-          "label": "Matching de productos Alias creados por origen: automáticos ",
-          "columns": 3,
-          "renderedWidth": 364,
-          "containerWidth": 364,
-          "overflowPx": 0,
-          "containerKind": "scroller",
-          "scrollable": false,
-          "clipped": false
-        },
-        {
-          "index": 6,
-          "label": "Auto-merges difusos: resultado De cada coincidencia difusa a",
-          "columns": 5,
-          "renderedWidth": 545.5,
-          "containerWidth": 364,
-          "overflowPx": 181.5,
-          "containerKind": "scroller",
-          "scrollable": true,
-          "clipped": false
-        },
-        {
-          "index": 7,
-          "label": "Auto-merges difusos pendientes de revisión",
-          "columns": 4,
-          "renderedWidth": 471.8,
-          "containerWidth": 364,
-          "overflowPx": 107.8,
-          "containerKind": "scroller",
-          "scrollable": true,
-          "clipped": false
-        }
-      ],
-      "tableCount": 8,
-      "clippedCount": 0,
-      "documentOverflowPx": 0,
-      "screenshot": "shots/after-390-admin_learning.png"
-    },
-    {
-      "route": "/admin/health",
-      "tables": [
-        {
-          "index": 0,
-          "label": "Comprobaciones",
-          "columns": 3,
-          "renderedWidth": 508.6,
-          "containerWidth": 364,
-          "overflowPx": 144.6,
-          "containerKind": "scroller",
-          "scrollable": true,
-          "clipped": false
-        },
-        {
-          "index": 1,
-          "label": "Extracciones atascadas En cola o extrayendo desde hace más d",
-          "columns": 5,
-          "renderedWidth": 683,
-          "containerWidth": 364,
-          "overflowPx": 319,
-          "containerKind": "scroller",
-          "scrollable": true,
-          "clipped": false
-        },
-        {
-          "index": 2,
-          "label": "Cuándo / Evento / Gravedad / Calidad",
-          "columns": 4,
-          "renderedWidth": 692.9,
-          "containerWidth": 364,
-          "overflowPx": 328.9,
-          "containerKind": "scroller",
-          "scrollable": true,
-          "clipped": false
-        },
-        {
-          "index": 3,
           "label": "",
           "columns": 2,
           "renderedWidth": 364,
@@ -354,8 +89,273 @@
           "clipped": false
         },
         {
+          "index": 1,
+          "label": "Mes / MRR / Clientes / Origen",
+          "columns": 4,
+          "renderedWidth": 364,
+          "containerWidth": 364,
+          "overflowPx": 0,
+          "containerKind": "scroller",
+          "scrollable": false,
+          "clipped": false
+        },
+        {
+          "index": 2,
+          "label": "Cohorte / Clientes / MRR inicial / Mes +3 / Mes +6 / Mes +12",
+          "columns": 6,
+          "renderedWidth": 383,
+          "containerWidth": 364,
+          "overflowPx": 19,
+          "containerKind": "scroller",
+          "scrollable": true,
+          "clipped": false
+        },
+        {
+          "index": 3,
+          "label": "",
+          "columns": 3,
+          "renderedWidth": 364,
+          "containerWidth": 364,
+          "overflowPx": 0,
+          "containerKind": "scroller",
+          "scrollable": false,
+          "clipped": false
+        },
+        {
           "index": 4,
-          "label": "Recuento de filas por tabla",
+          "label": "Punto de fuga / Casos / Impacto mensual",
+          "columns": 3,
+          "renderedWidth": 364,
+          "containerWidth": 364,
+          "overflowPx": 0,
+          "containerKind": "scroller",
+          "scrollable": false,
+          "clipped": false
+        },
+        {
+          "index": 5,
+          "label": "Mes / Categoría / Importe / Nota / ",
+          "columns": 5,
+          "renderedWidth": 369.7,
+          "containerWidth": 364,
+          "overflowPx": 5.7,
+          "containerKind": "scroller",
+          "scrollable": true,
+          "clipped": false
+        }
+      ],
+      "tableCount": 6,
+      "clippedCount": 0,
+      "documentOverflowPx": 0,
+      "screenshot": "..\\..\\..\\AppData\\Local\\Temp\\admin-audit-shots\\final-390-admin_revenue.png"
+    },
+    {
+      "route": "/admin/events",
+      "tables": [
+        {
+          "index": 0,
+          "label": "Tipo / Mensaje / Restaurante / Estado / Fecha",
+          "columns": 5,
+          "renderedWidth": 794.1,
+          "containerWidth": 364,
+          "overflowPx": 430.1,
+          "containerKind": "scroller",
+          "scrollable": true,
+          "clipped": false
+        }
+      ],
+      "tableCount": 1,
+      "clippedCount": 0,
+      "documentOverflowPx": 0,
+      "screenshot": "..\\..\\..\\AppData\\Local\\Temp\\admin-audit-shots\\final-390-admin_events.png"
+    },
+    {
+      "route": "/admin/dead-letters",
+      "tables": [
+        {
+          "index": 0,
+          "label": "Cola / Error / Restaurante / Veces / Estado / Último / Accio",
+          "columns": 7,
+          "renderedWidth": 1038.2,
+          "containerWidth": 364,
+          "overflowPx": 674.2,
+          "containerKind": "scroller",
+          "scrollable": true,
+          "clipped": false
+        }
+      ],
+      "tableCount": 1,
+      "clippedCount": 0,
+      "documentOverflowPx": 0,
+      "screenshot": "..\\..\\..\\AppData\\Local\\Temp\\admin-audit-shots\\final-390-admin_dead-letters.png"
+    },
+    {
+      "route": "/admin/errors",
+      "tables": [
+        {
+          "index": 0,
+          "label": "Issue / Nivel / Eventos / Usuarios / Última vez",
+          "columns": 5,
+          "renderedWidth": 626.5,
+          "containerWidth": 364,
+          "overflowPx": 262.5,
+          "containerKind": "scroller",
+          "scrollable": true,
+          "clipped": false
+        }
+      ],
+      "tableCount": 1,
+      "clippedCount": 0,
+      "documentOverflowPx": 0,
+      "screenshot": "..\\..\\..\\AppData\\Local\\Temp\\admin-audit-shots\\final-390-admin_errors.png"
+    },
+    {
+      "route": "/admin/learning",
+      "tables": [
+        {
+          "index": 0,
+          "label": "Campo / Correcciones / Confianza media",
+          "columns": 3,
+          "renderedWidth": 364,
+          "containerWidth": 364,
+          "overflowPx": 0,
+          "containerKind": "scroller",
+          "scrollable": false,
+          "clipped": false
+        },
+        {
+          "index": 1,
+          "label": "Proveedor / Restaurante / Correcciones",
+          "columns": 3,
+          "renderedWidth": 364,
+          "containerWidth": 364,
+          "overflowPx": 0,
+          "containerKind": "scroller",
+          "scrollable": false,
+          "clipped": false
+        },
+        {
+          "index": 2,
+          "label": "Restaurante / Correcciones / Facturas / Tasa",
+          "columns": 4,
+          "renderedWidth": 364,
+          "containerWidth": 364,
+          "overflowPx": 0,
+          "containerKind": "scroller",
+          "scrollable": false,
+          "clipped": false
+        },
+        {
+          "index": 3,
+          "label": "Versión de prompt / Documentos / Confianza media / Descuadre",
+          "columns": 8,
+          "renderedWidth": 720.4,
+          "containerWidth": 364,
+          "overflowPx": 356.4,
+          "containerKind": "scroller",
+          "scrollable": true,
+          "clipped": false
+        },
+        {
+          "index": 4,
+          "label": "Semana / Correcciones / ",
+          "columns": 3,
+          "renderedWidth": 364,
+          "containerWidth": 364,
+          "overflowPx": 0,
+          "containerKind": "scroller",
+          "scrollable": false,
+          "clipped": false
+        },
+        {
+          "index": 5,
+          "label": "Origen / Total / Pendientes",
+          "columns": 3,
+          "renderedWidth": 364,
+          "containerWidth": 364,
+          "overflowPx": 0,
+          "containerKind": "scroller",
+          "scrollable": false,
+          "clipped": false
+        },
+        {
+          "index": 6,
+          "label": "Total / Confirmados / Rechazados / Precisión",
+          "columns": 4,
+          "renderedWidth": 364,
+          "containerWidth": 364,
+          "overflowPx": 0,
+          "containerKind": "scroller",
+          "scrollable": false,
+          "clipped": false
+        },
+        {
+          "index": 7,
+          "label": "Restaurante / Producto sugerido / Texto original / Creado",
+          "columns": 4,
+          "renderedWidth": 439.1,
+          "containerWidth": 364,
+          "overflowPx": 75.1,
+          "containerKind": "scroller",
+          "scrollable": true,
+          "clipped": false
+        }
+      ],
+      "tableCount": 8,
+      "clippedCount": 0,
+      "documentOverflowPx": 0,
+      "screenshot": "..\\..\\..\\AppData\\Local\\Temp\\admin-audit-shots\\final-390-admin_learning.png"
+    },
+    {
+      "route": "/admin/health",
+      "tables": [
+        {
+          "index": 0,
+          "label": "Comprobación / Estado / Detalle",
+          "columns": 3,
+          "renderedWidth": 413.1,
+          "containerWidth": 364,
+          "overflowPx": 49.1,
+          "containerKind": "scroller",
+          "scrollable": true,
+          "clipped": false
+        },
+        {
+          "index": 1,
+          "label": "Restaurante / Archivo / Estado / Atascado desde / Acciones",
+          "columns": 5,
+          "renderedWidth": 569.7,
+          "containerWidth": 364,
+          "overflowPx": 205.7,
+          "containerKind": "scroller",
+          "scrollable": true,
+          "clipped": false
+        },
+        {
+          "index": 2,
+          "label": "Cuándo / Evento / Gravedad / Calidad",
+          "columns": 4,
+          "renderedWidth": 567.7,
+          "containerWidth": 340,
+          "overflowPx": 227.7,
+          "containerKind": "scroller",
+          "scrollable": true,
+          "clipped": false
+        },
+        {
+          "index": 3,
+          "label": "",
+          "columns": 2,
+          "renderedWidth": 340,
+          "containerWidth": 340,
+          "overflowPx": 0,
+          "containerKind": "scroller",
+          "scrollable": false,
+          "clipped": false
+        },
+        {
+          "index": 4,
+          "label": "Tabla / Filas (aprox.)",
           "columns": 2,
           "renderedWidth": 364,
           "containerWidth": 364,
@@ -368,7 +368,27 @@
       "tableCount": 5,
       "clippedCount": 0,
       "documentOverflowPx": 0,
-      "screenshot": "shots/after-390-admin_health.png"
+      "screenshot": "..\\..\\..\\AppData\\Local\\Temp\\admin-audit-shots\\final-390-admin_health.png"
+    },
+    {
+      "route": "/admin/feature-flags",
+      "tables": [
+        {
+          "index": 0,
+          "label": "Nombre / Estado / Acciones",
+          "columns": 3,
+          "renderedWidth": 364,
+          "containerWidth": 364,
+          "overflowPx": 0,
+          "containerKind": "scroller",
+          "scrollable": false,
+          "clipped": false
+        }
+      ],
+      "tableCount": 1,
+      "clippedCount": 0,
+      "documentOverflowPx": 0,
+      "screenshot": "..\\..\\..\\AppData\\Local\\Temp\\admin-audit-shots\\final-390-admin_feature-flags.png"
     }
   ]
 }

@@ -12,9 +12,7 @@
     type Health,
   } from '$lib/revenue-math';
   import AdminPageHead from '$lib/components/admin/AdminPageHead.svelte';
-  import AdminKpiCard from '$lib/components/admin/AdminKpiCard.svelte';
-  import SectionCard from '$lib/components/mep/SectionCard.svelte';
-  import InfoTooltip from '$lib/components/mep/InfoTooltip.svelte';
+  import HudPanel from '$lib/components/admin/HudPanel.svelte';
   import AdminTableScroll from '$lib/components/admin/AdminTableScroll.svelte';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -68,17 +66,17 @@
   {/snippet}
 </AdminPageHead>
 
-<div class="px-3 md:px-6 pb-6 flex flex-col gap-3.5">
+<div class="hud-page px-3 md:px-6 pb-6 flex flex-col gap-2.5">
 
   {#if form && 'error' in form && typeof form.error === 'string'}
-    <div class="card py-2.5 px-3.5 border-neg text-neg text-[13px]">{$t(form.error)}</div>
+    <div style="background:#0a0c11;border:1px solid rgba(248,113,113,0.35);border-radius:10px;padding:10px 14px;color:#f87171;font-size:13px;">{$t(form.error)}</div>
   {/if}
 
-  <div class="card py-3.5 px-4 flex gap-3.5 items-center flex-wrap">
-    <div class="text-xs text-fg-2">
+  <div style="background:#0a0c11;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px 16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
+    <div style="font-size:11.5px;color:#5b6472;">
       {$ti('admin.rev.dataState', { months: o.snapshotMonths, estimated: o.estimatedMonths })}
     </div>
-    <span class="flex-1"></span>
+    <span style="flex:1;"></span>
     <form method="POST" action="?/snapshot">
       <button type="submit" class="btn bg-fg text-bg">
         {$t('admin.rev.captureNow')}
@@ -91,177 +89,221 @@
     </form>
   </div>
 
-  <div>
-    <div class="label mb-2.5 flex items-center gap-[5px]">
-      {$t('admin.rev.section.recurring')}
-      <InfoTooltip text={$t('admin.rev.section.recurring.info')} />
+  <HudPanel title={$t('admin.rev.section.recurring')} sub={$t('admin.rev.section.recurring.info')}>
+    <div class="hud-kpi-row">
+      <div class="hud-kpi">
+        <span class="hud-kpi-label">{$t('admin.rev.mrr')}</span>
+        <span class="hud-kpi-value">{eur(o.mrrCents)}</span>
+      </div>
+      <div class="hud-kpi">
+        <span class="hud-kpi-label">{$t('admin.rev.arr')}</span>
+        <span class="hud-kpi-value">{eur(o.arrCents)}</span>
+      </div>
+      <div class="hud-kpi">
+        <span class="hud-kpi-label">{$t('admin.rev.payingCustomers')}</span>
+        <span class="hud-kpi-value">{o.payingCustomers}</span>
+        <span style="font:500 10px/1.3 ui-monospace, monospace;color:#5b6472;">{$ti('admin.rev.trialsSub', { n: o.trialCustomers })}</span>
+      </div>
+      <div class="hud-kpi">
+        <span class="hud-kpi-label">{$t('admin.rev.arpa')}</span>
+        <span class="hud-kpi-value">{eur2(o.arpaCents)}</span>
+      </div>
+      <div class="hud-kpi">
+        <span class="hud-kpi-label">{$t('admin.rev.acv')}</span>
+        <span class="hud-kpi-value">{eur(o.acvCents)}</span>
+      </div>
+      <div class="hud-kpi">
+        <span class="hud-kpi-label">{$t('admin.rev.atRisk')}</span>
+        <span class="hud-kpi-value" class:bad={o.atRiskMrrCents > 0}>{eur(o.atRiskMrrCents)}</span>
+        <span style="font:500 10px/1.3 ui-monospace, monospace;color:#5b6472;">{$ti('admin.rev.atRiskSub', { n: o.atRiskCustomers })}</span>
+      </div>
     </div>
-    <div class="grid gap-2.5 grid-cols-[repeat(auto-fill,minmax(170px,1fr))]">
-      <AdminKpiCard label={$t('admin.rev.mrr')} value={eur(o.mrrCents)} info={$t('admin.rev.mrr.info')} />
-      <AdminKpiCard label={$t('admin.rev.arr')} value={eur(o.arrCents)} info={$t('admin.rev.arr.info')} />
-      <AdminKpiCard label={$t('admin.rev.payingCustomers')} value={o.payingCustomers} sub={$ti('admin.rev.trialsSub', { n: o.trialCustomers })} info={$t('admin.rev.payingCustomers.info')} />
-      <AdminKpiCard label={$t('admin.rev.arpa')} value={eur2(o.arpaCents)} info={$t('admin.rev.arpa.info')} />
-      <AdminKpiCard label={$t('admin.rev.acv')} value={eur(o.acvCents)} info={$t('admin.rev.acv.info')} />
-      <AdminKpiCard label={$t('admin.rev.atRisk')} value={eur(o.atRiskMrrCents)}
-        valueColor={o.atRiskMrrCents > 0 ? 'text-neg' : 'text-fg'}
-        sub={$ti('admin.rev.atRiskSub', { n: o.atRiskCustomers })} info={$t('admin.rev.atRisk.info')} />
-    </div>
-  </div>
+  </HudPanel>
 
-  <div>
-    <div class="label mb-2.5 flex items-center gap-[5px]">
-      {$t('admin.rev.section.unitEconomics')}
-      <InfoTooltip text={$t('admin.rev.section.unitEconomics.info')} />
+  <HudPanel title={$t('admin.rev.section.unitEconomics')} sub={$t('admin.rev.section.unitEconomics.info')}>
+    <div class="hud-kpi-row">
+      <div class="hud-kpi">
+        <span class="hud-kpi-label">{$t('admin.rev.cac')}</span>
+        <span class="hud-kpi-value">{o.cacCents === null ? '—' : eur2(o.cacCents)}</span>
+        <span style="font:500 10px/1.3 ui-monospace, monospace;color:#5b6472;">
+          {$ti('admin.rev.cacBasis', { spend: eur(o.cacSpendCents), n: o.cacNewCustomers, from: o.cacWindowFrom, to: o.cacWindowTo })}
+        </span>
+      </div>
+      <div class="hud-kpi">
+        <span class="hud-kpi-label">{$t('admin.rev.ltv')}</span>
+        <span class="hud-kpi-value">{eur(o.ltvCents)}</span>
+        <span style="font:500 10px/1.3 ui-monospace, monospace;color:#5b6472;">
+          {$ti('admin.rev.ltvBasis', { months: months(o.lifetimeMonths), margin: o.assumptions.grossMarginPct })}
+        </span>
+      </div>
+      <div class="hud-kpi">
+        <span class="hud-kpi-label">{$t('admin.rev.ltvCac')}</span>
+        <span class="hud-kpi-value"
+          class:good={ratioHealth(o.ltvCacRatio) === 'good'}
+          class:warn={ratioHealth(o.ltvCacRatio) === 'warn'}
+          class:bad={ratioHealth(o.ltvCacRatio) === 'bad'}>
+          {o.ltvCacRatio === null ? '—' : num(o.ltvCacRatio, 1) + '×'}
+        </span>
+        <span style="font:500 10px/1.3 ui-monospace, monospace;color:#5b6472;">{$ti('admin.rev.target', { n: HEALTHY_LTV_CAC_RATIO })}</span>
+      </div>
+      <div class="hud-kpi">
+        <span class="hud-kpi-label">{$t('admin.rev.payback')}</span>
+        <span class="hud-kpi-value"
+          class:good={paybackHealth(o.paybackMonths) === 'good'}
+          class:warn={paybackHealth(o.paybackMonths) === 'warn'}
+          class:bad={paybackHealth(o.paybackMonths) === 'bad'}>
+          {months(o.paybackMonths)}
+        </span>
+        <span style="font:500 10px/1.3 ui-monospace, monospace;color:#5b6472;">{$t('admin.rev.monthsUnit')}</span>
+      </div>
     </div>
-    <div class="grid gap-2.5 grid-cols-[repeat(auto-fill,minmax(200px,1fr))]">
-      <AdminKpiCard label={$t('admin.rev.cac')} value={o.cacCents === null ? '—' : eur2(o.cacCents)}
-        sub={$ti('admin.rev.cacBasis', { spend: eur(o.cacSpendCents), n: o.cacNewCustomers, from: o.cacWindowFrom, to: o.cacWindowTo })}
-        info={$t('admin.rev.cac.info')} />
-      <AdminKpiCard label={$t('admin.rev.ltv')} value={eur(o.ltvCents)}
-        sub={$ti('admin.rev.ltvBasis', { months: months(o.lifetimeMonths), margin: o.assumptions.grossMarginPct })}
-        info={$t('admin.rev.ltv.info')} />
-      <AdminKpiCard label={$t('admin.rev.ltvCac')} value={o.ltvCacRatio === null ? '—' : num(o.ltvCacRatio, 1) + '×'}
-        valueColor={HEALTH_CLASS[ratioHealth(o.ltvCacRatio)]}
-        sub={$ti('admin.rev.target', { n: HEALTHY_LTV_CAC_RATIO })}
-        info={$t('admin.rev.ltvCac.info')} />
-      <AdminKpiCard label={$t('admin.rev.payback')} value={months(o.paybackMonths)}
-        valueColor={HEALTH_CLASS[paybackHealth(o.paybackMonths)]}
-        sub={$t('admin.rev.monthsUnit')}
-        info={$t('admin.rev.payback.info')} />
-    </div>
-  </div>
+  </HudPanel>
 
-  <div>
-    <div class="label mb-2.5 flex items-center gap-[5px]">
-      {$t('admin.rev.section.retention')}
-      <InfoTooltip text={$t('admin.rev.section.retention.info')} />
+  <HudPanel title={$t('admin.rev.section.retention')} sub={$t('admin.rev.section.retention.info')}>
+    <div class="hud-kpi-row">
+      <div class="hud-kpi">
+        <span class="hud-kpi-label">{$t('admin.rev.nrrAnnual')}</span>
+        <span class="hud-kpi-value"
+          class:good={retentionHealth(o.nrrAnnual) === 'good'}
+          class:warn={retentionHealth(o.nrrAnnual) === 'warn'}
+          class:bad={retentionHealth(o.nrrAnnual) === 'bad'}>{pct(o.nrrAnnual)}</span>
+      </div>
+      <div class="hud-kpi">
+        <span class="hud-kpi-label">{$t('admin.rev.nrrMonthly')}</span>
+        <span class="hud-kpi-value"
+          class:good={retentionHealth(o.nrrMonthly) === 'good'}
+          class:warn={retentionHealth(o.nrrMonthly) === 'warn'}
+          class:bad={retentionHealth(o.nrrMonthly) === 'bad'}>{pct(o.nrrMonthly)}</span>
+      </div>
+      <div class="hud-kpi">
+        <span class="hud-kpi-label">{$t('admin.rev.grr')}</span>
+        <span class="hud-kpi-value">{pct(o.grrMonthly)}</span>
+      </div>
+      <div class="hud-kpi">
+        <span class="hud-kpi-label">{$t('admin.rev.logoChurn')}</span>
+        <span class="hud-kpi-value"
+          class:good={churnHealth(o.logoChurn) === 'good'}
+          class:warn={churnHealth(o.logoChurn) === 'warn'}
+          class:bad={churnHealth(o.logoChurn) === 'bad'}>{pct(o.logoChurn)}</span>
+      </div>
+      <div class="hud-kpi">
+        <span class="hud-kpi-label">{$t('admin.rev.revenueChurn')}</span>
+        <span class="hud-kpi-value"
+          class:good={churnHealth(o.revenueChurn) === 'good'}
+          class:warn={churnHealth(o.revenueChurn) === 'warn'}
+          class:bad={churnHealth(o.revenueChurn) === 'bad'}>{pct(o.revenueChurn)}</span>
+      </div>
+      <div class="hud-kpi">
+        <span class="hud-kpi-label">{$t('admin.rev.avgChurn')}</span>
+        <span class="hud-kpi-value">{pct(o.avgMonthlyChurn)}</span>
+      </div>
     </div>
-    <div class="grid gap-2.5 grid-cols-[repeat(auto-fill,minmax(170px,1fr))]">
-      <AdminKpiCard label={$t('admin.rev.nrrAnnual')} value={pct(o.nrrAnnual)} valueColor={HEALTH_CLASS[retentionHealth(o.nrrAnnual)]} info={$t('admin.rev.nrrAnnual.info')} />
-      <AdminKpiCard label={$t('admin.rev.nrrMonthly')} value={pct(o.nrrMonthly)} valueColor={HEALTH_CLASS[retentionHealth(o.nrrMonthly)]} info={$t('admin.rev.nrrMonthly.info')} />
-      <AdminKpiCard label={$t('admin.rev.grr')} value={pct(o.grrMonthly)} info={$t('admin.rev.grr.info')} />
-      <AdminKpiCard label={$t('admin.rev.logoChurn')} value={pct(o.logoChurn)} valueColor={HEALTH_CLASS[churnHealth(o.logoChurn)]} info={$t('admin.rev.logoChurn.info')} />
-      <AdminKpiCard label={$t('admin.rev.revenueChurn')} value={pct(o.revenueChurn)} valueColor={HEALTH_CLASS[churnHealth(o.revenueChurn)]} info={$t('admin.rev.revenueChurn.info')} />
-      <AdminKpiCard label={$t('admin.rev.avgChurn')} value={pct(o.avgMonthlyChurn)} info={$t('admin.rev.avgChurn.info')} />
-    </div>
-  </div>
+  </HudPanel>
 
-  <SectionCard
+  <HudPanel
     title={o.movementMonth ? $ti('admin.rev.section.movement', { from: o.movementMonth, to: o.month }) : $t('admin.rev.section.movementEmpty')}
-    noPad>
-    {#snippet headerRight()}
-      <InfoTooltip text={$t('admin.rev.section.movement.info')} side="right" />
-    {/snippet}
+    sub={$t('admin.rev.section.movement.info')}>
     {#if o.movement}
       {@const m = o.movement}
       <AdminTableScroll>
-        <table class="w-full border-collapse text-[13px]">
+        <table class="hud-table">
           <tbody>
             {#each [
-              { key: 'admin.rev.mov.start', value: m.startCents, cls: 'text-fg' },
-              { key: 'admin.rev.mov.new', value: m.newCents, cls: 'text-pos' },
-              { key: 'admin.rev.mov.reactivation', value: m.reactivationCents, cls: 'text-pos' },
-              { key: 'admin.rev.mov.expansion', value: m.expansionCents, cls: 'text-pos' },
-              { key: 'admin.rev.mov.contraction', value: -m.contractionCents, cls: 'text-warn' },
-              { key: 'admin.rev.mov.churned', value: -m.churnedCents, cls: 'text-neg' },
-              { key: 'admin.rev.mov.end', value: m.endCents, cls: 'text-fg' },
+              { key: 'admin.rev.mov.start', value: m.startCents, cls: '' },
+              { key: 'admin.rev.mov.new', value: m.newCents, cls: 'good' },
+              { key: 'admin.rev.mov.reactivation', value: m.reactivationCents, cls: 'good' },
+              { key: 'admin.rev.mov.expansion', value: m.expansionCents, cls: 'good' },
+              { key: 'admin.rev.mov.contraction', value: -m.contractionCents, cls: 'warn' },
+              { key: 'admin.rev.mov.churned', value: -m.churnedCents, cls: 'bad' },
+              { key: 'admin.rev.mov.end', value: m.endCents, cls: '' },
             ] as row}
-              <tr class="border-b border-divider">
-                <td class="py-[9px] px-4 text-fg-2">{$t(row.key)}</td>
-                <td class="num py-[9px] px-4 text-right font-semibold {row.cls}">{eur(row.value)}</td>
+              <tr>
+                <td class="dim">{$t(row.key)}</td>
+                <td class="num r" class:good={row.cls === 'good'} class:warn={row.cls === 'warn'} class:bad={row.cls === 'bad'}>{eur(row.value)}</td>
               </tr>
             {/each}
           </tbody>
         </table>
       </AdminTableScroll>
     {:else}
-      <div class="py-6 px-4 text-center text-fg-4 text-[13px]">{$t('admin.rev.insufficient')}</div>
+      <div style="padding:24px 14px;text-align:center;color:#5b6472;font-size:12.5px;">{$t('admin.rev.insufficient')}</div>
     {/if}
-  </SectionCard>
+  </HudPanel>
 
-  <SectionCard title={$t('admin.rev.section.history')} noPad>
-    {#snippet headerRight()}
-      <InfoTooltip text={$t('admin.rev.section.history.info')} side="right" />
-    {/snippet}
+  <HudPanel title={$t('admin.rev.section.history')} sub={$t('admin.rev.section.history.info')}>
     <AdminTableScroll>
-      <table class="w-full border-collapse text-[13px]">
+      <table class="hud-table">
         <thead>
-          <tr class="border-b border-divider">
-            <th scope="col" class="py-2.5 px-4 text-left text-[11px] font-semibold text-fg-3 uppercase">{$t('admin.rev.colMonth')}</th>
-            <th scope="col" class="py-2.5 px-4 text-right text-[11px] font-semibold text-fg-3 uppercase">{$t('admin.rev.mrr')}</th>
-            <th scope="col" class="py-2.5 px-4 text-right text-[11px] font-semibold text-fg-3 uppercase">{$t('admin.rev.colCustomers')}</th>
-            <th scope="col" class="py-2.5 px-4 text-right text-[11px] font-semibold text-fg-3 uppercase">{$t('admin.rev.colSource')}</th>
+          <tr>
+            <th scope="col" class="l">{$t('admin.rev.colMonth')}</th>
+            <th scope="col" class="r">{$t('admin.rev.mrr')}</th>
+            <th scope="col" class="r">{$t('admin.rev.colCustomers')}</th>
+            <th scope="col" class="r">{$t('admin.rev.colSource')}</th>
           </tr>
         </thead>
         <tbody>
           {#each [...o.history].reverse() as row}
-            <tr class="border-b border-divider">
-              <td class="num py-[9px] px-4 text-fg font-medium">{row.month}</td>
-              <td class="num py-[9px] px-4 text-right text-fg-2">{eur(row.mrrCents)}</td>
-              <td class="num py-[9px] px-4 text-right text-fg-2">{row.payingCustomers}</td>
-              <td class="py-[9px] px-4 text-right text-fg-4 text-xs">{$t('admin.rev.source.' + row.source)}</td>
+            <tr>
+              <td class="mono">{row.month}</td>
+              <td class="num r dim">{eur(row.mrrCents)}</td>
+              <td class="num r dim">{row.payingCustomers}</td>
+              <td class="r dim nowrap">{$t('admin.rev.source.' + row.source)}</td>
             </tr>
           {/each}
         </tbody>
       </table>
     </AdminTableScroll>
-  </SectionCard>
+  </HudPanel>
 
   <div>
-    <SectionCard title={$t('admin.rev.section.cohorts')} noPad>
-      {#snippet headerRight()}
-        <InfoTooltip text={$t('admin.rev.section.cohorts.info')} side="right" />
-      {/snippet}
+    <HudPanel title={$t('admin.rev.section.cohorts')} sub={$t('admin.rev.section.cohorts.info')}>
       <AdminTableScroll>
-        <table class="w-full border-collapse text-[13px]">
+        <table class="hud-table">
           <thead>
-            <tr class="border-b border-divider">
-              <th scope="col" class="py-2.5 px-4 text-left text-[11px] font-semibold text-fg-3 uppercase">{$t('admin.rev.colCohort')}</th>
-              <th scope="col" class="py-2.5 px-4 text-right text-[11px] font-semibold text-fg-3 uppercase">{$t('admin.rev.colSize')}</th>
-              <th scope="col" class="py-2.5 px-4 text-right text-[11px] font-semibold text-fg-3 uppercase">{$t('admin.rev.colStartMrr')}</th>
+            <tr>
+              <th scope="col" class="l">{$t('admin.rev.colCohort')}</th>
+              <th scope="col" class="r">{$t('admin.rev.colSize')}</th>
+              <th scope="col" class="r">{$t('admin.rev.colStartMrr')}</th>
               {#each COHORT_OFFSETS as offset}
-                <th scope="col" class="py-2.5 px-4 text-right text-[11px] font-semibold text-fg-3 uppercase">{$ti('admin.rev.colMonthOffset', { n: offset })}</th>
+                <th scope="col" class="r">{$ti('admin.rev.colMonthOffset', { n: offset })}</th>
               {/each}
             </tr>
           </thead>
           <tbody>
             {#each o.cohorts as cohort}
-              <tr class="border-b border-divider">
-                <td class="num py-[9px] px-4 text-fg font-medium">{cohort.month}</td>
-                <td class="num py-[9px] px-4 text-right text-fg-2">{cohort.customers}</td>
-                <td class="num py-[9px] px-4 text-right text-fg-2">{eur(cohort.startMrrCents)}</td>
+              <tr>
+                <td class="mono">{cohort.month}</td>
+                <td class="num r dim">{cohort.customers}</td>
+                <td class="num r dim">{eur(cohort.startMrrCents)}</td>
                 {#each cohort.retention as point, i}
                   {@const revenue = cohort.revenueRetention[i]?.rate ?? null}
-                  <td class="num py-[9px] px-4 text-right text-fg-2">
+                  <td class="num r dim">
                     {pct(point.rate)}
                     {#if revenue !== null}
-                      <span class="text-fg-4 text-[11px]"> · {pct(revenue)}</span>
+                      <span style="color:#3a4150;font-size:10px;"> · {pct(revenue)}</span>
                     {/if}
                   </td>
                 {/each}
               </tr>
             {:else}
-              <tr><td colspan={3 + COHORT_OFFSETS.length} class="py-6 px-4 text-center text-fg-4">{$t('admin.rev.noCohorts')}</td></tr>
+              <tr><td colspan={3 + COHORT_OFFSETS.length} class="empty">{$t('admin.rev.noCohorts')}</td></tr>
             {/each}
           </tbody>
         </table>
       </AdminTableScroll>
-    </SectionCard>
-    <div class="text-[11px] text-fg-4 mt-1.5">{$t('admin.rev.cohortsHint')}</div>
+    </HudPanel>
+    <div style="font-size:11px;color:#5b6472;margin-top:6px;">{$t('admin.rev.cohortsHint')}</div>
   </div>
 
-  <SectionCard title={$t('admin.rev.section.funnel')} noPad>
-    {#snippet headerRight()}
-      <InfoTooltip text={$t('admin.rev.section.funnel.info')} side="right" />
-    {/snippet}
+  <HudPanel title={$t('admin.rev.section.funnel')} sub={$t('admin.rev.section.funnel.info')}>
     <AdminTableScroll>
-      <table class="w-full border-collapse text-[13px]">
+      <table class="hud-table">
         <tbody>
           {#each o.funnel as stage}
-            <tr class="border-b border-divider">
-              <td class="py-[9px] px-4 text-fg-2">{$t('admin.rev.funnel.' + stage.key)}</td>
-              <td class="num py-[9px] px-4 text-right font-semibold text-fg">{stage.count}</td>
-              <td class="num py-[9px] px-4 text-right text-xs {stage.dropFromPrevious ? 'text-neg' : 'text-fg-4'}">
+            <tr>
+              <td class="dim">{$t('admin.rev.funnel.' + stage.key)}</td>
+              <td class="num r">{stage.count}</td>
+              <td class="num r" class:bad={!!stage.dropFromPrevious} class:dim={!stage.dropFromPrevious}>
                 {stage.dropFromPrevious === null ? '—' : '−' + stage.dropFromPrevious}
               </td>
             </tr>
@@ -269,48 +311,44 @@
         </tbody>
       </table>
     </AdminTableScroll>
-  </SectionCard>
+  </HudPanel>
 
-  <SectionCard title={$t('admin.rev.section.leakage')} noPad>
-    {#snippet headerRight()}
-      <InfoTooltip text={$t('admin.rev.section.leakage.info')} side="right" />
-    {/snippet}
+  <HudPanel title={$t('admin.rev.section.leakage')} sub={$t('admin.rev.section.leakage.info')}>
     <AdminTableScroll>
-      <table class="w-full border-collapse text-[13px]">
+      <table class="hud-table">
         <thead>
-          <tr class="border-b border-divider">
-            <th scope="col" class="py-2.5 px-4 text-left text-[11px] font-semibold text-fg-3 uppercase">{$t('admin.rev.colLeak')}</th>
-            <th scope="col" class="py-2.5 px-4 text-right text-[11px] font-semibold text-fg-3 uppercase">{$t('admin.rev.colCount')}</th>
-            <th scope="col" class="py-2.5 px-4 text-right text-[11px] font-semibold text-fg-3 uppercase">{$t('admin.rev.colImpact')}</th>
+          <tr>
+            <th scope="col" class="l">{$t('admin.rev.colLeak')}</th>
+            <th scope="col" class="r">{$t('admin.rev.colCount')}</th>
+            <th scope="col" class="r">{$t('admin.rev.colImpact')}</th>
           </tr>
         </thead>
         <tbody>
           {#each o.leaks as leak}
-            <tr class="border-b border-divider">
-              <td class="py-[9px] px-4 text-fg-2">
-                <span class="font-medium {leak.count > 0 ? SEVERITY_CLASS[leak.severity] : 'text-fg-4'}">{$t('admin.rev.leak.' + leak.key)}</span>
-                <div class="text-[11px] text-fg-4 mt-0.5">{$t('admin.rev.leakHint.' + leak.key)}</div>
+            <tr>
+              <td>
+                <span style="font-weight:500;color:{leak.count === 0 ? '#5b6472' : leak.severity === 'warn' ? '#fbbf24' : leak.severity === 'error' ? '#f87171' : '#e7edf5'};">
+                  {$t('admin.rev.leak.' + leak.key)}
+                </span>
+                <div style="font-size:10.5px;color:#5b6472;margin-top:1px;">{$t('admin.rev.leakHint.' + leak.key)}</div>
               </td>
-              <td class="num py-[9px] px-4 text-right font-semibold {leak.count > 0 ? SEVERITY_CLASS[leak.severity] : 'text-fg-4'}">{leak.count}</td>
-              <td class="num py-[9px] px-4 text-right text-fg-2">{leak.monthlyImpactCents > 0 ? eur(leak.monthlyImpactCents) : '—'}</td>
+              <td class="num r" class:warn={leak.count > 0 && leak.severity === 'warn'} class:bad={leak.count > 0 && leak.severity === 'error'} class:dim={leak.count === 0}>{leak.count}</td>
+              <td class="num r dim">{leak.monthlyImpactCents > 0 ? eur(leak.monthlyImpactCents) : '—'}</td>
             </tr>
           {/each}
         </tbody>
       </table>
     </AdminTableScroll>
-  </SectionCard>
+  </HudPanel>
 
-  <SectionCard title={$t('admin.rev.section.spend')} noPad>
-    {#snippet headerRight()}
-      <InfoTooltip text={$t('admin.rev.section.spend.info')} side="right" />
-    {/snippet}
-    <div class="p-4 border-b border-divider">
+  <HudPanel title={$t('admin.rev.section.spend')} sub={$t('admin.rev.section.spend.info')}>
+    <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.08);">
       <form method="POST" action="?/addCost" class="flex gap-2.5 flex-wrap items-end">
-        <label class="flex flex-col gap-1 text-[11px] text-fg-3">
+        <label class="flex flex-col gap-1 text-[11px]" style="color:#5b6472;">
           {$t('admin.rev.fieldMonth')}
           <input name="month" type="month" value={o.cacWindowTo} required class="input w-[150px]" />
         </label>
-        <label class="flex flex-col gap-1 text-[11px] text-fg-3">
+        <label class="flex flex-col gap-1 text-[11px]" style="color:#5b6472;">
           {$t('admin.rev.fieldCategory')}
           <select name="category" class="input">
             {#each data.categories as category}
@@ -318,11 +356,11 @@
             {/each}
           </select>
         </label>
-        <label class="flex flex-col gap-1 text-[11px] text-fg-3">
+        <label class="flex flex-col gap-1 text-[11px]" style="color:#5b6472;">
           {$t('admin.rev.fieldAmount')}
           <input name="amount" inputmode="decimal" required class="input w-[120px]" />
         </label>
-        <label class="flex flex-col gap-1 text-[11px] text-fg-3 flex-1 min-w-[180px]">
+        <label class="flex flex-col gap-1 text-[11px] flex-1 min-w-[180px]" style="color:#5b6472;">
           {$t('admin.rev.fieldNote')}
           <input name="note" maxlength="200" class="input w-full" />
         </label>
@@ -333,70 +371,67 @@
     </div>
 
     <AdminTableScroll>
-      <table class="w-full border-collapse text-[13px]">
+      <table class="hud-table">
         <thead>
-          <tr class="border-b border-divider">
-            <th scope="col" class="py-2.5 px-4 text-left text-[11px] font-semibold text-fg-3 uppercase">{$t('admin.rev.colMonth')}</th>
-            <th scope="col" class="py-2.5 px-4 text-left text-[11px] font-semibold text-fg-3 uppercase">{$t('admin.rev.colCategory')}</th>
-            <th scope="col" class="py-2.5 px-4 text-right text-[11px] font-semibold text-fg-3 uppercase">{$t('admin.rev.colAmount')}</th>
-            <th scope="col" class="py-2.5 px-4 text-left text-[11px] font-semibold text-fg-3 uppercase">{$t('admin.rev.colNote')}</th>
-            <th scope="col" class="py-2.5 px-4"></th>
+          <tr>
+            <th scope="col" class="l">{$t('admin.rev.colMonth')}</th>
+            <th scope="col" class="l">{$t('admin.rev.colCategory')}</th>
+            <th scope="col" class="r">{$t('admin.rev.colAmount')}</th>
+            <th scope="col" class="l">{$t('admin.rev.colNote')}</th>
+            <th scope="col"></th>
           </tr>
         </thead>
         <tbody>
           {#each o.costs as cost}
-            <tr class="border-b border-divider">
-              <td class="num py-[9px] px-4 text-fg">{cost.month}</td>
-              <td class="py-[9px] px-4 text-fg-2">{$t('admin.rev.cat.' + cost.category)}</td>
-              <td class="num py-[9px] px-4 text-right text-fg font-medium">{eur2(cost.amountCents)}</td>
-              <td class="py-[9px] px-4 text-fg-3 text-xs">{cost.note ?? ''}</td>
-              <td class="py-[9px] px-4 text-right">
+            <tr>
+              <td class="mono">{cost.month}</td>
+              <td class="dim">{$t('admin.rev.cat.' + cost.category)}</td>
+              <td class="num r">{eur2(cost.amountCents)}</td>
+              <td class="dim">{cost.note ?? ''}</td>
+              <td class="r">
                 <form method="POST" action="?/deleteCost">
                   <input type="hidden" name="id" value={cost.id} />
-                  <button type="submit" class="bg-transparent border-0 text-neg text-xs cursor-pointer p-0">
+                  <button type="submit" style="background:transparent;border:0;color:#f87171;font-size:11px;cursor:pointer;padding:0;">
                     {$t('admin.rev.delete')}
                   </button>
                 </form>
               </td>
             </tr>
           {:else}
-            <tr><td colspan="5" class="py-6 px-4 text-center text-fg-4">{$t('admin.rev.noCosts')}</td></tr>
+            <tr><td colspan="5" class="empty">{$t('admin.rev.noCosts')}</td></tr>
           {/each}
         </tbody>
       </table>
     </AdminTableScroll>
-  </SectionCard>
+  </HudPanel>
 
-  <SectionCard title={$t('admin.rev.section.assumptions')}>
-    {#snippet headerRight()}
-      <InfoTooltip text={$t('admin.rev.section.assumptions.info')} side="right" />
-    {/snippet}
-    <form method="POST" action="?/saveAssumptions" class="flex gap-3 flex-wrap items-end">
-      <label class="flex flex-col gap-1 text-[11px] text-fg-3">
-        {$t('admin.rev.grossMargin')}
-        <input name="grossMarginPct" value={o.assumptions.grossMarginPct} inputmode="decimal" class="input w-[100px]" />
-      </label>
-      <label class="flex flex-col gap-1 text-[11px] text-fg-3">
-        {$t('admin.rev.ltvHorizon')}
-        <input name="ltvHorizonMonths" value={o.assumptions.ltvHorizonMonths} inputmode="numeric" class="input w-[100px]" />
-      </label>
-      <label class="flex flex-col gap-1 text-[11px] text-fg-3">
-        {$t('admin.rev.cacWindow')}
-        <input name="cacWindowMonths" value={o.assumptions.cacWindowMonths} inputmode="numeric" class="input w-[100px]" />
-      </label>
-      <button type="submit" class="btn bg-fg text-bg">
-        {$t('admin.rev.saveAssumptions')}
-      </button>
-      <span class="text-[11px] text-fg-4 flex-1 min-w-[200px]">{$t('admin.rev.assumptionsHint')}</span>
-    </form>
-    <div class="text-[11px] text-fg-4 mt-2">
-      {$t('admin.rev.priceBasis')}
-      {#each o.priceByTier as price}
-        <span class="num ml-2">{price.tier}: {eur(price.monthlyCents)}</span>
-      {/each}
+  <HudPanel title={$t('admin.rev.section.assumptions')} sub={$t('admin.rev.section.assumptions.info')}>
+    <div style="padding:12px 14px;">
+      <form method="POST" action="?/saveAssumptions" class="flex gap-3 flex-wrap items-end">
+        <label class="flex flex-col gap-1 text-[11px]" style="color:#5b6472;">
+          {$t('admin.rev.grossMargin')}
+          <input name="grossMarginPct" value={o.assumptions.grossMarginPct} inputmode="decimal" class="input w-[100px]" />
+        </label>
+        <label class="flex flex-col gap-1 text-[11px]" style="color:#5b6472;">
+          {$t('admin.rev.ltvHorizon')}
+          <input name="ltvHorizonMonths" value={o.assumptions.ltvHorizonMonths} inputmode="numeric" class="input w-[100px]" />
+        </label>
+        <label class="flex flex-col gap-1 text-[11px]" style="color:#5b6472;">
+          {$t('admin.rev.cacWindow')}
+          <input name="cacWindowMonths" value={o.assumptions.cacWindowMonths} inputmode="numeric" class="input w-[100px]" />
+        </label>
+        <button type="submit" class="btn bg-fg text-bg">
+          {$t('admin.rev.saveAssumptions')}
+        </button>
+        <span style="font-size:11px;color:#5b6472;flex:1;min-width:200px;">{$t('admin.rev.assumptionsHint')}</span>
+      </form>
+      <div style="font-size:11px;color:#5b6472;margin-top:10px;">
+        {$t('admin.rev.priceBasis')}
+        {#each o.priceByTier as price}
+          <span class="num" style="margin-left:8px;color:#e7edf5;">{price.tier}: {eur(price.monthlyCents)}</span>
+        {/each}
+      </div>
     </div>
-  </SectionCard>
-
-  <a href="/admin" class="text-[13px] text-acc no-underline">{$t('admin.backToOverview')}</a>
+  </HudPanel>
 
 </div>
