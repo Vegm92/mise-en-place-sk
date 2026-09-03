@@ -8,7 +8,6 @@
  * consulted the next time line items are annotated.
  */
 import { describe, it, expect, beforeAll, afterEach, afterAll } from 'vitest';
-import { get } from 'svelte/store';
 import { readFileSync } from 'node:fs';
 import {
 	testDb, testSql, closeDb,
@@ -17,7 +16,8 @@ import {
 import {
 	loadConversionPrompts, defineUnitConversion, annotateLineItems,
 } from '../src/lib/server/products';
-import { locale, t, loadAllMessages } from '../src/lib/i18n';
+import { setLocale, t, loadAllMessages } from '../src/lib/i18n';
+import { untranslated } from './helpers/i18n-setup';
 import { translations } from '../src/lib/i18n-messages';
 
 await loadAllMessages();
@@ -341,10 +341,6 @@ describe('i18n keys for the suggestions-tab conversion prompt', () => {
 	});
 
 	it('resolves in Spanish and English', () => {
-		for (const lc of ['es', 'en'] as const) {
-			locale.set(lc);
-			for (const key of keys) expect(get(t)(key)).not.toBe(key);
-		}
-		locale.set('es');
+		expect(untranslated(keys)).toEqual([]);
 	});
 });

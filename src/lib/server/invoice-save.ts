@@ -23,7 +23,7 @@ import { toMoneyString, moneyToNumber, parseAmount } from './money';
 import { bandsFromInputs, taxableBaseMoney, detectTotalMismatch as detectAmountMismatch, type TaxBand } from '$lib/tax';
 import { renderTemplate } from '$lib/i18n-messages';
 import { isBlankOrIsoDate, toIsoDate } from './dates';
-import type { IncidenceKind, ReviewState } from '$lib/status';
+import type { IncidenceKind, IncidenceReason, ReviewState } from '$lib/status';
 
 export interface DocumentReferenceFields {
 	purchaseOrder: string | null;
@@ -607,16 +607,31 @@ export function detectTotalMismatch(
 	return detectAmountMismatch(lineInputs.map((li) => li.totalPriceVal), taxBands, totalAmount, extras);
 }
 
-export function resolveReviewState(signals: {
+const REVIEW_SIGNAL_REASONS: Record<keyof ReviewSignals, IncidenceReason> = {
+	lowConfidenceAcked: 'low_confidence',
+	totalMismatch:      'total_mismatch',
+	conversionNeeded:   'unit_conversion',
+	qrMismatch:         'qr_mismatch',
+};
+
+export interface ReviewSignals {
 	lowConfidenceAcked: boolean;
 	totalMismatch: boolean;
 	conversionNeeded: boolean;
 	qrMismatch: boolean;
-}): { reviewState: ReviewState; incidenceKind: IncidenceKind | null } {
-	const flagged = signals.lowConfidenceAcked || signals.totalMismatch || signals.conversionNeeded || signals.qrMismatch;
-	return flagged
-		? { reviewState: 'incidencia', incidenceKind: 'lectura' }
-		: { reviewState: 'revisado', incidenceKind: null };
+}
+
+export function resolveReviewState(signals: ReviewSignals): {
+	reviewState: ReviewState;
+	incidenceKind: IncidenceKind | null;
+	incidenceReasons: IncidenceReason[] | null;
+} {
+	const reasons = (Object.keys(REVIEW_SIGNAL_REASONS) as (keyof ReviewSignals)[])
+		.filter((signal) => signals[signal])
+		.map((signal) => REVIEW_SIGNAL_REASONS[signal]);
+	return reasons.length > 0
+		? { reviewState: 'incidencia', incidenceKind: 'lectura', incidenceReasons: reasons }
+		: { reviewState: 'revisado', incidenceKind: null, incidenceReasons: null };
 }
 
 const HEADER_CONFIDENCE_FIELDS = ['supplier_name', 'invoice_number', 'invoice_date', 'due_date', 'total_amount'];
@@ -840,7 +855,7 @@ async function runPostSaveEffects(params: {
 	if (reviewState !== 'incidencia' && hasDuplicateWarning) {
 		await isolated('incidencia flip', undefined, async () => {
 			await db.update(invoices)
-				.set({ reviewState: 'incidencia', incidenceKind: 'documento' })
+				.set({ reviewState: 'incidencia', incidenceKind: 'documento', incidenceReasons: ['duplicate_purchase'] })
 				.where(tdb.scope(invoices.restaurantId, eq(invoices.id, invoiceId)));
 		});
 	}
@@ -961,7 +976,7 @@ export async function saveReviewedInvoice(
 	const lineInputs = parseLineInputs(formData);
 	const enrichedLines = await enrichLineItems(rid, supplierName, lineInputs);
 
-	const { reviewState, incidenceKind } = resolveReviewState({
+	const { reviewState, incidenceKind, incidenceReasons } = resolveReviewState({
 		lowConfidenceAcked: formData.get('low_confidence_ack') === 'true',
 		totalMismatch: detectTotalMismatch(lineInputs, taxBands, totalAmount, { discountAmount, retentionAmount })
 			|| extractedData?.total_mismatch === true,
@@ -1029,6 +1044,7 @@ export async function saveReviewedInvoice(
 				status: 'pending',
 				reviewState,
 				incidenceKind,
+				incidenceReasons,
 				sourceFile: primaryFile,
 				confidence: confidenceRaw,
 				contentHash,

@@ -65,12 +65,16 @@ the inventory template, issue #885) is a different route entirely.
 **`const tourPages`**
 - The tour is `TOUR_PAGES` minus what this plan cannot reach, resolved once (issue #569). Numbering the dots off the full list told a trial account "step 6 of 9" and then finished at 7; the filtered list is also what `advanceTour` steps through, so there is one definition of "the next step".
 **`function advanceTour`**
-- Awaits the step write before `goto`. See `src/lib/stores/tutorial.ts`.
+- Awaits the step write before `goto`. See `src/lib/stores/tutorial.svelte.ts`.
 **`const showTourStep`**
 - No accessibility check here any more — `tourPages` has already dropped the gated pages. The `$effect` below still recovers a *stored* step that has since become inaccessible (a plan downgrade mid-tour), which is the one case the filter cannot express.
 **`const upgradeFeatures`**
 - The upgrade dialog lists what a PRO plan buys as three rows instead of one sentence, so `sidebar.upgradeToProDesc` is now just the lead and each feature is its own key (`sidebar.upgradeFeat*`) with its own nav icon. Icons are the same ones the sidebar uses for those routes, so the row and the nav item a blocked click came from look like the same thing.
 - The dialog takes ConfirmDialog's anatomy — icon + title on one row, copy left, actions right at 36px — rather than the centred, 50/50-button shape it had. Every value is a token: `--mep-overlay` for the surface (not `--mep-bg`, which is the page behind it), `--mep-scrim`, `--mep-shadow-pop`, `--mep-r-card`, `--mep-row-h` for the rows. It renders inside the `.mep` container for the same reason the tour chrome does — `--mep-acc` and `--mep-row-h` are scoped there, not to `:root`.
+
+**`const desktopQuery`**
+- Breakpoint detection is a `MediaQuery` from `svelte/reactivity` (issue #854), read inside an `$effect` rather than straight into a `$derived`. Reading `.current` during render would make the client's first paint disagree with the server's (`false` on SSR, the real value on hydration) and repair the `{#if}` blocks after the fact; copying it into `isDesktop` from an effect keeps the old SSR-false-then-flip behaviour while dropping the hand-rolled `matchMedia` listener. `batch/[id]/+page.svelte` does the same for its mobile breakpoint.
+- Document-level listeners (outside-click, Escape, capture-phase scroll, `sveltekit:navigation-start`) use `on()` from `svelte/events` for the same reason as `CoachMark.svelte`.
 
 ### `src/routes/(app)/+page.server.ts`
 
@@ -211,7 +215,7 @@ the inventory template, issue #885) is a different route entirely.
 **`markup`**
 - The help centre (issue #569): getting-started guide, per-section tips, FAQ and a launcher for the guided tour. Static documentation — no server load beyond the page title, which is why the route has a `+page.ts` and no `+page.server.ts`.
 - Steps, tips and questions are rendered from the lists in `src/lib/help-content.ts` rather than written into the markup, so the copy stays entirely in the locale tables and adding an entry is a one-line change in two places (the list and both locales).
-- The tour launcher goes through `setTutorialStep('3')` (`src/lib/stores/tutorial.ts` → `POST /api/tutorial`) and then navigates to `/dashboard`, the same entry point as the dashboard nudge in `(app)/+layout.svelte`. Step `3` is the first of `TOUR_PAGES`; steps `1`/`2` only render their coach mark on `/batch/[id]`, so starting there would look like nothing happened.
+- The tour launcher goes through `setTutorialStep('3')` (`src/lib/stores/tutorial.svelte.ts` → `POST /api/tutorial`) and then navigates to `/dashboard`, the same entry point as the dashboard nudge in `(app)/+layout.svelte`. Step `3` is the first of `TOUR_PAGES`; steps `1`/`2` only render their coach mark on `/batch/[id]`, so starting there would look like nothing happened.
 - `HELP_TIPS` is also the tour's script: every `TOUR_PAGES` entry names one by `tip`, and the coach marks render `help.tip.*` directly. The walkthrough and the documentation are the same words, so neither can go stale on its own; `tests/guided-tour.test.ts` holds the two lists to the same order.
 - FAQ entries are native `<details>`/`<summary>`: they open without JavaScript and keep the disclosure semantics a hand-rolled accordion would have to re-add.
 
@@ -244,6 +248,13 @@ the inventory template, issue #885) is a different route entirely.
 
 ## Server core (DB, extraction, billing, jobs)
 
+### `src/lib/server/with-timeout.ts`
+
+**`function withTimeout`**
+
+- Races the work against a deadline **and** hands the work an `AbortSignal` that is aborted (with the same `TimeoutError` as its reason) when the deadline passes (issue #851). The race is kept on purpose: the callers in `hooks.server.ts` and `load-guard.ts` wrap Postgres queries that never observe a signal, so a signal-only design would wait for them forever. Work that does observe the signal (the Gemini provider forwards it as `config.abortSignal`) genuinely stops instead of running to completion after the wrapper has already rejected. An optional outer signal is merged in with `AbortSignal.any()` so a caller's own cancellation reaches the work too.
+- `TimeoutError` keeps its `"<label> timed out after <ms>ms"` message; log greps and assertions depend on it.
+
 ### `src/lib/server/waitlist-db.ts`
 
 **`function insertWaitlistEmail`**
@@ -268,6 +279,9 @@ the inventory template, issue #885) is a different route entirely.
 - Full-screen backdrop (click outside = skip); spotlight ring (box-shadow punches the scrim out around the anchor); tooltip card; step dots; content; CTA. svelte-ignore a11y_no_static_element_interactions.
 - Every colour is a token (issue #569): `--mep-scrim` for the punch-out, `--mep-overlay` + `--mep-shadow-pop` for the card, `--mep-acc` for the ring and the active dot. This only resolves because the shell renders the tour chrome inside its `.mep` container — `--mep-acc` is declared on `.mep[data-accent=…]`, not on `:root`, so the same markup as a sibling of the shell silently loses its accent in both themes.
 
+**`onMount`**
+- Window listeners go through `on()` from `svelte/events` (issue #854): it returns the unsubscriber, so the cleanup is the `onMount` return instead of a mirrored `onDestroy` block that had to repeat the exact listener options. `on()` also keeps ordering consistent with Svelte's delegated handlers, which raw `addEventListener` does not.
+
 ### `src/lib/components/mep/ConfirmDialog.svelte`
 
 **`markup`**
@@ -286,6 +300,9 @@ the inventory template, issue #885) is a different route entirely.
 - Layout stays with the caller through `--mep-strip-pad` / `--mep-strip-lead-in` / `--mep-strip-gap` custom properties rather than an inline `padding`, because an inline shorthand would beat the class's own `padding-left` and take the lead-in with it.
 - `measure()` re-runs on scroll, on resize, and on a `MutationObserver` for the children: the chip list is data-driven (categories, tab counts), so the strip can start fitting and stop fitting without the element ever changing size.
 - Callers: `MobileSuppliersList`, `MobileInvoiceList`, `MobileAnalyticsPrices`, `suppliers/[id]`. `scripts/scroll-strip-audit.mjs` measures every strip at 390px and `tests/scroll-strip-affordance.test.ts` holds the line, including a static guard against a new bare `overflow-x: auto` row.
+
+**`$effect` (measure)**
+- Same `on()` pattern as `CoachMark.svelte` for the window resize listener (issue #854).
 
 ### `src/lib/components/mep/FieldInput.svelte`
 
@@ -336,7 +353,7 @@ the inventory template, issue #885) is a different route entirely.
 **`markup`**
 - Chart area; gridlines + Y-axis labels; bars; X-axis labels; legend.
 
-### `src/lib/stores/tutorial.ts`
+### `src/lib/stores/tutorial.svelte.ts`
 
 **`function setTutorialStep`**
 - Awaitable, and it records the step it is writing in `pending`. The UI is already updated optimistically; callers that navigate afterwards await it so the next page's layout load cannot read the step the user just left.
@@ -372,7 +389,7 @@ the inventory template, issue #885) is a different route entirely.
 ### `src/lib/formatters.ts`
 
 **`const numberFormatters` / `const dateTimeFormatters`**
-- Module-level `Map` caches for `Intl.NumberFormat` and `Intl.DateTimeFormat` instances, avoiding repeated expensive object construction on thousands of format calls across list and dashboard renders (~30-50x speedup).
+- Module-level `Map` caches for `Intl.NumberFormat` and `Intl.DateTimeFormat` instances, avoiding repeated expensive object construction on thousands of format calls across list and dashboard renders (~30-50x speedup). Pre-instantiated static instances for standard options (`eurFormatters`, `eurCompactFormatters`, `yoyFormatters`, `integerFormatters`, `oneDecimalFormatters`, `dateFormatters`, `dateShortFormatters`, `monthShortFormatters`) eliminate `JSON.stringify` key generation overhead on hot paths, doubling formatting performance (2.06x speedup).
 **`function fmtSize`**
 - A file size for display: "512 B", "1,5 MB".
 - Magnitudes are **binary** (1 KB = 1024 B) deliberately. The upload limits this

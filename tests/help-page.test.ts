@@ -3,7 +3,7 @@
  *
  * The page renders its getting-started steps, feature tips and FAQ from the
  * lists in `src/lib/help-content.ts`, so every key it resolves is assembled at
- * runtime (`$t(`help.faq.${item}.q`)`). `lint:i18n` skips those — it can only
+ * runtime (`t(`help.faq.${item}.q`)`). `lint:i18n` skips those — it can only
  * resolve literal keys — which is exactly the gap `docs/04_engineering/
  * coding_conventions.md` says to cover with a test derived from the same
  * source. `helpContentKeys()` is that derivation: it walks the real content
@@ -18,11 +18,11 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { get } from 'svelte/store';
-import { locale, t, loadAllMessages } from '../src/lib/i18n';
+import { setLocale, t, loadAllMessages } from '../src/lib/i18n';
 import { translations } from '../src/lib/i18n-messages';
 import { HELP_STEPS, HELP_TIPS, HELP_FAQ, helpContentKeys } from '../src/lib/help-content';
 import { ROUTE_POLICY } from '../src/lib/server/entitlements';
+import { untranslated } from './helpers/i18n-setup';
 
 await loadAllMessages();
 
@@ -89,11 +89,7 @@ describe('every help string resolves in both locales', () => {
 	});
 
 	it('resolves rather than echoing the key back', () => {
-		for (const l of ['es', 'en'] as const) {
-			locale.set(l);
-			for (const key of keys) expect(get(t)(key)).not.toBe(key);
-		}
-		locale.set('es');
+		expect(untranslated(keys)).toEqual([]);
 	});
 });
 
@@ -108,7 +104,7 @@ describe('the page is wired into the shell', () => {
 
 	it('is reachable from the sidebar and from settings', () => {
 		expect(SHELL).toContain('href="/help"');
-		expect(SHELL).toContain("$t('nav.help')");
+		expect(SHELL).toContain("t('nav.help')");
 		expect(SETTINGS).toContain('href="/help"');
 	});
 
@@ -143,12 +139,12 @@ describe('the tip PRO chip stays neutral (ADR-026)', () => {
 
 describe('the tutorial API is linked', () => {
 	it('starts the guided tour through the tutorial store', () => {
-		expect(PAGE).toContain("from '$lib/stores/tutorial'");
+		expect(PAGE).toContain("from '$lib/stores/tutorial.svelte'");
 		expect(PAGE).toContain("setTutorialStep('3')");
 	});
 
 	it('the store it calls posts to the tutorial endpoint', () => {
-		expect(read('src/lib/stores/tutorial.ts')).toContain("'/api/tutorial'");
+		expect(read('src/lib/stores/tutorial.svelte.ts')).toContain("'/api/tutorial'");
 	});
 
 	it("the step it starts at is one the endpoint accepts and the tour renders", () => {

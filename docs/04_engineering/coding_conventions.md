@@ -18,6 +18,14 @@ enforced by the lint scripts listed, which run in CI.
 
 ## Language / style
 
+- Browser state that Svelte already models reactively comes from its
+  submodules, not from hand-rolled listeners (issue #854):
+  `svelte/reactivity/window` (`online`, `innerWidth`, `scrollY`, …),
+  `MediaQuery` from `svelte/reactivity`, and `on()` from `svelte/events` for
+  any remaining `addEventListener`. `$state(new Map())` is **not** deeply
+  reactive on `.set()` / `.add()` — reach for `SvelteMap` / `SvelteSet` from
+  `svelte/reactivity` when a collection is mutated in place.
+
 - No semicolons (ASI style), 4-space tabs, double quotes in TS, single quotes
   in the rare JS script files. (`Prettier`-ish; follow the file you are in.)
 - Arrow functions preferred; `async/await` everywhere in server code.
@@ -55,12 +63,15 @@ enforced by the lint scripts listed, which run in CI.
 ## i18n
 
 - User-facing strings go through `src/lib/i18n.ts` (es-first, es/en). Components
-  use `$t(key)`, `$ti(key, vars)`, `$tiv(...)`, `$tp(...)`. Hardcoded strings
-  fail CI (`lint:i18n`).
+  use `t(key)`, `ti(key, vars)`, `tiv(...)`, `tp(...)` — plain functions that read
+  the active locale's table from a module-level `$state` in `i18n.svelte.ts`, so
+  a call in markup, a `$derived` or an `$effect` follows a language switch on its
+  own (issue #853). The locale itself is read as `locale.current` and changed with
+  `setLocale()` / `toggleLocale()`. Hardcoded strings fail CI (`lint:i18n`).
 - Going through the table is not enough — the key has to be *in* it, or the UI
   renders the raw key. `lint:i18n` resolves every literal key passed to
   `$t`/`$ti`/`$tiv`/`$tp` against both locale tables and fails on a missing one
-  (issue #661). Keys assembled at runtime (`$t(row.labelKey)`, ``$t(`a.${b}`)``)
+  (issue #661). Keys assembled at runtime (`t(row.labelKey)`, ``t(`a.${b}`)``)
   cannot be resolved statically and are skipped; cover those with a test that
   derives the key list from its source, as `tests/i18n.test.ts` does.
 
@@ -261,7 +272,13 @@ These comments were deliberately left in the code because a tool reads them.
 - Server-safe, both-locales-at-once compatibility surface: `translations = { es, en }` (statically imports both message files) plus `renderTemplate(loc, key, vars)`. Both locales in one object is fine here — this module is never imported by a component that only needs one locale's worth of bytes. It backs three kinds of caller, none of which can work off a lazily-loaded single-locale table: server code that writes a notification/alert message in an arbitrary recipient's locale (`alerts.ts`, `billing.ts`, `products.ts`, `invoice-save.ts`, `whatsapp/jobs.ts` — server bundle, not client bytes); `src/lib/i18n-context.ts`'s request-scoped translator for the public marketing surface (`LandingPage.svelte`, used only by `/waitlist` and `/l/[variant]`, ADR-033 — its own route chunk, not the app-wide shared one, and needs the request's resolved locale synchronously during SSR, which a `messages/<locale>.ts` dynamic import cannot give it); and `Locale`/`TranslationKey`/`WaitlistKey`, re-exported from here so nothing importing them needs to know the data moved.
 - `renderTemplate` and `translations` are also re-exported from `$lib/i18n` for the one existing caller that imported them from there (`(app)/recipes/[id]/sheet/+page.server.ts`) — server-only, so the re-export costs nothing client-side.
 
-### `src/lib/i18n.ts`
+### `src/lib/i18n.ts`, `src/lib/i18n.svelte.ts`
+
+- `i18n.ts` is a one-line re-export of `i18n.svelte.ts`, kept so the `$lib/i18n` import path used by every component and test survives the move to runes (issue #853). The runes module holds one `$state` object (`{ locale, messages }`); `t`, `ti`, `tp`, `tcat` and `tiv` are ordinary functions that read it, `locale` is a `{ current }` getter over it, and `setLocale()` / `toggleLocale()` are the only writers. There is no store and no `svelte/store` import anywhere in `src/` any more: a translator call is reactive wherever a `$state` read is (markup, `$derived`, `$effect`) and a snapshot elsewhere, which is exactly the contract the old `$t` auto-subscription had, so `scripts/check-reactive-i18n-const.mjs` keeps its job unchanged apart from the identifier it looks for.
+- `i18n-context.ts` follows the same shape: the root layout hands it `{ get current() }` objects over the load data instead of `toStore()` wrappers, and `getT()` / `getTi()` return plain functions closing over that ref rather than building a fresh `derived()` per call.
+- `tp` caches one `Intl.PluralRules` per locale instead of constructing one per store recompute.
+
+Everything below describes the per-locale loading design, which the runes move did not change (the `derived` / `writable` names are the pre-#853 shapes of the same values).
 
 - Runtime data now comes from `messageLoaders: Record<Locale, () => Promise<{default: Record<string,string>}>>` (`() => import('./messages/es')` / `en`), not a statically-imported `translations` object — that dynamic `import()` is what gives Vite the chunk boundary. `messages` is a new writable holding the *active* locale's flat table; `t` is `derived([locale, messages], ...)`, replacing the old `derived(locale, ...)` that indexed into the merged object.
 - `applyLocale(loc)`, wired via `locale.subscribe`, is a small cache (`messageCache`): first request for a locale awaits the dynamic import and populates the cache; every later switch to an already-cached locale calls `messages.set(cached)` synchronously — no re-fetch, no re-await, so runtime language switching inside a session that has already touched both locales is instant. Only the very first load of a locale within a session is async.
@@ -271,7 +288,7 @@ These comments were deliberately left in the code because a tool reads them.
 
 **`const ti`**
 
-- Interpolating translator: resolves a key and substitutes named placeholders written as `{name}` in the translation table. Reactive — use `$ti(...)` in components so it follows locale changes.
+- Interpolating translator: resolves a key and substitutes named placeholders written as `{name}` in the translation table. Reactive wherever a `$state` read is — call `ti(...)` from markup or a `$derived` so it follows locale changes.
 
 **`const tcat`**
 
@@ -279,7 +296,7 @@ These comments were deliberately left in the code because a tool reads them.
 
 **`const tiv`**
 
-- `ti` plus category awareness: interpolates as usual, but routes a var named `category` through `tcat` first. Notification and alert payloads (`messageVars`) carry the canonical category so the stored row stays language-neutral; rendering sites (NotificationBell, AlertRow) use `$tiv` instead of `$ti` so this cannot be forgotten per message type.
+- `ti` plus category awareness: interpolates as usual, but routes a var named `category` through `tcat` first. Notification and alert payloads (`messageVars`) carry the canonical category so the stored row stays language-neutral; rendering sites (NotificationBell, AlertRow) use `tiv` instead of `ti` so this cannot be forgotten per message type.
 
 **`const tp`**
 

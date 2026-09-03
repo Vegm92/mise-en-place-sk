@@ -107,23 +107,23 @@
     <input
       class="input"
       style="width: 100%; height: 40px; padding-left: 36px; box-sizing: border-box;"
-      placeholder={$t('sup.searchPlaceholder')}
+      placeholder={t('sup.searchPlaceholder')}
       bind:value={search}
     />
   </div>
 
-  <ScrollStrip label={$t('sup.categoriesLabel')} extraStyle="flex-shrink:0;">
-    <button class={chipClass(!category)} onclick={() => onApply?.({ category: null })}>{$t('sup.allChip')}</button>
+  <ScrollStrip label={t('sup.categoriesLabel')} extraStyle="flex-shrink:0;">
+    <button class={chipClass(!category)} onclick={() => onApply?.({ category: null })}>{t('sup.allChip')}</button>
     <button
       class={chipClass(uncategorizedOnly)}
       aria-pressed={uncategorizedOnly}
       onclick={() => onApply?.({ uncategorized: uncategorizedOnly ? null : '1' })}
-    >{$t('sup.filterUncategorized')}</button>
+    >{t('sup.filterUncategorized')}</button>
     {#each inlineCategories as cat}
       <button
         class={chipClass(category === cat)}
         onclick={() => onApply?.({ category: category === cat ? null : cat })}
-      >{$tcat(cat)}</button>
+      >{tcat(cat)}</button>
     {/each}
     {#if hiddenCategories.length > 0}
       <button
@@ -131,7 +131,7 @@
         aria-haspopup="dialog"
         onclick={() => sheetOpen = true}
         class={chipClass(false)}
-      >{$ti('sup.categorySheet.open', { n: hiddenCategories.length })}</button>
+      >{ti('sup.categorySheet.open', { n: hiddenCategories.length })}</button>
     {/if}
     <button
       class={chipClass(false)}
@@ -140,7 +140,7 @@
       onclick={() => sortSheetOpen = true}
     >
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="10" y1="18" x2="14" y2="18"/></svg>
-      {$t('sup.sort.label')}
+      {t('sup.sort.label')}
     </button>
   </ScrollStrip>
 
@@ -148,18 +148,18 @@
     <button
       type="button"
       class="filter-sheet-backdrop"
-      aria-label={$t('sup.categorySheet.close')}
+      aria-label={t('sup.categorySheet.close')}
       onclick={() => sortSheetOpen = false}
     ></button>
-    <div class="filter-sheet" role="dialog" aria-modal="true" aria-label={$t('sup.sort.label')}>
+    <div class="filter-sheet" role="dialog" aria-modal="true" aria-label={t('sup.sort.label')}>
       <div class="filter-sheet-head">
-        <span class="body-strong">{$t('sup.sort.label')}</span>
-        <button type="button" class="btn btn-ghost" onclick={() => sortSheetOpen = false}>{$t('sup.categorySheet.close')}</button>
+        <span class="body-strong">{t('sup.sort.label')}</span>
+        <button type="button" class="btn btn-ghost" onclick={() => sortSheetOpen = false}>{t('sup.categorySheet.close')}</button>
       </div>
       <div class="filter-sheet-list">
         {#each SUPPLIER_SORT_KEYS as key}
           <button type="button" class="filter-sheet-option" aria-pressed={sort === key} onclick={() => pickSort(key)}>
-            <span>{$t(SUPPLIER_SORT_LABEL_KEYS[key])}</span>
+            <span>{t(SUPPLIER_SORT_LABEL_KEYS[key])}</span>
           </button>
         {/each}
       </div>
@@ -170,21 +170,21 @@
     <button
       type="button"
       class="filter-sheet-backdrop"
-      aria-label={$t('sup.categorySheet.close')}
+      aria-label={t('sup.categorySheet.close')}
       onclick={() => sheetOpen = false}
     ></button>
-    <div class="filter-sheet" role="dialog" aria-modal="true" aria-label={$t('sup.categorySheet.title')}>
+    <div class="filter-sheet" role="dialog" aria-modal="true" aria-label={t('sup.categorySheet.title')}>
       <div class="filter-sheet-head">
-        <span class="body-strong">{$t('sup.categorySheet.title')}</span>
-        <button type="button" class="btn btn-ghost" onclick={() => sheetOpen = false}>{$t('sup.categorySheet.close')}</button>
+        <span class="body-strong">{t('sup.categorySheet.title')}</span>
+        <button type="button" class="btn btn-ghost" onclick={() => sheetOpen = false}>{t('sup.categorySheet.close')}</button>
       </div>
       <div class="filter-sheet-list">
         <button type="button" class="filter-sheet-option" aria-pressed={!category} onclick={() => pickCategory(null)}>
-          <span>{$t('sup.allChip')}</span>
+          <span>{t('sup.allChip')}</span>
         </button>
         {#each categories as cat}
           <button type="button" class="filter-sheet-option" aria-pressed={category === cat} onclick={() => pickCategory(category === cat ? null : cat)}>
-            <span>{$tcat(cat)}</span>
+            <span>{tcat(cat)}</span>
             <span class="num filter-sheet-count">{categoryCounts[cat] ?? 0}</span>
           </button>
         {/each}
@@ -195,24 +195,24 @@
   <div class="card" style="margin: 0 18px 12px; padding: 10px 14px; flex-shrink: 0; display: flex; align-items: center; gap: 0;">
     <div style="flex: 1; text-align: center;">
       <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.3px;">{suppliers.length}</div>
-      <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 1px;">{$t('sup.suppliersChip')}</div>
+      <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 1px;">{t('sup.suppliersChip')}</div>
     </div>
     <div style="width: 1px; height: 28px; background: var(--mep-divider);"></div>
     <div style="flex: 1; text-align: center;">
-      <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.3px;">{fmtEur(totalSpend, $locale)}</div>
-      <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 1px;">{$t('sup.monthSpendChip')}</div>
+      <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.3px;">{fmtEur(totalSpend, locale.current)}</div>
+      <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 1px;">{t('sup.monthSpendChip')}</div>
     </div>
     <div style="width: 1px; height: 28px; background: var(--mep-divider);"></div>
     <div style="flex: 1; text-align: center;">
       <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.3px;">{totalMonthInvoices}</div>
-      <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 1px;">{$t('sup.invoicesList')}</div>
+      <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 1px;">{t('sup.invoicesList')}</div>
     </div>
   </div>
 
   <div style="flex: 1; overflow: auto; padding: 0 18px 24px; display: flex; flex-direction: column; gap: 8px;">
     {#if suppliers.length === 0}
       <div style="padding: 40px 0; text-align: center; color: var(--mep-fg-3); font-size: 13px;">
-        {appliedSearch || category || uncategorizedOnly ? $t('sup.noResults') : $t('sup.noSuppliers')}
+        {appliedSearch || category || uncategorizedOnly ? t('sup.noResults') : t('sup.noSuppliers')}
       </div>
     {:else}
       {#each suppliers as s}
@@ -236,12 +236,12 @@
               {s.name}
             </div>
             <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 2px;">
-              {$tcat(s.category)}{s.month_invoice_count ? ` · ${s.month_invoice_count} ${$t('sup.invoicesSuffix')}` : ''}
+              {tcat(s.category)}{s.month_invoice_count ? ` · ${s.month_invoice_count} ${t('sup.invoicesSuffix')}` : ''}
             </div>
           </div>
           <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
             <div class="num" style="font-size: 13px; font-weight: 500; color: var(--mep-fg);">
-              {s.month_spend != null ? fmtEur(s.month_spend, $locale) : '—'}
+              {s.month_spend != null ? fmtEur(s.month_spend, locale.current) : '—'}
             </div>
             {#if s.delta_pct != null && Math.abs(s.delta_pct) >= 0.1}
               <div class="num" style="font-size: 11px; color: {deltaColor(s.delta_pct)};">

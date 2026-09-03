@@ -1,5 +1,5 @@
 /**
- * Issue #949 — drizzle/0073_supplier_cif_merge.sql collapses the duplicate
+ * Issue #949 — drizzle/0074_supplier_cif_merge.sql collapses the duplicate
  * supplier rows that existed before #905 taught new documents to resolve by tax
  * id, then makes (restaurant_id, normalized_cif) unique so the invariant is
  * enforced rather than merely respected by the resolution order.
@@ -20,7 +20,7 @@ import { isValidSpanishTaxId } from '../src/lib/tax-id';
 import { normalizeSupplierName } from '../src/lib/server/normalize';
 import { reportSupplierMerges, formatSupplierMergeReport } from '../src/lib/server/supplier-merge-report';
 
-const MIGRATION_SQL = readFileSync('drizzle/0073_supplier_cif_merge.sql', 'utf8');
+const MIGRATION_SQL = readFileSync('drizzle/0074_supplier_cif_merge.sql', 'utf8');
 
 const VALID_CIF = 'B12345674';
 const OTHER_CIF = 'A58818501';
@@ -114,7 +114,7 @@ function withDuplicatePair(
 	});
 }
 
-describe.skipIf(!hasDbEnv)('0073_supplier_cif_merge — TS ↔ SQL parity (issue #949)', () => {
+describe.skipIf(!hasDbEnv)('0074_supplier_cif_merge — TS ↔ SQL parity (issue #949)', () => {
 	it('mep_valid_spanish_tax_id agrees with isValidSpanishTaxId', async () => {
 		const GOLDEN = [
 			'12345678Z', '00000000T', 'X1234567L', 'Y1234567X', 'Z1234567R',
@@ -145,7 +145,7 @@ describe.skipIf(!hasDbEnv)('0073_supplier_cif_merge — TS ↔ SQL parity (issue
 	});
 });
 
-describe.skipIf(!hasDbEnv)('0073_supplier_cif_merge — merge (issue #949)', () => {
+describe.skipIf(!hasDbEnv)('0074_supplier_cif_merge — merge (issue #949)', () => {
 	beforeEach(undoCifIndexSwap);
 
 	it('collapses a group onto its lowest id, moving every invoice and keeping the old names resolvable',

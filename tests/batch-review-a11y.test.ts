@@ -136,29 +136,29 @@ describe('batch review screen accessible names (issue #537)', () => {
   });
 
   it('row-indexes the aria-labels on the desktop line-item cells', () => {
-    expect(source).toMatch(/aria-label=\{\$ti\('batch\.aria\.lineDesc',\s*\{\s*row:\s*i\s*\+\s*1\s*\}\)\}/);
-    expect(source).toMatch(/aria-label=\{\$ti\('batch\.aria\.lineQty',\s*\{\s*row:\s*i\s*\+\s*1\s*\}\)\}/);
-    expect(source).toMatch(/aria-label=\{\$ti\('batch\.aria\.lineUnit',\s*\{\s*row:\s*i\s*\+\s*1\s*\}\)\}/);
-    expect(source).toMatch(/aria-label=\{\$ti\('batch\.aria\.lineUnitPrice',\s*\{\s*row:\s*i\s*\+\s*1\s*\}\)\}/);
-    expect(source).toMatch(/aria-label=\{\$ti\('batch\.aria\.lineTotal',\s*\{\s*row:\s*i\s*\+\s*1\s*\}\)\}/);
+    expect(source).toMatch(/aria-label=\{ti\('batch\.aria\.lineDesc',\s*\{\s*row:\s*i\s*\+\s*1\s*\}\)\}/);
+    expect(source).toMatch(/aria-label=\{ti\('batch\.aria\.lineQty',\s*\{\s*row:\s*i\s*\+\s*1\s*\}\)\}/);
+    expect(source).toMatch(/aria-label=\{ti\('batch\.aria\.lineUnit',\s*\{\s*row:\s*i\s*\+\s*1\s*\}\)\}/);
+    expect(source).toMatch(/aria-label=\{ti\('batch\.aria\.lineUnitPrice',\s*\{\s*row:\s*i\s*\+\s*1\s*\}\)\}/);
+    expect(source).toMatch(/aria-label=\{ti\('batch\.aria\.lineTotal',\s*\{\s*row:\s*i\s*\+\s*1\s*\}\)\}/);
   });
 
   it('adds an h2 for the document-preview region', () => {
-    expect(source).toMatch(/<h2 class="sr-only">\{\$t\('a11y\.documentPreview'\)\}<\/h2>/);
+    expect(source).toMatch(/<h2 class="sr-only">\{t\('a11y\.documentPreview'\)\}<\/h2>/);
   });
 
   it('adds an h2 for the extracted-data region', () => {
-    expect(source).toMatch(/<h2 class="sr-only">\{\$t\('a11y\.extractedData'\)\}<\/h2>/);
+    expect(source).toMatch(/<h2 class="sr-only">\{t\('a11y\.extractedData'\)\}<\/h2>/);
   });
 
   it('ties the header fields to their visible labels via <label for>', () => {
     for (const [fieldId, labelKey] of [
-      ['field-supplier-name', "$t('field.supplier')"],
-      ['field-invoice-number', "$t('field.invoiceNum')"],
-      ['field-invoice-date', "$t('field.invoiceDate')"],
-      ['field-due-date', "$t('extract.due')"],
-      ['field-total-amount', "$t('tbl.total')"],
-      ['field-notes', "$t('extract.notesInternal')"],
+      ['field-supplier-name', "t('field.supplier')"],
+      ['field-invoice-number', "t('field.invoiceNum')"],
+      ['field-invoice-date', "t('field.invoiceDate')"],
+      ['field-due-date', "t('extract.due')"],
+      ['field-total-amount', "t('tbl.total')"],
+      ['field-notes', "t('extract.notesInternal')"],
     ]) {
       expect(source).toContain(`for="${fieldId}"`);
       expect(source).toContain(`id="${fieldId}"`);

@@ -31,13 +31,13 @@ describe('issue #747 — sidebar account-footer icon buttons are accessible', ()
 
 	it('switch-account and logout buttons both carry title and aria-label', () => {
 		for (const action of ['switchAccount', 'logout']) {
-			expect(footer).toContain(`title={$t('action.${action}')}`);
-			expect(footer).toContain(`aria-label={$t('action.${action}')}`);
+			expect(footer).toContain(`title={t('action.${action}')}`);
+			expect(footer).toContain(`aria-label={t('action.${action}')}`);
 		}
 	});
 
 	it('switch-account and logout buttons both size their hit area to at least 40px', () => {
-		const matches = [...footer.matchAll(/aria-label=\{\$t\('action\.(switchAccount|logout)'\)\}[\s\S]{0,200}?style="([^"]*)"/g)];
+		const matches = [...footer.matchAll(/aria-label=\{t\('action\.(switchAccount|logout)'\)\}[\s\S]{0,200}?style="([^"]*)"/g)];
 		expect(matches).toHaveLength(2);
 		for (const m of matches) {
 			const style = m[2];

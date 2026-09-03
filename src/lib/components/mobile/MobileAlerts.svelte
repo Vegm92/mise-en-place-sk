@@ -14,6 +14,7 @@
     display_amount: number;
     invoice_date: string | null;
     incidence_kind: string | null;
+    incidence_reasons: string[] | null;
     payment_method: string | null;
     iban: string | null;
   }
@@ -39,23 +40,23 @@
   } = $props();
 
   function fmtAmount(n: number) {
-    return fmtEurCompact(n, $locale);
+    return fmtEurCompact(n, locale.current);
   }
 
   function paymentLine(method: string | null, iban: string | null): string | null {
-    const label = method ? $t(`field.paymentMethod.${method}`) : null;
+    const label = method ? t(`field.paymentMethod.${method}`) : null;
     const ibanShort = iban ? `${iban.slice(0, 4)} …` : null;
-    if (label && ibanShort) return `${$t('rem.payBy')} ${label} · ${ibanShort}`;
-    if (label) return `${$t('rem.payBy')} ${label}`;
+    if (label && ibanShort) return `${t('rem.payBy')} ${label} · ${ibanShort}`;
+    if (label) return `${t('rem.payBy')} ${label}`;
     return ibanShort;
   }
 
   const notifGroupList = $derived([
-    { key: 'priceShock', title: $t('rem.priceShock'), items: groups.priceShock },
-    { key: 'lowStock',   title: $t('rem.lowStock'),   items: groups.lowStock },
-    { key: 'budget',     title: $t('rem.budget'),     items: groups.budget },
-    { key: 'suppliers',  title: $t('rem.suppliers'),  items: groups.suppliers },
-    { key: 'other',      title: $t('rem.other'),      items: groups.other },
+    { key: 'priceShock', title: t('rem.priceShock'), items: groups.priceShock },
+    { key: 'lowStock',   title: t('rem.lowStock'),   items: groups.lowStock },
+    { key: 'budget',     title: t('rem.budget'),     items: groups.budget },
+    { key: 'suppliers',  title: t('rem.suppliers'),  items: groups.suppliers },
+    { key: 'other',      title: t('rem.other'),      items: groups.other },
   ] as const);
 
   const nothingPending = $derived(
@@ -68,14 +69,14 @@
 
     {#if nothingPending}
       <div style="padding: 48px 0; text-align: center; color: var(--mep-fg-3); font-size: 13px;">
-        {$t('rem.allEmpty')}
+        {t('rem.allEmpty')}
       </div>
     {:else}
 
       {#if incidencias.length}
         <div>
           <div style="font-size: 11.5px; color: var(--mep-neg); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-            <AlertTriangle size={13} /> {$t('rem.incidencias')}
+            <AlertTriangle size={13} /> {t('rem.incidencias')}
           </div>
           <div style="display: flex; flex-direction: column; gap: 8px;">
             {#each incidencias as r (r.id)}
@@ -97,9 +98,9 @@
                     </div>
                     <div style="text-align: right; flex-shrink: 0; max-width: 130px;">
                       <div class="num" style="font-size: 14px; font-weight: 600; color: var(--mep-fg);">{fmtAmount(r.display_amount)}</div>
-                      <span class="badge badge-overdue">{$t('inv.review.incidencia')}</span>
+                      <span class="badge badge-overdue">{t('inv.review.incidencia')}</span>
                       <div class="mt-0.5">
-                        <IncidenceKindBadge kind={r.incidence_kind} small hint />
+                        <IncidenceKindBadge kind={r.incidence_kind} reasons={r.incidence_reasons} small hint />
                       </div>
                     </div>
                   </div>
@@ -107,7 +108,7 @@
                 <form method="post" action="?/markReviewed" style="margin-top: 10px;">
                   <input type="hidden" name="invoiceId" value={r.id} />
                   <button type="submit" class="btn btn-ghost" style="height: 30px; font-size: 12px; gap: 4px; width: 100%; justify-content: center; color: var(--mep-pos);">
-                    <Check size={12} /> {$t('inv.markReviewed')}
+                    <Check size={12} /> {t('inv.markReviewed')}
                   </button>
                 </form>
               </div>
@@ -116,7 +117,7 @@
         </div>
       {:else}
         <div style="font-size: 13px; color: var(--mep-fg-3); padding: 4px 0;">
-          {$t('rem.noIncidencias')}
+          {t('rem.noIncidencias')}
         </div>
       {/if}
 

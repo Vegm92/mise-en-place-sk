@@ -25,8 +25,8 @@
 </script>
 
 <svelte:head>
-	<title>{$t('login.signIn')} · Mise en Place</title>
-	<meta name="description" content={$t('login.metaDesc')} />
+	<title>{t('login.signIn')} · Mise en Place</title>
+	<meta name="description" content={t('login.metaDesc')} />
 </svelte:head>
 
 <div class="mep auth-frame" data-accent="tinta" data-density="default">
@@ -39,13 +39,13 @@
 		<div class="auth-spacer"></div>
 
 		<div class="auth-copy">
-			<div class="auth-eyebrow">{$t('login.aside.eyebrow')}</div>
-			<div class="auth-aside-title">{$t('login.aside.title')}</div>
-			<div class="auth-aside-body">{$t('login.aside.body')}</div>
+			<div class="auth-eyebrow">{t('login.aside.eyebrow')}</div>
+			<div class="auth-aside-title">{t('login.aside.title')}</div>
+			<div class="auth-aside-body">{t('login.aside.body')}</div>
 		</div>
 
 		<div class="auth-proof">
-			<TicketMock readLabel={$t('login.ticket.read')} metaLabel={$t('login.ticket.meta')} />
+			<TicketMock readLabel={t('login.ticket.read')} metaLabel={t('login.ticket.meta')} />
 		</div>
 
 		<div class="auth-spacer"></div>
@@ -53,7 +53,7 @@
 		{#if data.seatsTaken !== null}
 			<div class="auth-seats">
 				<span class="auth-seats-dot"></span>
-				{$ti('login.aside.seats', { taken: data.seatsTaken, total: data.seatsTotal })}
+				{ti('login.aside.seats', { taken: data.seatsTaken, total: data.seatsTotal })}
 			</div>
 		{/if}
 	</aside>
@@ -62,38 +62,38 @@
 		<div class="auth-col">
 
 			<div class="auth-head">
-				<h1 class="auth-h1">{$t('login.welcome')}</h1>
-				<p class="auth-sub">{$t('login.sub')}</p>
+				<h1 class="auth-h1">{t('login.welcome')}</h1>
+				<p class="auth-sub">{t('login.sub')}</p>
 			</div>
 
 			{#if resetDone}
-				<div class="auth-note auth-note-pos">{$t('login.passwordReset')}</div>
+				<div class="auth-note auth-note-pos">{t('login.passwordReset')}</div>
 			{/if}
 
 			{#if verified}
-				<div class="auth-note auth-note-pos">{$t('login.verified')}</div>
+				<div class="auth-note auth-note-pos">{t('login.verified')}</div>
 			{/if}
 
 			{#if showUnverified}
 				<div class="auth-note auth-note-neg" role="alert">
 					<span class="auth-note-icon"><TriangleAlert size={14} /></span>
-					<span>{$t('login.err.unverified')}</span>
+					<span>{t('login.err.unverified')}</span>
 				</div>
 				<form method="POST" action="?/resend">
 					<input type="hidden" name="email" value={unverifiedEmail} />
 					<button type="submit" class="auth-ghost auth-ghost-block">
-						{$t('login.resendVerification')}
+						{t('login.resendVerification')}
 					</button>
 				</form>
 				{#if form?.resent === true}
-					<div class="auth-note auth-note-pos">{$t('signup.resent')}</div>
+					<div class="auth-note auth-note-pos">{t('signup.resent')}</div>
 				{:else if form?.resent === false}
-					<div class="auth-note auth-note-neg">{$t('signup.resendWait')}</div>
+					<div class="auth-note auth-note-neg">{t('signup.resendWait')}</div>
 				{/if}
 			{:else if error}
 				<div class="auth-note auth-note-neg" role="alert">
 					<span class="auth-note-icon"><TriangleAlert size={14} /></span>
-					<span>{$t(`login.err.${error}`)}</span>
+					<span>{t(`login.err.${error}`)}</span>
 				</div>
 			{/if}
 
@@ -102,7 +102,7 @@
 
 				<div class="auth-field">
 					<span class="auth-field-head">
-						<label for="email" class="auth-field-label">{$t('login.email')}</label>
+						<label for="email" class="auth-field-label">{t('login.email')}</label>
 					</span>
 					<input
 						id="email"
@@ -111,7 +111,7 @@
 						required
 						autocomplete="email"
 						value={form?.email ?? ''}
-						placeholder={$t('login.emailPlaceholder')}
+						placeholder={t('login.emailPlaceholder')}
 						aria-invalid={error ? 'true' : undefined}
 						class="auth-input"
 					/>
@@ -119,8 +119,8 @@
 
 				<div class="auth-field">
 					<span class="auth-field-head">
-						<label for="password" class="auth-field-label">{$t('login.password')}</label>
-						<a href="/forgot-password" class="auth-field-link">{$t('login.forgotShort')}</a>
+						<label for="password" class="auth-field-label">{t('login.password')}</label>
+						<a href="/forgot-password" class="auth-field-link">{t('login.forgotShort')}</a>
 					</span>
 					<input
 						id="password"
@@ -134,14 +134,14 @@
 				</div>
 
 				<button type="submit" class="auth-submit">
-					{$t('login.signIn')}
+					{t('login.signIn')}
 					<ChevronRight size={14} />
 				</button>
 			</form>
 
 			<div class="auth-rule">
 				<span></span>
-				<span class="auth-mono auth-rule-label">{$t('login.orAlt')}</span>
+				<span class="auth-mono auth-rule-label">{t('login.orAlt')}</span>
 				<span></span>
 			</div>
 
@@ -155,19 +155,19 @@
 						<path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
 						<path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
 					</svg>
-					{$t('login.google')}
+					{t('login.google')}
 				</button>
 			</form>
 
 			<div class="auth-tail">
 				<p class="auth-signup">
-					{$t('login.noAccount')}
-					<a href="/signup" class="auth-signup-link">{$t('login.createOne')}</a>
+					{t('login.noAccount')}
+					<a href="/signup" class="auth-signup-link">{t('login.createOne')}</a>
 				</p>
 				<div class="auth-footer-links">
-					<a href="/privacy">{$t('footer.privacy')}</a>
+					<a href="/privacy">{t('footer.privacy')}</a>
 					<span aria-hidden="true">·</span>
-					<a href="/terms">{$t('footer.terms')}</a>
+					<a href="/terms">{t('footer.terms')}</a>
 				</div>
 			</div>
 

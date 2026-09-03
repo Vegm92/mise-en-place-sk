@@ -1,30 +1,30 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { get } from 'svelte/store';
-import { locale, t, ti, tp, tcat, tiv, loadAllMessages } from '../src/lib/i18n';
+import { setLocale, t, ti, tp, tcat, tiv, loadAllMessages } from '../src/lib/i18n';
 import { translations } from '../src/lib/i18n-messages';
+import { untranslated } from './helpers/i18n-setup';
 
 await loadAllMessages();
 
 // Resolve a key against the current locale via the derived `t` store.
-const tr = (key: string) => get(t)(key);
+const tr = (key: string) => t(key);
 // Interpolating / pluralizing resolvers via their derived stores.
-const tri = (key: string, vars: Record<string, string | number>) => get(ti)(key, vars);
-const trp = (key: string, count: number) => get(tp)(key, count);
+const tri = (key: string, vars: Record<string, string | number>) => ti(key, vars);
+const trp = (key: string, count: number) => tp(key, count);
 // Category-value and category-aware interpolation resolvers.
-const trcat = (canonical: string | null | undefined) => get(tcat)(canonical);
-const triv = (key: string, vars: Record<string, string | number>) => get(tiv)(key, vars);
+const trcat = (canonical: string | null | undefined) => tcat(canonical);
+const triv = (key: string, vars: Record<string, string | number>) => tiv(key, vars);
 
 beforeEach(() => {
   // Tests mutate the shared locale store; reset to the default each time.
-  locale.set('es');
+  setLocale('es');
 });
 
 describe('t (translation lookup)', () => {
   it('resolves a key for the active locale', () => {
-    locale.set('en');
+    setLocale('en');
     expect(tr('nav.dashboard')).toBe('Dashboard');
-    locale.set('es');
+    setLocale('es');
     expect(tr('nav.dashboard')).toBe('Resumen');
   });
 
@@ -33,9 +33,9 @@ describe('t (translation lookup)', () => {
   });
 
   it('reacts to locale changes', () => {
-    locale.set('es');
+    setLocale('es');
     expect(tr('action.logout')).toBe('Cerrar sesión');
-    locale.set('en');
+    setLocale('en');
     expect(tr('action.logout')).toBe('Sign out');
   });
 });
@@ -48,13 +48,13 @@ describe('reports keys (the dedicated /reports page)', () => {
   ];
 
   it('resolves in Spanish', () => {
-    locale.set('es');
+    setLocale('es');
     for (const k of keys) expect(tr(k)).not.toBe(k);
     expect(tr('rep.title')).toBe('Informes');
   });
 
   it('resolves in English', () => {
-    locale.set('en');
+    setLocale('en');
     for (const k of keys) expect(tr(k)).not.toBe(k);
     expect(tr('rep.title')).toBe('Reports');
   });
@@ -62,19 +62,19 @@ describe('reports keys (the dedicated /reports page)', () => {
 
 describe('issue #581 — nav label and page title renamed to Informes/Reports', () => {
   it('the sidebar nav label resolves to Informes/Reports, not the old digest wording', () => {
-    locale.set('es');
+    setLocale('es');
     expect(tr('nav.digest')).toBe('Informes');
     expect(tr('nav.digest')).not.toBe('Resumen semanal');
-    locale.set('en');
+    setLocale('en');
     expect(tr('nav.digest')).toBe('Reports');
     expect(tr('nav.digest')).not.toBe('Weekly Digest');
   });
 
   it('the page title resolves to Informes/Reports, not the old digest wording', () => {
-    locale.set('es');
+    setLocale('es');
     expect(tr('rep.title')).toBe('Informes');
     expect(tr('rep.title')).not.toBe('Resumen semanal');
-    locale.set('en');
+    setLocale('en');
     expect(tr('rep.title')).toBe('Reports');
     expect(tr('rep.title')).not.toBe('Weekly Digest');
   });
@@ -96,15 +96,15 @@ describe('mobile camera-capture keys (added with capture improvements)', () => {
 
   it('resolves in both locales', () => {
     for (const lc of ['es', 'en'] as const) {
-      locale.set(lc);
+      setLocale(lc);
       for (const k of keys) expect(tr(k)).not.toBe(k);
     }
   });
 
   it('keeps the {mb} interpolation placeholder in both locales', () => {
-    locale.set('es');
+    setLocale('es');
     expect(tr('upload.imageTooLarge')).toContain('{mb}');
-    locale.set('en');
+    setLocale('en');
     expect(tr('upload.imageTooLarge')).toContain('{mb}');
   });
 });
@@ -168,7 +168,7 @@ describe('locale key parity (es vs en)', () => {
   it('resolves every sampled key in both locales (no missing translations)', () => {
     const missing: string[] = [];
     for (const lc of ['es', 'en'] as const) {
-      locale.set(lc);
+      setLocale(lc);
       for (const k of sampleKeys) {
         if (tr(k) === k) missing.push(`${lc}:${k}`);
       }
@@ -177,9 +177,9 @@ describe('locale key parity (es vs en)', () => {
   });
 
   it('uses distinct strings per locale for a representative key', () => {
-    locale.set('es');
+    setLocale('es');
     const es = tr('upload.offlineLimit');
-    locale.set('en');
+    setLocale('en');
     const en = tr('upload.offlineLimit');
     expect(es).not.toBe(en);
   });
@@ -220,23 +220,23 @@ describe('full locale parity (every key in both es and en)', () => {
 
 describe('ti (interpolating translator)', () => {
   it('substitutes a single named placeholder', () => {
-    locale.set('en');
+    setLocale('en');
     expect(tri('saved.desc', { id: 42 })).toBe(
       'Invoice #42 has been stored and is ready for review.',
     );
   });
 
   it('substitutes every occurrence and supports multiple vars', () => {
-    locale.set('en');
+    setLocale('en');
     expect(tri('upload.imageTooLarge', { mb: 20 })).toBe('Image exceeds the 20 MB limit');
-    locale.set('es');
+    setLocale('es');
     expect(tri('upload.imageTooLarge', { mb: 20 })).toBe('La imagen supera el límite de 20 MB');
   });
 
   it('reacts to locale changes', () => {
-    locale.set('es');
+    setLocale('es');
     expect(tri('sup.viewAll', { n: 7 })).toBe('Ver todas (7)');
-    locale.set('en');
+    setLocale('en');
     expect(tri('sup.viewAll', { n: 7 })).toBe('View all (7)');
   });
 
@@ -247,28 +247,28 @@ describe('ti (interpolating translator)', () => {
 
 describe('tp (pluralizing translator)', () => {
   it('selects the .one form for a count of 1', () => {
-    locale.set('en');
+    setLocale('en');
     expect(trp('misc.invoice', 1)).toBe('1 invoice');
-    locale.set('es');
+    setLocale('es');
     expect(trp('misc.invoice', 1)).toBe('1 albarán');
   });
 
   it('selects the .other form and interpolates the count', () => {
-    locale.set('en');
+    setLocale('en');
     expect(trp('misc.invoice', 3)).toBe('3 invoices');
-    locale.set('es');
+    setLocale('es');
     expect(trp('misc.invoice', 3)).toBe('3 albaranes');
   });
 
   it('uses the .zero form when defined for a count of 0', () => {
-    locale.set('en');
+    setLocale('en');
     expect(trp('misc.invoice', 0)).toBe('No invoices');
-    locale.set('es');
+    setLocale('es');
     expect(trp('misc.invoice', 0)).toBe('Sin albaranes');
   });
 
   it('falls back to the .other form at 0 when no .zero form exists', () => {
-    locale.set('en');
+    setLocale('en');
     expect(trp('inv.confirm.delete', 0)).toBe('Delete 0 invoices? This cannot be undone.');
   });
 
@@ -284,7 +284,7 @@ describe('tp (pluralizing translator)', () => {
     ];
     const missing: string[] = [];
     for (const lc of ['es', 'en'] as const) {
-      locale.set(lc);
+      setLocale(lc);
       for (const fam of families) {
         for (const count of [1, 2]) {
           const out = trp(fam, count);
@@ -329,24 +329,24 @@ describe('strings de-hardcoded from components', () => {
   it('resolves in both locales', () => {
     const missing: string[] = [];
     for (const lc of ['es', 'en'] as const) {
-      locale.set(lc);
+      setLocale(lc);
       for (const key of keys) if (tr(key) === key) missing.push(`${lc}:${key}`);
     }
     expect(missing).toEqual([]);
   });
 
   it('keeps the two languages distinct where they should differ', () => {
-    locale.set('es');
+    setLocale('es');
     expect(tr('minv.filter.month')).toBe('Este mes');
     expect(tr('action.review')).toBe('Revisar');
-    locale.set('en');
+    setLocale('en');
     expect(tr('minv.filter.month')).toBe('This month');
     expect(tr('action.review')).toBe('Review');
   });
 
   it('interpolates the webhook fields into the admin WhatsApp notice', () => {
     for (const lc of ['es', 'en'] as const) {
-      locale.set(lc);
+      setLocale(lc);
       const msg = tri('admin.wa.noEvents', { fields: 'account_update / phone_number_quality_update' });
       expect(msg).toContain('account_update / phone_number_quality_update');
       expect(msg).not.toContain('{fields}');
@@ -356,14 +356,14 @@ describe('strings de-hardcoded from components', () => {
 
 describe('tcat (category display labels, issue #338)', () => {
   it('renders canonical Spanish values as-is in Spanish', () => {
-    locale.set('es');
+    setLocale('es');
     expect(trcat('Bebidas')).toBe('Bebidas');
     expect(trcat('Lácteos')).toBe('Lácteos');
     expect(trcat('Pescados y Mariscos')).toBe('Pescados y Mariscos');
   });
 
   it('translates canonical values in English', () => {
-    locale.set('en');
+    setLocale('en');
     expect(trcat('Bebidas')).toBe('Beverages');
     expect(trcat('Lácteos')).toBe('Dairy');
     expect(trcat('Productos de Limpieza')).toBe('Cleaning products');
@@ -371,14 +371,14 @@ describe('tcat (category display labels, issue #338)', () => {
   });
 
   it('translates the Other sentinel in both directions', () => {
-    locale.set('es');
+    setLocale('es');
     expect(trcat('Other')).toBe('Sin categoría');
-    locale.set('en');
+    setLocale('en');
     expect(trcat('Other')).toBe('No category');
   });
 
   it('treats null/empty as uncategorised', () => {
-    locale.set('es');
+    setLocale('es');
     expect(trcat(null)).toBe('Sin categoría');
     expect(trcat(undefined)).toBe('Sin categoría');
     expect(trcat('')).toBe('Sin categoría');
@@ -386,23 +386,23 @@ describe('tcat (category display labels, issue #338)', () => {
 
   it('falls back to the canonical string for unknown categories, never a raw key', () => {
     for (const lc of ['es', 'en'] as const) {
-      locale.set(lc);
+      setLocale(lc);
       expect(trcat('Mi Categoría Personalizada')).toBe('Mi Categoría Personalizada');
       expect(trcat('Trufa Negra')).toBe('Trufa Negra');
     }
   });
 
   it('reacts to locale changes', () => {
-    locale.set('es');
+    setLocale('es');
     expect(trcat('Congelados')).toBe('Congelados');
-    locale.set('en');
+    setLocale('en');
     expect(trcat('Congelados')).toBe('Frozen foods');
   });
 });
 
 describe('tiv (category-aware interpolation, issue #338)', () => {
   it('translates the category var inside a notification message', () => {
-    locale.set('en');
+    setLocale('en');
     const msg = triv('notif.msg.catSuggested', {
       supplier: 'Refrescos y Más Distribución, S.L.',
       category: 'Bebidas',
@@ -414,14 +414,14 @@ describe('tiv (category-aware interpolation, issue #338)', () => {
   });
 
   it('leaves the canonical value in place in Spanish', () => {
-    locale.set('es');
+    setLocale('es');
     expect(triv('notif.msg.catSuggested', { supplier: 'Acme', category: 'Bebidas' })).toContain(
       'un proveedor de Bebidas',
     );
   });
 
   it('translates the category in budget alerts too', () => {
-    locale.set('en');
+    setLocale('en');
     expect(
       triv('notif.msg.budgetExceeded', {
         category: 'Pescados y Mariscos',
@@ -433,7 +433,7 @@ describe('tiv (category-aware interpolation, issue #338)', () => {
   });
 
   it('passes through custom budget categories unchanged', () => {
-    locale.set('en');
+    setLocale('en');
     expect(
       triv('notif.msg.budgetWarning', {
         category: 'Trufa Negra',
@@ -446,7 +446,7 @@ describe('tiv (category-aware interpolation, issue #338)', () => {
   });
 
   it('behaves like ti when there is no category var', () => {
-    locale.set('en');
+    setLocale('en');
     expect(triv('notif.msg.uncategorized', { supplier: 'Acme' })).toBe(
       tri('notif.msg.uncategorized', { supplier: 'Acme' }),
     );
@@ -479,7 +479,7 @@ describe('upload action error keys (server-returned, issue #294)', () => {
   it('resolves every emitted key in both locales', () => {
     const missing: string[] = [];
     for (const lc of ['es', 'en'] as const) {
-      locale.set(lc);
+      setLocale(lc);
       for (const key of emitted) {
         if (tr(key) === key) missing.push(`${lc}:${key}`);
       }
@@ -544,7 +544,7 @@ describe('revenue console keys (admin SaaS metrics)', () => {
   it('resolves every revenue key in both locales', () => {
     const missing: string[] = [];
     for (const lc of ['es', 'en'] as const) {
-      locale.set(lc);
+      setLocale(lc);
       for (const key of keys) {
         if (tr(key) === key) missing.push(`${lc}:${key}`);
       }
@@ -571,16 +571,16 @@ describe('issue #661 — invoice export status filter label', () => {
   it('resolves every key the export page uses in both locales', () => {
     const missing: string[] = [];
     for (const lc of ['es', 'en'] as const) {
-      locale.set(lc);
+      setLocale(lc);
       for (const k of keys) if (tr(k) === k) missing.push(`${lc}:${k}`);
     }
     expect(missing).toEqual([]);
   });
 
   it('labels the status filter Estado in Spanish and Status in English', () => {
-    locale.set('es');
+    setLocale('es');
     expect(tr('export.status')).toBe('Estado');
-    locale.set('en');
+    setLocale('en');
     expect(tr('export.status')).toBe('Status');
   });
 });
@@ -598,17 +598,12 @@ describe('issue #534 — analytics period/filter short labels', () => {
   ];
 
   it('resolves every period/filter key the analytics pages use in both locales', () => {
-    const missing: string[] = [];
-    for (const lc of ['es', 'en'] as const) {
-      locale.set(lc);
-      for (const k of keys) if (tr(k) === k) missing.push(`${lc}:${k}`);
-    }
-    expect(missing).toEqual([]);
+    expect(untranslated(keys)).toEqual([]);
   });
 
   it('keys the previously-hardcoded 30 d / 90 d / 6 m short labels in both locales', () => {
     for (const lc of ['es', 'en'] as const) {
-      locale.set(lc);
+      setLocale(lc);
       expect(tr('spend.period.monthShort')).toBe('30 d');
       expect(tr('spend.period.quarterShort')).toBe('90 d');
       expect(tr('spend.period.halfShort')).toBe('6 m');
@@ -634,7 +629,7 @@ describe('issue #844 — /forgot-password and /reset-password error keys', () =>
   it('resolves every forgot-password and reset-password error key in both locales', () => {
     const missing: string[] = [];
     for (const lc of ['es', 'en'] as const) {
-      locale.set(lc);
+      setLocale(lc);
       for (const k of [...forgotKeys, ...resetKeys]) if (tr(k) === k) missing.push(`${lc}:${k}`);
     }
     expect(missing).toEqual([]);

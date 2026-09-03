@@ -29,11 +29,11 @@
 			</h1>
 			<p style="font-size:13.5px;line-height:1.6;color:var(--mep-fg-2);margin:0 0 20px;">
 				{page.status === 404 && page.error?.message === 'Not Found'
-					? $t('error.notFound')
-					: (page.error?.message ?? $t('error.unexpected'))}
+					? t('error.notFound')
+					: (page.error?.message ?? t('error.unexpected'))}
 			</p>
 			<a href="/" class="btn btn-primary" style="justify-content:center;text-decoration:none;">
-				{$t('error.goHome')}
+				{t('error.goHome')}
 			</a>
 		</div>
 

@@ -138,7 +138,7 @@ describe('the public translator is request-scoped, not module-scoped', () => {
 	it('the root layout provides the context', () => {
 		const layout = read('src/routes/+layout.svelte');
 		expect(layout).toContain('setLocaleContext');
-		expect(layout).toContain('toStore(() => data.locale)');
+		expect(layout).toContain('get current() { return data.locale; }');
 		expect(layout).toContain('initLocale(data.locale, data.explicit)');
 	});
 });
@@ -166,12 +166,12 @@ describe('LandingPage renders from the request locale (issue: SSR emitted Spanis
 
 	it('the toggle still remembers the choice for the authenticated app', () => {
 		expect(landing).toContain('onclick={rememberLocale}');
-		expect(landing).toContain('preferredLocale.set(alternate)');
+		expect(landing).toContain('setLocale(alternate)');
 	});
 });
 
 describe('the remembered locale is readable by the server', () => {
-	const i18n = read('src/lib/i18n.ts');
+	const i18n = read('src/lib/i18n.svelte.ts');
 
 	it('initLocale mirrors the preference into a cookie, not localStorage alone', () => {
 		expect(i18n).toContain('document.cookie');
@@ -193,9 +193,9 @@ function serverModules(dir: string, out: string[] = []): string[] {
 }
 
 describe('the module store is never mutated on the server (the leak ADR-033 exists to prevent)', () => {
-	it('no server module calls locale.set / locale.update', () => {
+	it('no server module calls setLocale / toggleLocale', () => {
 		const offenders = serverModules(path.join(ROOT, 'src'))
-			.filter((file) => /\blocale\.(set|update)\s*\(/.test(readFileSync(file, 'utf8')))
+			.filter((file) => /\b(setLocale|toggleLocale)\s*\(/.test(readFileSync(file, 'utf8')))
 			.map((file) => path.relative(ROOT, file));
 		expect(offenders).toEqual([]);
 	});

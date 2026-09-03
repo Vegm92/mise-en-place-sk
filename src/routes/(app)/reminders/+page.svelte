@@ -47,10 +47,10 @@
   );
 
   function paymentLine(method: string | null, iban: string | null): string | null {
-    const label = method ? $t(`field.paymentMethod.${method}`) : null;
+    const label = method ? t(`field.paymentMethod.${method}`) : null;
     const ibanShort = iban ? `${iban.slice(0, 4)} …` : null;
-    if (label && ibanShort) return `${$t('rem.payBy')} ${label} · ${ibanShort}`;
-    if (label) return `${$t('rem.payBy')} ${label}`;
+    if (label && ibanShort) return `${t('rem.payBy')} ${label} · ${ibanShort}`;
+    if (label) return `${t('rem.payBy')} ${label}`;
     return ibanShort;
   }
 </script>
@@ -70,22 +70,22 @@
 <div class="hidden md:flex flex-col gap-4 p-6">
 
   {#if data.conflict}
-    <div class="card p-3 text-neg" role="alert" style="font-size:13px;">{$t('inv.conflict')}</div>
+    <div class="card p-3 text-neg" role="alert" style="font-size:13px;">{t('inv.conflict')}</div>
   {/if}
 
   {#if nothingPending}
-    <p class="body text-center py-16" data-coach="reminders-main">{$t('rem.allEmpty')}</p>
+    <p class="body text-center py-16" data-coach="reminders-main">{t('rem.allEmpty')}</p>
   {:else}
 
     {#if data.incidencias.length}
       <div class="flex gap-2 flex-wrap items-center" data-coach="reminders-main">
         <div class="card px-3 py-2 bg-neg-soft border-neg" style="font-size:13px;">
           <strong class="text-neg">{data.incidencias.length}</strong>
-          <span class="text-fg-2"> {$t('rem.incidenciasCount')}</span>
+          <span class="text-fg-2"> {t('rem.incidenciasCount')}</span>
         </div>
       </div>
 
-      <SectionCard title={$t('rem.incidencias')} noPad>
+      <SectionCard title={t('rem.incidencias')} noPad>
         {#each data.incidencias as r (r.id)}
           <div class="grid items-center gap-3 px-4 py-3 border-b border-divider last:border-0 hover:bg-hover transition-colors"
             style="grid-template-columns:1fr 120px 100px auto auto;">
@@ -100,25 +100,25 @@
             <p class="num font-semibold text-right" style="font-size:13px;">{Math.round(r.display_amount)} EUR</p>
             <p class="body text-fg-3 text-right" style="font-size:12px;">{r.invoice_date ?? '—'}</p>
             <span class="flex flex-col items-end gap-1" style="max-width:180px;">
-              <span class="badge badge-overdue">{$t('inv.review.incidencia')}</span>
-              <IncidenceKindBadge kind={r.incidence_kind} hint />
+              <span class="badge badge-overdue">{t('inv.review.incidencia')}</span>
+              <IncidenceKindBadge kind={r.incidence_kind} reasons={r.incidence_reasons} hint />
             </span>
             </a>
             <form method="post" action="?/markReviewed">
               <input type="hidden" name="invoiceId" value={r.id} />
               <button type="submit" class="btn btn-ghost text-pos" style="height:28px;font-size:12px;gap:4px;">
-                <Check size={12} />{$t('inv.markReviewed')}
+                <Check size={12} />{t('inv.markReviewed')}
               </button>
             </form>
           </div>
         {/each}
       </SectionCard>
     {:else}
-      <p class="body text-fg-3" data-coach="reminders-main">{$t('rem.noIncidencias')}</p>
+      <p class="body text-fg-3" data-coach="reminders-main">{t('rem.noIncidencias')}</p>
     {/if}
 
     {#if groups.priceShock.length}
-      <SectionCard title={$t('rem.priceShock')} noPad>
+      <SectionCard title={t('rem.priceShock')} noPad>
         <div class="divide-y divide-divider">
           {#each groups.priceShock as n (n.id)}
             <div class="px-4 py-3">
@@ -130,7 +130,7 @@
     {/if}
 
     {#if groups.lowStock.length}
-      <SectionCard title={$t('rem.lowStock')} noPad>
+      <SectionCard title={t('rem.lowStock')} noPad>
         <div class="divide-y divide-divider">
           {#each groups.lowStock as n (n.id)}
             <div class="px-4 py-3">
@@ -142,7 +142,7 @@
     {/if}
 
     {#if groups.budget.length}
-      <SectionCard title={$t('rem.budget')} noPad>
+      <SectionCard title={t('rem.budget')} noPad>
         <div class="divide-y divide-divider">
           {#each groups.budget as n (n.id)}
             <div class="px-4 py-3">
@@ -154,7 +154,7 @@
     {/if}
 
     {#if groups.suppliers.length}
-      <SectionCard title={$t('rem.suppliers')} noPad>
+      <SectionCard title={t('rem.suppliers')} noPad>
         <div class="divide-y divide-divider">
           {#each groups.suppliers as n (n.id)}
             <div class="px-4 py-3">
@@ -172,7 +172,7 @@
     {/if}
 
     {#if groups.other.length}
-      <SectionCard title={$t('rem.other')} noPad>
+      <SectionCard title={t('rem.other')} noPad>
         <div class="divide-y divide-divider">
           {#each groups.other as n (n.id)}
             <div class="px-4 py-3">

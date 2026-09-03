@@ -33,41 +33,41 @@ const APP_CSS = read('src/app.css');
 describe('analytics mobile parity (issue #654)', () => {
 	describe('/analytics/spend mobile', () => {
 		it('shows the desktop empty state when there are no top items', () => {
-			expect(SPEND_MOBILE).toContain("$t('spend.noDataYet')");
-			expect(SPEND_MOBILE).toContain("$t('spend.emptyHint')");
-			expect(SPEND_MOBILE).toContain("$t('spend.uploadFirst')");
+			expect(SPEND_MOBILE).toContain("t('spend.noDataYet')");
+			expect(SPEND_MOBILE).toContain("t('spend.emptyHint')");
+			expect(SPEND_MOBILE).toContain("t('spend.uploadFirst')");
 		});
 
 		it('always renders the by-category panel, with the assign-categories hint when empty', () => {
-			expect(SPEND_MOBILE).toContain("$t('spend.assignCategories')");
-			expect(SPEND_MOBILE).toContain("$t('spend.viewSuppliers')");
-			expect(SPEND_MOBILE).toContain("$t('spend.byCategorySub')");
+			expect(SPEND_MOBILE).toContain("t('spend.assignCategories')");
+			expect(SPEND_MOBILE).toContain("t('spend.viewSuppliers')");
+			expect(SPEND_MOBILE).toContain("t('spend.byCategorySub')");
 			expect(SPEND_MOBILE).not.toMatch(/\{#if category_spend\?\.length > 0\}\s*<div class="card"/);
 		});
 
 		it('carries the top-items panel subtitle desktop has', () => {
-			expect(SPEND_MOBILE).toContain("$t('spend.topItemsSub')");
+			expect(SPEND_MOBILE).toContain("t('spend.topItemsSub')");
 		});
 	});
 
 	describe('/analytics/prices mobile', () => {
 		it('shows the desktop no-history empty state instead of a bare "no results"', () => {
-			expect(PRICES_MOBILE).toContain("$t('prices.noDataDesc')");
-			expect(PRICES_MOBILE).toContain("$t('spend.uploadFirst')");
+			expect(PRICES_MOBILE).toContain("t('prices.noDataDesc')");
+			expect(PRICES_MOBILE).toContain("t('spend.uploadFirst')");
 		});
 
 		it('ports the tracked and no-change KPIs with their subtexts', () => {
-			expect(PRICES_MOBILE).toContain("$t('prices.tracked')");
-			expect(PRICES_MOBILE).toContain("$t('prices.inTotal')");
-			expect(PRICES_MOBILE).toContain("$t('prices.noChange')");
-			expect(PRICES_MOBILE).toContain("$t('prices.stablePrices')");
-			expect(PRICES_MOBILE).toContain("$t('prices.upSub')");
-			expect(PRICES_MOBILE).toContain("$t('prices.downSub')");
+			expect(PRICES_MOBILE).toContain("t('prices.tracked')");
+			expect(PRICES_MOBILE).toContain("t('prices.inTotal')");
+			expect(PRICES_MOBILE).toContain("t('prices.noChange')");
+			expect(PRICES_MOBILE).toContain("t('prices.stablePrices')");
+			expect(PRICES_MOBILE).toContain("t('prices.upSub')");
+			expect(PRICES_MOBILE).toContain("t('prices.downSub')");
 		});
 
 		it('ports the per-supplier filter (chip + bottom sheet) desktop drives ?supplier_id with', () => {
-			expect(PRICES_MOBILE).toContain("$t('prices.allSuppliers')");
-			expect(PRICES_MOBILE).toContain("$t('prices.filter.supplier')");
+			expect(PRICES_MOBILE).toContain("t('prices.allSuppliers')");
+			expect(PRICES_MOBILE).toContain("t('prices.filter.supplier')");
 			expect(PRICES_MOBILE).toMatch(/searchParams\.set\('supplier_id'/);
 			expect(PRICES_PAGE).toMatch(/suppliers=\{data\.suppliers\}/);
 			expect(PRICES_PAGE).toMatch(/selected_supplier=\{data\.selected_supplier\}/);
@@ -75,7 +75,7 @@ describe('analytics mobile parity (issue #654)', () => {
 
 		it('ports the normalized price-per-base-unit chip', () => {
 			expect(PRICES_MOBILE).toContain('latest_normalized_price');
-			expect(PRICES_MOBILE).toContain("$t('prices.perBaseHint')");
+			expect(PRICES_MOBILE).toContain("t('prices.perBaseHint')");
 		});
 	});
 
@@ -91,10 +91,10 @@ describe('analytics mobile parity (issue #654)', () => {
 
 		it('rows keep a lead cell and captioned values below md', () => {
 			expect(EXTRACTION).toContain('tbl-stack-lead');
-			expect(EXTRACTION).toMatch(/data-label=\{\$t\('extract\.acc\.colCorrections'\)\}/);
-			expect(EXTRACTION).toMatch(/data-label=\{\$t\('extract\.acc\.colInvoices'\)\}/);
-			expect(EXTRACTION).toMatch(/data-label=\{\$t\('extract\.acc\.colAutoConfirmed'\)\}/);
-			expect(EXTRACTION).toMatch(/data-label=\{\$t\('extract\.acc\.colAvgCorr'\)\}/);
+			expect(EXTRACTION).toMatch(/data-label=\{t\('extract\.acc\.colCorrections'\)\}/);
+			expect(EXTRACTION).toMatch(/data-label=\{t\('extract\.acc\.colInvoices'\)\}/);
+			expect(EXTRACTION).toMatch(/data-label=\{t\('extract\.acc\.colAutoConfirmed'\)\}/);
+			expect(EXTRACTION).toMatch(/data-label=\{t\('extract\.acc\.colAvgCorr'\)\}/);
 		});
 	});
 
@@ -116,9 +116,9 @@ describe('analytics mobile parity (issue #654)', () => {
 
 		it('both pages render a yearly spend-by-volume chart via TrendLineChart', () => {
 			expect(SPEND_DESKTOP).toMatch(/import TrendLineChart from '\$lib\/components\/mep\/TrendLineChart\.svelte'/);
-			expect(SPEND_DESKTOP).toContain("$t('spend.yearly.title')");
+			expect(SPEND_DESKTOP).toContain("t('spend.yearly.title')");
 			expect(SPEND_MOBILE).toMatch(/import TrendLineChart from '\$lib\/components\/mep\/TrendLineChart\.svelte'/);
-			expect(SPEND_MOBILE).toContain("$t('spend.yearly.title')");
+			expect(SPEND_MOBILE).toContain("t('spend.yearly.title')");
 		});
 
 		it('the category panel renders a donut, not a category-colored bar fill', () => {

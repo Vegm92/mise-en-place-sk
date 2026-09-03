@@ -62,56 +62,56 @@
   const trendSeries = $derived(
     CATEGORIES.filter(c => activeCats.includes(c.key)).map(c => ({
       key: c.key,
-      label: $t(c.labelKey),
+      label: t(c.labelKey),
       color: c.color,
       values: ITEMS.filter(i => i.category === c.key)
         .reduce((acc, i) => acc.map((v, idx) => v + i.trend[idx]), [0, 0, 0, 0, 0, 0]),
     }))
   );
 
-  function categoryLabel(key: string) { return $t(CATEGORIES.find(c => c.key === key)?.labelKey ?? key); }
+  function categoryLabel(key: string) { return t(CATEGORIES.find(c => c.key === key)?.labelKey ?? key); }
   function categoryColor(key: string) { return CATEGORIES.find(c => c.key === key)?.color ?? 'var(--mep-fg-3)'; }
-  function fmtEur(v: number) { return fmtEurBase(v, $locale); }
+  function fmtEur(v: number) { return fmtEurBase(v, locale.current); }
 </script>
 
 <div class="p-6 flex flex-col gap-4">
   <div>
-    <div class="title">{$t('tpl.demo.title')}</div>
-    <p class="body" style="max-width:640px;margin-top:4px;">{$t('tpl.demo.desc')}</p>
+    <div class="title">{t('tpl.demo.title')}</div>
+    <p class="body" style="max-width:640px;margin-top:4px;">{t('tpl.demo.desc')}</p>
   </div>
 
   <ListPageTemplate
     dataCoach="plantilla-lista-main"
     bind:search
     bind:view
-    searchPlaceholder={$t('tpl.demo.searchPlaceholder')}
+    searchPlaceholder={t('tpl.demo.searchPlaceholder')}
     {period}
-    periodPills={PERIODS.map(([val, labelKey]) => ({ value: val, label: $t(labelKey), href: `?period=${val}` }))}
-    viewLabels={{ list: $t('tpl.view.list'), chart: $t('tpl.view.chart') }}
+    periodPills={PERIODS.map(([val, labelKey]) => ({ value: val, label: t(labelKey), href: `?period=${val}` }))}
+    viewLabels={{ list: t('tpl.view.list'), chart: t('tpl.view.chart') }}
     kpis={[
-      { key: 'total',  label: $t('tpl.demo.kpi.total'), value: scaled.length, sub: $t('tpl.demo.kpi.totalSub') },
-      { key: 'spend',  label: $t('tpl.demo.kpi.spend'), value: fmtEur(totalSpend), delta: 4.2, deltaCtx: $t('tpl.demo.kpi.spendCtx') },
-      { key: 'review', label: $t('tpl.demo.kpi.review'), value: 0, sub: $t('tpl.demo.kpi.reviewSub') },
+      { key: 'total',  label: t('tpl.demo.kpi.total'), value: scaled.length, sub: t('tpl.demo.kpi.totalSub') },
+      { key: 'spend',  label: t('tpl.demo.kpi.spend'), value: fmtEur(totalSpend), delta: 4.2, deltaCtx: t('tpl.demo.kpi.spendCtx') },
+      { key: 'review', label: t('tpl.demo.kpi.review'), value: 0, sub: t('tpl.demo.kpi.reviewSub') },
     ]}
-    trendTitle={$t('tpl.demo.trendTitle')}
-    trendBadges={CATEGORIES.map(c => ({ key: c.key, label: $t(c.labelKey), color: c.color, active: activeCats.includes(c.key) }))}
+    trendTitle={t('tpl.demo.trendTitle')}
+    trendBadges={CATEGORIES.map(c => ({ key: c.key, label: t(c.labelKey), color: c.color, active: activeCats.includes(c.key) }))}
     onToggleTrendBadge={toggleCat}
     {trendXLabels}
     {trendSeries}
     trendValueFormatter={fmtEur}
-    trendEmptyLabel={$t('tpl.demo.trendEmpty')}
+    trendEmptyLabel={t('tpl.demo.trendEmpty')}
   >
     {#snippet filters()}
       <div style="position:relative;">
         <select class="btn btn-secondary" style="appearance:none;padding:0 28px 0 10px;cursor:pointer;min-width:150px;" bind:value={categoryFilter}>
-          <option value="">{$t('tpl.demo.filterAll')}</option>
-          {#each CATEGORIES as c}<option value={c.key}>{$t(c.labelKey)}</option>{/each}
+          <option value="">{t('tpl.demo.filterAll')}</option>
+          {#each CATEGORIES as c}<option value={c.key}>{t(c.labelKey)}</option>{/each}
         </select>
         <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:11px;">▾</span>
       </div>
       <div style="flex:1;"></div>
       <button type="button" class="btn btn-primary" style="font-size:12.5px;gap:5px;">
-        <Plus size={13} /> {$t('tpl.demo.add')}
+        <Plus size={13} /> {t('tpl.demo.add')}
       </button>
     {/snippet}
 
@@ -120,35 +120,35 @@
         {#if selected}
           <div style="display:flex;align-items:center;gap:8px;">
             <button type="button" class="btn btn-ghost" style="height:28px;font-size:12px;padding:0 8px 0 4px;gap:4px;" onclick={() => (selectedId = null)}>
-              <ArrowLeft size={14} /> {$t('tpl.demo.back')}
+              <ArrowLeft size={14} /> {t('tpl.demo.back')}
             </button>
-            <span class="subtitle">{$ti('tpl.demo.detailTitle', { name: selected.name })}</span>
+            <span class="subtitle">{ti('tpl.demo.detailTitle', { name: selected.name })}</span>
           </div>
         {:else}
           <div class="section-title">
-            <span class="subtitle">{$t('tpl.demo.tableTitle')}</span>
-            <span class="body" style="font-size:12px;">{$ti('tpl.demo.itemCount', { n: filtered.length })}</span>
+            <span class="subtitle">{t('tpl.demo.tableTitle')}</span>
+            <span class="body" style="font-size:12px;">{ti('tpl.demo.itemCount', { n: filtered.length })}</span>
           </div>
         {/if}
       </div>
       {#if selected}
         <div style="padding:16px;">
           <p class="body" style="font-size:12.5px;">
-            {$ti('tpl.demo.detailBody', { category: categoryLabel(selected.category), unit: selected.unit, spend: fmtEur(selected.monthSpend), id: selected.id })}
+            {ti('tpl.demo.detailBody', { category: categoryLabel(selected.category), unit: selected.unit, spend: fmtEur(selected.monthSpend), id: selected.id })}
           </p>
         </div>
       {:else if !filtered.length}
         <div style="text-align:center;padding:48px 24px;">
-          <span class="body">{$t('tpl.demo.empty')}</span>
+          <span class="body">{t('tpl.demo.empty')}</span>
         </div>
       {:else}
         <table class="tbl tbl-stack">
           <thead>
             <tr>
-              <th>{$t('tpl.demo.col.name')}</th>
-              <th>{$t('tpl.demo.col.category')}</th>
-              <th>{$t('tpl.demo.col.unit')}</th>
-              <th class="num">{$t('tpl.demo.col.spend')}</th>
+              <th>{t('tpl.demo.col.name')}</th>
+              <th>{t('tpl.demo.col.category')}</th>
+              <th>{t('tpl.demo.col.unit')}</th>
+              <th class="num">{t('tpl.demo.col.spend')}</th>
             </tr>
           </thead>
           <tbody>
@@ -160,8 +160,8 @@
                     {categoryLabel(r.category)}
                   </span>
                 </td>
-                <td class="body" style="font-size:12px;" data-label={$t('tpl.demo.col.unit')}>{r.unit}</td>
-                <td class="num" data-label={$t('tpl.demo.col.spend')}>{fmtEur(r.monthSpend)}</td>
+                <td class="body" style="font-size:12px;" data-label={t('tpl.demo.col.unit')}>{r.unit}</td>
+                <td class="num" data-label={t('tpl.demo.col.spend')}>{fmtEur(r.monthSpend)}</td>
               </tr>
             {/each}
           </tbody>

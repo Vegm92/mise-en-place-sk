@@ -9,7 +9,7 @@
  *      expressions are not mistaken for prose.
  *   2. script — string literals assigned to label-ish properties, plus any
  *      literal carrying Spanish orthography, which is prose by definition.
- *   3. keys — every $t/$ti/$tiv/$tp call with a literal key must resolve in
+ *   3. keys — every t/ti/tiv/tp call with a literal key must resolve in
  *      every locale table (issue #661). Going through the table is not enough
  *      if the key is not in it: the UI then renders the raw key. Keys built at
  *      runtime cannot be resolved statically and are skipped, not guessed at.
@@ -223,7 +223,7 @@ const unique = violations.filter((v) => {
 
 if (unique.length > 0) {
 	console.error(
-		'\nUser-facing strings must come from the i18n table — use $t / $ti / $tp instead of literals,\n' +
+		'\nUser-facing strings must come from the i18n table — use t / ti / tp instead of literals,\n' +
 			'and every key they pass must exist ([missing-key:<locale>] below).\n' +
 			'Add the key to BOTH src/lib/messages/es.ts and src/lib/messages/en.ts. Language-neutral tokens can be\n' +
 			'allowlisted in scripts/check-i18n-strings.mjs.\n'

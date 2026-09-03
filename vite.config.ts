@@ -101,12 +101,20 @@ export default defineConfig(({ mode }) => {
 	return {
 		plugins: [...prePlugins, sveltekit(), ...postPlugins],
 		build: {
+			reportCompressedSize: false,
 			rollupOptions: {
 				external: ['@whiskeysockets/baileys', 'qrcode-terminal'],
 			},
 		},
 		server: {
 			allowedHosts: true,
+			warmup: {
+				clientFiles: [
+					'./src/routes/(app)/+layout.svelte',
+					'./src/routes/(app)/batch/[id]/+page.svelte',
+					'./src/routes/(app)/suppliers/[id]/+page.svelte',
+				],
+			},
 		},
 		test: {
 			// vitest 3.2.7 ignores a project-level `isolate` for the forks pool,

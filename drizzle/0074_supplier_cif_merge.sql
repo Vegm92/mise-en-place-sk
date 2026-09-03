@@ -1,4 +1,4 @@
--- Migration 0073: merge pre-#905 duplicate suppliers, then enforce one row per
+-- Migration 0074: merge pre-#905 duplicate suppliers, then enforce one row per
 -- (restaurant_id, normalized_cif) — issue #949.
 --
 -- #905 made new documents resolve to one supplier per tax id but changed
@@ -117,8 +117,16 @@ WHERE normalized_cif IS NOT NULL
 -- ── 2. Pick a winner per duplicate group ─────────────────────────────────────
 -- Lowest id, which is the row findByTaxId already returns (`ORDER BY id`), so
 -- the merge keeps every supplier that new documents were already landing on.
+--
+-- A real table, not a TEMP ... ON COMMIT DROP one: the migration runner does not
+-- hold every statement of this file in one transaction when several migrations
+-- are pending (a fresh database — CI, or a new environment), and a temp table
+-- keyed to that transaction is gone by step 3. Dropped explicitly at the end,
+-- and dropped first here so a re-run after a failed attempt starts clean.
 
-CREATE TEMP TABLE mep_supplier_merge_map ON COMMIT DROP AS
+DROP TABLE IF EXISTS mep_supplier_merge_map;--> statement-breakpoint
+
+CREATE UNLOGGED TABLE mep_supplier_merge_map AS
 SELECT s.id AS loser_id, g.winner_id, s.restaurant_id, s.name AS loser_name
 FROM suppliers s
 JOIN (
@@ -213,6 +221,8 @@ WHERE s.id = m.loser_id
 UPDATE suppliers s SET normalized_cif = NULL
 FROM mep_supplier_merge_map m
 WHERE s.id = m.loser_id;--> statement-breakpoint
+
+DROP TABLE mep_supplier_merge_map;--> statement-breakpoint
 
 DROP INDEX IF EXISTS "suppliers_rid_normalized_cif_idx";--> statement-breakpoint
 CREATE UNIQUE INDEX "suppliers_rid_normalized_cif_idx" ON "suppliers" USING btree ("restaurant_id","normalized_cif") WHERE "suppliers"."normalized_cif" IS NOT NULL;

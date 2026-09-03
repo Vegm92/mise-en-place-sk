@@ -258,6 +258,11 @@ guard; quota arithmetic.
 
 - Stripe billing integration; without `STRIPE_SECRET_KEY` the module is a no-op (dev-safe).
 
+**`const STRIPE_API_VERSION`**
+
+- The Stripe API version the client is pinned to (issue #847). The SDK types `apiVersion` as the literal of its own bundled version, so a `stripe` package bump whose default version moved makes `pnpm check` fail here until the constant is bumped on purpose — the review gate the pin exists for. The value must match the API version configured on the webhook endpoint in the Stripe dashboard, so `constructEvent` payloads and API responses agree; check the dashboard when bumping it.
+- `constructEvent` stays synchronous on purpose: `constructEventAsync` exists for edge runtimes with async-only crypto, and this app runs on adapter-node.
+
 **`class WebhookSignatureError`**
 
 - Thrown when the Stripe signature doesn't verify — expected, un-retryable (400). Other throws are real handler failures the route must surface as 500 so Stripe retries and Sentry sees them (issue #253).

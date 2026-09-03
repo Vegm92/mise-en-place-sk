@@ -1,5 +1,5 @@
 {
-  "id": "47097ed5-64a2-4a7d-8270-c7418027095a",
+  "id": "62ad51c7-7523-460b-9b37-8405859c8713",
   "prevId": "a800ae95-6d87-4327-8698-a1537ab3e797",
   "version": "7",
   "dialect": "postgresql",
@@ -2086,6 +2086,12 @@
         "incidence_kind": {
           "name": "incidence_kind",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "incidence_reasons": {
+          "name": "incidence_reasons",
+          "type": "text[]",
           "primaryKey": false,
           "notNull": false
         },
@@ -4515,7 +4521,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": true,
+          "isUnique": false,
           "where": "\"suppliers\".\"normalized_cif\" IS NOT NULL",
           "concurrently": false,
           "method": "btree",

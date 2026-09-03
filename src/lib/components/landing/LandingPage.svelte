@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { derived } from 'svelte/store';
   import { toggleTheme as flipTheme, currentTheme } from '$lib/theme';
   import { browser } from '$app/environment';
   import { slide } from 'svelte/transition';
@@ -14,7 +13,7 @@
   import ShieldCheck from '@lucide/svelte/icons/shield-check';
   import { PROVISIONAL_PRICE, TIER_COPY, type TierId } from '$lib/billing-plans';
   import { page } from '$app/state';
-  import { locale as preferredLocale } from '$lib/i18n';
+  import { setLocale } from '$lib/i18n';
   import { getLocale, getT, getTi } from '$lib/i18n-context';
   import { localeHref, otherLocale } from '$lib/locale-url';
   import { overrideFor, interpolate, type LandingOverrides } from '$lib/landing-copy';
@@ -41,17 +40,12 @@
   const baseT = getT();
   const baseTi = getTi();
 
-  const t = derived([baseT, locale], ([$baseT, $locale]) => (key: string): string => {
-    return overrideFor(overrides, $locale, key) ?? $baseT(key);
-  });
+  const t = (key: string): string => overrideFor(overrides, locale.current, key) ?? baseT(key);
 
-  const ti = derived([baseTi, locale], ([$baseTi, $locale]) => (
-    key: string,
-    vars: Record<string, string | number>,
-  ): string => {
-    const override = overrideFor(overrides, $locale, key);
-    return override === undefined ? $baseTi(key, vars) : interpolate(override, vars);
-  });
+  const ti = (key: string, vars: Record<string, string | number>): string => {
+    const override = overrideFor(overrides, locale.current, key);
+    return override === undefined ? baseTi(key, vars) : interpolate(override, vars);
+  };
 
   let theme = $state<'light' | 'dark'>(
     browser ? currentTheme() : 'light'
@@ -66,11 +60,11 @@
     theme = flipTheme();
   }
 
-  const alternate = $derived(otherLocale($locale));
+  const alternate = $derived(otherLocale(locale.current));
   const alternateHref = $derived(localeHref(page.url, alternate));
 
   function rememberLocale() {
-    preferredLocale.set(alternate);
+    setLocale(alternate);
   }
 
   const SPOT_TOTAL = 50;
@@ -87,43 +81,43 @@
 
   const painItems = $derived([
     {
-      stat:  $t('waitlist.pain.0.stat'),
-      label: $t('waitlist.pain.0.label'),
-      title: $t('waitlist.pain.0.title'),
-      body:  $t('waitlist.pain.0.body'),
+      stat:  t('waitlist.pain.0.stat'),
+      label: t('waitlist.pain.0.label'),
+      title: t('waitlist.pain.0.title'),
+      body:  t('waitlist.pain.0.body'),
     },
     {
-      stat:  $t('waitlist.pain.1.stat'),
-      label: $t('waitlist.pain.1.label'),
-      title: $t('waitlist.pain.1.title'),
-      body:  $t('waitlist.pain.1.body'),
+      stat:  t('waitlist.pain.1.stat'),
+      label: t('waitlist.pain.1.label'),
+      title: t('waitlist.pain.1.title'),
+      body:  t('waitlist.pain.1.body'),
     },
     {
-      stat:  $t('waitlist.pain.2.stat'),
-      label: $t('waitlist.pain.2.label'),
-      title: $t('waitlist.pain.2.title'),
-      body:  $t('waitlist.pain.2.body'),
+      stat:  t('waitlist.pain.2.stat'),
+      label: t('waitlist.pain.2.label'),
+      title: t('waitlist.pain.2.title'),
+      body:  t('waitlist.pain.2.body'),
     },
   ]);
 
   const compareWithoutItems = $derived([
-    $t('waitlist.compare.without.0'),
-    $t('waitlist.compare.without.1'),
-    $t('waitlist.compare.without.2'),
-    $t('waitlist.compare.without.3'),
+    t('waitlist.compare.without.0'),
+    t('waitlist.compare.without.1'),
+    t('waitlist.compare.without.2'),
+    t('waitlist.compare.without.3'),
   ]);
 
   const compareWithItems = $derived([
-    $t('waitlist.compare.with.0'),
-    $t('waitlist.compare.with.1'),
-    $t('waitlist.compare.with.2'),
-    $t('waitlist.compare.with.3'),
+    t('waitlist.compare.with.0'),
+    t('waitlist.compare.with.1'),
+    t('waitlist.compare.with.2'),
+    t('waitlist.compare.with.3'),
   ]);
 
   const stepItems = $derived([
-    { num: '01', tag: $t('waitlist.steps.0.tag'), title: $t('waitlist.steps.0.title'), body: $t('waitlist.steps.0.body') },
-    { num: '02', tag: $t('waitlist.steps.1.tag'), title: $t('waitlist.steps.1.title'), body: $t('waitlist.steps.1.body') },
-    { num: '03', tag: $t('waitlist.steps.2.tag'), title: $t('waitlist.steps.2.title'), body: $t('waitlist.steps.2.body') },
+    { num: '01', tag: t('waitlist.steps.0.tag'), title: t('waitlist.steps.0.title'), body: t('waitlist.steps.0.body') },
+    { num: '02', tag: t('waitlist.steps.1.tag'), title: t('waitlist.steps.1.title'), body: t('waitlist.steps.1.body') },
+    { num: '03', tag: t('waitlist.steps.2.tag'), title: t('waitlist.steps.2.title'), body: t('waitlist.steps.2.body') },
   ]);
 
   function splitRole(role: string): { roleLine: string; venueType: string | null } {
@@ -134,75 +128,75 @@
   }
 
   const testimonialItems = $derived([
-    { quote: $t('waitlist.testimonials.0.quote'), name: $t('waitlist.testimonials.0.name'), ...splitRole($t('waitlist.testimonials.0.role')) },
-    { quote: $t('waitlist.testimonials.1.quote'), name: $t('waitlist.testimonials.1.name'), ...splitRole($t('waitlist.testimonials.1.role')) },
-    { quote: $t('waitlist.testimonials.2.quote'), name: $t('waitlist.testimonials.2.name'), ...splitRole($t('waitlist.testimonials.2.role')) },
+    { quote: t('waitlist.testimonials.0.quote'), name: t('waitlist.testimonials.0.name'), ...splitRole(t('waitlist.testimonials.0.role')) },
+    { quote: t('waitlist.testimonials.1.quote'), name: t('waitlist.testimonials.1.name'), ...splitRole(t('waitlist.testimonials.1.role')) },
+    { quote: t('waitlist.testimonials.2.quote'), name: t('waitlist.testimonials.2.name'), ...splitRole(t('waitlist.testimonials.2.role')) },
   ]);
 
   const foundingItems = $derived([
-    { title: $t('waitlist.founding.0.title'), body: $t('waitlist.founding.0.body') },
-    { title: $t('waitlist.founding.1.title'), body: $t('waitlist.founding.1.body') },
-    { title: $t('waitlist.founding.2.title'), body: $t('waitlist.founding.2.body') },
+    { title: t('waitlist.founding.0.title'), body: t('waitlist.founding.0.body') },
+    { title: t('waitlist.founding.1.title'), body: t('waitlist.founding.1.body') },
+    { title: t('waitlist.founding.2.title'), body: t('waitlist.founding.2.body') },
   ]);
 
   const trustBarItems = $derived([
-    { label: $t('waitlist.trustBar.cadence.label'), body: $t('waitlist.trustBar.cadence.body') },
-    { label: $t('waitlist.trustBar.support.label'), body: $t('waitlist.trustBar.support.body') },
-    { label: $t('waitlist.trustBar.privacy.label'), body: $t('waitlist.trustBar.privacy.body') },
+    { label: t('waitlist.trustBar.cadence.label'), body: t('waitlist.trustBar.cadence.body') },
+    { label: t('waitlist.trustBar.support.label'), body: t('waitlist.trustBar.support.body') },
+    { label: t('waitlist.trustBar.privacy.label'), body: t('waitlist.trustBar.privacy.body') },
   ]);
 
   const faqItems = $derived([
-    { q: $t('waitlist.faq.0.q'), a: $t('waitlist.faq.0.a') },
-    { q: $t('waitlist.faq.1.q'), a: $t('waitlist.faq.1.a') },
-    { q: $t('waitlist.faq.2.q'), a: $t('waitlist.faq.2.a') },
+    { q: t('waitlist.faq.0.q'), a: t('waitlist.faq.0.a') },
+    { q: t('waitlist.faq.1.q'), a: t('waitlist.faq.1.a') },
+    { q: t('waitlist.faq.2.q'), a: t('waitlist.faq.2.a') },
     {
-      q: $t('waitlist.faq.3.q'),
-      a: $ti('waitlist.faq.3.a', {
+      q: t('waitlist.faq.3.q'),
+      a: ti('waitlist.faq.3.a', {
         starter: PROVISIONAL_PRICE.starter,
         pro: PROVISIONAL_PRICE.pro,
         business: PROVISIONAL_PRICE.business,
       }),
     },
-    { q: $t('waitlist.faq.4.q'), a: $t('waitlist.faq.4.a') },
+    { q: t('waitlist.faq.4.q'), a: t('waitlist.faq.4.a') },
   ]);
 
   const emailFormCopy = $derived({
-    placeholder:    $t('login.emailPlaceholder'),
-    submit:         $t('waitlist.form.submit'),
-    submitShort:    $t('waitlist.form.submitShort'),
-    success:        $t('waitlist.form.success'),
-    successBody:    $t('waitlist.form.successBody'),
-    alreadyReg:     $t('waitlist.form.alreadyReg'),
-    errRequired:    $t('waitlist.form.errRequired'),
-    errInvalid:     $t('waitlist.form.errInvalid'),
-    errRateLimited: $t('waitlist.form.errRateLimited'),
-    errBot:         $t('signup.err.bot'),
-    privacy:        $t('waitlist.form.privacy'),
+    placeholder:    t('login.emailPlaceholder'),
+    submit:         t('waitlist.form.submit'),
+    submitShort:    t('waitlist.form.submitShort'),
+    success:        t('waitlist.form.success'),
+    successBody:    t('waitlist.form.successBody'),
+    alreadyReg:     t('waitlist.form.alreadyReg'),
+    errRequired:    t('waitlist.form.errRequired'),
+    errInvalid:     t('waitlist.form.errInvalid'),
+    errRateLimited: t('waitlist.form.errRateLimited'),
+    errBot:         t('signup.err.bot'),
+    privacy:        t('waitlist.form.privacy'),
   });
 
   const dashboardMockCopy = $derived({
-    mockSpendLabel: $t('waitlist.mock.spendLabel'),
-    mockCatMeat:    $t('waitlist.mock.catMeat'),
-    mockCatFish:    $t('tpl.demo.category.pescado'),
-    mockCatVeg:     $t('waitlist.mock.catVeg'),
-    mockAlertTitle: $t('waitlist.mock.alertTitle'),
-    mockReview:     $t('action.review'),
+    mockSpendLabel: t('waitlist.mock.spendLabel'),
+    mockCatMeat:    t('waitlist.mock.catMeat'),
+    mockCatFish:    t('tpl.demo.category.pescado'),
+    mockCatVeg:     t('waitlist.mock.catVeg'),
+    mockAlertTitle: t('waitlist.mock.alertTitle'),
+    mockReview:     t('action.review'),
   });
 
   const extractMockCopy = $derived({
-    mockExtractedIn: $t('waitlist.mock.extractedIn'),
-    mockConfirmed:   $t('waitlist.mock.confirmed'),
-    mockLinesVat:    $t('waitlist.mock.linesVat'),
+    mockExtractedIn: t('waitlist.mock.extractedIn'),
+    mockConfirmed:   t('waitlist.mock.confirmed'),
+    mockLinesVat:    t('waitlist.mock.linesVat'),
   });
 
   const appDashboardMockCopy = $derived({
-    mockKpiSpend:         $t('waitlist.mock.kpiSpend'),
-    mockKpiAvg:           $t('waitlist.mock.kpiAvg'),
-    mockKpiPending:       $t('dash.kpi.pending'),
-    mockKpiBudget:        $t('dash.budget'),
-    mockKpiOf:            $t('waitlist.mock.kpiOf'),
-    mockKpiInvoicesShort: $t('shell.quota'),
-    mockChartTitle:       $t('waitlist.mock.chartTitle'),
+    mockKpiSpend:         t('waitlist.mock.kpiSpend'),
+    mockKpiAvg:           t('waitlist.mock.kpiAvg'),
+    mockKpiPending:       t('dash.kpi.pending'),
+    mockKpiBudget:        t('dash.budget'),
+    mockKpiOf:            t('waitlist.mock.kpiOf'),
+    mockKpiInvoicesShort: t('shell.quota'),
+    mockChartTitle:       t('waitlist.mock.chartTitle'),
   });
 
   const siteRoot = $derived.by(() => {
@@ -215,20 +209,20 @@
 </script>
 
 <svelte:head>
-  <title>{$t('waitlist.pageTitle')}</title>
-  <meta name="description" content={$t('waitlist.metaDescription')} />
+  <title>{t('waitlist.pageTitle')}</title>
+  <meta name="description" content={t('waitlist.metaDescription')} />
   <link rel="canonical" href={data.canonicalUrl} />
 
   <meta property="og:type"        content="website" />
   <meta property="og:url"         content={data.canonicalUrl} />
   <meta property="og:site_name"   content="Mise en Place" />
-  <meta property="og:title"       content={$t('waitlist.ogTitle')} />
-  <meta property="og:description" content={$t('waitlist.metaDescription')} />
-  <meta property="og:locale"      content={$locale === 'es' ? 'es_ES' : 'en_US'} />
+  <meta property="og:title"       content={t('waitlist.ogTitle')} />
+  <meta property="og:description" content={t('waitlist.metaDescription')} />
+  <meta property="og:locale"      content={locale.current === 'es' ? 'es_ES' : 'en_US'} />
 
   <meta name="twitter:card"        content="summary_large_image" />
-  <meta name="twitter:title"       content={$t('waitlist.ogTitle')} />
-  <meta name="twitter:description" content={$t('waitlist.metaDescription')} />
+  <meta name="twitter:title"       content={t('waitlist.ogTitle')} />
+  <meta name="twitter:description" content={t('waitlist.metaDescription')} />
 
   {@html `<script type="application/ld+json">${JSON.stringify({
     '@context': 'https://schema.org',
@@ -237,16 +231,16 @@
         '@type': 'WebSite',
         name: 'Mise en Place',
         url: siteRoot,
-        inLanguage: $locale === 'es' ? 'es' : 'en',
+        inLanguage: locale.current === 'es' ? 'es' : 'en',
         potentialAction: { '@type': 'RegisterAction', target: data.canonicalUrl + '#join' },
       },
       {
         '@type': 'SoftwareApplication',
         name: 'Mise en Place',
-        description: $t('waitlist.metaDescription'),
+        description: t('waitlist.metaDescription'),
         applicationCategory: 'BusinessApplication',
         operatingSystem: 'Web',
-        offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR', description: $t('waitlist.jsonLdOfferDescription') },
+        offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR', description: t('waitlist.jsonLdOfferDescription') },
         creator: { '@type': 'Organization', name: 'Mise en Place', address: { '@type': 'PostalAddress', addressLocality: 'Barcelona', addressCountry: 'ES' } },
       },
     ],
@@ -259,22 +253,22 @@
     <div style="display:flex;align-items:center;gap:10px;">
       <Logo size={20} wordmark />
     </div>
-    <span class="text-[11px] font-semibold tracking-[0.12em] uppercase text-acc px-[7px] py-0.5 rounded font-mono bg-acc-soft">{$t('waitlist.betaBadge')}</span>
+    <span class="text-[11px] font-semibold tracking-[0.12em] uppercase text-acc px-[7px] py-0.5 rounded font-mono bg-acc-soft">{t('waitlist.betaBadge')}</span>
     <div style="flex:1;"></div>
-    <button onclick={toggleTheme} aria-label={$t('waitlist.themeToggleLabel')} class="w-[28px] h-[28px] shrink-0 rounded-full border border-border bg-surface flex items-center justify-center cursor-pointer text-fg-2">
+    <button onclick={toggleTheme} aria-label={t('waitlist.themeToggleLabel')} class="w-[28px] h-[28px] shrink-0 rounded-full border border-border bg-surface flex items-center justify-center cursor-pointer text-fg-2">
       {#if theme === 'dark'}<Sun size={14} />{:else}<Moon size={14} />{/if}
     </button>
     <div class="inline-flex items-center px-2.5 py-1 rounded-full border border-border bg-surface text-[11.5px] font-semibold tracking-[0.06em] text-fg-2 font-mono gap-2">
       <a href={alternateHref} hreflang={alternate} lang={alternate} rel="alternate"
-         onclick={rememberLocale} class="bg-transparent border-0 cursor-pointer p-0 font-[inherit] text-[inherit] font-[inherit] tracking-[inherit] no-underline text-fg-2">{$locale === 'es' ? 'EN' : 'ES'}</a>
+         onclick={rememberLocale} class="bg-transparent border-0 cursor-pointer p-0 font-[inherit] text-[inherit] font-[inherit] tracking-[inherit] no-underline text-fg-2">{locale.current === 'es' ? 'EN' : 'ES'}</a>
     </div>
     <div class="mep-nav-signin" style="display:flex;align-items:center;gap:8px;">
       <a href="/login" class="btn btn-secondary" style="padding:0 14px;font-size:13px;
                                                        font-weight:600;text-decoration:none;
-                                                       white-space:nowrap;">{$t('waitlist.signInLink')}</a>
+                                                       white-space:nowrap;">{t('waitlist.signInLink')}</a>
       <a href="/signup" class="btn btn-primary" style="padding:0 14px;font-size:13px;
                                                       font-weight:600;text-decoration:none;
-                                                      white-space:nowrap;">{$t('signup.submit')}</a>
+                                                      white-space:nowrap;">{t('signup.submit')}</a>
     </div>
   </nav>
 
@@ -284,13 +278,13 @@
       <div>
         <div style="max-width:560px;margin:0 auto;">
           <div class="mep-eyebrow" style="margin-bottom:26px;">
-            {$t('waitlist.eyebrow')}
+            {t('waitlist.eyebrow')}
           </div>
           <h1 class="m-0 text-[clamp(40px,5.6vw,59.5px)] font-semibold text-fg tracking-[-0.035em] leading-[1.08] text-balance">
-            {$t('waitlist.headline')}
+            {t('waitlist.headline')}
           </h1>
           <p class="mt-[22px] mx-auto mb-0 max-w-[560px] text-[18.5px] leading-[1.6] text-fg-2 text-pretty">
-            {$t('waitlist.sub')}
+            {t('waitlist.sub')}
           </p>
         </div>
 
@@ -303,7 +297,7 @@
             <span class="text-[15px] text-fg-3 font-mono">/ {SPOT_TOTAL}</span>
           </div>
           <div style="flex:1;min-width:120px;">
-            <div class="text-xs text-fg-3 uppercase tracking-[0.06em] font-medium mb-[5px] font-mono">{$t('waitlist.spotLabel')}</div>
+            <div class="text-xs text-fg-3 uppercase tracking-[0.06em] font-medium mb-[5px] font-mono">{t('waitlist.spotLabel')}</div>
             <div class="w-full h-[5px] rounded-[3px] bg-hover overflow-hidden">
               <div class="h-full bg-acc rounded-[3px]" style="width:{spotPct}%;"></div>
             </div>
@@ -319,8 +313,8 @@
 
   <section class="mep-section mep-tinted" style="padding:76px 72px;">
     <div class="mep-container">
-      <div class="mep-eyebrow" style="margin-bottom:14px;">{$t('waitlist.painEyebrow')}</div>
-      <h2 class="mep-h2">{$t('waitlist.painHead')}</h2>
+      <div class="mep-eyebrow" style="margin-bottom:14px;">{t('waitlist.painEyebrow')}</div>
+      <h2 class="mep-h2">{t('waitlist.painHead')}</h2>
       <div class="mep-grid-3" style="margin-top:44px;">
         {#each painItems as p}
           <div class="pt-5 border-t border-border">
@@ -338,12 +332,12 @@
 
   <section class="mep-section" style="padding:76px 72px;">
     <div style="max-width:1000px;margin:0 auto;">
-      <div class="text-[11px] font-semibold tracking-[0.2em] uppercase text-acc font-mono mb-3.5">{$t('waitlist.compareEyebrow')}</div>
-      <h2 class="m-0 max-w-[640px] text-[32px] font-semibold text-fg tracking-[-0.025em] leading-[1.15]">{$t('waitlist.compareHead')}</h2>
+      <div class="text-[11px] font-semibold tracking-[0.2em] uppercase text-acc font-mono mb-3.5">{t('waitlist.compareEyebrow')}</div>
+      <h2 class="m-0 max-w-[640px] text-[32px] font-semibold text-fg tracking-[-0.025em] leading-[1.15]">{t('waitlist.compareHead')}</h2>
 
       <div class="mep-compare-grid" style="margin-top:44px;display:grid;grid-template-columns:1fr 1fr;gap:24px;">
         <div class="rounded-card border border-neg bg-neg-soft p-7">
-          <div class="text-base font-semibold text-neg tracking-[-0.01em] mb-5">{$t('waitlist.compare.without.title')}</div>
+          <div class="text-base font-semibold text-neg tracking-[-0.01em] mb-5">{t('waitlist.compare.without.title')}</div>
           <div style="display:flex;flex-direction:column;gap:16px;">
             {#each compareWithoutItems as item}
               <div style="display:flex;gap:12px;align-items:flex-start;">
@@ -357,7 +351,7 @@
         </div>
 
         <div class="rounded-card border border-pos bg-pos-soft p-7">
-          <div class="text-base font-semibold text-pos tracking-[-0.01em] mb-5">{$t('waitlist.compare.with.title')}</div>
+          <div class="text-base font-semibold text-pos tracking-[-0.01em] mb-5">{t('waitlist.compare.with.title')}</div>
           <div style="display:flex;flex-direction:column;gap:16px;">
             {#each compareWithItems as item}
               <div style="display:flex;gap:12px;align-items:flex-start;">
@@ -375,8 +369,8 @@
 
   <section class="mep-section" style="padding:88px 72px;">
     <div class="mep-container">
-      <div class="mep-eyebrow" style="margin-bottom:14px;">{$t('waitlist.howEyebrow')}</div>
-      <h2 class="mep-h2" style="margin:0 0 56px;">{$t('waitlist.howHead')}</h2>
+      <div class="mep-eyebrow" style="margin-bottom:14px;">{t('waitlist.howEyebrow')}</div>
+      <h2 class="mep-h2" style="margin:0 0 56px;">{t('waitlist.howHead')}</h2>
 
       <div style="display:flex;flex-direction:column;gap:64px;">
         {#each stepItems as step, i}
@@ -391,11 +385,11 @@
             </div>
             <div>
               {#if i === 0}
-                <CaptureMock whatsappReply={$t('waitlist.mock.whatsappReply')} />
+                <CaptureMock whatsappReply={t('waitlist.mock.whatsappReply')} />
               {:else if i === 1}
                 <ExtractMock copy={extractMockCopy} />
               {:else}
-                <DashboardMock copy={dashboardMockCopy} locale={$locale} />
+                <DashboardMock copy={dashboardMockCopy} locale={locale.current} />
               {/if}
             </div>
           </div>
@@ -406,9 +400,9 @@
 
   <section class="mep-section mep-tinted" style="padding:76px 72px;">
     <div class="mep-container">
-      <div class="mep-eyebrow" style="margin-bottom:14px;">{$t('waitlist.testimonialsEyebrow')}</div>
+      <div class="mep-eyebrow" style="margin-bottom:14px;">{t('waitlist.testimonialsEyebrow')}</div>
       <p class="mt-0 mx-0 mb-[34px] text-[13px] leading-[1.55] text-fg-3 max-w-[620px]">
-        {$t('waitlist.testimonialsDisclaimer')}
+        {t('waitlist.testimonialsDisclaimer')}
       </p>
       <div class="mep-grid-3">
         {#each testimonialItems as item}
@@ -433,16 +427,16 @@
 
   <section class="mep-section" style="padding:76px 72px;">
     <div class="mep-founder-card max-w-[860px] mx-auto flex gap-6 items-start py-8 px-9 rounded-2xl bg-surface border border-divider">
-      <div class="w-[92px] h-[92px] rounded-full shrink-0 bg-[linear-gradient(135deg,var(--mep-acc-soft)_0%,var(--mep-acc)_200%)] text-acc-fg flex items-center justify-center text-[31px] font-bold font-mono tracking-[-1px] border border-border">{$t('waitlist.founderInitials')}</div>
+      <div class="w-[92px] h-[92px] rounded-full shrink-0 bg-[linear-gradient(135deg,var(--mep-acc-soft)_0%,var(--mep-acc)_200%)] text-acc-fg flex items-center justify-center text-[31px] font-bold font-mono tracking-[-1px] border border-border">{t('waitlist.founderInitials')}</div>
       <div style="flex:1;">
-        <div class="text-[11.5px] font-semibold tracking-[0.14em] uppercase text-acc font-mono mb-2.5">{$t('waitlist.founderEyebrow')}</div>
+        <div class="text-[11.5px] font-semibold tracking-[0.14em] uppercase text-acc font-mono mb-2.5">{t('waitlist.founderEyebrow')}</div>
         <p class="m-0 text-[19px] leading-[1.55] text-fg tracking-[-0.005em]">
-          &ldquo;{$t('waitlist.founderBody')}&rdquo;
+          &ldquo;{t('waitlist.founderBody')}&rdquo;
         </p>
         <div class="mt-3.5 text-[13px] text-fg-2">
-          <span class="font-semibold text-fg">{$t('waitlist.founderName')}</span>
+          <span class="font-semibold text-fg">{t('waitlist.founderName')}</span>
           {' · '}
-          <span class="text-fg-3">{$t('waitlist.founderRole')}</span>
+          <span class="text-fg-3">{t('waitlist.founderRole')}</span>
         </div>
       </div>
     </div>
@@ -450,42 +444,42 @@
 
   <section class="mep-section mep-tinted" style="padding:76px 72px;">
     <div style="max-width:1080px;margin:0 auto;">
-      <div class="mep-eyebrow" style="margin-bottom:14px;">{$t('waitlist.pricingEyebrow')}</div>
-      <h2 class="mep-h2">{$t('waitlist.pricingTitle')}</h2>
-      <p class="mt-3.5 mx-0 mb-0 max-w-[620px] text-[15px] leading-[1.6] text-fg-2 text-pretty">{$t('waitlist.pricingSub')}</p>
+      <div class="mep-eyebrow" style="margin-bottom:14px;">{t('waitlist.pricingEyebrow')}</div>
+      <h2 class="mep-h2">{t('waitlist.pricingTitle')}</h2>
+      <p class="mt-3.5 mx-0 mb-0 max-w-[620px] text-[15px] leading-[1.6] text-fg-2 text-pretty">{t('waitlist.pricingSub')}</p>
 
       <div class="mep-grid-4" style="margin-top:44px;display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-items:stretch;">
         <div class="card p-[20px_20px_22px] flex flex-col gap-3.5 bg-transparent border-dashed shadow-none">
-          <div class="text-lg font-semibold text-fg tracking-[-0.01em]">{$t('billing.tier.trial.name')}</div>
+          <div class="text-lg font-semibold text-fg tracking-[-0.01em]">{t('billing.tier.trial.name')}</div>
           <div>
-            <div class="num text-[35px] font-semibold tracking-[-0.025em] text-fg leading-[1.1]">{$t('waitlist.pricingTrialPrice')}</div>
-            <div class="mt-2 text-[12.5px] text-fg-3">{$t('waitlist.pricingTrialLimit')}</div>
+            <div class="num text-[35px] font-semibold tracking-[-0.025em] text-fg leading-[1.1]">{t('waitlist.pricingTrialPrice')}</div>
+            <div class="mt-2 text-[12.5px] text-fg-3">{t('waitlist.pricingTrialLimit')}</div>
           </div>
-          <div class="text-sm text-fg-2 leading-[1.45] min-h-[34px]">{$t('billing.tier.trial.tagline')}</div>
-          <a href="#join" class="btn btn-secondary" style="height:36px;justify-content:center;text-decoration:none;">{$t('waitlist.form.submitShort')}</a>
+          <div class="text-sm text-fg-2 leading-[1.45] min-h-[34px]">{t('billing.tier.trial.tagline')}</div>
+          <a href="#join" class="btn btn-secondary" style="height:36px;justify-content:center;text-decoration:none;">{t('waitlist.form.submitShort')}</a>
         </div>
 
         {#each PAID_TIERS as tier}
           <div class="card p-[20px_20px_22px] flex flex-col gap-3.5 relative shadow-card {tier.recommended ? 'border-acc ring-1 ring-acc' : 'border-border'}">
             <div style="display:flex;align-items:center;gap:8px;">
-              <div class="text-lg font-semibold text-fg tracking-[-0.01em]">{$t(`billing.plan.${tier.id}`)}</div>
+              <div class="text-lg font-semibold text-fg tracking-[-0.01em]">{t(`billing.plan.${tier.id}`)}</div>
               {#if tier.recommended}
-                <span class="bg-acc text-acc-fg text-xs font-medium py-0.5 px-[7px] rounded-tag">{$t('billing.recommended')}</span>
+                <span class="bg-acc text-acc-fg text-xs font-medium py-0.5 px-[7px] rounded-tag">{t('billing.recommended')}</span>
               {/if}
             </div>
             <div>
               <div style="display:flex;align-items:baseline;gap:6px;">
                 <span class="num text-[35px] font-semibold tracking-[-0.025em] text-fg border-b-2 border-dotted border-b-border-strong leading-[1.1]">{tier.price} €</span>
-                <span class="text-sm text-fg-3">{$t('waitlist.pricingPerMonth')}</span>
+                <span class="text-sm text-fg-3">{t('waitlist.pricingPerMonth')}</span>
               </div>
               <div style="margin-top:8px;">
                 <span class="inline-flex items-center gap-1 text-[11.5px] font-medium tracking-[0.02em] uppercase text-fg-3 border border-dashed border-border-strong rounded px-[5px] py-px">
-                  {$t('billing.provisional')}
+                  {t('billing.provisional')}
                 </span>
               </div>
             </div>
-            <div class="text-sm text-fg-2 leading-[1.45] min-h-[34px]">{$t(`billing.tier.${tier.id}.tagline`)}</div>
-            <a href="#join" class={tier.recommended ? 'btn btn-primary' : 'btn btn-secondary'} style="height:36px;justify-content:center;text-decoration:none;">{$t('waitlist.form.submitShort')}</a>
+            <div class="text-sm text-fg-2 leading-[1.45] min-h-[34px]">{t(`billing.tier.${tier.id}.tagline`)}</div>
+            <a href="#join" class={tier.recommended ? 'btn btn-primary' : 'btn btn-secondary'} style="height:36px;justify-content:center;text-decoration:none;">{t('waitlist.form.submitShort')}</a>
             <div class="h-px bg-divider"></div>
             <div style="display:flex;flex-direction:column;gap:8px;">
               {#each TIER_COPY[tier.id].bullets(tier.quota) as bullet}
@@ -493,7 +487,7 @@
                   <span class="mt-px shrink-0 {tier.recommended ? 'text-acc' : 'text-fg-3'}">
                     <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5l3.5 3.5L16 5.5"/></svg>
                   </span>
-                  <span style="line-height:1.4;">{bullet.interpolate ? $ti(bullet.key, bullet.interpolate) : $t(bullet.key)}</span>
+                  <span style="line-height:1.4;">{bullet.interpolate ? ti(bullet.key, bullet.interpolate) : t(bullet.key)}</span>
                 </div>
               {/each}
             </div>
@@ -501,15 +495,15 @@
         {/each}
       </div>
 
-      <p class="mt-8 mx-0 mb-0 text-[13.5px] text-fg-3 leading-[1.6] max-w-[780px] text-pretty">{$t('waitlist.pricingFoot')}</p>
+      <p class="mt-8 mx-0 mb-0 text-[13.5px] text-fg-3 leading-[1.6] max-w-[780px] text-pretty">{t('waitlist.pricingFoot')}</p>
     </div>
   </section>
 
   <section class="mep-section" style="padding:76px 72px;">
     <div style="max-width:1000px;margin:0 auto;">
-      <div class="text-[11px] font-semibold tracking-[0.2em] uppercase text-acc font-mono mb-3.5">{$t('waitlist.foundingEyebrow')}</div>
-      <h2 class="m-0 max-w-[640px] text-[32px] font-semibold text-fg tracking-[-0.025em] leading-[1.15]">{$t('waitlist.foundingHead')}</h2>
-      <p class="mt-3.5 mx-0 mb-0 max-w-[640px] text-base leading-[1.6] text-fg-2 text-pretty">{$t('waitlist.foundingSub')}</p>
+      <div class="text-[11px] font-semibold tracking-[0.2em] uppercase text-acc font-mono mb-3.5">{t('waitlist.foundingEyebrow')}</div>
+      <h2 class="m-0 max-w-[640px] text-[32px] font-semibold text-fg tracking-[-0.025em] leading-[1.15]">{t('waitlist.foundingHead')}</h2>
+      <p class="mt-3.5 mx-0 mb-0 max-w-[640px] text-base leading-[1.6] text-fg-2 text-pretty">{t('waitlist.foundingSub')}</p>
 
       <div class="mep-grid-3" style="margin-top:44px;display:grid;grid-template-columns:repeat(3,1fr);gap:24px;">
         {#each foundingItems as item, i}
@@ -525,7 +519,7 @@
 
   <section class="mep-section" style="padding:0 72px 76px;">
     <div style="max-width:720px;margin:0 auto;">
-      <div class="mep-eyebrow" style="margin-bottom:20px;">{$t('waitlist.faqEyebrow')}</div>
+      <div class="mep-eyebrow" style="margin-bottom:20px;">{t('waitlist.faqEyebrow')}</div>
       <div>
         {#each faqItems as row, i}
           {@const isOpen = openFaq === i}
@@ -555,7 +549,7 @@
   </section>
 
   <section class="mep-section" style="padding:0 72px 56px;">
-    <div class="mep-trust-bar max-w-[940px] mx-auto flex border border-divider rounded-card bg-surface overflow-hidden" role="list" aria-label={$t('waitlist.trustBarLabel')}>
+    <div class="mep-trust-bar max-w-[940px] mx-auto flex border border-divider rounded-card bg-surface overflow-hidden" role="list" aria-label={t('waitlist.trustBarLabel')}>
       {#each trustBarItems as item, i}
         <div class="mep-trust-bar-item" role="listitem"
           style="flex:1;display:flex;gap:12px;align-items:flex-start;padding:20px 22px;">
@@ -581,8 +575,8 @@
     <div class="mep-close-grid" style="max-width:940px;margin:0 auto;display:grid;grid-template-columns:1fr 420px;
                 gap:64px;align-items:center;">
       <div>
-        <h2 class="m-0 text-[clamp(31px,4vw,40px)] font-semibold text-fg tracking-[-0.025em] leading-[1.15] text-balance">{$t('waitlist.closeHead')}</h2>
-        <p class="mt-3.5 mx-0 mb-0 text-[17px] leading-[1.6] text-fg-2 max-w-[420px]">{$t('waitlist.closeSub')}</p>
+        <h2 class="m-0 text-[clamp(31px,4vw,40px)] font-semibold text-fg tracking-[-0.025em] leading-[1.15] text-balance">{t('waitlist.closeHead')}</h2>
+        <p class="mt-3.5 mx-0 mb-0 text-[17px] leading-[1.6] text-fg-2 max-w-[420px]">{t('waitlist.closeSub')}</p>
       </div>
       <div style="display:flex;flex-direction:column;gap:16px;">
         <EmailForm big={true} {form} copy={emailFormCopy} />
@@ -594,7 +588,7 @@
     <div style="display:flex;align-items:center;gap:10px;">
       <Logo size={20} wordmark />
     </div>
-    <div class="text-[12.5px] text-fg-3 font-mono">{$t('waitlist.footerNote')}</div>
+    <div class="text-[12.5px] text-fg-3 font-mono">{t('waitlist.footerNote')}</div>
   </footer>
 
 </div>

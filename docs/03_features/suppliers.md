@@ -334,11 +334,11 @@ issue #881); name non-empty; tenant scope. List search params validated by
 ### `src/lib/server/supplier-merge-report.ts`
 
 **`function reportSupplierMerges`**
-- Dry run for `drizzle/0073_supplier_cif_merge.sql` (issue #949): the duplicate groups, the row each collapses into, and how many invoices move. Read-only, and deliberately runs *before* the migration — so the checksum bar is applied here in TypeScript rather than through the migration's own `mep_valid_spanish_tax_id`, which does not exist yet on the database being inspected.
+- Dry run for `drizzle/0074_supplier_cif_merge.sql` (issue #949): the duplicate groups, the row each collapses into, and how many invoices move. Read-only, and deliberately runs *before* the migration — so the checksum bar is applied here in TypeScript rather than through the migration's own `mep_valid_spanish_tax_id`, which does not exist yet on the database being inspected.
 - `invoicesBlocked` is the merge's one lossy edge, surfaced before anyone commits to it: `uq_invoices_rid_supplier_number` means two rows in a group printing the same invoice number cannot both sit under the winner, so one invoice stays where it is and its supplier row survives the merge. Counted as `shared - 1` per repeated number, which is exactly how many the migration will leave behind.
 - Run it with `pnpm db:supplier-merge-report`.
 
-### `drizzle/0073_supplier_cif_merge.sql`
+### `drizzle/0074_supplier_cif_merge.sql`
 
 **merge order**
 - `supplier_id` is referenced from six tables with three delete behaviours, so the order is the correctness argument: `product_aliases` and `unit_conversions` are `ON DELETE set null` and silently lose their supplier scoping if the loser row goes first, and `invoices`/`extraction_corrections` are `no action` and would abort the migration. Every child is repointed first; `suppliers` rows are deleted last, and only the ones that kept nothing.
