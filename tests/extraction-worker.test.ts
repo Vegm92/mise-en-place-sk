@@ -569,18 +569,27 @@ describe('processExtractionJob — total mismatch is detected at extraction time
  * extraction (or the einvoice parser) through annotateLineItems into
  * extracted_data.line_items untouched.
  */
+const TAX_RATE_PASSTHROUGH_CASES = [
+	{
+		label: 'a mixed-rate invoice where each line prints its own rate',
+		rawLineItems: [
+			{ description: 'food', total_price: 50, tax_rate: 0.10 },
+			{ description: 'cleaning', total_price: 50, tax_rate: 0.21 },
+		],
+		expectedRates: [0.10, 0.21],
+	},
+	{
+		label: 'a line that printed no rate of its own',
+		rawLineItems: [{ description: 'mystery item', total_price: 100 }],
+		expectedRates: [null],
+	},
+] as const;
+
 describe('processExtractionJob — per-line tax_rate passes through to extracted_data (#919)', () => {
-	it('carries each line\'s tax_rate from the raw extraction into batch_items.extracted_data.line_items', async () => {
+	it.each(TAX_RATE_PASSTHROUGH_CASES)('carries tax_rate into extracted_data.line_items for $label', async ({ rawLineItems, expectedRates }) => {
 		batchMocks.markExtracting.mockResolvedValue(true);
 		extractMocks.extractWithProvider.mockResolvedValue({
-			invoice: {
-				supplier_name: 'Acme',
-				total_amount: 100,
-				line_items: [
-					{ description: 'food', total_price: 50, tax_rate: 0.10 },
-					{ description: 'cleaning', total_price: 50, tax_rate: 0.21 },
-				],
-			},
+			invoice: { supplier_name: 'Acme', total_amount: 100, line_items: rawLineItems },
 			usage: {},
 		});
 
@@ -589,32 +598,7 @@ describe('processExtractionJob — per-line tax_rate passes through to extracted
 		expect(batchMocks.markDone).toHaveBeenCalledWith(
 			item.id,
 			expect.objectContaining({
-				line_items: [
-					expect.objectContaining({ description: 'food', tax_rate: 0.10 }),
-					expect.objectContaining({ description: 'cleaning', tax_rate: 0.21 }),
-				],
-			}),
-			expect.anything(),
-		);
-	});
-
-	it('defaults tax_rate to null when the line printed none', async () => {
-		batchMocks.markExtracting.mockResolvedValue(true);
-		extractMocks.extractWithProvider.mockResolvedValue({
-			invoice: {
-				supplier_name: 'Acme',
-				total_amount: 100,
-				line_items: [{ description: 'mystery item', total_price: 100 }],
-			},
-			usage: {},
-		});
-
-		await processExtractionJob(job, undefined, RETRIES_LEFT);
-
-		expect(batchMocks.markDone).toHaveBeenCalledWith(
-			item.id,
-			expect.objectContaining({
-				line_items: [expect.objectContaining({ description: 'mystery item', tax_rate: null })],
+				line_items: expectedRates.map((tax_rate) => expect.objectContaining({ tax_rate })),
 			}),
 			expect.anything(),
 		);
