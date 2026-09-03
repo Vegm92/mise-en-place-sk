@@ -84,6 +84,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			db.select({
 				name: restaurants.name,
 				legalName: restaurants.legalName,
+				tradeName: restaurants.tradeName,
 				cifNif: restaurants.cifNif,
 				fiscalAddress: restaurants.fiscalAddress,
 				phone: restaurants.phone,
@@ -132,6 +133,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			restaurantName: restaurantRow[0]?.name ?? '',
 			fiscalIdentity: {
 				legalName: restaurantRow[0]?.legalName ?? '',
+				tradeName: restaurantRow[0]?.tradeName ?? '',
 				cifNif: restaurantRow[0]?.cifNif ?? '',
 				fiscalAddress: restaurantRow[0]?.fiscalAddress ?? '',
 				phone: restaurantRow[0]?.phone ?? '',
@@ -379,17 +381,19 @@ export const actions: Actions = {
 
 		const data = await request.formData();
 		const legalName = ((data.get('legalName') as string) ?? '').trim();
+		const tradeName = ((data.get('tradeName') as string) ?? '').trim();
 		const fiscalAddress = ((data.get('fiscalAddress') as string) ?? '').trim();
 		const cifNif = normalizeTaxId((data.get('cifNif') as string) ?? '');
 		const phone = ((data.get('phone') as string) ?? '').trim();
 
 		if (legalName.length > 200) return fail(422, { section: 'fiscal', error: 'set.fiscal.err.legalNameTooLong' });
+		if (tradeName.length > 200) return fail(422, { section: 'fiscal', error: 'set.fiscal.err.tradeNameTooLong' });
 		if (fiscalAddress.length > 300) return fail(422, { section: 'fiscal', error: 'set.fiscal.err.addressTooLong' });
 		if (cifNif && !isValidSpanishTaxId(cifNif)) return fail(422, { section: 'fiscal', error: 'set.fiscal.err.taxId' });
 		if (phone.length > 40) return fail(422, { section: 'fiscal', error: 'set.fiscal.err.phoneTooLong' });
 
 		await db.update(restaurants)
-			.set({ legalName: legalName || null, cifNif, fiscalAddress: fiscalAddress || null, phone: phone || null })
+			.set({ legalName: legalName || null, tradeName: tradeName || null, cifNif, fiscalAddress: fiscalAddress || null, phone: phone || null })
 			.where(eq(restaurants.id, rid));
 
 		return { section: 'fiscal', ok: 'set.fiscal.ok.saved' };
