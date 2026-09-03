@@ -15,6 +15,8 @@ const EXTRACTION_PROMPT = `You are an invoice data extraction specialist for Spa
 The document may be a FACTURA (invoice) or an ALBARÁN (delivery note / nota de entrega). Both are common in Spanish restaurant supplier workflows:
 - Facturas include IVA breakdowns (base imponible, cuota IVA, tipo IVA), número de factura, fecha de vencimiento, and CIF/NIF for both parties.
 - Albaranes are delivery notes: they list delivered products with quantities and sometimes unit prices, but may lack a total, IVA breakdown, or formal invoice number. Use the albarán number (nº albarán, nº pedido, referencia) as the invoice_number if no factura number is present.
+- invoice_number is NEVER the customer account code. Numbers printed under Cliente / Nº Cliente / Código cliente / Cod. cliente / Cuenta belong to the receptor's account — leave them out of invoice_number entirely, and prefer a null invoice_number over that code.
+  Example (text dump, columns arrive out of order): "08/07/2024 00012345 B12345678 Nº FACTURA CLIENTE FECHA ... LOTE 990 14/0003770 COPIA ... Albarán: 14/0003771 Fecha: 08/07/2024". The three values before the header are FECHA, CLIENTE code and the cliente's NIF, so 00012345 is the account code, not the number. The document's own number is the one printed with its lote/copia marker: invoice_number "14/0003770", document_type "factura" (it prints a TOTAL FACTURA row), receiver_nif "B12345678". "Albarán: 14/0003771" is a linked delivery note, not this document's number.
 - purchase_order is separate from invoice_number: also return the nº pedido / ref. cliente / su referencia / orden de compra whenever printed, even on documents that already have their own invoice_number.
 - Classify which one this document is in "document_type". Base invoice_number's confidence purely on how legibly that number is printed — a clearly printed albarán number deserves the same high confidence as a clearly printed factura number; do not lower it just because the document is an albarán.
 
@@ -105,6 +107,7 @@ Rules:
 - tax_breakdown must reflect what is printed on the document or arithmetically inferred (see Tax fallback below) — do not guess rates you cannot derive.
 - line_items[].tax_rate: read the % IVA / tipo / IVA column printed on that specific line. When no per-line column exists but the whole document prints a single IVA rate (one rate in tax_breakdown, or one rate stated once for the invoice), apply that same rate to every line. When the document mixes rates across lines and does not print which rate applies to which line, leave tax_rate null for those lines rather than guessing — do not allocate tax_breakdown amounts across lines by their price.
 - If a document shows both IVA and Recargo de Equivalencia (REC) columns, emit two separate entries in tax_breakdown: one with type "iva" and one with type "rec".
+- Emit one tax_breakdown entry per base row printed in the totals table, including rows at 0% or with a blank rate (exempt lines such as some cheeses or services). tax_base is the sum of all those bases; the difference between Total Líneas and the first base is never a discount unless a Dto. column says so.
 - If the document is an albarán with no prices, set total_amount to null and still extract all line item quantities and descriptions.
 
 Bottom totals table — scan this first: Spanish albaranes and facturas almost always print a summary row near the bottom with columns such as IMP. BRUTO / DTO. / BASE IMP. / CUOTA I.V.A. / REC. EQUIV. / RETENCIÓN / TOTAL FACTURA (or similar labels). This row is the primary source for gross_amount, discount_amount, tax_base, tax_breakdown, retention_amount, and total_amount. The IVA rate is often printed as a label INSIDE the CUOTA I.V.A. column (e.g. the column reads "CUOTA I.V.A. 10%" with the euro amount beneath it) — extract rate=0.10 and tax_amount from that cell.
@@ -135,6 +138,11 @@ Both parties — extract them separately, never pick one:
 - Telling them apart when the document has no "emisor"/"cliente" labels, in order:
   1. Labels and headings: Emisor / Proveedor / Facturado por vs Cliente / Destinatario / Facturar a /
      A la atención de. Any explicit label settles it.
+     A block headed Cliente, or a name printed next to a Cliente / Nº Cliente code, is ALWAYS the
+     receptor — even when the emisor's name is not legible (a logo the text layer lost). In that case
+     report the emisor's NIF and address from the letterhead with supplier_name null rather than
+     promoting the cliente to supplier.
+     Example: "RESTAURANTE EJEMPLO S.L. B12345678 C/ INDUSTRIA, 29 17412 MAÇANET DE LA SELVA B87654321 ... CLIENTE Número Fecha" — the address block that carries B87654321 is the letterhead (emisor, supplier_nif "B87654321", supplier_name null if no name is legible) and RESTAURANTE EJEMPLO is the cliente (receiver_nif "B12345678").
   2. Bank details, IBAN, "forma de pago", logo and letterhead belong to the EMISOR — the party being
      paid prints where to pay it.
   3. Position, and only when you can see the page: on a Spanish invoice the emisor is usually printed
@@ -175,7 +183,7 @@ scores high; a guess from two ambiguous line items on a crisp scan scores low.
 
 QR code: If you can see and decode a QR code on the document, return the full decoded URL in the "qr_url" field. Spanish VERI*FACTU invoices carry an AEAT verification URL (e.g. https://www2.agenciatributaria.es/wlpl/TIKE-CONT/ValidarQR?nif=...&numserie=...&fecha=...&importe=...). If no QR is visible or decodable, set qr_url to null.`;
 
-export const EXTRACTION_PROMPT_REVISION = 'v3';
+export const EXTRACTION_PROMPT_REVISION = 'v4';
 
 export const EXTRACTION_PROMPT_VERSION =
 	`${EXTRACTION_PROMPT_REVISION}-${createHash('sha256').update(EXTRACTION_PROMPT).digest('hex').slice(0, 12)}`;

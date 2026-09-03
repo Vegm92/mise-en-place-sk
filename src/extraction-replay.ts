@@ -8,17 +8,7 @@ import {
 	listCorpusEntries, recordExtractionResult, promptVersionStats, diffExtractions,
 	summarizeComparisons, anonymizeExtraction, type CorpusEntry, type FieldDiff,
 } from './lib/server/extraction-corpus.js';
-
-function flag(name: string): string | null {
-	const idx = process.argv.indexOf(`--${name}`);
-	if (idx === -1) return null;
-	const value = process.argv[idx + 1];
-	return value && !value.startsWith('--') ? value : '';
-}
-
-function hasFlag(name: string): boolean {
-	return process.argv.includes(`--${name}`);
-}
+import { flag, hasFlag } from './lib/server/cli-flags.js';
 
 const limit = Number(flag('limit') ?? 10) || 10;
 const restaurantId = flag('restaurant') || undefined;

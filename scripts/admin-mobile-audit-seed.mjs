@@ -86,6 +86,17 @@ async function main() {
 	await sql`DELETE FROM dead_letter_queue`;
 	await sql`DELETE FROM system_notifications`;
 	await sql`DELETE FROM waitlist`;
+	await sql`DELETE FROM prompt_change_proposals`;
+	await sql`
+		INSERT INTO prompt_change_proposals (target_area, correction_examples, proposed_diff, rationale, status, created_at)
+		VALUES (
+			'invoice_date',
+			'[{"fieldName":"invoice_date","originalValue":"2026-01-05","correctedValue":"2026-05-01"}]'::jsonb,
+			'extract.ts: clarify that Spanish dates are DD/MM/YYYY even when printed without separators.',
+			'Several corrections swapped day and month on dates printed as DDMMYYYY with no separator.',
+			'pending',
+			now() - interval '2 days'
+		)`;
 
 	const restaurantIds = [];
 	for (const [i, name] of RESTAURANT_NAMES.entries()) {

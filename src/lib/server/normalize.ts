@@ -76,7 +76,7 @@ export function isSameSupplierName(a: string, b: string): boolean {
 	return true;
 }
 
-const UNIT_GROUPS: Record<string, string[]> = {
+export const UNIT_GROUPS: Record<string, string[]> = {
 	kg:        ['kg', 'kgs', 'kilo', 'kilos', 'kilogramo', 'kilogramos', 'kgm'],
 	g:         ['g', 'gr', 'grs', 'gramo', 'gramos', 'grm'],
 	mg:        ['mg', 'mgm', 'miligramo', 'miligramos'],

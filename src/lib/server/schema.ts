@@ -493,6 +493,7 @@ export const extractionResults = pgTable('extraction_results', {
 	source:           text('source').notNull().default('web'),
 	runKind:          text('run_kind').notNull().default('live'),
 	promptVersion:    text('prompt_version').notNull(),
+	pipelineVersion:  text('pipeline_version'),
 	model:            text('model'),
 	extractedData:    jsonb('extracted_data').$type<Record<string, unknown>>().notNull(),
 	fieldConfidences: jsonb('field_confidences').$type<Record<string, number>>(),
@@ -505,6 +506,18 @@ export const extractionResults = pgTable('extraction_results', {
 	index('extraction_results_file_key_idx').on(t.restaurantId, t.fileKey),
 	index('extraction_results_prompt_version_idx').on(t.promptVersion, t.createdAt),
 	index('extraction_results_batch_item_idx').on(t.batchItemId),
+]);
+
+export const promptChangeProposals = pgTable('prompt_change_proposals', {
+	id:                 uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+	createdAt:          timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+	targetArea:         text('target_area').notNull(),
+	correctionExamples: jsonb('correction_examples').$type<Record<string, unknown>[]>().notNull(),
+	proposedDiff:       text('proposed_diff').notNull(),
+	rationale:          text('rationale').notNull(),
+	status:             text('status').notNull().default('pending'),
+}, (t) => [
+	index('prompt_change_proposals_status_idx').on(t.status, t.createdAt),
 ]);
 
 export const whatsappSession = pgTable('whatsapp_session', {
