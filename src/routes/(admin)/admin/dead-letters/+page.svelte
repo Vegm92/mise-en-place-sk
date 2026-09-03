@@ -99,17 +99,17 @@
           {#each data.entries as entry}
             <tr>
               <td class="mono dim">{entry.queue}</td>
-              <td style="max-width:340px;">
+              <td style="width:340px;max-width:340px;overflow:hidden;">
                 <button
                   type="button"
                   onclick={() => (expanded = expanded === entry.id ? null : entry.id)}
                   class="[all:unset] cursor-pointer block max-w-full"
                 >
-                  <span style="display:block;font-family:ui-monospace, monospace;color:#f87171;">{entry.errorClass}</span>
-                  <div style="font-size:11px;color:#5b6472;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{entry.errorMessage}</div>
+                  <span style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:ui-monospace, monospace;color:#f87171;">{entry.errorClass}</span>
+                  <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:#5b6472;">{entry.errorMessage}</div>
                 </button>
               </td>
-              <td class="dim">{entry.restaurantName ?? '—'}</td>
+              <td class="dim" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{entry.restaurantName ?? '—'}</td>
               <td class="num r">{entry.occurrences}</td>
               <td class:good={entry.status === 'replayed'} class:warn={entry.status === 'reviewed'} class:bad={entry.status === 'pending'} class:dim={entry.status === 'discarded'}>
                 {$t(`admin.dlq.status.${entry.status}`)}

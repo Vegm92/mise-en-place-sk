@@ -135,13 +135,13 @@
           <tbody>
             {#each data.recentActivity as ev (ev.id)}
               <tr>
-                <td>
-                  <div style="display:flex;align-items:center;gap:8px;">
+                <td style="max-width:420px;overflow:hidden;">
+                  <div style="display:flex;align-items:center;gap:8px;min-width:0;">
                     <span style="font-size:10px;padding:2px 6px;border-radius:4px;flex-shrink:0;background:rgba(56,189,248,0.12);color:#38bdf8;text-transform:uppercase;letter-spacing:0.04em;">
                       {ev.notification_type.replace(/_/g, ' ')}
                     </span>
                     {#if ev.restaurant_name}
-                      <span style="font-size:11px;color:#5b6472;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                      <span style="font-size:11px;color:#5b6472;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;">
                         {ev.restaurant_name}
                       </span>
                     {/if}
