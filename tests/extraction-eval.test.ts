@@ -37,7 +37,7 @@ describe('checkRegression', () => {
 		expect(checkRegression(report(), report())).toEqual([]);
 	});
 
-	it('flags any critical-field mismatch regardless of overall rate', () => {
+	it('flags a critical-field mismatch the baseline did not have', () => {
 		const candidate = report({
 			criticalFailures: [{ id: 'vinals-3770', field: 'total_amount', expected: 293.19, actual: 293.9 }],
 		});
@@ -46,17 +46,24 @@ describe('checkRegression', () => {
 		expect(failures[0]).toContain('vinals-3770/total_amount');
 	});
 
+	it('does not re-flag a critical-field mismatch already present in the baseline', () => {
+		const existing = { id: 'imger-2400028', field: 'supplier_nif', expected: 'B70753322', actual: null };
+		const baseline = report({ criticalFailures: [existing] });
+		const candidate = report({ criticalFailures: [existing] });
+		expect(checkRegression(candidate, baseline)).toEqual([]);
+	});
+
 	it('flags an overall-rate drop beyond tolerance', () => {
 		const baseline = report({ overallRate: 90 });
-		const candidate = report({ overallRate: 88 });
+		const candidate = report({ overallRate: 84 });
 		expect(checkRegression(candidate, baseline)).toEqual([
-			"overall agreement dropped from 90% to 88% (tolerance 1pt)",
+			"overall agreement dropped from 90% to 84% (tolerance 5pt)",
 		]);
 	});
 
-	it('tolerates a small overall-rate dip within tolerance', () => {
+	it('tolerates an overall-rate dip within tolerance (a single document flipping on a 25-doc set)', () => {
 		const baseline = report({ overallRate: 90 });
-		const candidate = report({ overallRate: 89.5 });
+		const candidate = report({ overallRate: 86 });
 		expect(checkRegression(candidate, baseline)).toEqual([]);
 	});
 
@@ -67,9 +74,9 @@ describe('checkRegression', () => {
 		});
 		const candidate = report({
 			overallRate: 90,
-			fields: [agreement('total_amount', 85), agreement('supplier_name', 95)],
+			fields: [agreement('total_amount', 88), agreement('supplier_name', 92)],
 		});
 		const failures = checkRegression(candidate, baseline);
-		expect(failures).toEqual(["field 'total_amount' agreement dropped from 95% to 85%"]);
+		expect(failures).toEqual(["field 'total_amount' agreement dropped from 95% to 88%"]);
 	});
 });
