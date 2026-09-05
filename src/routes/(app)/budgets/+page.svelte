@@ -3,8 +3,7 @@
   import { categoryColor } from '$lib/colors';
   import { enhance } from '$app/forms';
   import { locale, t, tcat, ti } from '$lib/i18n';
-  import { fmtEur, semColor, shiftMonth } from '$lib/formatters';
-  import PeriodPicker from '$lib/components/mep/PeriodPicker.svelte';
+  import { fmtEur, semColor } from '$lib/formatters';
 
   let { data }: { data: PageData } = $props();
 
@@ -17,9 +16,6 @@
   const allCategories = $derived([...data.categories, ...customCategories]);
 
   const isPastMonth = $derived(data.selectedMonth < data.currentMonth);
-  const prevMonthUrl = $derived(`/budgets?month=${shiftMonth(data.selectedMonth, -1)}`);
-  const nextMonthUrl = $derived(`/budgets?month=${shiftMonth(data.selectedMonth, 1)}`);
-  const canGoForward = $derived(data.selectedMonth < data.currentMonth);
 
   function addCategory() {
     const name = newCatName.trim();
@@ -90,7 +86,6 @@
           <div class="subtitle">{t('bud.tableTitle')}</div>
           <div style="font-size:12px;color:var(--mep-fg-3);margin-top:2px;">{t('bud.tableSub')}</div>
         </div>
-        <PeriodPicker prevUrl={prevMonthUrl} nextUrl={nextMonthUrl} {canGoForward} label={monthLabel} compact />
       </div>
 
       <div style="overflow:auto;flex:1;">
@@ -242,8 +237,7 @@
       <div class="card" style="padding:16px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
           <div class="label">{t('bud.atDay')} {today}</div>
-          <PeriodPicker prevUrl={prevMonthUrl} nextUrl={nextMonthUrl} {canGoForward} label={monthLabel} compact />
-        </div>
+          </div>
         <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px;flex-wrap:wrap;">
           <div class="num" style="font-size:30px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.6px;line-height:1;">
             {fmtEur(totalSpent, locale.current)}

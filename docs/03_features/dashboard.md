@@ -29,7 +29,12 @@ chooses).
 
 ## Inputs
 
-- `?month=YYYY-MM` (defaults to the current month, `parseMonthParam`).
+- `?month=YYYY-MM` (defaults to the current month, `parseMonthParam`). The
+  month is resolved once in the `(app)` layout (`resolvePeriod`, ADR-038):
+  `rangeFrom`/`rangeTo` are the first and last day of that calendar month,
+  `today` is the restaurant-local date (`APP_TIMEZONE`, default
+  `Europe/Madrid`), and the previous period is the previous calendar month
+  (`previousRange`), never a same-length window that starts mid-month.
 
 ## Outputs
 

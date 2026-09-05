@@ -10,14 +10,13 @@ import {
 	resolveProductPrices
 } from '$lib/server/recipes';
 import { RECIPE_SECTIONS, RECIPE_STATUSES, isRecipeKind } from '$lib/recipes';
-import { periodToDate } from '$lib/constants';
+import { periodRange } from '$lib/server/period-range';
 
 const MONTH_LABELS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
-export const load: PageServerLoad = async ({ url, locals }) => {
+export const load: PageServerLoad = async ({ url, locals, parent }) => {
 	const rid = locals.restaurantId!;
-	const period = url.searchParams.get('period') ?? '90d';
-	const periodStart = periodToDate(period).toISOString().slice(0, 10);
+	const { rangeFrom: periodStart, activePeriod: period } = await parent?.() ?? periodRange(url);
 
 	return handleLoad('recipes', async () => {
 		const [graph, trendRows, entitlements] = await Promise.all([

@@ -6,7 +6,7 @@ import { asc, eq, desc, and, gte, inArray, isNull, sql } from 'drizzle-orm';
 import { TIERS, syncSubscriptionFromStripe, type PlanTier } from '$lib/server/billing';
 import { getBetaFeatureFlags } from '$lib/server/feature-flags';
 import { getMonthlyUsage } from '$lib/server/llm-quota';
-import { periodRange } from '$lib/server/period-range';
+import { resolvePeriod } from '$lib/server/period-range';
 import { getOpenBatchesForRestaurant } from '$lib/server/batch';
 
 const LAYOUT_SETTINGS_KEYS = ['has_completed_onboarding', 'tutorial_step', 'sidebar_collapsed'] as const;
@@ -17,7 +17,7 @@ type InvoiceBadgeCounts = {
 	budget_exceeded_badge: number;
 } & Record<string, unknown>;
 
-export const load: LayoutServerLoad = async ({ locals, url }) => {
+export const load: LayoutServerLoad = async ({ locals, url, route }) => {
 	if (!locals.user) {
 		redirect(303, `/login?redirectTo=${encodeURIComponent(url.pathname)}`);
 	}
@@ -117,6 +117,6 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		subscriptionStatus: subscription?.status ?? null,
 		cancelAtPeriodEnd:  subscription?.cancelAtPeriodEnd ?? false,
 		currentPeriodEnd:   subscription?.currentPeriodEnd?.toISOString() ?? null,
-		...periodRange(url),
+		...resolvePeriod(url, route?.id ?? null),
 	};
 };
