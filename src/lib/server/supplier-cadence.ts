@@ -11,6 +11,7 @@ const MONTHLY_THRESHOLD_DAYS     = 45;
 export type SupplierInvoiceDate = {
 	supplier_name: string | null;
 	invoice_date: string | null;
+	supplier_id?: number | null;
 };
 
 export type MissingInvoiceAlert = {
@@ -19,14 +20,22 @@ export type MissingInvoiceAlert = {
 	expected_by: string;
 	days_late: number;
 	frequency: string;
+	supplier_id?: number;
 };
 
-function groupDatesBySupplier(rows: SupplierInvoiceDate[]): Record<string, Set<string>> {
-	const map: Record<string, Set<string>> = {};
+export type SupplierCadence = MissingInvoiceAlert & {
+	median_gap: number;
+	late: boolean;
+};
+
+type SupplierDates = { supplier_id: number | null; dates: Set<string> };
+
+function groupDatesBySupplier(rows: SupplierInvoiceDate[]): Record<string, SupplierDates> {
+	const map: Record<string, SupplierDates> = {};
 	for (const row of rows) {
 		if (!row.supplier_name || !row.invoice_date) continue;
-		map[row.supplier_name] ??= new Set();
-		map[row.supplier_name].add(row.invoice_date);
+		map[row.supplier_name] ??= { supplier_id: row.supplier_id ?? null, dates: new Set() };
+		map[row.supplier_name].dates.add(row.invoice_date);
 	}
 	return map;
 }
@@ -44,7 +53,7 @@ function frequencyLabel(medianGap: number): string {
 	return 'periodic';
 }
 
-function supplierAlert(name: string, dateObjs: Date[], today: Date): MissingInvoiceAlert | null {
+function supplierCadence(name: string, supplierId: number | null, dateObjs: Date[], today: Date): SupplierCadence | null {
 	if (dateObjs.length < 2) return null;
 	const gaps = dateObjs.slice(1).map((d, i) =>
 		Math.round((d.getTime() - dateObjs[i]!.getTime()) / 86400000)
@@ -54,33 +63,41 @@ function supplierAlert(name: string, dateObjs: Date[], today: Date): MissingInvo
 	const last = dateObjs[dateObjs.length - 1];
 	if (!last) return null;
 	const daysSinceLast = Math.round((today.getTime() - last.getTime()) / 86400000);
-	if (daysSinceLast <= MISSING_INVOICE_MULTIPLIER * medianGap) return null;
 	const expectedBy = new Date(last.getTime() + medianGap * 86400000);
 	const daysLate = Math.round((today.getTime() - expectedBy.getTime()) / 86400000);
 	return {
 		supplier_name: name,
+		...(supplierId != null ? { supplier_id: supplierId } : {}),
 		last_invoice: last.toISOString().split('T')[0]!,
 		expected_by: expectedBy.toISOString().split('T')[0]!,
 		days_late: daysLate,
 		frequency: frequencyLabel(medianGap),
+		median_gap: medianGap,
+		late: daysSinceLast > MISSING_INVOICE_MULTIPLIER * medianGap,
 	};
 }
 
-export function inferMissingInvoices(rows: SupplierInvoiceDate[], today: Date): MissingInvoiceAlert[] {
+export function inferSupplierCadence(rows: SupplierInvoiceDate[], today: Date): SupplierCadence[] {
 	const supplierDates = groupDatesBySupplier(rows);
-	const alerts: MissingInvoiceAlert[] = [];
-	for (const [name, rawDates] of Object.entries(supplierDates)) {
-		const dateObjs = [...rawDates].map((d) => new Date(d)).sort((a, b) => a.getTime() - b.getTime());
-		const alert = supplierAlert(name, dateObjs, today);
-		if (alert) alerts.push(alert);
+	const out: SupplierCadence[] = [];
+	for (const [name, { supplier_id, dates }] of Object.entries(supplierDates)) {
+		const dateObjs = [...dates].map((d) => new Date(d)).sort((a, b) => a.getTime() - b.getTime());
+		const cadence = supplierCadence(name, supplier_id, dateObjs, today);
+		if (cadence) out.push(cadence);
 	}
-	return alerts.sort((a, b) => b.days_late - a.days_late);
+	return out.sort((a, b) => b.days_late - a.days_late);
 }
 
-export async function detectMissingInvoices(restaurantId: string, today: Date): Promise<MissingInvoiceAlert[]> {
+export function inferMissingInvoices(rows: SupplierInvoiceDate[], today: Date): MissingInvoiceAlert[] {
+	return inferSupplierCadence(rows, today)
+		.filter((c) => c.late)
+		.map(({ median_gap: _gap, late: _late, ...alert }) => alert);
+}
+
+async function supplierInvoiceDates(restaurantId: string): Promise<SupplierInvoiceDate[]> {
 	const tdb = forTenant(restaurantId);
-	const rows = await db
-		.select({ supplier_name: suppliers.name, invoice_date: invoices.invoiceDate })
+	return db
+		.select({ supplier_id: suppliers.id, supplier_name: suppliers.name, invoice_date: invoices.invoiceDate })
 		.from(invoices)
 		.innerJoin(suppliers, eq(suppliers.id, invoices.supplierId))
 		.where(and(
@@ -89,6 +106,16 @@ export async function detectMissingInvoices(restaurantId: string, today: Date): 
 			isNull(invoices.deletedAt)
 		))
 		.orderBy(asc(suppliers.id), asc(invoices.invoiceDate));
+}
 
-	return inferMissingInvoices(rows, today);
+export async function detectMissingInvoices(restaurantId: string, today: Date): Promise<MissingInvoiceAlert[]> {
+	return inferMissingInvoices(await supplierInvoiceDates(restaurantId), today);
+}
+
+export async function supplierCadences(restaurantId: string, today: Date): Promise<Map<number, SupplierCadence>> {
+	const out = new Map<number, SupplierCadence>();
+	for (const cadence of inferSupplierCadence(await supplierInvoiceDates(restaurantId), today)) {
+		if (cadence.supplier_id != null) out.set(cadence.supplier_id, cadence);
+	}
+	return out;
 }

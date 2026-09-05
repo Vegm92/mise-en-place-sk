@@ -8,7 +8,7 @@
  *   - alerts come back sorted by days_late, worst first
  */
 import { describe, it, expect } from 'vitest';
-import { inferMissingInvoices, type SupplierInvoiceDate } from '../src/lib/server/supplier-cadence';
+import { inferSupplierCadence, inferMissingInvoices, type SupplierInvoiceDate } from '../src/lib/server/supplier-cadence';
 
 const TODAY = new Date('2026-03-01T00:00:00Z');
 
@@ -90,5 +90,32 @@ describe('inferMissingInvoices', () => {
 		);
 		expect(alerts.map((a) => a.supplier_name)).toEqual(['Antiguo', 'Reciente']);
 		expect(alerts[0]!.days_late).toBeGreaterThan(alerts[1]!.days_late);
+	});
+});
+
+describe('inferSupplierCadence — every supplier, not only the late ones', () => {
+	it('reports the median gap, the next expected date and a late flag per supplier', () => {
+		const cadence = inferSupplierCadence([
+			{ supplier_id: 1, supplier_name: 'Pescados SL', invoice_date: '2026-01-05' },
+			{ supplier_id: 1, supplier_name: 'Pescados SL', invoice_date: '2026-01-12' },
+			{ supplier_id: 1, supplier_name: 'Pescados SL', invoice_date: '2026-01-19' },
+			{ supplier_id: 2, supplier_name: 'Verduras', invoice_date: '2026-02-20' },
+			{ supplier_id: 2, supplier_name: 'Verduras', invoice_date: '2026-02-27' },
+		], TODAY);
+		expect(cadence.map((c) => c.supplier_name)).toEqual(['Pescados SL', 'Verduras']);
+		expect(cadence[0]).toMatchObject({ supplier_id: 1, frequency: 'weekly', median_gap: 7, expected_by: '2026-01-26', late: true });
+		expect(cadence[1]).toMatchObject({ supplier_id: 2, frequency: 'weekly', median_gap: 7, expected_by: '2026-03-06', days_late: -5, late: false });
+		expect(cadence[1]!.days_late).toBeLessThan(cadence[0]!.days_late);
+	});
+
+	it('keeps inferMissingInvoices as the late subset without the cadence-only fields', () => {
+		const rows = [
+			{ supplier_id: 1, supplier_name: 'Pescados SL', invoice_date: '2026-01-05' },
+			{ supplier_id: 1, supplier_name: 'Pescados SL', invoice_date: '2026-01-12' },
+		];
+		const [missing] = inferMissingInvoices(rows, TODAY);
+		expect(missing).toMatchObject({ supplier_id: 1, supplier_name: 'Pescados SL', frequency: 'weekly' });
+		expect(missing).not.toHaveProperty('median_gap');
+		expect(missing).not.toHaveProperty('late');
 	});
 });

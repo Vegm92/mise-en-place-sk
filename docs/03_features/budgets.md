@@ -181,3 +181,7 @@ Toggle from `/admin/feature-flags`.
 - Mobile layout (`flex md:hidden`): scrollable content, hero summary card, segmented bar, section header, category cards, sticky save button.
 - Per category card: top row (swatch + name + projection badge), progress bar with an 80% target marker, amounts row (spent · % · remaining), budget input.
 - Add-category row/card only render when `!isPastMonth`.
+
+## Pace vs plan (ADR-039)
+
+The forecast uses `forecastFromRunRate` / `planToDate` from `src/lib/dashboard-turno.ts` with the selected month's real days-in-month and elapsed days (from the layout's period state), replacing the former `pct × 31 / day-of-month`; the header also shows plan-to-date.

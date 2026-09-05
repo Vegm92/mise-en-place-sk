@@ -187,6 +187,7 @@
             <th class="num">{t('rec.col.costPerPortion')}</th>
             <th class="num">{t('rec.col.price')}</th>
             <th class="num">{t('rec.col.foodCost')}</th>
+            <th class="num">{t('rec.col.costTrend')}</th>
             <th class="num">{t('rec.col.margin')}</th>
             <th>{t('rec.col.status')}</th>
           </tr>
@@ -215,6 +216,15 @@
               </td>
               <td class="num" data-label={t('rec.col.foodCost')}>
                 {r.foodCostPct === null ? '—' : `${r.foodCostPct.toFixed(1)} %`}
+              </td>
+              <td class="num" data-label={t('rec.col.costTrend')}>
+                {#if r.costDeltaPct === null}
+                  <span class="text-fg-3">—</span>
+                {:else}
+                  <span class={r.costDeltaPct > 0 ? 'text-neg' : r.costDeltaPct < 0 ? 'text-pos' : 'text-fg-3'}>
+                    {r.costDeltaPct > 0 ? '↑' : r.costDeltaPct < 0 ? '↓' : ''}{Math.abs(r.costDeltaPct).toFixed(1).replace('.', ',')}%
+                  </span>
+                {/if}
               </td>
               <td class="num" data-label={t('rec.col.margin')}>
                 {r.marginCents === null ? '—' : fmtEur(r.marginCents / 100)}

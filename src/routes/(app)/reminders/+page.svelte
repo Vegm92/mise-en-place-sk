@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { t } from '$lib/i18n';
+  import { locale, t, ti } from '$lib/i18n';
+  import { fmtDateShort, fmtEur } from '$lib/formatters';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
   import NotificationItem from '$lib/components/mep/NotificationItem.svelte';
   import MobileAlerts from '$lib/components/mobile/MobileAlerts.svelte';
@@ -10,6 +11,11 @@
   import { dismissNotification, acceptSupplierCategory, decideProductSuggestion } from '$lib/notification-actions';
 
   let { data }: { data: PageData } = $props();
+
+  const extraPaidFor = (n: Notif): number => {
+    const ingredient = String((n.payload as { ingredient?: string } | null)?.ingredient ?? '').trim().toLowerCase();
+    return data.extraPaidByIngredient[ingredient] ?? 0;
+  };
 
   // svelte-ignore state_referenced_locally — intentional: seed once from prop
   let notifItems = $state<Notif[]>(data.notifications as Notif[]);
@@ -43,7 +49,7 @@
   }
 
   const nothingPending = $derived(
-    !data.incidencias.length && notifItems.length === 0
+    !data.incidencias.length && !data.missingDeliveries.length && notifItems.length === 0
   );
 
   function paymentLine(method: string | null, iban: string | null): string | null {
@@ -58,6 +64,7 @@
 <div class="md:hidden" style="height:100%;overflow:hidden;">
   <MobileAlerts
     incidencias={data.incidencias}
+    missingDeliveries={data.missingDeliveries}
     {groups}
     onDismiss={dismiss}
     onAcceptCategory={acceptCategory}
@@ -117,12 +124,35 @@
       <p class="body text-fg-3" data-coach="reminders-main">{t('rem.noIncidencias')}</p>
     {/if}
 
+    {#if data.missingDeliveries.length}
+      <SectionCard title={t('rem.missingDeliveries')} noPad>
+        <div class="divide-y divide-divider">
+          {#each data.missingDeliveries as m (m.supplier_id ?? m.supplier_name)}
+            <div class="px-4 py-3 flex items-center justify-between gap-3">
+              <div class="min-w-0">
+                <div class="body-strong">{m.supplier_name}</div>
+                <div class="text-[12px] text-fg-3">
+                  {ti('rem.missing.expected', { date: fmtDateShort(m.expected_by, locale.current), days: m.days_late })}
+                  · {ti('rem.missing.last', { date: fmtDateShort(m.last_invoice, locale.current) })}
+                </div>
+              </div>
+              <a href={m.supplier_id != null ? `/suppliers/${m.supplier_id}` : '/suppliers'} class="btn btn-secondary text-[12px] shrink-0">{t('rem.missing.action')}</a>
+            </div>
+          {/each}
+        </div>
+      </SectionCard>
+    {/if}
+
     {#if groups.priceShock.length}
       <SectionCard title={t('rem.priceShock')} noPad>
         <div class="divide-y divide-divider">
           {#each groups.priceShock as n (n.id)}
+            {@const extra = extraPaidFor(n)}
             <div class="px-4 py-3">
               <NotificationItem notification={n} onDismiss={dismiss} onAcceptCategory={acceptCategory} onDecideProduct={decideProduct} />
+              {#if extra > 0}
+                <div class="num text-[11px] text-neg mt-1">{ti('rem.extraPaid', { eur: fmtEur(extra, locale.current) })}</div>
+              {/if}
             </div>
           {/each}
         </div>

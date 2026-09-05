@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { PageData, ActionData } from './$types';
   import { untrack } from 'svelte';
-  import { t, tcat, locale } from '$lib/i18n';
+  import { t, tcat, locale, ti } from '$lib/i18n';
   import { fmt, formatYoyPct } from '$lib/formatters';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
   import ConfirmDialog from '$lib/components/mep/ConfirmDialog.svelte';
@@ -9,7 +9,7 @@
   import Trash2 from '@lucide/svelte/icons/trash-2';
 
   const { data, form }: { data: PageData; form: ActionData } = $props();
-  const { product, linkedSuppliers, aliases, priceHistory, priceByYear, categories } = $derived(data);
+  const { product, linkedSuppliers, aliases, priceHistory, priceByYear, categories, supplierPrices } = $derived(data);
 
   type BlockedSupplier = { supplierId: number; supplierName: string };
   const blockedSuppliers = $derived(
@@ -201,6 +201,37 @@
               <td class="num" class:text-neg={row.changePct != null && row.changePct > 0}
                 class:text-pos={row.changePct != null && row.changePct < 0}>
                 {formatYoyPct(row.changePct, locale.current)}
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    {/if}
+  </SectionCard>
+
+  <SectionCard title={t('prod.detail.supplierPrices')} noPad>
+    {#if supplierPrices.length < 2}
+      <p class="body text-center py-6">{t('prod.detail.noSupplierPrices')}</p>
+    {:else}
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>{t('prod.col.suppliers')}</th>
+            <th class="num">{t('tbl.unitPrice')}</th>
+            <th>{t('tbl.unit')}</th>
+            <th>{t('inv.filter.from')}</th>
+            <th class="num"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each supplierPrices as row, i (row.supplierId ?? row.supplierName)}
+            <tr class="row">
+              <td class:text-pos={i === 0}>{row.supplierName || '—'}</td>
+              <td class="num">{fmt(row.price)}</td>
+              <td class="body text-fg-3 text-[12px]">{row.basis.startsWith('unit:') ? row.basis.slice(5) || '—' : `/${row.basis}`}</td>
+              <td class="body text-fg-3 text-[12px]">{row.asOf}</td>
+              <td class="num" class:text-pos={i === 0} class:text-neg={i > 0}>
+                {i === 0 ? t('prod.detail.cheapest') : ti('prod.detail.vsCheapest', { pct: row.vsCheapestPct.toFixed(1).replace('.', ',') })}
               </td>
             </tr>
           {/each}
