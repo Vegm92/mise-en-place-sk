@@ -4,6 +4,8 @@ import { db } from '$lib/server/db';
 import { invoices, suppliers, systemNotifications, restaurants, batchItems } from '$lib/server/schema';
 import { sql } from 'drizzle-orm';
 import { runSystemChecks } from '$lib/server/system-health';
+import { restaurantActivity, type RestaurantActivity } from '$lib/server/pipeline-stats';
+import { workerLiveness } from '$lib/server/worker-heartbeat';
 
 type CountsRow = {
 	invoices_7d: string; invoices_prev_7d: string; active_restaurants_7d: string;
@@ -54,11 +56,6 @@ type ActivityRow = {
 	created_at: string; restaurant_name: string | null;
 };
 
-type RestaurantRow = {
-	id: string; name: string; created_at: string;
-	invoice_count: number; supplier_count: number;
-};
-
 export const load: PageServerLoad = async () => {
 	const [health, metrics, recentActivity, recentRestaurants] = await Promise.all([
 		safe('admin/health-checks', () => runSystemChecks(), null),
@@ -80,14 +77,7 @@ export const load: PageServerLoad = async () => {
 				restaurant_name: row.restaurant_name ?? null,
 			}));
 		}, [] as ActivityRow[]),
-		safe('admin/restaurants', async () => await db.execute(sql`
-			SELECT r.id, r.name, r.created_at,
-				(SELECT COUNT(*) FROM invoices i WHERE i.restaurant_id = r.id) AS invoice_count,
-				(SELECT COUNT(*) FROM suppliers s WHERE s.restaurant_id = r.id) AS supplier_count
-			FROM restaurants r
-			ORDER BY r.created_at DESC
-			LIMIT 10
-		`) as unknown as RestaurantRow[], [] as RestaurantRow[]),
+		safe('admin/restaurants', () => restaurantActivity(), [] as RestaurantActivity[]),
 	]);
 
 	return {
@@ -95,9 +85,15 @@ export const load: PageServerLoad = async () => {
 		degraded:    health === null,
 		overall:     health?.overall ?? 'error',
 		checkedAt:   health?.checkedAt ?? new Date().toISOString(),
-		sentry:      health?.sentry ?? { configured: false, unresolved: 0, critical: 0 },
-		queue:       health?.queue ?? { stuck: 0, lastExtraction: null },
+		gates:       health?.gates ?? { dbRole: 'warn' as const, migrations: 'warn' as const, worker: 'warn' as const },
+		worker:      health?.worker ?? workerLiveness(null),
+		dbRole:      health?.dbRole ?? null,
+		migrations:  health?.migrations ?? null,
+		sentry:      health?.sentry ?? { configured: false, unresolved: 0, critical: 0, events24h: 0 },
+		queue:       health?.queue ?? { stuck: 0, lastExtraction: null, depth: null },
+		extraction:  health?.extraction ?? null,
 		deadLetters: health?.deadLetters ?? { pending: 0 },
+		access:      health?.access ?? { pending: 0 },
 		...metrics,
 		recentActivity,
 		recentRestaurants,

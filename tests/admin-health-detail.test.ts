@@ -11,12 +11,21 @@ const { runSystemChecksMock, tableRowCountsMock, stuckBatchItemsMock } = vi.hois
 	runSystemChecksMock: vi.fn().mockResolvedValue({
 		checks: [{ name: 'Database', status: 'ok', detail: 'Connection healthy' }],
 		overall: 'ok',
+		gates: { dbRole: 'warn', migrations: 'ok', worker: 'warn' },
 		whatsapp: null,
-		sentry: { configured: false, unresolved: 0, critical: 0 },
-		queue: { stuck: 0, lastExtraction: null },
+		sentry: { configured: false, unresolved: 0, critical: 0, events24h: 0 },
+		queue: { stuck: 0, lastExtraction: null, depth: null },
+		extraction: null,
+		jobs: null,
 		scheduledJobs: { queues: [], runs: [] },
-		worker: { state: 'unknown', lastSeenAt: null, lastJobCompletedAt: null, jobsCompleted: 0, staleAfterSeconds: 120 },
+		worker: { state: 'unknown', lastSeenAt: null, lastJobCompletedAt: null, jobsCompleted: 0, staleAfterSeconds: 120, ageSeconds: null, details: null },
 		deadLetters: { pending: 0 },
+		dbRole: null,
+		migrations: null,
+		stripeWebhooks: null,
+		access: { pending: 0 },
+		env: { missing: [], recommended: [] },
+		probes: { gemini: null, stripe: null, resend: null, whatsappCloud: null },
 		checkedAt: '2026-08-27T00:00:00.000Z',
 	}),
 	tableRowCountsMock: vi.fn().mockResolvedValue([{ table: 'invoices', rows: 42 }]),
@@ -37,12 +46,16 @@ import { load } from '../src/routes/(admin)/admin/health/+page.server';
 describe('#491 — /admin/health load keeps the full detail set', () => {
 	it('passes through status, checks, whatsapp, checkedAt and table counts', async () => {
 		const data = await load({} as never);
-		expect(data).toEqual({
+		expect(data).toMatchObject({
 			title: 'admin.systemHealth',
 			overallStatus: 'ok',
+			gates: { dbRole: 'warn', migrations: 'ok', worker: 'warn' },
 			checks: [{ name: 'Database', status: 'ok', detail: 'Connection healthy' }],
 			whatsapp: null,
 			checkedAt: '2026-08-27T00:00:00.000Z',
+			worker: { state: 'unknown' },
+			queue: { stuck: 0, lastExtraction: null, depth: null },
+			access: { pending: 0 },
 			tableCounts: [{ table: 'invoices', rows: 42 }],
 			stuckItems: [],
 		});

@@ -10,9 +10,13 @@ Nothing below changes Railway on its own: every "owner" row is a dashboard or
 `psql` action the founder takes. State of each row was read from the live
 Railway project on 2026-09-05 (`get-service-config`, names only — no values).
 
-`/admin/health` is the readiness cockpit: the three gates render there as the
-first three checks (`DB role`, `Migrations`, `Worker heartbeat`), so the
-question "can this take traffic now?" is answered by that page being green.
+`/admin` and `/admin/health` are the readiness cockpit: the banner chips are the
+three gates (`Worker`, `Migrations`, `DB role`) plus in-flight extractions,
+errors in 24 h, dead letters and pending access; the checks table on
+`/admin/health` carries the detail (worker env gaps, queue depth, extraction
+success and p50/p95, job failure rate, Stripe webhook freshness, Gemini /
+Stripe / Resend / WhatsApp reachability, web env gaps). "Can this take traffic
+now?" is answered by that banner being green.
 
 ## Gate 1 — runtime-role cutover (#464 → activates RLS, ADR-030)
 
@@ -58,7 +62,7 @@ app can page anyone when it stops — the alarm has to live outside the worker.
 | 3.1 | After deploy, `/admin/health` → `Worker heartbeat` | owner | `Alive · last seen <2 min ago` and `Extraction queue` shows no stalled items |
 | 3.2 | `railway.worker.json`: `restartPolicyType: ALWAYS` (was `ON_FAILURE` × 10 — ten crashes during a Postgres maintenance window left the worker permanently down) | repo ✔ | — |
 | 3.3 | Set `HEALTH_CHECK_TOKEN` on the **web** service; point an external monitor (Railway alert, UptimeRobot, Better Stack…) at `GET /api/health` with header `X-Health-Token`, alerting when `worker.liveness != "alive"` or HTTP ≠ 200, check every 2–5 min | owner | a test alert fires when the worker service is paused |
-| 3.4 | Set `SENTRY_DSN` on the **worker** service (missing today — worker exceptions currently go nowhere) and a Sentry alert rule on the `worker` heartbeat-stale event `/admin/health` raises | owner | worker errors visible in Sentry |
+| 3.4 | Set `SENTRY_DSN` on the **worker** service (missing today — worker exceptions currently go nowhere) and a Sentry alert rule (email/Slack) on the `Worker heartbeat stale` issue the **web** process raises every 60 s on the alive→stale transition (`src/lib/server/worker-liveness-monitor.ts`) | owner | pausing the worker for 3 min produces the Sentry issue and the alert |
 
 ## Service configuration (live vs. repo)
 

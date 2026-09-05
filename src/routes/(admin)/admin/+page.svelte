@@ -5,43 +5,13 @@
   import AdminSystemBanner from '$lib/components/admin/AdminSystemBanner.svelte';
   import HudPanel from '$lib/components/admin/HudPanel.svelte';
   import AdminTableScroll from '$lib/components/admin/AdminTableScroll.svelte';
+  import { formatAge, readinessChips, type ChipStatus } from '$lib/admin-readiness';
   let { data }: { data: PageData } = $props();
-
-  type ChipStatus = 'ok' | 'warn' | 'error';
 
   function fmt(n: number) { return n.toLocaleString('en-US'); }
 
-  function countStatus(count: number, errorAbove: number): ChipStatus {
-    if (count > errorAbove) return 'error';
-    if (count > 0) return 'warn';
-    return 'ok';
-  }
-
-  function sentryStatus(sentry: PageData['sentry']): ChipStatus {
-    if (!sentry.configured) return 'warn';
-    if (sentry.critical > 0) return 'error';
-    if (sentry.unresolved > 0) return 'warn';
-    return 'ok';
-  }
-
   const chips = $derived([
-    {
-      label: t('admin.chip.errors'),
-      value: data.sentry.configured ? data.sentry.unresolved : '—',
-      status: sentryStatus(data.sentry),
-      href: '/admin/errors',
-    },
-    {
-      label: t('admin.chip.dlq'),
-      value: data.deadLetters.pending,
-      status: countStatus(data.deadLetters.pending, 25),
-      href: '/admin/dead-letters',
-    },
-    {
-      label: t('admin.chip.stuck'),
-      value: data.queue.stuck,
-      status: countStatus(data.queue.stuck, 10),
-    },
+    ...readinessChips(data),
     {
       label: t('admin.chip.pendingNotifs'),
       value: data.pendingNotifs,
@@ -49,6 +19,10 @@
       href: '/admin/events',
     },
   ]);
+
+  const successPct = $derived(
+    data.extraction?.successRate == null ? null : Math.round(data.extraction.successRate * 100),
+  );
 
   const delta = $derived(data.invoices7d - data.invoicesPrev7d);
   const deltaPct = $derived(
@@ -125,6 +99,23 @@
         </div>
       </div>
     </HudPanel>
+
+    <HudPanel title={t('admin.health.pipelineTitle')}>
+      <div class="hud-kpi-row">
+        <div class="hud-kpi">
+          <span class="hud-kpi-label">{t('admin.health.kpiSuccess')}</span>
+          <span class="hud-kpi-value" class:good={(successPct ?? 0) >= 90} class:bad={successPct !== null && successPct < 50}>{successPct === null ? '—' : `${successPct}%`}</span>
+        </div>
+        <div class="hud-kpi">
+          <span class="hud-kpi-label">{t('admin.health.kpiP95')}</span>
+          <span class="hud-kpi-value" class:warn={(data.extraction?.p95Seconds ?? 0) > 300}>{formatAge(data.extraction?.p95Seconds == null ? null : Math.round(data.extraction.p95Seconds))}</span>
+        </div>
+        <div class="hud-kpi">
+          <span class="hud-kpi-label">{t('admin.health.kpiInFlight')}</span>
+          <span class="hud-kpi-value" class:warn={data.queue.stuck > 0}>{data.queue.depth?.items ?? '—'}</span>
+        </div>
+      </div>
+    </HudPanel>
   </div>
 
   <div class="hud-grid hud-grid-2">
@@ -163,27 +154,33 @@
       </div>
     </HudPanel>
 
-    <HudPanel title={t('admin.recentRestaurants')}>
+    <HudPanel title={t('admin.restaurantActivity')}>
       <AdminTableScroll>
         <table class="hud-table">
           <thead>
             <tr>
               <th scope="col" class="l">{t('admin.colName')}</th>
+              <th scope="col" class="r">{t('admin.colLastActivity')}</th>
+              <th scope="col" class="r">{t('admin.colInvoices7d')}</th>
+              <th scope="col" class="r">{t('admin.colUploads7d')}</th>
               <th scope="col" class="r">{t('admin.invoices')}</th>
               <th scope="col" class="r">{t('admin.suppliers')}</th>
               <th scope="col" class="r">{t('admin.colCreated')}</th>
             </tr>
           </thead>
           <tbody>
-            {#each data.recentRestaurants as r}
+            {#each data.recentRestaurants as r (r.id)}
               <tr>
                 <td>{r.name}</td>
-                <td class="num r dim">{fmt(Number(r.invoice_count))}</td>
-                <td class="num r dim">{fmt(Number(r.supplier_count))}</td>
-                <td class="num r dim nowrap">{new Date(r.created_at).toLocaleDateString('en-GB')}</td>
+                <td class="num r nowrap" class:dim={!r.lastActivityAt}>{r.lastActivityAt ? relative(r.lastActivityAt) : t('admin.never')}</td>
+                <td class="num r" class:dim={r.invoices7d === 0}>{fmt(r.invoices7d)}</td>
+                <td class="num r" class:dim={r.uploads7d === 0}>{fmt(r.uploads7d)}</td>
+                <td class="num r dim">{fmt(r.invoices)}</td>
+                <td class="num r dim">{fmt(r.suppliers)}</td>
+                <td class="num r dim nowrap">{new Date(r.createdAt).toLocaleDateString('en-GB')}</td>
               </tr>
             {:else}
-              <tr><td colspan="4" class="empty">{t('admin.noRestaurants')}</td></tr>
+              <tr><td colspan="7" class="empty">{t('admin.noRestaurants')}</td></tr>
             {/each}
           </tbody>
         </table>

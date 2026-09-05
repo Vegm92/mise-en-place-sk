@@ -23,6 +23,7 @@ import { assertProductionEnv, addressHeaderWarning, validateAdminSeedConfig } fr
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import { currentLocale, rememberCurrentLocale } from '$lib/server/locale';
 import { requestedLocale } from '$lib/locale-url';
+import { startWorkerLivenessMonitor } from '$lib/server/worker-liveness-monitor';
 
 assertProductionEnv();
 validateAdminSeedConfig();
@@ -64,6 +65,7 @@ if (addressWarning) console.warn(addressWarning);
 
 cleanupStaleBatches().catch(e => { if (!isNetworkUnreachable(e)) console.error('[hooks] batch cleanup error:', e); });
 seedAdminUser().catch(e => { if (!isNetworkUnreachable(e)) console.error('[hooks] seed error:', e); });
+startWorkerLivenessMonitor();
 
 async function resolveMembership(event: RequestEvent, user: NonNullable<App.Locals['user']>) {
 	const activeCookie = event.cookies.get('active_restaurant');
