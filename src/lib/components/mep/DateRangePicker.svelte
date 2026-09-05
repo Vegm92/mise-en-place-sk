@@ -2,16 +2,15 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import { t } from '$lib/i18n';
+  import { DEFAULT_RANGE_PERIOD, RANGE_PERIODS as PERIODS } from '$lib/period';
 
-  const PERIODS = ['24h', '1w', '1m', '3m', '6m', '1y', 'all'] as const;
-
-  let { active = '1m' }: { active?: string } = $props();
+  let { active = DEFAULT_RANGE_PERIOD }: { active?: string } = $props();
   let open = $state(false);
 
   function pick(p: string) {
     open = false;
     const url = new URL(page.url);
-    if (p === '1m') url.searchParams.delete('period');
+    if (p === DEFAULT_RANGE_PERIOD) url.searchParams.delete('period');
     else url.searchParams.set('period', p);
     goto(url.toString(), { replaceState: true, noScroll: true, keepFocus: true });
   }

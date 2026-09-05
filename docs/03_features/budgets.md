@@ -5,6 +5,14 @@ related: "[[CONTEXT]]"
 
 # Feature Spec — Budgets
 
+## Month navigation (ADR-038)
+
+`/budgets` is a calendar-month page: the `(app)` layout resolves `?month=YYYY-MM`
+(default: current month, clamped to not-future) and the header shows the month
+navigator; the loader takes `activeMonth`/`currentMonth` from `parent()`.
+The page no longer renders its own navigator — it used to, while the loader read
+the month off the rolling `?period` range, so the arrows changed nothing.
+
 ## Purpose
 
 Let a restaurant set a monthly budget per category and warn when spend crosses

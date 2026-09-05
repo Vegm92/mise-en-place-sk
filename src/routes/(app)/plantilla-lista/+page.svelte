@@ -13,7 +13,10 @@
     ['year', 'tpl.demo.period.year'], ['all', 'tpl.demo.period.all'],
   ];
 
-  const period = $derived((page.url.searchParams.get('period') as PeriodKey) ?? 'month');
+  const period = $derived.by((): PeriodKey => {
+    const requested = page.url.searchParams.get('period');
+    return PERIODS.some(([value]) => value === requested) ? (requested as PeriodKey) : 'month';
+  });
 
   interface Category { key: string; labelKey: string; color: string }
   const CATEGORIES: Category[] = [
