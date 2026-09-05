@@ -408,7 +408,9 @@ Type ∈ known set; payload shape per type; tenant scope.
   outranks a text match), then by `normalizeProductKey(description)` on
   whatever is left; anything still unmatched lands in `missingInInvoice`
   (delivery lines with no invoice counterpart) or `missingInDeliveryNote`
-  (invoice lines with no delivery counterpart).
+  (invoice lines with no delivery counterpart). `greedyMatch` pre-indexes target lines
+  in a `bKeyMap` (`Map<string, number[]>`) to resolve key lookups in O(N + M) time
+  rather than O(N * M) linear scans, avoiding repeated normalization on large line sets.
 - For each matched pair: with equal units (case-insensitive), a quantity
   mismatch is a difference beyond `max(0.01, 0.5% of the larger quantity)` —
   an absolute floor for small counts, a relative one for large ones. With
