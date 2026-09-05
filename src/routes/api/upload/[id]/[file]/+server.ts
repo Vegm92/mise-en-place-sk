@@ -18,8 +18,9 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	const item = await getItem(params.id);
 	if (!item || item.restaurantId !== locals.restaurantId) throw error(404, 'Item not found');
 
-	const filename = params.file;
-	if (filename !== item.displayName) throw error(403, 'File not in batch item');
+	const rawFile = params.file;
+	const filename = path.basename(rawFile);
+	if (filename !== rawFile || filename !== item.displayName) throw error(403, 'File not in batch item');
 
 	const key = item.fileKey;
 
