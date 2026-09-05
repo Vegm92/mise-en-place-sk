@@ -74,6 +74,19 @@ describe('Worker heartbeat + env', () => {
 		expect(workerEnvCheck(workerLiveness(heartbeat(1_000, null), NOW)).status).toBe('warn');
 		expect(workerEnvCheck(workerLiveness(null, NOW)).status).toBe('warn');
 	});
+
+	it('flags a storage-driver split as an error and a model mismatch as a warning', () => {
+		const web = { storageDriver: 'railway', geminiModel: 'gemini-3.1-flash-lite' };
+		const base = { release: null, node: 'v22.0.0', pid: 1, envMissing: [], envRecommended: [] };
+		const split = workerLiveness(heartbeat(1_000, { ...base, storageDriver: 'local', geminiModel: web.geminiModel }), NOW);
+		expect(workerEnvCheck(split, web)).toMatchObject({ status: 'error', detail: expect.stringContaining('web=railway worker=local') });
+		const model = workerLiveness(heartbeat(1_000, { ...base, storageDriver: 'railway', geminiModel: 'gemini-2.5-flash' }), NOW);
+		expect(workerEnvCheck(model, web)).toMatchObject({ status: 'warn', detail: expect.stringContaining('gemini-2.5-flash') });
+		const same = workerLiveness(heartbeat(1_000, { ...base, storageDriver: 'railway', geminiModel: web.geminiModel }), NOW);
+		expect(workerEnvCheck(same, web)).toMatchObject({ status: 'ok', detail: expect.stringContaining('storage railway') });
+		const older = workerLiveness(heartbeat(1_000, base), NOW);
+		expect(workerEnvCheck(older, web).status).toBe('ok');
+	});
 });
 
 describe('Worker liveness monitor', () => {
