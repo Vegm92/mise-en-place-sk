@@ -20,12 +20,31 @@ The ops console under `/admin` (dashboard, events, revenue, health), the public 
 
 ### `src/routes/(admin)/admin/+page.server.ts`
 **`const load`**
-- Aggregates: invoices saved in the last 7 days; active restaurants (had invoices) in the last 7 days (`COUNT(DISTINCT …)`); pending system notifications (global); total invoices, suppliers and restaurants; sessions currently being extracted by the worker; most recently created restaurants (raw `sql` template).
+- Aggregates: invoices saved in the last 7 days; active restaurants (had invoices) in the last 7 days (`COUNT(DISTINCT …)`); pending system notifications (global); total invoices, suppliers and restaurants; sessions currently being extracted by the worker; per-restaurant activity (`restaurantActivity()` in `pipeline-stats.ts` — last invoice/upload, 7-day counts, ordered by most recent activity so a tenant that went quiet drops down the list).
+- Passes the readiness slice of `runSystemChecks()` through (`gates`, `worker`, `dbRole`, `migrations`, `extraction`, `access`) so the overview banner answers the same question as `/admin/health` without a second round of checks.
 - `sql<number>` aggregates come back as strings from postgres.js — wrap with `Number(...)` before use.
 
 ### `src/routes/(admin)/admin/+page.svelte`
 **`markup`**
-- Sections: 7-day KPIs, totals, recent restaurants, links.
+- Sections: readiness banner (chips from `src/lib/admin-readiness.ts` — worker, migrations, DB role, in-flight, errors 24 h, dead letters, pending access, pending notices), 7-day KPIs, totals, extraction 24 h, recent activity, restaurants by activity.
+
+### `src/lib/admin-readiness.ts`
+**`function readinessChips`**
+- One chip list for both `/admin` and `/admin/health`, so the two banners cannot disagree on what "ready" means. Chip status comes from `SystemHealth.gates` (DB role, migrations, worker) or the same count thresholds the health rows use; the value is the short operator-facing number (heartbeat age, `applied/journal`, role name, queue depth). `t(\`admin.worker.${state}\`)` is a runtime key — `tests/i18n.test.ts` lists the three states.
+
+### `src/lib/server/system-health.ts`
+**`function runSystemChecks`**
+- The readiness cockpit. Order of rows is the order an operator reads them in: Database → DB role (`db-role.ts`: scoped iff not owner/superuser/BYPASSRLS — the #464 cutover gate) → Migrations (`migration-state.ts`: journal vs ledger, SKIPPED beats pending) → Worker heartbeat (+ age, release) → Worker env (`worker_heartbeats.details.envMissing`, written once per worker boot from `env-report.ts`) → Extraction queue (depth + oldest queued + stalled) → Extraction 24 h (success rate, p50/p95 queue→result from `extraction_results.created_at − batch_items.queued_at`) → Jobs 24 h (pg-boss failure rate) → Dead letters → Per-tenant jobs → Stripe webhooks (last claimed `stripe-webhook` idempotency key, falling back to `subscriptions.last_event_at` once claims are swept) → Access requests → WhatsApp number / transport → Gemini / Stripe API / Resend / WhatsApp Cloud probes (`external-probes.ts`, 4 s timeout, 60 s in-process cache so the overview does not hit four vendors per page view) → Sentry (+ events in 24 h) → Env rows for the web service (gaps only).
+- `gates` is the three-row summary the banners and the go-live checklist key on. Every DB-backed check degrades to a `warn` row on failure so one broken probe never blanks the page; the whole DB-backed group is skipped when `SELECT 1` fails.
+- Thresholds are module constants at the top (stuck > 15 min, success < 90 % warn / < 50 % error with ≥ 5 samples, p95 > 5 min, job failures ≥ 5 % / ≥ 25 %, oldest queued > 2 min, Stripe silence > 7 days with live subscriptions). The classifiers are exported pure functions; `tests/readiness-checks.test.ts` pins them.
+
+### `src/lib/server/worker-liveness-monitor.ts`
+**`function startWorkerLivenessMonitor`**
+- The push half of #781, running in the **web** process (a dead worker cannot report itself): every `WORKER_LIVENESS_CHECK_MS` (60 s) it reads the heartbeat and, on the alive→stale transition only, logs and captures a Sentry event fingerprinted `worker-heartbeat-stale` (one issue, re-opened per outage, not one per tick); stale→alive captures an info event. `unknown` never alerts — that is a fresh environment. Started from `hooks.server.ts`; no-op under vitest. The external monitor on `/api/health` (go-live checklist gate 3.3) stays the belt to this brace.
+
+### `src/lib/server/env-report.ts`
+**`const ENV_REQUIREMENTS`**
+- Per-service (`web` / `worker`) environment matrix, the source of the `Env:` rows on `/admin/health` and of `worker_heartbeats.details.envMissing`. `productionOnly` rows are skipped outside production so a local health page is not red; `when` gates conditional rows (`AWS_*` only under `STORAGE_DRIVER=railway`, `ADDRESS_HEADER` only on Railway). Keep it in step with `DEPLOYMENT.md` — `tests/env-report.test.ts` pins the worker gaps found on the live service (Sentry, Resend, base URL, Stripe).
 
 ### `src/routes/(admin)/admin/events/+page.server.ts`
 **`const load`**
@@ -45,6 +64,9 @@ The ops console under `/admin` (dashboard, events, revenue, health), the public 
 - Amounts parsed with `parseAmountCents` (shared, tested), not `Number()`: a Spanish-speaking operator types `1.250,50` and it must mean 1250.50, not NaN.
 
 ### `src/routes/(admin)/admin/health/+page.server.ts`
+**`const actions.retryAll`**
+- Re-queues every stalled item `stuckBatchItems()` returns (capped at 100) through the same `requeueStalled` + `enqueueExtraction` pair as the per-row `retry`; items whose status moved in the meantime are skipped, not failed, and the count of actually re-queued items comes back on `form.retried`.
+
 **`const STUCK_MINUTES`**
 - A dead worker leaves items stuck in queued/extracting; warn past this (15 min), error past the count threshold (issue #257).
 
@@ -71,7 +93,7 @@ The ops console under `/admin` (dashboard, events, revenue, health), the public 
 - Meta's own quality-rating vocabulary, shown literally since that is what WhatsApp Manager UI says.
 
 **`markup`**
-- Checks; shared WhatsApp number (issue #321) — a downgrade here is an incident, not a metric; which tenant to talk to if blocks spike (read-only: de-authorising stays an explicit act in that owner's Settings); table row counts.
+- Readiness banner (same chips as `/admin`); extraction 24 h KPI row (success, p50, p95, in flight + oldest, job failures, Sentry events); checks; stalled extractions with per-row and retry-all; shared WhatsApp number (issue #321) — a downgrade here is an incident, not a metric; which tenant to talk to if blocks spike (read-only: de-authorising stays an explicit act in that owner's Settings); table row counts.
 
 ### `src/routes/api/health/+server.ts`
 **`function GET`**

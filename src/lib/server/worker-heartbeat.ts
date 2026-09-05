@@ -1,7 +1,8 @@
 import { eq, sql } from 'drizzle-orm';
 import { db } from './db';
-import { workerHeartbeats } from './schema';
-import { WORKER_HEARTBEAT_INTERVAL_MS, WORKER_HEARTBEAT_STALE_MS } from './env';
+import { workerHeartbeats, type WorkerHeartbeatDetails } from './schema';
+import { SENTRY_RELEASE, WORKER_HEARTBEAT_INTERVAL_MS, WORKER_HEARTBEAT_STALE_MS } from './env';
+import { envGaps } from './env-report';
 
 export const WORKER_ID = 'worker';
 
@@ -11,6 +12,7 @@ export interface WorkerHeartbeat {
 	lastSeenAt: Date;
 	lastJobCompletedAt: Date | null;
 	jobsCompleted: number;
+	details?: WorkerHeartbeatDetails | null;
 }
 
 export type WorkerLivenessState = 'alive' | 'stale' | 'unknown';
@@ -21,9 +23,22 @@ export interface WorkerLiveness {
 	lastJobCompletedAt: string | null;
 	jobsCompleted: number;
 	staleAfterSeconds: number;
+	ageSeconds: number | null;
+	details: WorkerHeartbeatDetails | null;
 }
 
-export async function recordWorkerHeartbeat(jobsCompleted = 0): Promise<void> {
+export function workerBootDetails(env: NodeJS.ProcessEnv = process.env): WorkerHeartbeatDetails {
+	const gaps = envGaps('worker', env);
+	return {
+		release: SENTRY_RELEASE || null,
+		node: process.version,
+		pid: process.pid,
+		envMissing: gaps.missing,
+		envRecommended: gaps.recommended,
+	};
+}
+
+export async function recordWorkerHeartbeat(jobsCompleted = 0, details?: WorkerHeartbeatDetails): Promise<void> {
 	const now = new Date();
 	await db
 		.insert(workerHeartbeats)
@@ -33,6 +48,7 @@ export async function recordWorkerHeartbeat(jobsCompleted = 0): Promise<void> {
 			lastSeenAt: now,
 			lastJobCompletedAt: jobsCompleted > 0 ? now : null,
 			jobsCompleted,
+			details: details ?? null,
 		})
 		.onConflictDoUpdate({
 			target: workerHeartbeats.id,
@@ -42,6 +58,7 @@ export async function recordWorkerHeartbeat(jobsCompleted = 0): Promise<void> {
 					? now
 					: sql`${workerHeartbeats.lastJobCompletedAt}`,
 				jobsCompleted: sql`${workerHeartbeats.jobsCompleted} + ${jobsCompleted}`,
+				...(details ? { startedAt: now, details } : {}),
 			},
 		});
 }
@@ -67,23 +84,32 @@ export function workerLiveness(
 			lastJobCompletedAt: null,
 			jobsCompleted: 0,
 			staleAfterSeconds,
+			ageSeconds: null,
+			details: null,
 		};
 	}
 	const lastSeen = new Date(heartbeat.lastSeenAt);
+	const ageMs = now - lastSeen.getTime();
 	return {
-		state: now - lastSeen.getTime() <= WORKER_HEARTBEAT_STALE_MS ? 'alive' : 'stale',
+		state: ageMs <= WORKER_HEARTBEAT_STALE_MS ? 'alive' : 'stale',
 		lastSeenAt: lastSeen.toISOString(),
 		lastJobCompletedAt: heartbeat.lastJobCompletedAt
 			? new Date(heartbeat.lastJobCompletedAt).toISOString()
 			: null,
 		jobsCompleted: Number(heartbeat.jobsCompleted ?? 0),
 		staleAfterSeconds,
+		ageSeconds: Math.max(0, Math.round(ageMs / 1000)),
+		details: heartbeat.details ?? null,
 	};
 }
 
-export function startWorkerHeartbeat(): () => void {
+export function startWorkerHeartbeat(details: WorkerHeartbeatDetails = workerBootDetails()): () => void {
+	let first = true;
 	const beat = () => {
-		recordWorkerHeartbeat().catch((err) => {
+		const boot = first ? details : undefined;
+		first = false;
+		recordWorkerHeartbeat(0, boot).catch((err) => {
+			first = first || boot !== undefined;
 			console.error('[worker] heartbeat write failed:', err);
 		});
 	};

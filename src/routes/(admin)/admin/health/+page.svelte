@@ -1,34 +1,81 @@
 <script lang="ts">
-  import type { PageData } from './$types';
+  import type { PageData, ActionData } from './$types';
   import { t, ti } from '$lib/i18n';
   import AdminPageHead from '$lib/components/admin/AdminPageHead.svelte';
   import AdminStatusBadge from '$lib/components/admin/AdminStatusBadge.svelte';
+  import AdminSystemBanner from '$lib/components/admin/AdminSystemBanner.svelte';
   import HudPanel from '$lib/components/admin/HudPanel.svelte';
   import AdminTableScroll from '$lib/components/admin/AdminTableScroll.svelte';
-  let { data }: { data: PageData } = $props();
-
-  const isOk = $derived(data.overallStatus === 'ok');
+  import { formatAge, pipelineOldest, readinessChips } from '$lib/admin-readiness';
+  let { data, form }: { data: PageData; form: ActionData } = $props();
 
   type Severity = 'info' | 'warning' | 'critical';
   const SEVERITY_STATUS: Record<Severity, 'ok' | 'warn' | 'error'> = {
     info: 'ok', warning: 'warn', critical: 'error',
   };
+
+  const chips = $derived(readinessChips(data));
+
+  const successPct = $derived(
+    data.extraction?.successRate == null ? null : Math.round(data.extraction.successRate * 100),
+  );
+  const successClass = $derived(
+    successPct === null ? '' : successPct >= 90 ? 'good' : successPct >= 50 ? 'warn' : 'bad',
+  );
+  const failurePct = $derived(
+    data.jobs?.failureRate == null ? null : Math.round(data.jobs.failureRate * 100),
+  );
+  const oldestAge = $derived(
+    data.queue.depth?.oldestQueuedAt
+      ? Math.max(0, Math.round((Date.now() - new Date(data.queue.depth.oldestQueuedAt).getTime()) / 1000))
+      : null,
+  );
 </script>
 
 <AdminPageHead route="/admin/health" title={t('admin.systemHealth')} subtitle={t('admin.healthSubtitle')} />
 
 <div class="hud-page px-3 md:px-6 pb-6 flex flex-col gap-2.5">
 
-  <HudPanel title={t('admin.status')} sub={ti('admin.checkedAt', { time: new Date(data.checkedAt).toLocaleString('en-GB') })}>
+  <AdminSystemBanner
+    status={data.overallStatus}
+    checkedAt={data.checkedAt}
+    caption={t('admin.health.readiness')}
+    {chips}
+  />
+
+  <HudPanel title={t('admin.health.pipelineTitle')} sub={t('admin.health.pipelineSubtitle')}>
     <div class="hud-kpi-row">
       <div class="hud-kpi">
-        <div class="hud-kpi-label">{t('admin.status')}</div>
-        <div class="hud-kpi-value" class:good={isOk} class:bad={!isOk}>{data.overallStatus.toUpperCase()}</div>
+        <div class="hud-kpi-label">{t('admin.health.kpiSuccess')}</div>
+        <div class="hud-kpi-value {successClass}">{successPct === null ? '—' : `${successPct}%`}</div>
+        <span class="hud-kpi-note">{data.extraction ? `${data.extraction.succeeded}/${data.extraction.total}` : t('admin.health.kpiNone')}</span>
+      </div>
+      <div class="hud-kpi">
+        <div class="hud-kpi-label">{t('admin.health.kpiP50')}</div>
+        <div class="hud-kpi-value">{formatAge(data.extraction?.p50Seconds == null ? null : Math.round(data.extraction.p50Seconds))}</div>
+      </div>
+      <div class="hud-kpi">
+        <div class="hud-kpi-label">{t('admin.health.kpiP95')}</div>
+        <div class="hud-kpi-value" class:warn={(data.extraction?.p95Seconds ?? 0) > 300}>{formatAge(data.extraction?.p95Seconds == null ? null : Math.round(data.extraction.p95Seconds))}</div>
+      </div>
+      <div class="hud-kpi">
+        <div class="hud-kpi-label">{t('admin.health.kpiInFlight')}</div>
+        <div class="hud-kpi-value" class:warn={data.queue.stuck > 0}>{data.queue.depth?.items ?? '—'}</div>
+        <span class="hud-kpi-note">{pipelineOldest(oldestAge)}</span>
+      </div>
+      <div class="hud-kpi">
+        <div class="hud-kpi-label">{t('admin.health.kpiJobFailure')}</div>
+        <div class="hud-kpi-value" class:warn={(failurePct ?? 0) >= 5} class:bad={(failurePct ?? 0) >= 25}>{failurePct === null ? '—' : `${failurePct}%`}</div>
+        <span class="hud-kpi-note">{data.jobs ? `${data.jobs.failed}/${data.jobs.failed + data.jobs.completed}` : t('admin.health.kpiNone')}</span>
+      </div>
+      <div class="hud-kpi">
+        <div class="hud-kpi-label">{t('admin.health.kpiSentry')}</div>
+        <div class="hud-kpi-value" class:bad={data.sentry.critical > 0}>{data.sentry.configured ? data.sentry.events24h : '—'}</div>
       </div>
     </div>
   </HudPanel>
 
-  <HudPanel title={t('admin.checksTitle')}>
+  <HudPanel title={t('admin.checksTitle')} sub={ti('admin.checkedAt', { time: new Date(data.checkedAt).toLocaleString('en-GB') })}>
     <AdminTableScroll>
       <table class="hud-table">
         <thead>
@@ -41,7 +88,7 @@
         <tbody>
           {#each data.checks as check}
             <tr>
-              <td>{check.name}</td>
+              <td class="nowrap">{check.name}</td>
               <td><AdminStatusBadge status={check.status} /></td>
               <td class="dim">
                 {check.detail}
@@ -58,6 +105,14 @@
 
   {#if data.stuckItems.length > 0}
     <HudPanel title={t('admin.health.stuckTitle')} sub={t('admin.health.stuckSubtitle')}>
+      <div class="flex items-center justify-end gap-3 px-3 pt-2">
+        {#if form?.success && form.retried !== undefined}
+          <span class="text-[11px] text-fg-3">{ti('admin.health.retriedAll', { n: form.retried })}</span>
+        {/if}
+        <form method="POST" action="?/retryAll" class="inline">
+          <button type="submit" class="btn btn-secondary text-[11px] px-2 py-[3px]">{t('admin.health.retryAll')}</button>
+        </form>
+      </div>
       <AdminTableScroll>
         <table class="hud-table">
           <thead>
@@ -194,3 +249,10 @@
   <a href="/admin" class="text-[13px] text-acc no-underline">{t('admin.backToOverview')}</a>
 
 </div>
+
+<style>
+  .hud-kpi-note {
+    font: 500 10px/1.3 ui-monospace, monospace;
+    color: #5b6472;
+  }
+</style>
