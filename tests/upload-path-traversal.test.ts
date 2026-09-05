@@ -16,14 +16,15 @@ vi.mock('$lib/server/storage', () => ({
 }));
 
 import { GET } from '../src/routes/api/upload/[id]/[file]/+server';
-import type { RequestEvent } from '@sveltejs/kit';
+
+type RouteEvent = Parameters<typeof GET>[0];
 
 describe('GET /api/upload/[id]/[file] path traversal guard', () => {
 	it('throws 401 Unauthorized if locals.user is missing', async () => {
 		const event = {
 			params: { id: 'item-1', file: 'factura.pdf' },
 			locals: { user: null },
-		} as unknown as RequestEvent;
+		} as unknown as RouteEvent;
 
 		await expect(GET(event)).rejects.toMatchObject({ status: 401 });
 	});
@@ -35,7 +36,7 @@ describe('GET /api/upload/[id]/[file] path traversal guard', () => {
 				user: { id: 'u1' },
 				restaurantId: 'r1',
 			},
-		} as unknown as RequestEvent;
+		} as unknown as RouteEvent;
 
 		await expect(GET(event)).rejects.toMatchObject({ status: 403 });
 	});
@@ -47,7 +48,7 @@ describe('GET /api/upload/[id]/[file] path traversal guard', () => {
 				user: { id: 'u1' },
 				restaurantId: 'r1',
 			},
-		} as unknown as RequestEvent;
+		} as unknown as RouteEvent;
 
 		const response = await GET(event);
 		expect(response.status).toBe(200);
