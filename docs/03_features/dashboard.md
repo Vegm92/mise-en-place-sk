@@ -225,3 +225,7 @@ n/a (read-only).
 **`markup`**
 - All labels arrive as props: the component stays free of hardcoded strings so
   `lint:i18n` holds.
+
+## Euros at stake (ADR-039)
+
+Price work cards are built from `priceDeviations()` over the browsed month's invoice lines, not from pending `price_shock` notifications: the card's € is the amount paid above the reference price (median of the ≤3 previous same-supplier prices) and, when another supplier sold the same product on the same basis in the last 180 days for less, the card names it with the % saving and links to `/products/[id]`. Up to three late suppliers become missing-delivery cards. The loader returns only what the turno UI renders.

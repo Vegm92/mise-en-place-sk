@@ -1,5 +1,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
+import { productSupplierPrices } from '$lib/server/price-deviations';
+import { localToday } from '$lib/server/period-range';
 import { db, forTenant } from '$lib/server/db';
 import { products, invoiceLineItems, invoices, suppliers, productAliases } from '$lib/server/schema';
 import { eq, desc } from 'drizzle-orm';
@@ -26,7 +28,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const product = productRows[0];
 	if (!product) error(404, 'Product not found');
 
-	const [linkedSuppliers, aliases, priceHistory, yearlyPrices] = await Promise.all([
+	const [linkedSuppliers, aliases, priceHistory, yearlyPrices, supplierPrices] = await Promise.all([
 		getLinkedSuppliers(db, rid, id),
 
 		db.select({
@@ -59,6 +61,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			.limit(50),
 
 		loadProductYearlyPrices(db, rid, id),
+		productSupplierPrices(rid, id, localToday()),
 	]);
 
 	return {
@@ -72,6 +75,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			normalizedUnitPrice: moneyToNullableNumber(p.normalizedUnitPrice),
 		})),
 		priceByYear: pairYearlyPrices(yearlyPrices),
+		supplierPrices,
 		categories: await selectableCategoryNames(rid),
 		allergens: EU_ALLERGENS,
 	};

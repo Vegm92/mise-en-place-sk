@@ -12,6 +12,7 @@
     section: string | null;
     portions: number;
     costPerPortionCents: number;
+    costDeltaPct?: number | null;
   }
 
   const BADGE_STYLE: Record<string, string> = {
@@ -148,6 +149,9 @@
             </div>
             <div class="num" style="font-size: 11px; color: var(--mep-fg-3); margin-top: 3px;">
               {t('rec.mobile.cost')}: <strong style="color: var(--mep-fg);">{fmtEur(r.costPerPortionCents / 100)}</strong>
+              {#if r.costDeltaPct != null && r.costDeltaPct !== 0}
+                <span class={r.costDeltaPct > 0 ? 'text-neg' : 'text-pos'}> · {r.costDeltaPct > 0 ? '↑' : '↓'}{Math.abs(r.costDeltaPct).toFixed(1).replace('.', ',')}%</span>
+              {/if}
             </div>
           </div>
           <ChevronRight size={14} style="color: var(--mep-fg-3); flex-shrink: 0; margin-top: 2px;" />
