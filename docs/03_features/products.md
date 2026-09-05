@@ -323,3 +323,7 @@ candidates (never arbitrary ids).
 **`const load`**
 
 - `priceByYear` is `pairYearlyPrices(yearlyPrices)` over *every* year `loadProductYearlyPrices` returns for this one product (unlike the catalog, which only ever needs two years) — the detail page's "Precio por año" card shows the full series.
+
+## Price by supplier (ADR-039)
+
+`/products/[id]` shows `productSupplierPrices()`: each supplier's latest comparable price for the product in the last 180 days (normalised €/base-unit when available), cheapest first with the % above the cheapest. It is the same comparison the dashboard's price cards use to name an alternative.

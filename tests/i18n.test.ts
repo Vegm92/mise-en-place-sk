@@ -327,6 +327,10 @@ describe('strings de-hardcoded from components', () => {
     'admin.worker.alive',
     'admin.worker.stale',
     'admin.worker.unknown',
+    'sup.cadence.weekly',
+    'sup.cadence.biweekly',
+    'sup.cadence.monthly',
+    'rec.trend.foodCost',
   ];
 
   it('resolves in both locales', () => {

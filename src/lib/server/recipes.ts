@@ -1,3 +1,5 @@
+import { monthBounds, monthOf } from '$lib/period';
+import { shiftMonth } from '$lib/formatters';
 import { and, asc, count, eq, inArray, sql } from 'drizzle-orm';
 import { db, forTenant } from './db';
 import { products, recipeItems, recipes } from './schema';
@@ -119,12 +121,14 @@ type SnapshotPriceRow = {
 
 export async function resolveProductPrices(
 	rid: string,
-	productIds: number[]
+	productIds: number[],
+	asOf: string | null = null
 ): Promise<Map<number, ResolvedPrice>> {
 	const out = new Map<number, ResolvedPrice>();
 	const ids = [...new Set(productIds)].filter((id) => Number.isInteger(id) && id > 0);
 	if (ids.length === 0) return out;
 
+	const asOfFilter = asOf ? sql`AND i.invoice_date <= ${asOf}::date` : sql``;
 	const invoiceRows = await db.execute<InvoicePriceRow>(sql`
 		SELECT DISTINCT ON (ili.product_id)
 			ili.product_id, ili.normalized_unit_price, ili.base_unit,
@@ -138,6 +142,7 @@ export async function resolveProductPrices(
 			AND ili.product_id IN (${sql.join(ids.map((id) => sql`${id}`), sql`, `)})
 			AND ili.normalized_unit_price IS NOT NULL
 			AND ili.base_unit IS NOT NULL
+			${asOfFilter}
 		ORDER BY ili.product_id, i.invoice_date DESC NULLS LAST, i.id DESC
 	`);
 
@@ -154,7 +159,7 @@ export async function resolveProductPrices(
 	}
 
 	const missing = ids.filter((id) => !out.has(id));
-	if (missing.length === 0) return out;
+	if (missing.length === 0 || asOf) return out;
 
 	const snapshotRows = await db.execute<SnapshotPriceRow>(sql`
 		SELECT DISTINCT ON (p.id)
@@ -655,4 +660,93 @@ export async function linkableProducts(rid: string) {
 		.from(products)
 		.where(tdb.scope(products.restaurantId))
 		.orderBy(asc(products.canonicalName));
+}
+
+export interface RecipeCostPoint {
+	asOf: string;
+	costPerPortionCents: number | null;
+	foodCostPct: number | null;
+}
+
+export interface RecipeCostTrendPoint {
+	asOf: string;
+	pricedRecipes: number;
+	avgFoodCostPct: number | null;
+	avgCostPerPortionCents: number | null;
+}
+
+export interface RecipeCostTrend {
+	points: RecipeCostTrendPoint[];
+	perRecipe: Map<number, RecipeCostPoint[]>;
+}
+
+export function trendAsOfDates(today: string, months = 6): string[] {
+	const dates: string[] = [];
+	let month = monthOf(today);
+	for (let i = 0; i < months; i++) {
+		month = shiftMonth(month, -1);
+		dates.unshift(monthBounds(month).rangeTo);
+	}
+	dates.push(today);
+	return dates;
+}
+
+function averageOf(values: Array<number | null>): number | null {
+	const present = values.filter((v): v is number => v !== null);
+	return present.length ? present.reduce((a, b) => a + b, 0) / present.length : null;
+}
+
+export async function recipeCostTrend(
+	rid: string,
+	graph: Map<number, RecipeNode>,
+	today: string,
+	months = 6
+): Promise<RecipeCostTrend> {
+	const productIds = collectProductIds(graph, true);
+	const facts = await loadProductFacts(rid, collectProductIds(graph, false));
+	const dates = trendAsOfDates(today, months);
+	const perRecipe = new Map<number, RecipeCostPoint[]>();
+	const points: RecipeCostTrendPoint[] = [];
+
+	for (const asOf of dates) {
+		const prices = await resolveProductPrices(rid, productIds, asOf === today ? null : asOf);
+		const costs = computeRecipeCosts(graph, prices, facts);
+		const foodCosts: Array<number | null> = [];
+		const portionCosts: number[] = [];
+		let priced = 0;
+		for (const [recipeId, { recipe }] of graph) {
+			if (recipe.kind !== 'plato') continue;
+			const cost = costs.get(recipeId);
+			const complete = cost !== undefined && cost.missingPriceCount === 0 && cost.lines.length > 0;
+			const point: RecipeCostPoint = {
+				asOf,
+				costPerPortionCents: complete ? cost.costPerPortionCents : null,
+				foodCostPct: complete ? cost.foodCostPct : null,
+			};
+			const series = perRecipe.get(recipeId) ?? [];
+			series.push(point);
+			perRecipe.set(recipeId, series);
+			if (complete) {
+				priced++;
+				portionCosts.push(cost.costPerPortionCents);
+				foodCosts.push(cost.foodCostPct);
+			}
+		}
+		points.push({
+			asOf,
+			pricedRecipes: priced,
+			avgFoodCostPct: averageOf(foodCosts),
+			avgCostPerPortionCents: portionCosts.length ? Math.round(portionCosts.reduce((a, b) => a + b, 0) / portionCosts.length) : null,
+		});
+	}
+	return { points, perRecipe };
+}
+
+export function costDeltaPct(series: RecipeCostPoint[] | undefined): number | null {
+	if (!series || series.length < 2) return null;
+	const current = series[series.length - 1]!.costPerPortionCents;
+	const earlier = series.slice(0, -1).map((p) => p.costPerPortionCents).filter((v): v is number => v !== null && v > 0);
+	if (current === null || earlier.length === 0) return null;
+	const base = earlier[0]!;
+	return Math.round(((current - base) / base) * 1000) / 10;
 }

@@ -6,9 +6,10 @@ import { db } from '$lib/server/db';
 import { normalizeProductKey } from '$lib/server/normalize';
 import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import {
-	collectProductIds, computeRecipeCosts, countRecipes, loadProductFacts, loadRecipeGraph,
-	resolveProductPrices
+	collectProductIds, computeRecipeCosts, costDeltaPct, countRecipes, loadProductFacts, loadRecipeGraph,
+	recipeCostTrend, resolveProductPrices
 } from '$lib/server/recipes';
+import { localToday } from '$lib/server/period-range';
 import { RECIPE_SECTIONS, RECIPE_STATUSES, isRecipeKind } from '$lib/recipes';
 import { periodRange } from '$lib/server/period-range';
 
@@ -16,24 +17,19 @@ const MONTH_LABELS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'S
 
 export const load: PageServerLoad = async ({ url, locals, parent }) => {
 	const rid = locals.restaurantId!;
-	const { rangeFrom: periodStart, activePeriod: period } = await parent?.() ?? periodRange(url);
+	const { activePeriod: period } = await parent?.() ?? periodRange(url);
+	const today = localToday();
 
 	return handleLoad('recipes', async () => {
-		const [graph, trendRows, entitlements] = await Promise.all([
+		const [graph, entitlements] = await Promise.all([
 			loadRecipeGraph(rid),
-			db.execute<{ month: string; count: string }>(sql`
-				SELECT TO_CHAR(DATE_TRUNC('month', created_at), 'YYYY-MM') AS month, COUNT(*) AS count
-				FROM recipes
-				WHERE restaurant_id = ${rid} AND created_at >= ${periodStart}
-				GROUP BY DATE_TRUNC('month', created_at)
-				ORDER BY DATE_TRUNC('month', created_at) ASC
-			`),
 			locals.entitlements(),
 		]);
 
-		const [prices, facts] = await Promise.all([
+		const [prices, facts, trend] = await Promise.all([
 			resolveProductPrices(rid, collectProductIds(graph, true)),
 			loadProductFacts(rid, collectProductIds(graph, false)),
+			recipeCostTrend(rid, graph, today),
 		]);
 		const costs = computeRecipeCosts(graph, prices, facts);
 
@@ -54,6 +50,7 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 				marginPct: cost?.marginPct ?? null,
 				missingPriceCount: cost?.missingPriceCount ?? 0,
 				warnings: cost?.warnings ?? [],
+				costDeltaPct: costDeltaPct(trend.perRecipe.get(recipe.id)),
 			};
 		});
 
@@ -70,13 +67,13 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 			title: 'rec.title',
 			period,
 			trendData: {
-				xLabels: trendRows.map(
-					(r) => MONTH_LABELS[Number.parseInt(r.month.split('-')[1], 10) - 1] ?? r.month
+				xLabels: trend.points.map(
+					(pt) => MONTH_LABELS[Number.parseInt(pt.asOf.split('-')[1], 10) - 1] ?? pt.asOf
 				),
 				series: [{
-					key: 'new',
-					label: 'rec.trend.title',
-					values: trendRows.map((r) => Number(r.count)),
+					key: 'foodCost',
+					label: 'rec.trend.foodCost',
+					values: trend.points.map((pt) => pt.avgFoodCostPct === null ? 0 : Math.round(pt.avgFoodCostPct * 10) / 10),
 				}],
 			},
 			recipes,

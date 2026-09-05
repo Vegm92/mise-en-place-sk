@@ -382,3 +382,7 @@ issue #881); name non-empty; tenant scope. List search params validated by
 - Search, sort dropdown, category chips (plus an uncategorized-products chip), summary strip, list. Same URL-driven params as the desktop variant (ADR-020); the component owns no filtering, it only reports the patch through `onApply` and lets the loader answer.
 - The category chips are a `ScrollStrip` holding at most `INLINE_CATEGORY_CHIPS` (4) of the categories the tenant actually buys from, plus a "+n categorías" chip that opens the filter sheet with the full list and per-category counts. Listing all 17 inline made a 2718px strip at 390px — nearly 7x the viewport, with the useful categories past the fold (issue #658). The active category is always pinned into the inline set, so a filter arrived at from the sheet or from a URL still reads as selected without opening anything.
 - The sheet is the alternative entry point the strip's length rule requires: a strip may stay long only while there is another way to reach what it hides.
+
+## Delivery cadence (ADR-039)
+
+`supplierCadences()` gives every supplier with two or more dated invoices a median gap, a frequency label (weekly/biweekly/monthly/every N days), the next expected date and a `late` flag (1.5 × the median gap, the same rule as the missing-delivery work card). The list shows it under the last-order date on both variants; `/reminders` lists the late ones.

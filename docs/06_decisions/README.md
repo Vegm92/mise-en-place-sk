@@ -56,6 +56,7 @@ For *how the code works*, see the per-subsystem `## Code notes` sections (`docs/
 | [011](./insights/ADR-011-scheduled-jobs-in-the-worker.md) | Cron jobs run on pg-boss in the worker; every send is claimed first | Active, amended by 025 |
 | [018](./insights/ADR-018-one-snapshot-for-chat-and-digest.md) | Chat and digest read one Markdown snapshot, never the database | Active |
 | [025](./insights/ADR-025-scheduled-jobs-fan-out-per-tenant.md) | Scheduled jobs dispatch one pg-boss job per tenant instead of looping | Active |
+| [039](./insights/ADR-039-owner-metrics-ranked-by-euros-at-stake.md) | Owner-facing metrics are ranked by euros at stake; unpriced, unactionable figures are demoted | Active |
 
 ### [`costing/`](./costing) — recipe costing (escandallos)
 
@@ -124,7 +125,7 @@ For *how the code works*, see the per-subsystem `## Code notes` sections (`docs/
 
 **Numbering is global and sequential.** ADR-014 is ADR-014 wherever it lives, so
 a reference in code, a commit message or an issue resolves without a path. Next
-number: **039**.
+number: **040**.
 
 **Known collisions (parallel branches picked the same number before merging):**
 ADR-025 exists twice (`insights/`, `whatsapp/`), ADR-027 exists twice

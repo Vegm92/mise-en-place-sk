@@ -1,7 +1,8 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { handleLoad } from '$lib/server/load-guard';
-import { periodRange } from '$lib/server/period-range';
+import { localToday, periodRange } from '$lib/server/period-range';
+import { supplierCadences } from '$lib/server/supplier-cadence';
 import { db, forTenant } from '$lib/server/db';
 import { suppliers, invoices, supplierMetrics } from '$lib/server/schema';
 import { sql, eq, and } from 'drizzle-orm';
@@ -142,8 +143,10 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 
 		await Promise.all(staleRefreshes);
 
+		const cadences = await supplierCadences(rid, new Date(`${localToday()}T00:00:00Z`));
 		const supplierList = rows.map((r) => {
 			const badge = paymentBadge(Number(r.has_overdue), Number(r.has_due_soon));
+			const cadence = cadences.get(r.id);
 
 			const cat = r.category ?? 'Other';
 			const metrics = metricsMap.get(r.id);
@@ -177,6 +180,9 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 				reliability_score: metrics && invoiceCount >= 3 ? metrics.score : null,
 				stability_level: stabilityLevel,
 				price_trend,
+				cadence: cadence
+					? { frequency: cadence.frequency, median_gap: cadence.median_gap, expected_by: cadence.expected_by, days_late: cadence.days_late, late: cadence.late }
+					: null,
 			};
 		});
 

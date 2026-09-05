@@ -1,8 +1,8 @@
 <script lang="ts">
   import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
   import Check from '@lucide/svelte/icons/check';
-  import { locale, t } from '$lib/i18n';
-  import { fmtEurCompact } from '$lib/formatters';
+  import { locale, t, ti } from '$lib/i18n';
+  import { fmtEurCompact, fmtDateShort } from '$lib/formatters';
   import NotificationItem from '$lib/components/mep/NotificationItem.svelte';
   import IncidenceKindBadge from '$lib/components/mep/IncidenceKindBadge.svelte';
   import { groupNotifications, type Notif } from '$lib/notification-display';
@@ -20,9 +20,11 @@
   }
 
   type NotifGroups = ReturnType<typeof groupNotifications>;
+  type MissingDelivery = { supplier_id?: number; supplier_name: string; last_invoice: string; expected_by: string; days_late: number };
 
   let {
     incidencias,
+    missingDeliveries = [],
     groups,
     onDismiss,
     onAcceptCategory,
@@ -31,6 +33,7 @@
     deciding = null,
   }: {
     incidencias: Incidencia[];
+    missingDeliveries?: MissingDelivery[];
     groups: NotifGroups;
     onDismiss: (id: number) => void;
     onAcceptCategory: (n: Notif) => void;
@@ -60,7 +63,7 @@
   ] as const);
 
   const nothingPending = $derived(
-    !incidencias.length && notifGroupList.every((g) => g.items.length === 0)
+    !incidencias.length && !missingDeliveries.length && notifGroupList.every((g) => g.items.length === 0)
   );
 </script>
 
@@ -72,6 +75,22 @@
         {t('rem.allEmpty')}
       </div>
     {:else}
+
+      {#if missingDeliveries.length}
+        <div>
+          <div class="text-[11.5px] text-neg uppercase tracking-wide font-semibold mb-2 flex items-center gap-1.5">
+            <AlertTriangle size={13} /> {t('rem.missingDeliveries')}
+          </div>
+          <div class="flex flex-col gap-2">
+            {#each missingDeliveries as m (m.supplier_id ?? m.supplier_name)}
+              <a href={m.supplier_id != null ? `/suppliers/${m.supplier_id}` : '/suppliers'} class="card block no-underline text-inherit px-3.5 py-3">
+                <div class="text-[13.5px] font-medium text-fg">{m.supplier_name}</div>
+                <div class="text-[11.5px] text-fg-3 mt-0.5">{ti('rem.missing.expected', { date: fmtDateShort(m.expected_by, locale.current), days: m.days_late })}</div>
+              </a>
+            {/each}
+          </div>
+        </div>
+      {/if}
 
       {#if incidencias.length}
         <div>
