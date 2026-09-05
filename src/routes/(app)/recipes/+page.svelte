@@ -1,13 +1,10 @@
 <script lang="ts">
   import type { PageData, ActionData } from './$types';
-  import { page } from '$app/state';
   import { t, ti } from '$lib/i18n';
   import { seriesColor } from '$lib/colors';
   import { fmtEur } from '$lib/formatters';
   import ListPageTemplate from '$lib/components/mep/ListPageTemplate.svelte';
   import MobileRecipes from '$lib/components/mobile/MobileRecipes.svelte';
-  import PeriodPills from '$lib/components/mep/PeriodPills.svelte';
-  import { PERIOD_PILLS } from '$lib/constants';
   import Plus from '@lucide/svelte/icons/plus';
   import Search from '@lucide/svelte/icons/search';
   import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
@@ -72,11 +69,6 @@
     },
   ]);
 
-  const periodPills = $derived(PERIOD_PILLS.map((p) => {
-    const params = new URLSearchParams(page.url.searchParams);
-    params.set('period', p.value);
-    return { value: p.value, label: t(p.labelKey), href: `/recipes?${params.toString()}` };
-  }));
 
   const trendSeries = $derived(
     data.trendData.series.map((s, i) => ({
@@ -114,7 +106,6 @@
         <span class="search-icon"><Search size={14} /></span>
         <input class="input" placeholder={t('rec.search')} bind:value={search} />
       </div>
-      <PeriodPills active={data.period} pills={periodPills} />
     </div>
   {/snippet}
 

@@ -7,7 +7,6 @@
   import ListPageTemplate from '$lib/components/mep/ListPageTemplate.svelte';
   import MobileProducts from '$lib/components/mobile/MobileProducts.svelte';
   import PeriodPills from '$lib/components/mep/PeriodPills.svelte';
-  import { PERIOD_PILLS } from '$lib/constants';
   import { PRODUCT_SORT_KEYS, productSortHref, type ProductSortKey } from '$lib/product-filters';
   import { formatYoyPct } from '$lib/formatters';
   import Plus from '@lucide/svelte/icons/plus';
@@ -61,11 +60,6 @@
   const categoryCount        = $derived(new Set(products.map(p => p.category).filter(Boolean)).size);
   const uncategorizedCount   = $derived(products.filter(p => p.category == null).length);
 
-  const periodPills = $derived(PERIOD_PILLS.map(p => {
-    const params = new URLSearchParams(page.url.searchParams);
-    params.set('period', p.value);
-    return { value: p.value, label: t(p.labelKey), href: `/products?${params.toString()}` };
-  }));
 
   const trendSeries = $derived(
     data.trendData.series.map((s, i) => ({ key: s.key, label: t(s.label), color: seriesColor(i), values: s.values }))

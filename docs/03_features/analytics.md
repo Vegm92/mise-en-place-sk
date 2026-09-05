@@ -225,4 +225,4 @@ Range/granularity normalization; tenant scope on every MV read.
 ### `src/lib/components/mobile/MobileAnalyticsSpend.svelte`
 
 **`markup`**
-- Period picker chips, KPI 2-col grid, top items donut + legend, category donut + legend, yearly spend card — same `DonutChart`/`TrendLineChart` components and `computeDonutSlices()` call pattern as the desktop page (issue #882), sized down (`size=156`, `radius=60`) for the narrower column.
+- Period picker chips (`1m|3m|6m|all`, the shared `?period` vocabulary of ADR-038 — the header `DateRangePicker` and these chips write the same param), KPI 2-col grid, top items donut + legend, category donut + legend, yearly spend card — same `DonutChart`/`TrendLineChart` components and `computeDonutSlices()` call pattern as the desktop page (issue #882), sized down (`size=156`, `radius=60`) for the narrower column.

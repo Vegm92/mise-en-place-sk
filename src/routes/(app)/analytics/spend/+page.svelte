@@ -11,10 +11,10 @@
   let { data }: { data: PageData } = $props();
 
   const periods = $derived<Array<[string, string]>>([
-    ['month',   t('spend.period.monthShort')],
-    ['quarter', t('spend.period.quarterShort')],
-    ['half',    t('spend.period.halfShort')],
-    ['all',     t('spend.period.allShort')],
+    ['1m',  t('spend.period.monthShort')],
+    ['3m',  t('spend.period.quarterShort')],
+    ['6m',  t('spend.period.halfShort')],
+    ['all', t('spend.period.allShort')],
   ]);
 
   function fmtEur(n: number | null | undefined) {

@@ -1,7 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { handleLoad } from '$lib/server/load-guard';
 import type { Actions, PageServerLoad } from './$types';
-import { periodRange } from '$lib/server/period-range';
+import { monthRange } from '$lib/server/period-range';
 import { db, forTenant } from '$lib/server/db';
 import { categoryBudgets } from '$lib/server/schema';
 import { and, eq, sql } from 'drizzle-orm';
@@ -14,9 +14,9 @@ import { describedLine, lineAmountExpr, lineCategoryExpr, lineProductJoin } from
 export const load: PageServerLoad = async ({ url, locals, parent }) => {
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
-	const currentMonth = toMonthStr(new Date());
-	const { rangeFrom } = await parent?.() ?? periodRange(url);
-	const selectedMonth = rangeFrom.slice(0, 7);
+	const period = await parent?.() ?? monthRange(url);
+	const currentMonth = period.currentMonth;
+	const selectedMonth = period.activeMonth;
 
 	return handleLoad('budgets', async () => {
 		const [rows, spendRows] = await Promise.all([

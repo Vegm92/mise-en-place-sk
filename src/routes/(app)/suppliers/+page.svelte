@@ -10,7 +10,6 @@
   import PeriodPills from '$lib/components/mep/PeriodPills.svelte';
   import MobileSuppliersList from '$lib/components/mobile/MobileSuppliersList.svelte';
   import Sparkline from '$lib/components/PriceTrendSparkline.svelte';
-  import { PERIOD_PILLS } from '$lib/constants';
   import {
     SUPPLIER_SEARCH_DEBOUNCE_MS,
     SUPPLIER_SORT_KEYS,
@@ -71,11 +70,6 @@
     return () => clearTimeout(timer);
   });
 
-  const periodPills = $derived(PERIOD_PILLS.map(p => {
-    const params = new URLSearchParams(page.url.searchParams);
-    params.set('period', p.value);
-    return { value: p.value, label: t(p.labelKey), href: `/suppliers?${params.toString()}` };
-  }));
 
   let trendSelection = $state<string[]>([]);
   const activeTrendKeys = $derived(

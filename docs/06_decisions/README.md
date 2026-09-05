@@ -111,6 +111,7 @@ For *how the code works*, see the per-subsystem `## Code notes` sections (`docs/
 | [032](./experience/ADR-032-the-ink-gains-a-hue.md) | The ink gains a temperature: `--mep-acc` goes blue-black light, steel blue dark | Active |
 | [033](./experience/ADR-033-the-mark-is-an-m.md) | The mark is a descending lowercase m; the wordmark begins with it | Active |
 | [033](./experience/ADR-033-the-rendered-locale-is-request-state.md) | Rendered locale is decided from request state (path prefix), not a client-side store, so SSR serves the right language to bots | Active |
+| [038](./experience/ADR-038-one-period-rule-per-page-type.md) | One period rule per page type: calendar month for dashboard and budgets, rolling range for lists and analytics, no picker elsewhere | Active |
 
 ### [`conventions/`](./conventions) — repo-wide engineering rules
 
@@ -123,7 +124,7 @@ For *how the code works*, see the per-subsystem `## Code notes` sections (`docs/
 
 **Numbering is global and sequential.** ADR-014 is ADR-014 wherever it lives, so
 a reference in code, a commit message or an issue resolves without a path. Next
-number: **038**.
+number: **039**.
 
 **Known collisions (parallel branches picked the same number before merging):**
 ADR-025 exists twice (`insights/`, `whatsapp/`), ADR-027 exists twice
