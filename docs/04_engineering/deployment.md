@@ -19,8 +19,12 @@ deploying. This page is the short pointer + invariants an agent must keep.
 
 ## Non-negotiables at deploy time
 
-- `db:migrate` runs as part of the worker startup — do not hand-migrate prod
-  outside the runbook. Schema drift fails `db:check-sync` in CI (ADR-003).
+- `db:migrate` runs in exactly one place: the **web** service's Railway
+  `preDeployCommand` (`railway.json`). The worker's `preDeployCommand`
+  (`node build/wait-for-migrations.js`, `railway.worker.json`) only waits until
+  the ledger matches the shipped journal (`src/lib/server/migration-state.ts`).
+  Do not hand-migrate prod outside the runbook. Schema drift fails
+  `db:check-sync` in CI (ADR-003).
 - `DATABASE_SSL_MODE=require` default with `rejectUnauthorized:false` has a
   MITM window — use `verify-full` + `DATABASE_CA_CERT` for tighter security
   (see `security_rules.md`).
@@ -38,10 +42,12 @@ deploying. This page is the short pointer + invariants an agent must keep.
 `DEPLOYMENT.md` holds the authoritative per-variable detail; this is the
 complete inventory the app and worker actually read, grouped by area.
 
-- **Database** — `DATABASE_URL` (drizzle-kit migrations + pg-boss) and
-  `DATABASE_POOL_URL` (runtime Drizzle ORM; `getDb()` prefers it when set,
-  `src/lib/server/db.ts`). `DATABASE_SSL_MODE` — `require` (default) or
-  `verify-full` (+ `DATABASE_CA_CERT`), see `db-ssl.ts`.
+- **Database** — `DATABASE_URL` (runtime: Drizzle ORM + pg-boss, the scoped
+  `mep_runtime` role in production), `DATABASE_MIGRATION_URL` (owner role,
+  drizzle-kit only, web service only) and `DATABASE_POOL_URL` (runtime
+  Drizzle ORM; `getDb()` prefers it when set, `src/lib/server/db.ts`).
+  `DATABASE_SSL_MODE` — `require` (default) or `verify-full`
+  (+ `DATABASE_CA_CERT`), see `db-ssl.ts`.
 - **Auth** — `AUTH_SECRET` (JWT signing), `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET`
   (Google OAuth), `AUTH_ADMIN_EMAIL`/`AUTH_ADMIN_PASSWORD`/
   `AUTH_ADMIN_RESTAURANT_NAME` (first-boot admin seed; prod refuses to start on
@@ -80,6 +86,13 @@ complete inventory the app and worker actually read, grouped by area.
   `SENTRY_PROJECT`, `SENTRY_DSN`, `VITE_SENTRY_DSN`, `SENTRY_RELEASE`),
   `ADDRESS_HEADER`/`XFF_DEPTH` behind a proxy, `APP_BASE_URL` (WhatsApp batch
   links).
+
+## Go-live
+
+`docs/05_operations/go_live_checklist.md` is the single list: three gates
+(runtime-role cutover, migration chain, worker heartbeat), the live Railway
+service config versus `railway.json` / `railway.worker.json`, the per-service
+env matrix, and the smoke pass. `/admin/health` renders the gates as checks.
 
 ## CI gate
 
