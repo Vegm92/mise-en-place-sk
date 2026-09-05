@@ -52,15 +52,15 @@ describe('elapsed fraction and forecast', () => {
 
 describe('price shock impact', () => {
 	it('charges only the extra euros paid at the new price', () => {
-		expect(priceShockImpact({ deviationPct: 25, monthSpend: 500 })).toBeCloseTo(100, 6);
+		expect(priceShockImpact({ deviationPct: 25, extraPaid: 100 })).toBeCloseTo(100, 6);
 	});
 
 	it('ignores price drops', () => {
-		expect(priceShockImpact({ deviationPct: -20, monthSpend: 500 })).toBe(0);
+		expect(priceShockImpact({ deviationPct: -20, extraPaid: 100 })).toBe(0);
 	});
 
 	it('is zero when the product has not been bought this month', () => {
-		expect(priceShockImpact({ deviationPct: 25, monthSpend: 0 })).toBe(0);
+		expect(priceShockImpact({ deviationPct: 25, extraPaid: 0 })).toBe(0);
 	});
 });
 
@@ -92,8 +92,8 @@ describe('worklist', () => {
 		budgets: { Pescado: 4000 },
 		categorySpend: { Pescado: 2600 },
 		priceShocks: [
-			{ id: 1, ingredient: 'Merluza', supplier: 'Atlántico', oldPrice: 16, newPrice: 20, deviationPct: 25, monthSpend: 500, daysAgo: 0 },
-			{ id: 2, ingredient: 'Tomate', supplier: 'Mercavera', oldPrice: 2.4, newPrice: 2.1, deviationPct: -12.5, monthSpend: 400, daysAgo: 1 },
+			{ id: 1, ingredient: 'Merluza', supplier: 'Atlántico', oldPrice: 16, newPrice: 20, deviationPct: 25, extraPaid: 100, daysAgo: 0 },
+			{ id: 2, ingredient: 'Tomate', supplier: 'Mercavera', oldPrice: 2.4, newPrice: 2.1, deviationPct: -12.5, extraPaid: 0, daysAgo: 1 },
 		],
 		review: { count: 2, amount: 1090, incidencias: 0 },
 		missing: [{ supplier_name: 'Panadería Ruiz', days_late: 9, frequency: 'weekly' }],

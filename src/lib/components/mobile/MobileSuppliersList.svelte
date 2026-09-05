@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { cadenceLabel, type SupplierCadenceView } from '$lib/supplier-cadence-label';
   import { untrack } from 'svelte';
   import { categoryColor, categoryTint } from '$lib/colors';
   import { fmtEur } from '$lib/formatters';
@@ -22,6 +23,7 @@
     delta_pct: number | null;
     month_invoice_count: number | null;
     price_trend?: number[];
+    cadence?: SupplierCadenceView | null;
   }
 
   const INLINE_CATEGORY_CHIPS = 4;
@@ -250,6 +252,9 @@
             {/if}
             {#if s.price_trend && s.price_trend.length >= 3}
               <Sparkline values={s.price_trend} width={64} height={20} />
+            {/if}
+            {#if s.cadence}
+              <div class="num text-[11px] {s.cadence.late ? 'text-neg' : 'text-fg-3'}">{cadenceLabel(s.cadence, locale.current)}</div>
             {/if}
           </div>
           <ChevronRight size={14} style="color: var(--mep-fg-3); flex-shrink: 0;" />

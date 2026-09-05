@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { cadenceLabel } from '$lib/supplier-cadence-label';
   import type { PageData } from './$types';
   import { categoryColor, categoryTint } from '$lib/colors';
   import { untrack } from 'svelte';
@@ -312,7 +313,12 @@
                       </span>
                     {/if}
                   </td>
-                  <td class="num" style="font-size:12.5px;color:var(--mep-fg-2);">{fmtDateShort(s.last_invoice_date, locale.current)}</td>
+                  <td class="num" style="font-size:12.5px;color:var(--mep-fg-2);">
+                    {fmtDateShort(s.last_invoice_date, locale.current)}
+                    {#if s.cadence}
+                      <div class="text-[11px] {s.cadence.late ? 'text-neg' : 'text-fg-3'}">{cadenceLabel(s.cadence, locale.current)}</div>
+                    {/if}
+                  </td>
                   <td style="text-align:right;">
                     <ChevronRight size={13} style="color:var(--mep-fg-3);" />
                   </td>

@@ -20,21 +20,31 @@ export interface WorkItem {
 	href: string;
 }
 
+export interface PriceAlternative {
+	supplier: string;
+	price: number;
+	savingsPct: number;
+	potentialSavings: number;
+}
+
 export interface PriceShockInput {
-	id: number;
+	id: number | string;
 	ingredient: string;
 	supplier: string;
 	oldPrice: number;
 	newPrice: number;
 	deviationPct: number;
-	monthSpend: number;
+	extraPaid: number;
 	daysAgo: number;
+	productId?: number | null;
+	alternative?: PriceAlternative | null;
 }
 
 export interface MissingInput {
 	supplier_name: string;
 	days_late: number;
 	frequency: string;
+	supplier_id?: number;
 }
 
 export interface UncategorizedInput {
@@ -63,6 +73,7 @@ const MISSING_FREQUENCIES: string[] = ['weekly', 'biweekly', 'monthly', 'periodi
 
 const MAX_PRICE_ITEMS = 3;
 const MAX_BUDGET_ITEMS = 2;
+const MAX_MISSING_ITEMS = 3;
 
 export type MonthProgressInput = Pick<TurnoInput, 'isCurrentMonth' | 'daysElapsed' | 'daysInMonth'>;
 
@@ -82,10 +93,9 @@ export function forecastFromRunRate(spent: number, input: MonthProgressInput): n
 	return spent / f;
 }
 
-export function priceShockImpact(shock: Pick<PriceShockInput, 'deviationPct' | 'monthSpend'>): number {
-	const dev = shock.deviationPct / 100;
-	if (dev <= 0) return 0;
-	return shock.monthSpend * (dev / (1 + dev));
+export function priceShockImpact(shock: Pick<PriceShockInput, 'deviationPct' | 'extraPaid'>): number {
+	if (shock.deviationPct <= 0) return 0;
+	return Math.max(0, shock.extraPaid);
 }
 
 export interface CategoryRisk {
@@ -121,21 +131,32 @@ function priceItems(input: TurnoInput): WorkItem[] {
 		.map((s) => ({ s, eur: priceShockImpact(s) }))
 		.sort((a, b) => b.eur - a.eur)
 		.slice(0, MAX_PRICE_ITEMS)
-		.map(({ s, eur }) => ({
+		.map(({ s, eur }): WorkItem => ({
 			id: `price-${s.id}`,
-			kind: 'price' as const,
-			severity: 'high' as const,
+			kind: 'price',
+			severity: 'high',
 			eur,
 			urgencyRank: 2 + s.daysAgo,
 			urgencyKey: s.daysAgo <= 0 ? 'turno.when.today' : 'turno.when.daysAgo',
 			urgencyVars: { n: s.daysAgo },
 			titleKey: 'turno.price.title',
 			titleVars: { ingredient: s.ingredient, pct: Math.round(s.deviationPct * 10) / 10 },
-			whyKey: 'turno.price.why',
-			whyVars: { supplier: s.supplier, from: s.oldPrice, to: s.newPrice },
-			actionKey: 'turno.price.action',
-			href: '/analytics/prices',
+			whyKey: s.alternative ? 'turno.price.whyAlt' : 'turno.price.why',
+			whyVars: priceWhyVars(s),
+			actionKey: s.alternative ? 'turno.price.actionAlt' : 'turno.price.action',
+			href: s.productId != null ? `/products/${s.productId}` : '/analytics/prices',
 		}));
+}
+
+function priceWhyVars(s: PriceShockInput): Record<string, string | number> {
+	const base: Record<string, string | number> = { supplier: s.supplier, from: s.oldPrice, to: s.newPrice };
+	if (!s.alternative) return base;
+	return {
+		...base,
+		alt: s.alternative.supplier,
+		altPrice: Math.round(s.alternative.price * 100) / 100,
+		savePct: Math.round(s.alternative.savingsPct * 100),
+	};
 }
 
 function budgetItems(input: TurnoInput): WorkItem[] {
@@ -182,14 +203,12 @@ function reviewItems(input: TurnoInput): WorkItem[] {
 }
 
 function missingItems(input: TurnoInput): WorkItem[] {
-	const m = input.missing[0];
-	if (!m) return [];
-	return [{
-		id: `missing-${m.supplier_name}`,
-		kind: 'missing',
-		severity: 'med',
+	return input.missing.slice(0, MAX_MISSING_ITEMS).map((m, i) => ({
+		id: `missing-${m.supplier_id ?? m.supplier_name}`,
+		kind: 'missing' as const,
+		severity: 'med' as const,
 		eur: 0,
-		urgencyRank: 90,
+		urgencyRank: 90 + i,
 		urgencyKey: 'turno.when.whenYouCan',
 		urgencyVars: {},
 		titleKey: 'turno.missing.title',
@@ -197,8 +216,8 @@ function missingItems(input: TurnoInput): WorkItem[] {
 		whyKey: `turno.missing.why.${MISSING_FREQUENCIES.includes(m.frequency) ? m.frequency : 'periodic'}`,
 		whyVars: {},
 		actionKey: 'turno.missing.action',
-		href: '/suppliers',
-	}];
+		href: m.supplier_id != null ? `/suppliers/${m.supplier_id}` : '/suppliers',
+	}));
 }
 
 function supplierItems(input: TurnoInput): WorkItem[] {

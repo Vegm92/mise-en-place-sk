@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { forecastFromRunRate, planToDate } from '$lib/dashboard-turno';
   import type { PageData } from './$types';
   import { categoryColor } from '$lib/colors';
   import { enhance } from '$app/forms';
@@ -7,7 +8,7 @@
 
   let { data }: { data: PageData } = $props();
 
-  const today = new Date().getDate();
+  const today = $derived(data.pace.daysElapsed);
 
   let customCategories = $state<string[]>([]);
   let newCatName = $state('');
@@ -30,9 +31,12 @@
     const spent = data.category_spend[cat] ?? 0;
     const pct   = limit > 0 ? (spent / limit) * 100 : 0;
     const remaining  = limit - spent;
-    const projected  = today > 0 ? pct * 31 / today : 0;
+    const plan = planToDate(limit, data.pace);
+    const forecast = forecastFromRunRate(spent, data.pace);
+    const projected  = limit > 0 ? (forecast / limit) * 100 : 0;
+    const vsPlan = limit > 0 ? spent - plan : 0;
     const color = categoryColor(cat);
-    return { cat, limit, spent, pct, remaining, projected, color };
+    return { cat, limit, spent, pct, remaining, plan, forecast, projected, vsPlan, color };
   }));
 
   let showAllCats = $state(false);
@@ -42,6 +46,8 @@
   const totalLimit = $derived(rows.reduce((s, r) => s + r.limit, 0));
   const totalSpent = $derived(rows.reduce((s, r) => s + r.spent, 0));
   const totalPct   = $derived(totalLimit > 0 ? (totalSpent / totalLimit) * 100 : 0);
+  const totalPlan  = $derived(planToDate(totalLimit, data.pace));
+  const totalProjectedPct = $derived(totalLimit > 0 ? (forecastFromRunRate(totalSpent, data.pace) / totalLimit) * 100 : 0);
 
   const monthLabel = $derived(new Date(data.selectedMonth + '-02').toLocaleString(locale.current, { month: 'long', year: 'numeric' }));
 </script>
@@ -71,7 +77,7 @@
         <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--mep-fg-3);margin-top:8px;">
           <span>
             <span class="num" style="color:{semColor(totalPct)};font-weight:600;">{totalPct.toFixed(1).replace('.',',')}%</span>
-            {t('bud.used')} · {t('bud.projectionClose')} {(totalPct * 31 / today).toFixed(0)}% {t('bud.atClose')}
+            {t('bud.used')} · {t('bud.projectionClose')} {totalProjectedPct.toFixed(0)}% {t('bud.atClose')} · {t('bud.colPlan')} <span class="num">{fmtEur(totalPlan, locale.current)}</span>
           </span>
           <span class="num">{fmtEur(totalLimit - totalSpent, locale.current)} {t('bud.remaining')}</span>
         </div>
@@ -258,7 +264,7 @@
           <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--mep-fg-3);">
             <span>
               <span class="num" style="color:{semColor(totalPct)};font-weight:600;">{totalPct.toFixed(1).replace('.',',')}%</span>
-              · {t('bud.projectionClose')} {(totalPct * 31 / today).toFixed(0)}% {t('bud.atClose')}
+              · {t('bud.projectionClose')} {totalProjectedPct.toFixed(0)}% {t('bud.atClose')} · {t('bud.colPlan')} <span class="num">{fmtEur(totalPlan, locale.current)}</span>
             </span>
             <span class="num">{fmtEur(totalLimit - totalSpent, locale.current)} {t('bud.remaining')}</span>
           </div>

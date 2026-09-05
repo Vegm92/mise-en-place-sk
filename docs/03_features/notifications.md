@@ -458,3 +458,7 @@ Type ∈ known set; payload shape per type; tenant scope.
 - Summary chips; overdue section; due-soon section.
 - Each incidencias card carries an `IncidenceKindBadge` under the `incidencia` badge (issue #879, see `docs/03_features/invoice_management.md`) so the read-error-vs-document-problem distinction shows up here too, not only on the invoice detail.
 - A `documento`-kind incidence is also where the supplier claim email is offered — see `docs/03_features/supplier_claim_email.md` (issue #887).
+
+## Reminders page additions (ADR-039)
+
+`/reminders` adds a missing-deliveries section (late suppliers from `detectMissingInvoices`) and shows, under each price-shock notification, the € paid above the reference price over the last 30 days (`priceDeviations`).

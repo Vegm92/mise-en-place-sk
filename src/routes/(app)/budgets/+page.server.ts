@@ -1,7 +1,8 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { handleLoad } from '$lib/server/load-guard';
 import type { Actions, PageServerLoad } from './$types';
-import { monthRange } from '$lib/server/period-range';
+import { localToday, monthRange } from '$lib/server/period-range';
+import { daysBetween } from '$lib/period';
 import { db, forTenant } from '$lib/server/db';
 import { categoryBudgets } from '$lib/server/schema';
 import { and, eq, sql } from 'drizzle-orm';
@@ -17,6 +18,12 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 	const period = await parent?.() ?? monthRange(url);
 	const currentMonth = period.currentMonth;
 	const selectedMonth = period.activeMonth;
+	const today = period.today ?? localToday();
+	const pace = {
+		isCurrentMonth: selectedMonth === currentMonth,
+		daysElapsed: selectedMonth === currentMonth ? daysBetween(period.rangeFrom, today) + 1 : (selectedMonth < currentMonth ? daysBetween(period.rangeFrom, period.rangeTo) + 1 : 0),
+		daysInMonth: daysBetween(period.rangeFrom, period.rangeTo) + 1,
+	};
 
 	return handleLoad('budgets', async () => {
 		const [rows, spendRows] = await Promise.all([
@@ -57,6 +64,7 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 			categories,
 			budgets,
 			category_spend,
+			pace,
 			selectedMonth,
 			currentMonth,
 		};
