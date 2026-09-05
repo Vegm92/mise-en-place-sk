@@ -22,7 +22,9 @@ import {
 import { probeGemini, probeResend, probeStripe, probeWhatsAppCloud, type ProbeResult } from './external-probes';
 import { getFlag } from './app-flags';
 import { WHATSAPP_STATUS_FLAG } from './integrations/whatsapp/runtime';
-import { WHATSAPP_ACCESS_TOKEN, WHATSAPP_BOT_ENABLED, WHATSAPP_PHONE_NUMBER_ID } from './env';
+import {
+	GEMINI_MODEL, STORAGE_DRIVER, WHATSAPP_ACCESS_TOKEN, WHATSAPP_BOT_ENABLED, WHATSAPP_PHONE_NUMBER_ID,
+} from './env';
 
 const NODE_ENV: string = process.env.NODE_ENV ?? 'development';
 
@@ -195,7 +197,16 @@ export function workerDetail(worker: WorkerLiveness): string {
 		: `No heartbeat for over ${worker.staleAfterSeconds}s — worker is down or wedged · ${seen} · ${jobs}${release}`;
 }
 
-export function workerEnvCheck(worker: WorkerLiveness): HealthCheck {
+export interface WebProcessConfig {
+	storageDriver: string;
+	geminiModel: string;
+}
+
+export function webProcessConfig(): WebProcessConfig {
+	return { storageDriver: STORAGE_DRIVER, geminiModel: GEMINI_MODEL };
+}
+
+export function workerEnvCheck(worker: WorkerLiveness, web: WebProcessConfig = webProcessConfig()): HealthCheck {
 	if (worker.state === 'unknown') {
 		return { name: 'Worker env', status: 'warn', detail: 'Unknown until the worker reports a heartbeat' };
 	}
@@ -206,10 +217,27 @@ export function workerEnvCheck(worker: WorkerLiveness): HealthCheck {
 	if (details.envMissing.length > 0) {
 		return { name: 'Worker env', status: 'error', detail: `Missing on the worker service: ${details.envMissing.join(', ')}` };
 	}
+	if (details.storageDriver !== undefined && details.storageDriver !== web.storageDriver) {
+		return {
+			name: 'Worker env',
+			status: 'error',
+			detail: `Storage driver split: web=${web.storageDriver} worker=${details.storageDriver} — the worker cannot read what the web uploads, every extraction fails`,
+		};
+	}
 	if (details.envRecommended.length > 0) {
 		return { name: 'Worker env', status: 'warn', detail: `Recommended on the worker service: ${details.envRecommended.join(', ')}` };
 	}
-	return { name: 'Worker env', status: 'ok', detail: `All required variables set · node ${details.node}` };
+	if (details.geminiModel !== undefined && details.geminiModel !== web.geminiModel) {
+		return {
+			name: 'Worker env',
+			status: 'warn',
+			detail: `Gemini model differs: web=${web.geminiModel} worker=${details.geminiModel} — extraction and chat/digest run on different models`,
+		};
+	}
+	const same = details.storageDriver === undefined
+		? ''
+		: ` · storage ${details.storageDriver} · ${details.geminiModel ?? web.geminiModel}, same as web`;
+	return { name: 'Worker env', status: 'ok', detail: `All required variables set · node ${details.node}${same}` };
 }
 
 async function checkWorkerHeartbeat(): Promise<{ checks: HealthCheck[]; worker: WorkerLiveness }> {
