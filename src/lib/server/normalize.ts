@@ -52,7 +52,13 @@ export interface ParsedSupplierName {
 	legalForm: string | null;
 }
 
+const SUPPLIER_NAME_CACHE_MAX = 4000;
+const supplierNameCache = new Map<string, ParsedSupplierName>();
+
 export function parseSupplierName(raw: string): ParsedSupplierName {
+	let cached = supplierNameCache.get(raw);
+	if (cached !== undefined) return cached;
+
 	const cleaned = normalizeProductKey(raw);
 	const match = cleaned.match(SPANISH_LEGAL_FORM_RE);
 	const legalForm = match ? match[1].replace(DOTS_SPACES_RE, '') : null;
@@ -61,7 +67,14 @@ export function parseSupplierName(raw: string): ParsedSupplierName {
 		.replace(PUNCT_RE, ' ')
 		.replace(WHITESPACE_RE, ' ')
 		.trim();
-	return { base, legalForm };
+
+	cached = { base, legalForm };
+
+	if (supplierNameCache.size >= SUPPLIER_NAME_CACHE_MAX) {
+		supplierNameCache.clear();
+	}
+	supplierNameCache.set(raw, cached);
+	return cached;
 }
 
 export function normalizeSupplierName(raw: string): string {
@@ -125,9 +138,21 @@ for (const [canonical, variants] of Object.entries(UNIT_GROUPS)) {
 	for (const v of variants) UNIT_SYNONYMS.set(v, canonical);
 }
 
+const UNIT_CACHE_MAX = 1000;
+const unitCache = new Map<string, string | null>();
+
 export function canonicalizeUnit(raw: string | null | undefined): string | null {
 	if (!raw) return null;
-	const key = normalizeProductKey(String(raw)).replace(TRAILING_DOTS_RE, '');
-	if (!key) return null;
-	return UNIT_SYNONYMS.get(key) ?? null;
+	const key = String(raw);
+	let cached = unitCache.get(key);
+	if (cached !== undefined) return cached;
+
+	const normKey = normalizeProductKey(key).replace(TRAILING_DOTS_RE, '');
+	cached = normKey ? (UNIT_SYNONYMS.get(normKey) ?? null) : null;
+
+	if (unitCache.size >= UNIT_CACHE_MAX) {
+		unitCache.clear();
+	}
+	unitCache.set(key, cached);
+	return cached;
 }

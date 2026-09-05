@@ -47,7 +47,7 @@ time (normalized units, pack-aware prices) and the catalog is user-curatable.
      (`LLM_MATCH_THRESHOLD` 0.8) and raises `product_suggestion` (source `llm`).
 - **Normalization** (`normalize.ts`): `mep_norm_key` (lower/trim),
   `expandAbbreviations` (SKU prefixes, bare codes, ~19 Spanish abbreviations),
-  `canonicalizeUnit` (~45 unit groups). Static RegExp instances are compiled at module scope and `normalizeProductKey` results are cached via bounded Map memoization to optimize string processing throughput.
+  `canonicalizeUnit` (~45 unit groups). Static RegExp instances are compiled at module scope, and `normalizeProductKey`, `parseSupplierName`, and `canonicalizeUnit` results are cached via bounded Map memoization to optimize string processing throughput.
 - **Packs** (`products.ts:63`): `parsePack` via MULTIPACK/SINGLE/COUNT regexes;
   `SIZE_TO_BASE` (docena = 12 ud); `normalizedUnitPrice = unitPrice/baseQuantity`
   rounded 4 dp.
