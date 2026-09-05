@@ -289,7 +289,7 @@ const appHandle: Handle = async ({ event, resolve }) => {
 	event.locals.user = user;
 
 	const rateLimited = await enforceApiRateLimit(event, path, user);
-	if (rateLimited) return rateLimited;
+	if (rateLimited) return applySecurityHeaders(path, rateLimited, event);
 
 	const { userApproved, accessOpen } = await applyLocalsForUser(event, user);
 
@@ -298,13 +298,13 @@ const appHandle: Handle = async ({ event, resolve }) => {
 	enforceAdminRedirect(path, user);
 
 	const accessResponse = enforceUserAccess(event, path, user, userApproved, accessOpen);
-	if (accessResponse) return accessResponse;
+	if (accessResponse) return applySecurityHeaders(path, accessResponse, event);
 
 	const authResponse = enforceAuth(path, event.locals.user);
-	if (authResponse) return authResponse;
+	if (authResponse) return applySecurityHeaders(path, authResponse, event);
 
 	const flagResponse = await enforceFeatureFlag(path);
-	if (flagResponse) return flagResponse;
+	if (flagResponse) return applySecurityHeaders(path, flagResponse, event);
 
 	const resolveWithLocale = (e: RequestEvent) =>
 		resolve(e, { transformPageChunk: ({ html }) => html.replace('%mep.lang%', e.locals.locale) });
