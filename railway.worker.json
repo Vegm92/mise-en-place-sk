@@ -10,12 +10,11 @@
     "numReplicas": 1,
     "startCommand": "node build/worker.js",
     "preDeployCommand": [
-      "pnpm db:migrate"
+      "node build/wait-for-migrations.js"
     ],
     "sleepApplication": false,
     "useLegacyStacker": false,
     "ipv6EgressEnabled": false,
-    "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 10
+    "restartPolicyType": "ALWAYS"
   }
 }

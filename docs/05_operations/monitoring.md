@@ -74,6 +74,8 @@ Owner-email gated. Provides:
   polling `/api/health` for `worker.liveness !== "alive"` — since #491, that
   field is behind admin auth or `X-Health-Token` (`HEALTH_CHECK_TOKEN`), so the
   checker needs one of those; the plain public response is `{ status }` only.
+  The owner steps (token, monitor, worker `SENTRY_DSN`, `ALWAYS` restart
+  policy) are gate 3 of `docs/05_operations/go_live_checklist.md`.
 - Upstash Redis optional — when absent, in-memory rate limiting is used with a
   single-instance warning (multi-instance deploy must configure Upstash).
 
