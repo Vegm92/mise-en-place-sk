@@ -60,18 +60,42 @@ interface MatchPass {
 
 function greedyMatch(aLines: ReconLine[], bLines: ReconLine[], keyOf: (line: ReconLine) => string | null): MatchPass {
 	const pairs: [ReconLine, ReconLine][] = [];
+	const bKeyMap = new Map<string, number[]>();
+	for (let i = 0; i < bLines.length; i++) {
+		const key = keyOf(bLines[i]);
+		if (key !== null) {
+			let list = bKeyMap.get(key);
+			if (!list) {
+				list = [];
+				bKeyMap.set(key, list);
+			}
+			list.push(i);
+		}
+	}
+
 	const usedB = new Set<number>();
 	const remainingA: ReconLine[] = [];
+
 	for (const a of aLines) {
 		const key = keyOf(a);
-		const idx = key === null ? -1 : bLines.findIndex((b, i) => !usedB.has(i) && keyOf(b) === key);
-		if (idx === -1) {
-			remainingA.push(a);
-			continue;
+		const candidateIndices = key === null ? undefined : bKeyMap.get(key);
+		let foundIdx = -1;
+		if (candidateIndices) {
+			for (const idx of candidateIndices) {
+				if (!usedB.has(idx)) {
+					foundIdx = idx;
+					break;
+				}
+			}
 		}
-		usedB.add(idx);
-		pairs.push([a, bLines[idx]]);
+		if (foundIdx === -1) {
+			remainingA.push(a);
+		} else {
+			usedB.add(foundIdx);
+			pairs.push([a, bLines[foundIdx]]);
+		}
 	}
+
 	const remainingB = bLines.filter((_, i) => !usedB.has(i));
 	return { pairs, remainingA, remainingB };
 }
