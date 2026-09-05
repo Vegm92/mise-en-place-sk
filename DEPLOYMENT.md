@@ -4,6 +4,8 @@ Stack: SvelteKit (`@sveltejs/adapter-node`) + Railway Postgres + Auth.js + Gemin
 
 Copy `.env.example` to `.env` and fill in every value before starting the server.
 
+**Going live on Railway?** Work through [docs/05_operations/go_live_checklist.md](docs/05_operations/go_live_checklist.md) — three gates (runtime-role cutover, migration chain, worker heartbeat), the live-vs-repo service config audit, the per-service env matrix and the smoke pass. `/admin/health` renders the three gates as its first checks.
+
 ---
 
 ## Required environment variables
@@ -13,7 +15,7 @@ Copy `.env.example` to `.env` and fill in every value before starting the server
 | Variable | Required | Notes |
 |---|---|---|
 | `DATABASE_URL` | Yes | Runtime connection used by the app and the pg-boss worker (web + worker services). **Production must point this at the scoped `mep_runtime` role** (issue #464, `scripts/create-runtime-role.sql`) — SELECT/INSERT/UPDATE/DELETE on app tables only, no DDL, not superuser/owner. Railway exposes the owner connection on the Postgres service as `DATABASE_URL` (internal, `*.railway.internal`) and `DATABASE_PUBLIC_URL` (external) — build the scoped role's URL from the same host/port/database with the `mep_runtime` credentials instead. See [Runtime vs. migration database roles](#runtime-vs-migration-database-roles) below. |
-| `DATABASE_MIGRATION_URL` | Yes (prod) | Owner/superuser connection used **only** by drizzle-kit ("`pnpm db:migrate`", `drizzle.config.ts`) — schema changes need DDL rights `DATABASE_URL` no longer has once it points at the scoped role. Falls back to `DATABASE_URL` with a console warning when unset, so a single-URL local `.env` is unaffected. Set this on the **web** service (Railway's `preDeployCommand` runs `pnpm db:migrate` inside it — see [Runtime vs. migration database roles](#runtime-vs-migration-database-roles)); the worker never runs migrations and does not need it. |
+| `DATABASE_MIGRATION_URL` | Yes (prod) | Owner/superuser connection used **only** by drizzle-kit ("`pnpm db:migrate`", `drizzle.config.ts`) — schema changes need DDL rights `DATABASE_URL` no longer has once it points at the scoped role. Falls back to `DATABASE_URL` with a console warning when unset, so a single-URL local `.env` is unaffected. Set this on the **web** service (Railway's `preDeployCommand` runs `pnpm db:migrate` inside it — see [Runtime vs. migration database roles](#runtime-vs-migration-database-roles)); the worker never runs migrations and does not need it — its own `preDeployCommand` (`node build/wait-for-migrations.js`, `railway.worker.json`) only *waits* until the web's migration has applied every journal entry, reading the ledger with `DATABASE_URL`. |
 | `DATABASE_POOL_URL` | No | Separate pooled connection string for the runtime Drizzle ORM queries. Falls back to `DATABASE_URL` when unset. Recommended for multi-replica / HA deployments. Use the scoped runtime role here too. |
 | `DATABASE_SSL_MODE` | No | `require` (default — encrypted, certificate **not** verified) or `verify-full` (certificate chain verified). Applies to both the web pool and the worker's pg-boss connection. Production logs a warning while it is `require`. |
 | `DATABASE_CA_CERT` | No | CA certificate used when `DATABASE_SSL_MODE=verify-full` — either the PEM itself or a path to a `.crt` file — **not** a mode name; setting it to `verify-full` is the swap that takes both services down at startup. Omit to use the system trust store. **Confirming `verify-full` against Railway's cert chain is an open acceptance criterion of #367** — until it is settled, `require` is the working default. |
@@ -51,6 +53,10 @@ with zero manual steps while every app table in `public` stays owned by the migr
 
    The script is idempotent — safe to re-run after `pnpm db:generate` adds new tables (it
    re-applies grants) and safe to re-run in general (it does not reset an already-set password).
+   It also grants `mep_runtime` **read-only** access to drizzle-kit's ledger
+   (`drizzle.__drizzle_migrations`), which is what `/admin/health`'s `Migrations` check and the
+   worker's pre-deploy gate compare against `drizzle/meta/_journal.json`. A database where the
+   script ran before this grant existed shows that check as *unreadable* until it is re-run.
 
 2. Set Railway variables — **on the web service** (its `preDeployCommand` runs `pnpm db:migrate`,
    so it needs both credentials) and **on the worker service** (it only ever needs `DATABASE_URL`):
@@ -58,7 +64,7 @@ with zero manual steps while every app table in `public` stays owned by the migr
    | Service | `DATABASE_URL` | `DATABASE_MIGRATION_URL` |
    |---|---|---|
    | web     | `mep_runtime` connection string | owner/superuser connection string (existing `DATABASE_URL` value, renamed) |
-   | worker  | `mep_runtime` connection string | not needed |
+   | worker  | `mep_runtime` connection string | not needed — the worker never runs DDL; its pre-deploy step only reads the ledger |
 
 3. **Verify the boundary actually holds** before treating the cutover as done. `$RUNTIME_URL` below
    is the connection string built in step 2 (the new `DATABASE_URL` value — same host/port/database
@@ -140,7 +146,6 @@ Set the OAuth client's authorized redirect URI to `{your-origin}/auth/callback/g
 | Variable | Default | Notes |
 |---|---|---|
 | `STORAGE_DRIVER` | `local` | `local` writes to `UPLOADS_DIR` on disk; `railway` writes to a Railway Bucket (S3-compatible). |
-| `STORAGE_BUCKET` | `invoice-uploads` | Bucket name when `STORAGE_DRIVER=railway` (also `AWS_S3_BUCKET_NAME` below). |
 | `UPLOADS_DIR` | `uploads` | Uploaded invoice files (PDF/JPG/PNG, 20 MB max each) when `STORAGE_DRIVER=local`. |
 | `BODY_SIZE_LIMIT` | `128M` (set in `Dockerfile`) | Largest request body `adapter-node` will read. **Must stay above `MAX_UPLOAD_TOTAL_BYTES`** (`src/lib/upload-formats.ts`). |
 
@@ -293,18 +298,46 @@ web service's `db:migrate` step also needs `DATABASE_MIGRATION_URL`:
 | Process | Command | Role |
 |---|---|---|
 | web | `node build` | SvelteKit server; enqueues `extract-invoice` jobs |
-| worker | `node build/worker.js` | pg-boss consumer; runs Gemini extraction |
+| worker | `node build/worker.js` | pg-boss consumer; runs Gemini extraction, scheduled jobs, WhatsApp transport |
 
 **Both must run in production.** Without the worker, uploads succeed but extractions stay `queued` forever.
 
+### Railway (config as code)
+
+Two services from the same repo and the same `Dockerfile` image; each is pinned to its config file
+(the worker's *Config file path* setting is `railway.worker.json`, the web picks up `railway.json`
+automatically). Config-as-code values override the dashboard for the keys they set — the dashboard
+may still *display* `RAILPACK` or `sleepApplication: true`; the deployment's **Config** tab shows
+what actually applied.
+
+| Setting | web — `railway.json` | worker — `railway.worker.json` | Why |
+|---|---|---|---|
+| `build.builder` | `DOCKERFILE` | `DOCKERFILE` | one image, two commands |
+| `startCommand` | Dockerfile `CMD` (`node build`) | `node build/worker.js` | |
+| `preDeployCommand` | `pnpm db:migrate` | `node build/wait-for-migrations.js` | Migrations run in exactly one place. drizzle-kit takes no advisory lock, so two services migrating the same push race, and after the #464 cutover the worker's role cannot run DDL at all. The worker's step instead polls `drizzle.__drizzle_migrations` until every entry of the shipped `drizzle/meta/_journal.json` is applied (up to `MIGRATION_WAIT_TIMEOUT_MS`, default 10 min), so the **old** worker keeps consuming jobs until the schema the new build expects exists, and a journal entry drizzle-kit would silently skip (older than the newest applied) fails the deploy instead of shipping a mismatched schema. |
+| `healthcheckPath` / `healthcheckTimeout` | `/api/health`, 300 s | — | Railway keeps the previous deployment serving until the new container answers 200; the public health response is `{ status }` backed by one `SELECT 1`, 503 when the database is unreachable. The worker has no HTTP port. |
+| `restartPolicyType` | `ON_FAILURE` (10 retries) | `ALWAYS` | A worker that exhausts `ON_FAILURE` retries during a Postgres restart stays down until someone notices; `ALWAYS` keeps retrying and the heartbeat check on `/admin/health` shows the gap. |
+| `numReplicas` | 1 | 1 | The in-memory rate limiter and extraction semaphore are per process — set `UPSTASH_REDIS_REST_*` before scaling either tier out. |
+| `sleepApplication` | `false` | `false` | A slept web tier drops the first request after idle; a slept worker drops the WhatsApp socket. |
+| Region | same region as Postgres | same region as Postgres | Cross-region DB round trips dominate request latency; EU tenant data belongs in an EU region (`europe-west4`). Region is a dashboard setting, not config-as-code. |
+
+Build args: Vite inlines `VITE_*` at build time, so `VITE_SENTRY_DSN` and `VITE_SENTRY_RELEASE`
+must exist as Railway variables on the web service (Railway passes service variables to Dockerfile
+`ARG`s); set `SENTRY_RELEASE` / `VITE_SENTRY_RELEASE` to `${{RAILWAY_GIT_COMMIT_SHA}}`.
+
+Both services are separate containers with separate disks: `STORAGE_DRIVER=railway` with the same
+six `AWS_*` variables on each (see [File storage](#file-storage)). Set `ADDRESS_HEADER=x-forwarded-for`
+/ `XFF_DEPTH=1` on the web service — Railway's edge proxy rewrites the header (see
+[Reverse proxy / client IP](#reverse-proxy--client-ip)).
+
+### Any other host
+
 1. `pnpm install --frozen-lockfile`
-2. `pnpm db:migrate` — applies `drizzle/` migrations, using `DATABASE_MIGRATION_URL` (the owner/superuser role; falls back to `DATABASE_URL` when unset). Tenant isolation's primary enforcement does **not** depend on the database: it is `forTenant().scope()` in application queries (ADR-001), guarded by `pnpm lint:tenant-scope` in CI. Since migration `0055_rls_tenant_isolation.sql` (issue #222, ADR-030), extended by `0057_recipes_rls_tenant_isolation.sql` for the `recipes`/`recipe_items` tables added in `0056`, `SELECT policyname FROM pg_policies WHERE schemaname='public';` returning **30 rows is the expected state** (one `tenant_isolation` policy per table in `src/lib/server/tenant-data-map.ts`) — but those policies are a backstop that only restricts the scoped `mep_runtime` role from #464, not the owner/superuser role `pnpm db:migrate` and this whole runbook still connect as; see [Runtime vs. migration database roles](#runtime-vs-migration-database-roles) above for what activates them.
-3. `pnpm build` (requires the env vars above at build time) — builds the web server **and** `build/worker.js`.
-4. Start both processes with `NODE_ENV=production` (Secure cookies) and `PORT`/`HOST` as needed:
-   - `node build` (web) and `node build/worker.js` (worker)
-   - On Railway/Render/Fly: create two services from this repo, one per command. They do **not** share a disk — set `STORAGE_DRIVER=railway`; see [File storage](#file-storage). Set `ADDRESS_HEADER=x-forwarded-for` / `XFF_DEPTH=1` on the web service on Railway, whose edge proxy rewrites the header (see [Reverse proxy / client IP](#reverse-proxy--client-ip)).
+2. `pnpm db:migrate` — applies `drizzle/` migrations, using `DATABASE_MIGRATION_URL` (the owner/superuser role; falls back to `DATABASE_URL` when unset). Tenant isolation's primary enforcement does **not** depend on the database: it is `forTenant().scope()` in application queries (ADR-001), guarded by `pnpm lint:tenant-scope` in CI. Since migration `0055_rls_tenant_isolation.sql` (issue #222, ADR-030), extended by `0057_recipes_rls_tenant_isolation.sql` for the `recipes`/`recipe_items` tables added in `0056`, `SELECT policyname FROM pg_policies WHERE schemaname='public';` returning **30 rows is the expected state** (one `tenant_isolation` policy per table in `src/lib/server/tenant-data-map.ts`) — but those policies are a backstop that only restricts the scoped `mep_runtime` role from #464, not the owner/superuser role `pnpm db:migrate` connects as; see [Runtime vs. migration database roles](#runtime-vs-migration-database-roles) above for what activates them.
+3. `pnpm build` (requires the env vars above at build time) — builds the web server, `build/worker.js` **and** `build/wait-for-migrations.js`.
+4. Start both processes with `NODE_ENV=production` (Secure cookies) and `PORT`/`HOST` as needed: `node build` (web) and `node build/worker.js` (worker). Run `node build/wait-for-migrations.js` before starting a worker on a database another process migrates.
    - On a VPS: `docker compose up -d` uses the included `Dockerfile` + `docker-compose.yml` (one image, web + worker services, shared `uploads` volume at `/app/uploads`). This topology has no reverse proxy, so `ADDRESS_HEADER`/`XFF_DEPTH` are intentionally unset — do not add them without also putting a real proxy in front.
-5. Point your platform's health check at `GET /api/health` — public, rate-limited (`HEALTH_RATE_LIMIT_RPM`, default 60/min per IP), and returns only `{ "status": "ok" | "degraded" }` with a matching `200`/`503`, backed by a plain DB-reachability probe. The full detail (DB size, pg-boss queue depth, uploads-dir writability, active sessions, uptime, version) requires an admin session or the `X-Health-Token` header (`HEALTH_CHECK_TOKEN`) — see `/admin/health` for the human-facing equivalent. The worker has no HTTP port; rely on the platform's process supervision/restart policy.
+5. Point your platform's health check at `GET /api/health` — public, rate-limited (`HEALTH_RATE_LIMIT_RPM`, default 60/min per IP), and returns only `{ "status": "ok" | "degraded" }` with a matching `200`/`503`, backed by a plain DB-reachability probe. The full detail (DB size, pg-boss queue depth, uploads-dir writability, active sessions, uptime, version) requires an admin session or the `X-Health-Token` header (`HEALTH_CHECK_TOKEN`) — see `/admin/health` for the human-facing equivalent. The worker has no HTTP port; rely on the platform's process supervision/restart policy and the worker heartbeat on `/admin/health`.
 
 ## First startup
 

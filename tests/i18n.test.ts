@@ -324,6 +324,9 @@ describe('strings de-hardcoded from components', () => {
     'admin.wa.colEvent',
     'admin.wa.colSeverity',
     'admin.wa.tenantSenders',
+    'admin.worker.alive',
+    'admin.worker.stale',
+    'admin.worker.unknown',
   ];
 
   it('resolves in both locales', () => {

@@ -29,9 +29,17 @@ tables are the ground truth for jobs.
 ## Operational surface — `/admin`
 
 Owner-email gated. Provides:
-- System health: worker heartbeat (alive / stale / unknown, with
-  `last_job_completed_at`), job queues + dead-letter counts, and the
-  per-tenant scheduled-job fan-out — last dispatch per job
+- Readiness banner on `/admin` and `/admin/health` — the three go-live gates
+  (DB role scoped, migrations applied, worker alive) plus in-flight
+  extractions, errors in 24 h, dead letters and pending access requests
+  (`docs/05_operations/go_live_checklist.md`).
+- System health: worker heartbeat (alive / stale / unknown, heartbeat age,
+  release, and the worker's own env gaps), extraction queue depth + oldest
+  queued item, extraction success rate and p50/p95 queue→result latency
+  over 24 h, pg-boss failure rate, Stripe webhook freshness, reachability
+  of Gemini / Stripe / Resend / WhatsApp Cloud, job queues + dead-letter
+  counts (with retry-all for stalled items), and the per-tenant
+  scheduled-job fan-out — last dispatch per job
   (`scanned / considered / dispatched`) plus a 24 h per-queue roll-up of
   done / sent / pending / failed (#518).
 - `events`: `trackEvent` feed (chat, uploads, digests, billing lifecycle,
@@ -61,19 +69,22 @@ Owner-email gated. Provides:
 - Ops alerts: Sentry errors, dead-letter growth, WhatsApp account events of
   severity RED/YELLOW, failed per-tenant scheduled jobs (`/admin/health` warns
   above 0, errors above 10 in 24 h).
-- **Worker down is surfaced, not alerted — open gap.** The heartbeat exists
-  (`worker_heartbeats`, stale after `WORKER_HEARTBEAT_STALE_MS`, default 2 min)
-  and `workerLiveness()` renders it on `/admin/health` and `/api/health`, but
-  nothing pushes when it goes stale: someone has to look. A stopped worker is
-  therefore invisible until a symptom shows up (uploads stalling, a digest that
-  never arrived, stale materialized views).
-  The alarm **cannot** live in the worker — a dead process cannot report its own
-  death, and every notification path in this app (`saveAlerts`, Resend email,
-  the scheduled fan-out) runs *inside* the worker. Closing this needs something
-  outside it: a Railway alert on the service, or an external uptime check
-  polling `/api/health` for `worker.liveness !== "alive"` — since #491, that
-  field is behind admin auth or `X-Health-Token` (`HEALTH_CHECK_TOKEN`), so the
-  checker needs one of those; the plain public response is `{ status }` only.
+- **Worker down.** The heartbeat exists (`worker_heartbeats`, stale after
+  `WORKER_HEARTBEAT_STALE_MS`, default 2 min) and `workerLiveness()` renders it
+  on `/admin/health` and `/api/health`. The push half lives in the **web**
+  process (`src/lib/server/worker-liveness-monitor.ts`, started from
+  `hooks.server.ts`): every 60 s it reads the heartbeat and captures a Sentry
+  event fingerprinted `worker-heartbeat-stale` on the alive→stale transition
+  (and an info event on recovery), so a Sentry alert rule on that issue is the
+  page. The alarm **cannot** live in the worker — a dead process cannot report
+  its own death, and every notification path in this app (`saveAlerts`, Resend
+  email, the scheduled fan-out) runs *inside* the worker. Belt and braces: an
+  external uptime check polling `/api/health` for
+  `worker.liveness !== "alive"` — since #491, that field is behind admin auth
+  or `X-Health-Token` (`HEALTH_CHECK_TOKEN`), so the checker needs one of
+  those; the plain public response is `{ status }` only. The owner steps
+  (token, monitor, Sentry alert rule, worker `SENTRY_DSN`, `ALWAYS` restart
+  policy) are gate 3 of `docs/05_operations/go_live_checklist.md`.
 - Upstash Redis optional — when absent, in-memory rate limiting is used with a
   single-instance warning (multi-instance deploy must configure Upstash).
 

@@ -164,6 +164,14 @@ describe.skipIf(!canRun)('scripts/create-runtime-role.sql', () => {
 		expect(byName.public).not.toBe(TEST_ROLE);
 	});
 
+	it('can read drizzle-kit\'s migration ledger, but not write it', async () => {
+		const [row] = await runtimeSql!`SELECT count(*)::int AS n FROM drizzle.__drizzle_migrations`;
+		expect(row?.n).toBeGreaterThan(0);
+		await expect(
+			runtimeSql!.unsafe('DELETE FROM drizzle.__drizzle_migrations WHERE false'),
+		).rejects.toThrow(/permission denied/i);
+	});
+
 	it('lets pg-boss start, enqueue, and complete a job under the runtime role', async () => {
 		const boss = new PgBoss({ connectionString: runtimeUrl(), max: 1 });
 		try {

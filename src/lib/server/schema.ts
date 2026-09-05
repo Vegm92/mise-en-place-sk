@@ -663,12 +663,21 @@ export const deadLetterQueue = pgTable('dead_letter_queue', {
 	index('dead_letter_queue_dedupe_idx').on(t.queue, t.sourceId, t.errorClass, t.status),
 ]);
 
+export interface WorkerHeartbeatDetails {
+	release: string | null;
+	node: string;
+	pid: number;
+	envMissing: string[];
+	envRecommended: string[];
+}
+
 export const workerHeartbeats = pgTable('worker_heartbeats', {
 	id:                 text('id').primaryKey(),
 	startedAt:          timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
 	lastSeenAt:         timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
 	lastJobCompletedAt: timestamp('last_job_completed_at', { withTimezone: true }),
 	jobsCompleted:      integer('jobs_completed').notNull().default(0),
+	details:            jsonb('details').$type<WorkerHeartbeatDetails>(),
 });
 
 export const digestShares = pgTable('digest_shares', {

@@ -533,6 +533,13 @@
       "when": 1788442788564,
       "tag": "0075_solid_blacklash",
       "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1788606260804,
+      "tag": "0076_brainy_living_mummy",
+      "breakpoints": true
     }
   ]
 }

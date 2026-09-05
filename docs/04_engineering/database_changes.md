@@ -35,8 +35,9 @@ the schema file (ADR-003).
   fails loudly and rolls the migration back instead of converting partially
   (migration 0038).
 - **Existing-data migrations**: write them idempotently (guards + `WHERE` on
-  current state); never hardcode generated ids. Data migrations run in the
-  worker's migration step and via `pnpm db:migrate`.
+  current state); never hardcode generated ids. Data migrations run with the
+  schema ones, in the web service's pre-deploy `pnpm db:migrate` (the worker
+  only waits for that step — `build/wait-for-migrations.js`).
 
 ## Procedure (Level 4 change — see `docs/07_ai/change_protocol.md`)
 
@@ -47,7 +48,8 @@ the schema file (ADR-003).
 5. Update consumers (queries, the affected `## Code notes` section, feature specs).
 6. Full `pnpm test` (DB suites against local Postgres).
 7. If a data migration is needed, add it as a script run during deployment —
-   see `DEPLOYMENT.md` for the runbook (worker runs `db:migrate` at startup).
+   see `DEPLOYMENT.md` for the runbook (the web service's pre-deploy step runs
+   `db:migrate`; the worker's pre-deploy step waits for it).
 
 ## Materialized views
 

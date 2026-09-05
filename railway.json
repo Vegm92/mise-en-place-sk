@@ -11,6 +11,8 @@
     "preDeployCommand": [
       "pnpm db:migrate"
     ],
+    "healthcheckPath": "/api/health",
+    "healthcheckTimeout": 300,
     "sleepApplication": false,
     "useLegacyStacker": false,
     "ipv6EgressEnabled": false,
