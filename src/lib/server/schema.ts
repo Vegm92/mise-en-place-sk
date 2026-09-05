@@ -669,6 +669,8 @@ export interface WorkerHeartbeatDetails {
 	pid: number;
 	envMissing: string[];
 	envRecommended: string[];
+	storageDriver?: string;
+	geminiModel?: string;
 }
 
 export const workerHeartbeats = pgTable('worker_heartbeats', {

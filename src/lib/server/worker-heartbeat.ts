@@ -1,7 +1,9 @@
 import { eq, sql } from 'drizzle-orm';
 import { db } from './db';
 import { workerHeartbeats, type WorkerHeartbeatDetails } from './schema';
-import { SENTRY_RELEASE, WORKER_HEARTBEAT_INTERVAL_MS, WORKER_HEARTBEAT_STALE_MS } from './env';
+import {
+	GEMINI_MODEL, SENTRY_RELEASE, STORAGE_DRIVER, WORKER_HEARTBEAT_INTERVAL_MS, WORKER_HEARTBEAT_STALE_MS,
+} from './env';
 import { envGaps } from './env-report';
 
 export const WORKER_ID = 'worker';
@@ -35,6 +37,8 @@ export function workerBootDetails(env: NodeJS.ProcessEnv = process.env): WorkerH
 		pid: process.pid,
 		envMissing: gaps.missing,
 		envRecommended: gaps.recommended,
+		storageDriver: STORAGE_DRIVER,
+		geminiModel: GEMINI_MODEL,
 	};
 }
 
