@@ -157,6 +157,22 @@ The locale a page **renders** is resolved per request; the locale a user
 | guided tour (shell overlay) | — | `src/lib/tour-gating.ts` + the same `help.tip.*` copy |
 | `admin/*` | ops (see `docs/05_operations/`) | various |
 
+## Period semantics per page (ADR-038)
+
+`src/lib/period.ts` maps each page to one of three modes; the `(app)` layout
+load resolves the state once (`resolvePeriod(url, route.id)` in
+`src/lib/server/period-range.ts`) and pages read it via `parent()`.
+
+| Mode | Pages | URL param | Header control |
+|---|---|---|---|
+| `month` | `dashboard`, `budgets` | `?month=YYYY-MM` | month navigator (`mep/PeriodPicker`) |
+| `range` | `invoices`, `suppliers`, `products`, `recipes`, `analytics/spend` | `?period=24h\|1w\|1m\|3m\|6m\|1y\|all` | `mep/DateRangePicker` |
+| `none` | every other page | — | none; sidebar links carry no period |
+
+"Today" is the restaurant-local date (`APP_TIMEZONE`, default `Europe/Madrid`).
+Sidebar links go through `withPeriodParam()`, so a range page keeps its
+`?period`, a month page keeps its `?month`, and crossing modes drops the param.
+
 ## Conventions
 
 - Forms are SvelteKit `actions` (`+page.server.ts`), not separate API endpoints,

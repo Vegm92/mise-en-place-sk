@@ -1,6 +1,7 @@
 import { handleLoad } from '$lib/server/load-guard';
 import type { PageServerLoad } from './$types';
-import { periodRange } from '$lib/server/period-range';
+import { localToday, monthRange } from '$lib/server/period-range';
+import { addDaysIso, daysBetween, monthOf, previousRange } from '$lib/period';
 import { db, forTenant } from '$lib/server/db';
 import { invoices, invoiceLineItems, suppliers, categoryBudgets, settings, systemNotifications } from '$lib/server/schema';
 import { describedLine, lineAmountExpr, lineCategoryExpr, lineProductJoin } from '$lib/server/category-spend';
@@ -87,7 +88,7 @@ function buildProjection(
 	const isCurrentMonth = selectedMonth === currentMonth;
 	const isPastMonth = selectedMonth < currentMonth;
 	const elapsedWhenNotCurrent = isPastMonth ? daysInMonth : 0;
-	const daysElapsed = isCurrentMonth ? today.getDate() : elapsedWhenNotCurrent;
+	const daysElapsed = isCurrentMonth ? today.getUTCDate() : elapsedWhenNotCurrent;
 	const dailyRate = isCurrentMonth && daysElapsed > 0 ? p.thisMonth / daysElapsed : 0;
 	const projectedEom = isCurrentMonth ? Math.round(dailyRate * daysInMonth) : p.thisMonth;
 	const elapsedPctWhenNotCurrent = isPastMonth ? 100 : 0;
@@ -101,21 +102,14 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 	const tdb = forTenant(rid);
 
 	return handleLoad('dashboard', async () => {
-		const { rangeFrom, rangeTo } = await parent?.() ?? periodRange(url);
-		const today = new Date();
-		today.setHours(0, 0, 0, 0);
-		const todayStr = today.toISOString().split('T')[0]!;
-		const sevenDaysAgo = new Date(today.getTime() - 7 * 86400000).toISOString().split('T')[0]!;
-		const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-		const selectedMonth = rangeFrom.slice(0, 7);
-		const rangeFromMs = new Date(rangeFrom + 'T00:00:00Z').getTime();
-		const rangeToMs = new Date(rangeTo + 'T00:00:00Z').getTime();
-		const rangeDays = Math.round((rangeToMs - rangeFromMs) / 86400000);
-		const prevToDate = new Date(rangeFromMs - 86400000);
-		const prevFromDate = new Date(prevToDate.getTime() - rangeDays * 86400000);
-		const prevFrom = prevFromDate.toISOString().split('T')[0]!;
-		const prevTo = prevToDate.toISOString().split('T')[0]!;
-		const daysInRange = rangeDays + 1;
+		const { rangeFrom, rangeTo } = await parent?.() ?? monthRange(url);
+		const todayStr = localToday();
+		const today = new Date(`${todayStr}T00:00:00Z`);
+		const sevenDaysAgo = addDaysIso(todayStr, -7);
+		const currentMonth = monthOf(todayStr);
+		const selectedMonth = monthOf(rangeFrom);
+		const { rangeFrom: prevFrom, rangeTo: prevTo } = previousRange(rangeFrom, rangeTo);
+		const daysInRange = daysBetween(rangeFrom, rangeTo) + 1;
 
 		const [
 			reviewRow,
@@ -285,7 +279,7 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 		const activeSuppRow0 = activeSuppRow[0] ?? { this_month: 0, last_month: 0 };
 		const isCurrentPeriod = rangeFrom <= todayStr && rangeTo >= todayStr;
 		const daysElapsed = isCurrentPeriod
-			? Math.round((today.getTime() - new Date(rangeFrom + 'T00:00:00Z').getTime()) / 86400000) + 1
+			? daysBetween(rangeFrom, todayStr) + 1
 			: (rangeTo < todayStr ? daysInRange : 0);
 		const proj = buildProjection(
 			{
