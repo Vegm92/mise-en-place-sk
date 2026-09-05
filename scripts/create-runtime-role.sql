@@ -16,9 +16,10 @@
 --
 -- Idempotent: safe to re-run after every `pnpm db:generate` — it re-applies
 -- grants to any tables/sequences/functions added since the last run. It does
--- NOT reset an already-set password on re-run (see step 1) and does NOT touch
--- the `drizzle` schema (drizzle-kit's own migration-tracking tables, read only
--- by drizzle-kit itself, never by the app).
+-- NOT reset an already-set password on re-run (see step 1). The `drizzle`
+-- schema (drizzle-kit's own migration ledger) stays owned by the migration
+-- role; the runtime role only gets SELECT on it, so /admin/health and the
+-- worker's pre-deploy gate can compare the ledger with the shipped journal.
 --
 -- Password source: the RUNTIME_ROLE_PASSWORD environment variable, or pass
 -- -v runtime_password=... on the psql command line to override it.
@@ -85,6 +86,20 @@ GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO :"runtime_role";
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO :"runtime_role";
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO :"runtime_role";
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO :"runtime_role";
+
+-- ── 3b. drizzle-kit's migration ledger: read-only ───────────────────────────
+-- `drizzle.__drizzle_migrations` is written only by `pnpm db:migrate` (the
+-- migration role). The app reads it to answer "is the schema this build
+-- expects fully applied?" — /admin/health's "Migrations" check and
+-- build/wait-for-migrations.js, the worker service's Railway preDeployCommand
+-- (see src/lib/server/migration-state.ts). CREATE SCHEMA IF NOT EXISTS keeps
+-- this idempotent on a database drizzle-kit has not touched yet; drizzle-kit's
+-- own `CREATE SCHEMA IF NOT EXISTS "drizzle"` then becomes a no-op, and the
+-- default-privileges line covers the ledger table it creates afterwards.
+CREATE SCHEMA IF NOT EXISTS drizzle;
+GRANT USAGE ON SCHEMA drizzle TO :"runtime_role";
+GRANT SELECT ON ALL TABLES IN SCHEMA drizzle TO :"runtime_role";
+ALTER DEFAULT PRIVILEGES IN SCHEMA drizzle GRANT SELECT ON TABLES TO :"runtime_role";
 
 -- ── 4. pg-boss schema: full ownership, isolated from `public` ──────────────
 -- pg-boss runs its OWN migrations against the `pgboss` schema at every

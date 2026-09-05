@@ -17,6 +17,7 @@ export type SentryIssueSummary = {
 	unresolvedCount: number;
 	criticalCount: number;
 	usersAffected: number;
+	events24h: number;
 };
 
 export function isSentryConfigured(): boolean {
@@ -61,20 +62,22 @@ function toIssue(raw: RawSentryIssue): SentryIssue {
 	};
 }
 
-export async function listUnresolvedIssues(limit = 20): Promise<SentryIssue[]> {
+export async function listUnresolvedIssues(limit = 20, statsPeriod?: string): Promise<SentryIssue[]> {
 	if (!isSentryConfigured()) return [];
+	const period = statsPeriod ? `&statsPeriod=${encodeURIComponent(statsPeriod)}` : '';
 	const raw = await sentryFetch<RawSentryIssue[]>(
-		`/organizations/${SENTRY_ORG}/issues/?query=is:unresolved&sort=freq&limit=${limit}`,
+		`/organizations/${SENTRY_ORG}/issues/?query=is:unresolved&sort=freq&limit=${limit}${period}`,
 	);
 	return raw.map(toIssue);
 }
 
 export async function getIssueSummary(): Promise<SentryIssueSummary | null> {
 	if (!isSentryConfigured()) return null;
-	const issues = await listUnresolvedIssues(100);
+	const [issues, last24h] = await Promise.all([listUnresolvedIssues(100), listUnresolvedIssues(100, '24h')]);
 	return {
 		unresolvedCount: issues.length,
 		criticalCount: issues.filter(i => i.level === 'fatal' || i.level === 'error').length,
 		usersAffected: issues.reduce((sum, i) => sum + i.userCount, 0),
+		events24h: last24h.reduce((sum, i) => sum + i.count, 0),
 	};
 }
