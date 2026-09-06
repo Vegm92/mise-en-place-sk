@@ -198,15 +198,6 @@ export const actions: Actions = {
 		redirect(303, '/');
 	},
 
-	saveName: async ({ request, locals }) => {
-		const data = await request.formData();
-		const name = ((data.get('name') as string) ?? '').trim();
-		if (!name) return fail(422, { section: 'name', error: 'set.profile.err.nameRequired' });
-		if (name.length > 80) return fail(422, { section: 'name', error: 'set.profile.err.nameTooLong' });
-
-		await db.update(users).set({ name }).where(eq(users.id, locals.user!.id));
-		return { section: 'name', ok: 'set.profile.ok.name' };
-	},
 
 	saveEmail: async ({ request, locals, url }) => {
 		const data = await request.formData();
