@@ -2,10 +2,8 @@ export type AccessDecision = 'allow' | 'redirect-pending' | 'deny-api';
 
 export const PENDING_PATH = '/pending';
 
-export function isPendingAllowedPath(path: string): boolean {
+export function isAlwaysReadablePath(path: string): boolean {
 	return (
-		path === PENDING_PATH                   ||
-		path === '/logout'                      ||
 		path === '/privacy'                     ||
 		path === '/terms'                       ||
 		path === '/cookies'                     ||
@@ -19,6 +17,14 @@ export function isPendingAllowedPath(path: string): boolean {
 		path.startsWith('/waitlist')            ||
 		path.startsWith('/l/')                  ||
 		path.startsWith('/s/')
+	);
+}
+
+export function isPendingAllowedPath(path: string): boolean {
+	return (
+		path === PENDING_PATH ||
+		path === '/logout'    ||
+		isAlwaysReadablePath(path)
 	);
 }
 

@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { resolveAccess, isPendingAllowedPath, PENDING_PATH } from '../src/lib/server/access-gate';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { resolveAccess, isPendingAllowedPath, isAlwaysReadablePath, PENDING_PATH } from '../src/lib/server/access-gate';
+
+const ROOT = path.resolve(__dirname, '..');
 
 const pending = { isAdmin: false, approved: false, accessOpen: false };
 
@@ -59,5 +63,50 @@ describe('resolveAccess', () => {
 	it('lets everyone through once access is open', () => {
 		expect(resolveAccess({ ...pending, accessOpen: true, path: '/dashboard' })).toBe('allow');
 		expect(resolveAccess({ ...pending, accessOpen: true, path: '/api/chat' })).toBe('allow');
+	});
+});
+
+/**
+ * isAlwaysReadablePath is the single list of paths any visitor may reach
+ * whatever their session or plan says: the marketing surface, the legal
+ * pages that must be readable without an account, and the machine
+ * endpoints. Both gates that need it — isPendingAllowedPath here and
+ * hooks.server.ts's isPublicPath — build on it instead of each keeping a
+ * copy.
+ *
+ * They kept copies until the flight-test QA pass, and the copies drifted:
+ * /cookies, /refunds and /legal were added to the route policy but to
+ * neither allowlist, so three pages the law requires be readable without an
+ * account redirected to /login. This block pins the shared list, and pins
+ * that hooks.server.ts reads it rather than restating it.
+ */
+describe('isAlwaysReadablePath — the one list both gates share', () => {
+	const ALWAYS_READABLE = [
+		'/privacy', '/terms', '/cookies', '/refunds', '/legal', '/cookie-consent',
+		'/robots.txt', '/sitemap.xml', '/api/health',
+		'/auth/callback/google', '/waitlist', '/l/menu-del-dia', '/s/abc123',
+	];
+
+	for (const path of ALWAYS_READABLE) {
+		it(`${path} is readable with no session, and by a pending account`, () => {
+			expect(isAlwaysReadablePath(path)).toBe(true);
+			expect(isPendingAllowedPath(path)).toBe(true);
+		});
+	}
+
+	it('does not swallow the authenticated app', () => {
+		for (const path of ['/', '/dashboard', '/settings', '/api/chat', '/admin']) {
+			expect(isAlwaysReadablePath(path)).toBe(false);
+		}
+	});
+
+	it('hooks.server.ts delegates to it instead of restating the list', () => {
+		const hooks = readFileSync(path.join(ROOT, 'src/hooks.server.ts'), 'utf8');
+		const fn = hooks.slice(hooks.indexOf('function isPublicPath'));
+		const body = fn.slice(0, fn.indexOf('}'));
+		expect(body).toContain('isAlwaysReadablePath(path)');
+		for (const p of ['/privacy', '/terms', '/cookies', '/refunds', '/legal']) {
+			expect(body, `${p} restated in hooks.server.ts`).not.toContain(`'${p}'`);
+		}
 	});
 });

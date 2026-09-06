@@ -9,7 +9,7 @@ import { db, runAsSystem, runWithTenantContext } from '$lib/server/db';
 import { users } from '$lib/server/schema';
 import { isAccessOpen } from '$lib/server/app-flags';
 import { isBetaFeatureEnabled, type BetaFeatureKey } from '$lib/server/feature-flags';
-import { PENDING_PATH, resolveAccess, type AccessDecision } from '$lib/server/access-gate';
+import { PENDING_PATH, isAlwaysReadablePath, resolveAccess, type AccessDecision } from '$lib/server/access-gate';
 import { resolveTenantGate } from '$lib/server/tenant-gate';
 import { entitlementHandle } from '$lib/server/entitlements';
 import { memoizeEntitlements } from '$lib/server/billing';
@@ -325,20 +325,8 @@ function isPublicPath(path: string): boolean {
 		path === '/forgot-password'             ||
 		path === '/reset-password'              ||
 		path === '/verify-email'                ||
-		path === '/privacy'                     ||
-		path === '/terms'                       ||
-		path === '/cookies'                     ||
-		path === '/refunds'                     ||
-		path === '/legal'                       ||
-		path === '/cookie-consent'              ||
-		path === '/robots.txt'                  ||
-		path === '/sitemap.xml'                 ||
-		path === '/api/health'                  ||
-		path.startsWith('/auth/')               ||
-		path.startsWith('/waitlist')            ||
-		path.startsWith('/l/')                  ||
-		path.startsWith('/s/')                  ||
 		path === '/api/stripe-webhook'          ||
-		path === '/api/whatsapp/webhook'
+		path === '/api/whatsapp/webhook'        ||
+		isAlwaysReadablePath(path)
 	);
 }
