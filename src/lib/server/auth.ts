@@ -40,10 +40,10 @@ export const { handle, signIn, signOut } = SvelteKitAuth(async () => ({
 	callbacks: {
 		async jwt({ token, user }) {
 			if (user) {
-				token.sub    = user.id;
-				token.name   = user.name;
-				token.email  = user.email;
-				token.picture = user.image;
+				if (user.id !== undefined) token.sub = user.id;
+				token.name   = user.name ?? null;
+				token.email  = user.email ?? null;
+				if (user.image != null) token.picture = user.image;
 			}
 			if (!token.sub) return token;
 

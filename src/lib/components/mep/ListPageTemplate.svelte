@@ -15,12 +15,12 @@
     key: string;
     label: string;
     value: string | number;
-    sub?: string;
-    variant?: Variant;
-    delta?: number;
-    deltaCtx?: string;
-    spark?: number[];
-    onClick?: () => void;
+    sub?: string | undefined;
+    variant?: Variant | undefined;
+    delta?: number | undefined;
+    deltaCtx?: string | undefined;
+    spark?: number[] | undefined;
+    onClick?: (() => void) | undefined;
   }
 
   interface TrendBadge { key: string; label: string; color: string; active: boolean }

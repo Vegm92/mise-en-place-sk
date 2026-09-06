@@ -78,7 +78,7 @@ async function main(): Promise<void> {
 		return;
 	}
 
-	const entries = await listCorpusEntries({ restaurantId, promptVersion, limit });
+	const entries = await listCorpusEntries({ ...(restaurantId ? { restaurantId } : {}), ...(promptVersion ? { promptVersion } : {}), limit });
 	if (!entries.length) {
 		console.info('[replay] no corpus entries match the filter — nothing to replay');
 		return;

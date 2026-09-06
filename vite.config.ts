@@ -31,9 +31,9 @@ async function buildOnlyPlugins(): Promise<[PluginOption[], PluginOption[]]> {
 	// from Sentry.sentryHandle() in hooks.server.ts.
 	const sentryPlugins = await sentrySvelteKit({
 		autoInstrument: false,
-		org: process.env['SENTRY_ORG'],
-		project: process.env['SENTRY_PROJECT'],
-		authToken: process.env['SENTRY_AUTH_TOKEN'],
+		...(process.env['SENTRY_ORG'] ? { org: process.env['SENTRY_ORG'] } : {}),
+		...(process.env['SENTRY_PROJECT'] ? { project: process.env['SENTRY_PROJECT'] } : {}),
+		...(process.env['SENTRY_AUTH_TOKEN'] ? { authToken: process.env['SENTRY_AUTH_TOKEN'] } : {}),
 	});
 	const pwa = VitePWA({
 		// SW updates silently in the background; new version activates on next visit.

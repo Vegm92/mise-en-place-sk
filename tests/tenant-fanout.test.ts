@@ -264,7 +264,7 @@ describe('registerTenantFanout', () => {
 		const created: Array<{ name: string; options?: Record<string, unknown> }> = [];
 		const workers: Record<string, { options: Record<string, unknown>; handler: (jobs: unknown[]) => Promise<unknown> }> = {};
 		const boss = {
-			createQueue: vi.fn(async (name: string, options?: Record<string, unknown>) => { created.push({ name, options }); }),
+			createQueue: vi.fn(async (name: string, options?: Record<string, unknown>) => { created.push({ name, ...(options ? { options } : {}) }); }),
 			updateQueue: vi.fn(async () => {}),
 			work: vi.fn(async (name: string, options: Record<string, unknown>, handler: (jobs: unknown[]) => Promise<unknown>) => {
 				workers[name] = { options, handler };
