@@ -36,17 +36,18 @@ function jar(initial: Record<string, string> = {}): Jar {
 const CAMPAIGN_URL = new URL('https://mise-place.com/waitlist?utm_source=google&utm_campaign=spring');
 
 describe('captureAttribution is gated on cookie consent (art. 22.2 LSSI)', () => {
-	it('writes nothing while the visitor has made no choice', () => {
-		const j = jar();
-		captureAttribution(j.cookies, CAMPAIGN_URL, 'https://google.com/');
-		expect(j.store.has(ATTRIBUTION_COOKIE)).toBe(false);
-	});
+	const NO_CONSENT: [string, Record<string, string>][] = [
+		['the visitor has made no choice yet', {}],
+		['the visitor declined', { [CONSENT_COOKIE]: 'denied' }],
+	];
 
-	it('writes nothing when the visitor declined', () => {
-		const j = jar({ [CONSENT_COOKIE]: 'denied' });
-		captureAttribution(j.cookies, CAMPAIGN_URL, 'https://google.com/');
-		expect(j.store.has(ATTRIBUTION_COOKIE)).toBe(false);
-	});
+	for (const [label, initial] of NO_CONSENT) {
+		it(`writes nothing while ${label}`, () => {
+			const j = jar(initial);
+			captureAttribution(j.cookies, CAMPAIGN_URL, 'https://google.com/');
+			expect(j.store.has(ATTRIBUTION_COOKIE)).toBe(false);
+		});
+	}
 
 	it('clears an attribution cookie that predates a refusal', () => {
 		const j = jar({
