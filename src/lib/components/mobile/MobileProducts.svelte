@@ -81,29 +81,27 @@
   }));
 </script>
 
-<div style="height: 100%; display: flex; flex-direction: column; overflow: hidden; padding-top: 2px;">
+<div class="h-full flex flex-col overflow-hidden pt-0.5">
 
-  <div style="padding: 0 18px 10px; display: flex; gap: 8px; flex-shrink: 0;">
+  <div class="px-[18px] pb-[10px] flex gap-2 shrink-0">
     <button
-      class="btn {tab === 'catalog' ? 'btn-primary' : 'btn-secondary'}"
-      style="flex: 1; justify-content: center; font-size: 13px;"
+      class="btn {tab === 'catalog' ? 'btn-primary' : 'btn-secondary'} flex-1 justify-center text-[13px]"
       onclick={() => tab = 'catalog'}
     >{t('prod.tab.catalog')}</button>
     <button
-      class="btn {tab === 'suggestions' ? 'btn-primary' : 'btn-secondary'}"
-      style="flex: 1; justify-content: center; font-size: 13px; gap: 6px;"
+      class="btn {tab === 'suggestions' ? 'btn-primary' : 'btn-secondary'} flex-1 justify-center text-[13px] gap-1.5"
       onclick={() => tab = 'suggestions'}
     >
       {t('prod.tab.suggestions')}
       {#if pendingCount > 0}
-        <span class="badge" style="background:var(--mep-warn-soft);color:var(--mep-warn);">{pendingCount}</span>
+        <span class="badge bg-warn-soft text-warn">{pendingCount}</span>
       {/if}
     </button>
   </div>
 
   {#if tab === 'catalog'}
-    <div style="padding: 0 18px 10px; position: relative;">
-      <span style="position: absolute; left: 30px; top: 50%; transform: translateY(-50%); color: var(--mep-fg-3); pointer-events: none;">
+    <div class="px-[18px] pb-[10px] relative">
+      <span class="absolute left-[30px] top-1/2 -translate-y-1/2 text-fg-3 pointer-events-none">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
         </svg>
@@ -176,29 +174,19 @@
       </div>
     {/if}
 
-    <div style="flex: 1; overflow: auto; padding: 0 18px 16px; display: flex; flex-direction: column; gap: 8px;">
+    <div class="flex-1 overflow-auto px-[18px] pb-4 flex flex-col gap-2">
       {#if filtered.length === 0}
-        <div style="padding: 40px 0; text-align: center; color: var(--mep-fg-3); font-size: 13px;">{t('prod.empty')}</div>
+        <div class="py-[40px] text-center text-fg-3 text-[13px]">{t('prod.empty')}</div>
       {:else}
         {#each filtered as p (p.id)}
-          <a href="/products/{p.id}" style="
-            display: flex; align-items: center; gap: 12px;
-            padding: 12px 14px; border-radius: 10px;
-            background: var(--mep-surface);
-            text-decoration: none;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-          ">
-            <div style="
-              width: 36px; height: 36px; border-radius: var(--mep-r-card); flex-shrink: 0;
-              background: {categoryTint(p.category)}; color: {categoryColor(p.category)};
-              display: flex; align-items: center; justify-content: center;
-              font-size: 11px; font-weight: 600;
-            ">{p.canonicalName.slice(0, 2).toUpperCase()}</div>
-            <div style="flex: 1; min-width: 0;">
-              <div style="font-size: 13px; font-weight: 500; color: var(--mep-fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+          <a href="/products/{p.id}" class="flex items-center gap-3 px-[14px] py-3 rounded-[10px] bg-surface no-underline" style="box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <div class="w-9 h-9 rounded-card shrink-0 flex items-center justify-center text-[11px] font-semibold"
+              style="background:{categoryTint(p.category)};color:{categoryColor(p.category)};">{p.canonicalName.slice(0, 2).toUpperCase()}</div>
+            <div class="flex-1 min-w-0">
+              <div class="text-[13px] font-medium text-fg overflow-hidden text-ellipsis whitespace-nowrap">
                 {p.canonicalName}
               </div>
-              <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 2px;">
+              <div class="text-[11px] text-fg-3 mt-0.5">
                 {p.category ? tcat(p.category) : t('prod.uncategorized')} · {p.supplierCount} {t('prod.suppliersSuffix')}
                 {#if p.yoyChangePct != null}
                   · <span
@@ -209,34 +197,34 @@
               </div>
             </div>
             {#if p.needsConversion}
-              <span title={t('prod.badge.needsConversion')} style="color: var(--mep-warn); flex-shrink: 0;">
+              <span title={t('prod.badge.needsConversion')} class="text-warn shrink-0">
                 <AlertTriangle size={14} />
               </span>
             {/if}
-            <ChevronRight size={14} style="color: var(--mep-fg-3); flex-shrink: 0;" />
+            <ChevronRight size={14} class="text-fg-3 shrink-0" />
           </a>
         {/each}
-        <div style="text-align: center; padding: 10px 0 4px; font-size: 11px; color: var(--mep-fg-3);">
+        <div class="text-center pt-[10px] pb-1 text-[11px] text-fg-3">
           {ti('prod.totalCount', { n: products.length })}
         </div>
       {/if}
     </div>
   {:else}
-    <div style="flex: 1; overflow: auto; padding: 0 18px 16px; display: flex; flex-direction: column; gap: 10px;">
+    <div class="flex-1 overflow-auto px-[18px] pb-4 flex flex-col gap-[10px]">
       {#if pendingCount === 0}
-        <div style="padding: 40px 0; text-align: center; color: var(--mep-fg-3); font-size: 13px;">{t('prod.suggestions.empty')}</div>
+        <div class="py-[40px] text-center text-fg-3 text-[13px]">{t('prod.suggestions.empty')}</div>
       {:else}
         {#each conversionPrompts as c (c.notificationId)}
-          <div class="card" style="padding: 12px; border-left: 3px solid var(--mep-warn); display: flex; flex-direction: column; gap: 8px;">
-            <div style="display: flex; align-items: center; gap: 6px;">
-              <AlertTriangle size={12} style="color: var(--mep-warn);" />
-              <span class="badge" style="background:var(--mep-warn-soft);color:var(--mep-warn);font-size:11px;">{t('prod.conv.badge')}</span>
+          <div class="card p-3 flex flex-col gap-2" style="border-left:3px solid var(--mep-warn);">
+            <div class="flex items-center gap-1.5">
+              <AlertTriangle size={12} class="text-warn" />
+              <span class="badge bg-warn-soft text-warn text-[11px]">{t('prod.conv.badge')}</span>
             </div>
-            <p style="font-size: 13px; color: var(--mep-fg); margin: 0;">
+            <p class="text-[13px] text-fg m-0">
               {ti('prod.conv.ask', { unit: c.purchaseUnit, ingredient: c.ingredient, supplier: c.supplierName })}
             </p>
             <form
-              style="display: flex; gap: 8px; flex-wrap: wrap;"
+              class="flex gap-2 flex-wrap"
               onsubmit={(e) => {
                 e.preventDefault();
                 const fd = new FormData(e.currentTarget as HTMLFormElement);
@@ -250,12 +238,12 @@
           </div>
         {/each}
         {#each suggestions as s (s.id)}
-          <div class="card" style="padding: 12px; display: flex; flex-direction: column; gap: 8px;">
-            <p style="font-size: 13px; color: var(--mep-fg); margin: 0;">{s.message}</p>
-            <div style="display: flex; gap: 8px;">
-              <button type="button" class="btn btn-ghost text-pos" style="height:30px;font-size:13px;flex:1;justify-content:center;"
+          <div class="card p-3 flex flex-col gap-2">
+            <p class="text-[13px] text-fg m-0">{s.message}</p>
+            <div class="flex gap-2">
+              <button type="button" class="btn btn-ghost text-pos flex-1 justify-center" style="height:30px;font-size:13px;"
                 onclick={() => onRespondSuggestion?.(s.id, 'confirm', s.description)}>{t('prod.suggestions.confirm')}</button>
-              <button type="button" class="btn btn-ghost text-neg" style="height:30px;font-size:13px;flex:1;justify-content:center;"
+              <button type="button" class="btn btn-ghost text-neg flex-1 justify-center" style="height:30px;font-size:13px;"
                 onclick={() => onRespondSuggestion?.(s.id, 'reject', s.description)}>{t('prod.suggestions.reject')}</button>
             </div>
           </div>
