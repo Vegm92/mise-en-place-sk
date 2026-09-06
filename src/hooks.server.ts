@@ -258,6 +258,7 @@ function applySecurityHeaders(path: string, response: Response, event: RequestEv
 	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
 	response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
 	response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+	response.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
 
 	if (event.route.id !== null) applyPrivateCacheHeaders(response.headers);
 
