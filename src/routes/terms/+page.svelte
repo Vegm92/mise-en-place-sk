@@ -39,7 +39,10 @@
       d6a:        'El Servicio se ofrece con un periodo de prueba gratuito de 30 días.',
       d6b:        'Los planes de pago se cobran mensualmente mediante Stripe.',
       d6c:        'Las cancelaciones surten efecto al final del período de pago en curso.',
-      d6d:        'No se realizan reembolsos parciales por períodos no utilizados, salvo exigencia legal.',
+      d6d:        'No se realizan reembolsos parciales por períodos no utilizados, salvo exigencia legal o en los supuestos recogidos en la Política de Reembolsos.',
+      d6e1:       'El detalle de cancelaciones y reembolsos figura en la ',
+      d6eLink:    'Política de Reembolsos',
+      d6e2:       '.',
 
       h7:         '7. Disponibilidad y SLA',
       p7:         'Nos esforzamos por mantener una disponibilidad del 99,5% mensual. No garantizamos disponibilidad ininterrumpida. Los mantenimientos planificados se anunciarán con al menos 24 horas de antelación.',
@@ -61,12 +64,15 @@
       p11b:       '. Nos reservamos el derecho de suspender cuentas que incumplan estos Términos.',
 
       h12:        '12. Ley aplicable y jurisdicción',
-      p12:        'Estos Términos se rigen por la ley española. Las partes se someten a la jurisdicción de los Juzgados y Tribunales de Madrid, con renuncia expresa a cualquier otro fuero que pudiera corresponderles.',
+      p12:        'Estos Términos se rigen por la ley española. Las partes se someten a la jurisdicción de los Juzgados y Tribunales de Barcelona, con renuncia expresa a cualquier otro fuero que pudiera corresponderles.',
 
       h13:        '13. Contacto',
       p13:        'Para cualquier consulta sobre estos Términos: ',
 
       flPrivacy:  'Política de Privacidad',
+      flCookies:  'Política de Cookies',
+      flRefunds:  'Reembolsos',
+      flLegal:    'Aviso Legal',
       flHome:     'Inicio',
     },
     en: {
@@ -102,7 +108,10 @@
       d6a:        'The Service is offered with a 30-day free trial period.',
       d6b:        'Paid plans are billed monthly through Stripe.',
       d6c:        'Cancellations take effect at the end of the current billing period.',
-      d6d:        'No partial refunds are made for unused periods, unless required by law.',
+      d6d:        'No partial refunds are made for unused periods, unless required by law or under the cases set out in the Refund Policy.',
+      d6e1:       'Cancellations and refunds are detailed in the ',
+      d6eLink:    'Refund Policy',
+      d6e2:       '.',
 
       h7:         '7. Availability and SLA',
       p7:         'We strive to maintain 99.5% monthly availability. We do not guarantee uninterrupted availability. Planned maintenance will be announced at least 24 hours in advance.',
@@ -124,12 +133,15 @@
       p11b:       '. We reserve the right to suspend accounts that breach these Terms.',
 
       h12:        '12. Governing law and jurisdiction',
-      p12:        'These Terms are governed by Spanish law. The parties submit to the jurisdiction of the Courts and Tribunals of Madrid, expressly waiving any other jurisdiction that might apply to them.',
+      p12:        'These Terms are governed by Spanish law. The parties submit to the jurisdiction of the Courts and Tribunals of Barcelona, expressly waiving any other jurisdiction that might apply to them.',
 
       h13:        '13. Contact',
       p13:        'For any query regarding these Terms: ',
 
       flPrivacy:  'Privacy Policy',
+      flCookies:  'Cookie Policy',
+      flRefunds:  'Refunds',
+      flLegal:    'Legal Notice',
       flHome:     'Home',
     },
   } as const;
@@ -187,6 +199,7 @@
       <li>{c.d6c}</li>
       <li>{c.d6d}</li>
     </ul>
+    <p>{c.d6e1}<a href="/refunds">{c.d6eLink}</a>{c.d6e2}</p>
 
     <h2>{c.h7}</h2>
     <p>{c.p7}</p>
@@ -218,6 +231,9 @@
     <hr />
     <p class="footer-links">
       <a href="/privacy">{c.flPrivacy}</a> ·
+      <a href="/cookies">{c.flCookies}</a> ·
+      <a href="/refunds">{c.flRefunds}</a> ·
+      <a href="/legal">{c.flLegal}</a> ·
       <a href="/">{c.flHome}</a>
     </p>
   </article>

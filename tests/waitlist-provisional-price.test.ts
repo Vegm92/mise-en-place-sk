@@ -159,12 +159,6 @@ function buildMigratedCopy(loc: Locale) {
 			{ num: '02', tag: tr(loc, 'waitlist.steps.1.tag'), title: tr(loc, 'waitlist.steps.1.title'), body: tr(loc, 'waitlist.steps.1.body') },
 			{ num: '03', tag: tr(loc, 'waitlist.steps.2.tag'), title: tr(loc, 'waitlist.steps.2.title'), body: tr(loc, 'waitlist.steps.2.body') }
 		],
-		testimonialsEyebrow: tr(loc, 'waitlist.testimonialsEyebrow'),
-		testimonials: [0, 1, 2].map((i) => ({
-			quote: tr(loc, `waitlist.testimonials.${i}.quote`),
-			name: tr(loc, `waitlist.testimonials.${i}.name`),
-			role: tr(loc, `waitlist.testimonials.${i}.role`)
-		})),
 		founderEyebrow: tr(loc, 'waitlist.founderEyebrow'),
 		founderBody: tr(loc, 'waitlist.founderBody'),
 		founderName: tr(loc, 'waitlist.founderName'),
@@ -239,8 +233,59 @@ function buildMigratedCopy(loc: Locale) {
  *   than through the flat POST_407_INTENTIONAL_CHANGES spread.
  */
 const POST_407_INTENTIONAL_CHANGES: Record<Locale, Partial<Record<string, string>>> = {
-	es: { privacy: 'Sin spam. Sin compromisos.' },
-	en: { privacy: 'No spam. No commitment.' },
+	es: {
+		privacy:
+			'Al apuntarte aceptas que guardemos tu email para avisarte del acceso anticipado. Sin spam; puedes darte de baja cuando quieras. Más detalles en la política de privacidad.',
+	},
+	en: {
+		privacy:
+			'By joining you agree that we store your email so we can tell you when early access opens. No spam; unsubscribe whenever you like. More detail in the privacy policy.',
+	},
+};
+
+/**
+ * Flight-test QA pass — legal and accessibility sweep.
+ *
+ * Three deliberate departures from the #407 snapshot, each pinned so the
+ * migration diff above keeps meaning something:
+ *
+ * - `testimonialsEyebrow` / `testimonials` are gone. The three cards carried
+ *   invented quotes attributed to invented people at invented venues behind a
+ *   disclaimer. Annex I point 23b of the UCPD (art. 20 bis LGDCU) makes
+ *   presenting consumer reviews that are not genuine a per-se banned
+ *   practice, and a disclaimer does not cure an invented attributed quote, so
+ *   the section was removed rather than relabelled. Ratcheted in
+ *   tests/landing-claims-ratchet.test.ts.
+ * - `privacy` gained the GDPR art. 13 collection notice. The old line ("Sin
+ *   spam. Sin compromisos.") told the visitor nothing about who stores their
+ *   address, why, or where to read more, which is what art. 13 requires at
+ *   the point of collection.
+ * - `pain[0]` and `pain[2]` stated "4–6 h" a week and a "+8 %" price rise as
+ *   facts, with no source behind either. Marketing rule 1 forbids asserting
+ *   what we cannot show, so the figures were replaced with the question they
+ *   were standing in for and the bodies reworded to drop the numbers.
+ */
+const POST_QA_PAIN: Record<Locale, Record<number, { stat: string; body: string }>> = {
+	es: {
+		0: {
+			stat: '¿h?',
+			body: 'Cada albarán acaba en una hoja de cálculo —o en un cajón. Cuenta las horas que se van ahí cada semana: no cocinan, no entrenan, no atienden.',
+		},
+		2: {
+			stat: '¿+%?',
+			body: 'El aceite sube un martes cualquiera y nadie lo anuncia. Lo descubres meses después, revisando albaranes. Mise en Place compara cada precio con el anterior y te avisa el mismo día.',
+		},
+	},
+	en: {
+		0: {
+			stat: 'h?',
+			body: 'Every delivery note ends up in a spreadsheet — or a drawer. Count the hours that go there each week: not cooking, not training, not serving.',
+		},
+		2: {
+			stat: '+%?',
+			body: 'Olive oil goes up on a random Tuesday and nobody announces it. You find out months later, going through delivery notes. Mise en Place compares every price against the last one and alerts you the same day.',
+		},
+	},
 };
 
 const POST_333_FAQ_4_A: Record<Locale, string> = {
@@ -323,6 +368,13 @@ describe('waitlist copy migration is byte-identical to the pre-migration inline 
 	for (const loc of ['es', 'en'] as const) {
 		it(`renders identical ${loc} copy via t/ti against the shared i18n table, aside from documented later changes`, () => {
 			const expected = { ...PRE_MIGRATION_COPY[loc], ...POST_407_INTENTIONAL_CHANGES[loc] };
+			delete expected.testimonialsEyebrow;
+			delete expected.testimonials;
+			const preMigrationPain = expected.pain as { stat: string; label: string; title: string; body: string }[];
+			expected.pain = preMigrationPain.map((row, i) => {
+				const patch = POST_QA_PAIN[loc][i];
+				return patch ? { ...row, ...patch } : row;
+			});
 			expected.pricingTrialLimit = POST_ADR036_TRIAL_LIMIT[loc];
 			expected.mockKpiInvoicesShort = POST_ADR036_KPI_SHORT[loc];
 			const preMigrationFaq = expected.faq as { q: string; a: string }[];

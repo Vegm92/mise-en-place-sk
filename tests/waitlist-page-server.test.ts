@@ -34,6 +34,11 @@ function loadEvent(urlStr: string, opts: { referer?: string; cookies?: ReturnTyp
 	} as never;
 }
 
+const EXISTING_ATTR = JSON.stringify({
+	source: 'google', campaign: 'spring', variant: null, segment: null,
+	referrer: null, landingPath: '/waitlist', referredBy: null,
+});
+
 beforeEach(resetWaitlistRouteMocks);
 
 describe('/waitlist load — sets the mep_attr cookie', () => {
@@ -55,21 +60,27 @@ describe('/waitlist load — sets the mep_attr cookie', () => {
 	});
 
 	it('does not clobber an existing meaningful-attribution cookie with a bare revisit', async () => {
-		const existing = JSON.stringify({
-			source: 'google', campaign: 'spring', variant: null, segment: null,
-			referrer: null, landingPath: '/waitlist', referredBy: null,
-		});
-		const cookies = fakeCookies({ mep_attr: existing });
+		const cookies = fakeCookies({ mep_attr: EXISTING_ATTR });
 		await load(loadEvent('https://mise-place.com/waitlist', { cookies }));
 		expect(cookies.set).not.toHaveBeenCalled();
 	});
 
+	it('writes nothing on a campaign visit from a jar that has not consented (art. 22.2 LSSI)', async () => {
+		const cookies = fakeCookies({}, 'unset');
+		await load(loadEvent('https://mise-place.com/waitlist?utm_source=x&utm_campaign=y', { cookies }));
+		expect(cookies.set).not.toHaveBeenCalled();
+		expect(cookies._store.mep_attr).toBeUndefined();
+	});
+
+	it('clears a pre-existing attribution cookie once the visitor declines', async () => {
+		const cookies = fakeCookies({ mep_attr: EXISTING_ATTR }, 'denied');
+		await load(loadEvent('https://mise-place.com/waitlist?utm_source=x', { cookies }));
+		expect(cookies.set).not.toHaveBeenCalled();
+		expect(cookies.delete).toHaveBeenCalledWith('mep_attr', { path: '/' });
+	});
+
 	it('does overwrite an existing cookie when the new visit carries its own signal', async () => {
-		const existing = JSON.stringify({
-			source: 'google', campaign: 'spring', variant: null, segment: null,
-			referrer: null, landingPath: '/waitlist', referredBy: null,
-		});
-		const cookies = fakeCookies({ mep_attr: existing });
+		const cookies = fakeCookies({ mep_attr: EXISTING_ATTR });
 		await load(loadEvent('https://mise-place.com/waitlist?utm_source=facebook', { cookies }));
 		expect(cookies.set).toHaveBeenCalledOnce();
 		const value = cookies.set.mock.calls[0][1];

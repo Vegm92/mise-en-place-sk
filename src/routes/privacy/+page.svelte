@@ -48,6 +48,8 @@
       r3Country:    'EE.UU. (cláusulas contractuales tipo)',
       r4Function:   'Monitorización de errores',
       r4Country:    'EE.UU. (cláusulas contractuales tipo)',
+      r5Function:   'Protección antibot de los formularios públicos (Turnstile)',
+      r5Country:    'EE.UU. (cláusulas contractuales tipo)',
 
       h5:           '5. Transferencias internacionales',
       p5:           'Los proveedores estadounidenses mencionados anteriormente están sujetos a las cláusulas contractuales tipo (CCT) aprobadas por la Comisión Europea, garantizando un nivel de protección equivalente al RGPD.',
@@ -79,7 +81,10 @@
 
       h8:           '8. Cookies',
       p8:           'Usamos cookies estrictamente necesarias para mantener tu sesión autenticada. No empleamos cookies de seguimiento ni publicidad de terceros.',
-      p8b:          'Si llegas a la lista de espera o al registro a través de un enlace de campaña (por ejemplo, con parámetros utm_source o utm_campaign), guardamos esa procedencia en una cookie propia ("mep_attr") durante un máximo de 30 días, solo para saber qué mensaje o canal funciona. No se comparte con terceros ni se usa para seguirte por otros sitios.',
+      p8b:          'Si llegas a la lista de espera o al registro a través de un enlace de campaña (por ejemplo, con parámetros utm_source o utm_campaign), guardamos esa procedencia en una cookie propia ("mep_attr") durante un máximo de 30 días, solo para saber qué mensaje o canal funciona. Esa cookie solo se escribe si la aceptas en el aviso de cookies; si la rechazas no se crea y, si ya existía, se borra. No se comparte con terceros ni se usa para seguirte por otros sitios.',
+      p8c:          'El detalle completo de cada cookie está en la ',
+      p8cLink:      'Política de Cookies',
+      p8cEnd:       '.',
 
       h9:           '9. Seguridad',
       p9:           'Todos los datos se transmiten cifrados mediante TLS 1.2+. Las contraseñas se almacenan con hash bcrypt. El acceso a los datos de producción está restringido mediante roles y auditoría.',
@@ -88,6 +93,9 @@
       p10:          'Para cualquier cuestión sobre privacidad: ',
 
       flTerms:      'Términos de Servicio',
+      flCookies:    'Política de Cookies',
+      flRefunds:    'Reembolsos',
+      flLegal:      'Aviso Legal',
       flHome:       'Inicio',
     },
     en: {
@@ -132,6 +140,8 @@
       r3Country:    'USA (standard contractual clauses)',
       r4Function:   'Error monitoring',
       r4Country:    'USA (standard contractual clauses)',
+      r5Function:   'Anti-bot protection on public forms (Turnstile)',
+      r5Country:    'USA (standard contractual clauses)',
 
       h5:           '5. International transfers',
       p5:           'The US providers mentioned above are subject to the standard contractual clauses (SCC) approved by the European Commission, ensuring a level of protection equivalent to the GDPR.',
@@ -163,7 +173,10 @@
 
       h8:           '8. Cookies',
       p8:           'We use strictly necessary cookies to keep your session authenticated. We do not use third-party tracking or advertising cookies.',
-      p8b:          'If you reach the waitlist or sign-up page through a campaign link (for example, with utm_source or utm_campaign parameters), we store that origin in a first-party cookie ("mep_attr") for up to 30 days, solely to see which message or channel worked. It is not shared with third parties or used to track you across other sites.',
+      p8b:          'If you reach the waitlist or sign-up page through a campaign link (for example, with utm_source or utm_campaign parameters), we store that origin in a first-party cookie ("mep_attr") for up to 30 days, solely to see which message or channel worked. That cookie is written only if you accept it in the cookie notice; if you decline it is not created and any existing one is deleted. It is not shared with third parties or used to track you across other sites.',
+      p8c:          'The full detail of every cookie is in the ',
+      p8cLink:      'Cookie Policy',
+      p8cEnd:       '.',
 
       h9:           '9. Security',
       p9:           'All data is transmitted encrypted via TLS 1.2+. Passwords are stored with bcrypt hashing. Access to production data is restricted through roles and auditing.',
@@ -172,6 +185,9 @@
       p10:          'For any privacy-related matter: ',
 
       flTerms:      'Terms of Service',
+      flCookies:    'Cookie Policy',
+      flRefunds:    'Refunds',
+      flLegal:      'Legal Notice',
       flHome:       'Home',
     },
   } as const;
@@ -247,6 +263,11 @@
           <td>{c.r4Function}</td>
           <td>{c.r4Country}</td>
         </tr>
+        <tr>
+          <td>Cloudflare, Inc.</td>
+          <td>{c.r5Function}</td>
+          <td>{c.r5Country}</td>
+        </tr>
       </tbody>
     </table>
 
@@ -275,6 +296,7 @@
     <h2>{c.h8}</h2>
     <p>{c.p8}</p>
     <p>{c.p8b}</p>
+    <p>{c.p8c}<a href="/cookies">{c.p8cLink}</a>{c.p8cEnd}</p>
 
     <h2>{c.h9}</h2>
     <p>{c.p9}</p>
@@ -287,6 +309,9 @@
     <hr />
     <p class="footer-links">
       <a href="/terms">{c.flTerms}</a> ·
+      <a href="/cookies">{c.flCookies}</a> ·
+      <a href="/refunds">{c.flRefunds}</a> ·
+      <a href="/legal">{c.flLegal}</a> ·
       <a href="/">{c.flHome}</a>
     </p>
   </article>

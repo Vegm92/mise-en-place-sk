@@ -73,7 +73,7 @@
         <span style="font-size:11px;font-weight:600;">Mise en Place</span>
       </div>
       {whatsappReply}
-      <div style="font-size:10.5px;color:#5a8a6f;margin-top:3px;font-family:var(--mep-fs-mono);">14:02</div>
+      <div style="font-size:10.5px;color:#4a7a5f;margin-top:3px;font-family:var(--mep-fs-mono);">14:02</div>
     </div>
   </div>
 </div>

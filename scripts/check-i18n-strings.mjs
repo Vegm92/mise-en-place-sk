@@ -31,6 +31,9 @@ const ROOT = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: '
 const SKIP_FILES = [
 	'src/routes/privacy/+page.svelte',
 	'src/routes/terms/+page.svelte',
+	'src/routes/cookies/+page.svelte',
+	'src/routes/refunds/+page.svelte',
+	'src/routes/legal/+page.svelte',
 	// Mock product/invoice illustrations for the waitlist landing — fixture-like
 	// demo data (supplier names, line items), not real UI copy. Same exemption
 	// as the page they were extracted from.
