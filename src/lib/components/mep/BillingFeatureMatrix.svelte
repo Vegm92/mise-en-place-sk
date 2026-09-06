@@ -14,19 +14,19 @@
 	]);
 </script>
 
-<div class="card" style="overflow:hidden;">
-	<div style="padding:16px 20px 14px;border-bottom:1px solid var(--mep-divider);">
-		<div style="font-size:16px;font-weight:600;color:var(--mep-fg);">{t('billing.matrixTitle')}</div>
-		<div style="font-size:13px;color:var(--mep-fg-2);margin-top:3px;">{t('billing.matrixSub')}</div>
+<div class="card overflow-hidden">
+	<div class="px-5 pt-4 pb-3.5 border-b border-divider">
+		<div class="text-[16px] font-semibold text-fg">{t('billing.matrixTitle')}</div>
+		<div class="text-[13px] text-fg-2 mt-[3px]">{t('billing.matrixSub')}</div>
 	</div>
 	<table class="tbl" style="table-layout:fixed;">
 		<thead>
 			<tr>
 				<th style="width:auto;"></th>
 				{#each matrixCols as col}
-					<th style="width:110px;text-align:center;text-transform:none;font-size:13px;font-weight:600;
-						color:{col.id === 'pro' ? 'var(--mep-acc)' : 'var(--mep-fg)'};letter-spacing:-0.01em;
-						background:{col.id === 'pro' ? 'var(--mep-acc-soft)' : 'transparent'};">
+					<th class="w-[110px] text-center normal-case text-[13px] font-semibold tracking-[-0.01em]"
+						class:text-acc={col.id === 'pro'} class:text-fg={col.id !== 'pro'}
+						class:bg-acc-soft={col.id === 'pro'}>
 						{col.name}
 					</th>
 				{/each}
@@ -35,33 +35,31 @@
 		<tbody>
 			{#each MATRIX_GROUPS as group}
 				<tr>
-					<td colspan={matrixCols.length + 1} style="height:38px;background:var(--mep-surface-2);vertical-align:middle;
-						border-top:1px solid var(--mep-divider);">
-						<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-							<span class="label" style="color:var(--mep-fg-2);">{t(group.titleKey)}</span>
+					<td colspan={matrixCols.length + 1} class="h-[38px] bg-surface-2 align-middle border-t border-divider">
+						<div class="flex items-center gap-2.5 flex-wrap">
+							<span class="label text-fg-2">{t(group.titleKey)}</span>
 							{#if group.noteKey}
-								<span style="font-size:11.5px;color:var(--mep-fg-3);">{t(group.noteKey)}</span>
+								<span class="text-[11.5px] text-fg-3">{t(group.noteKey)}</span>
 							{/if}
 						</div>
 					</td>
 				</tr>
 				{#each group.rows as row}
 					<tr>
-						<td style="font-size:13px;color:var(--mep-fg);">{t(row.labelKey)}</td>
+						<td class="text-[13px] text-fg">{t(row.labelKey)}</td>
 						{#each matrixCols as col}
 							{@const value = row.cell(col)}
-							<td style="width:110px;text-align:center;vertical-align:middle;
-								background:{col.id === 'pro' ? 'var(--mep-acc-soft)' : 'transparent'};">
+							<td class="w-[110px] text-center align-middle" class:bg-acc-soft={col.id === 'pro'}>
 								{#if value === true}
-									<span style="color:var(--mep-acc);display:inline-flex;"><Check size={15} /></span>
+									<span class="text-acc inline-flex"><Check size={15} /></span>
 								{:else if value === false}
-									<span style="color:var(--mep-fg-4);font-size:14px;line-height:1;">–</span>
+									<span class="text-fg-4 text-[14px] leading-none">–</span>
 								{:else if value === null}
-									<span class="num" style="font-size:12.5px;color:var(--mep-fg-2);font-weight:500;">{t('billing.unlimited')}</span>
+									<span class="num text-[12.5px] text-fg-2 font-medium">{t('billing.unlimited')}</span>
 								{:else if typeof value === 'object'}
-									<span class="num" style="font-size:12.5px;color:var(--mep-fg-2);font-weight:500;">{ti('billing.upTo', { n: value.upTo })}</span>
+									<span class="num text-[12.5px] text-fg-2 font-medium">{ti('billing.upTo', { n: value.upTo })}</span>
 								{:else}
-									<span class="num" style="font-size:12.5px;color:var(--mep-fg-2);font-weight:500;">{value}</span>
+									<span class="num text-[12.5px] text-fg-2 font-medium">{value}</span>
 								{/if}
 							</td>
 						{/each}
