@@ -130,12 +130,11 @@
   <aside
     class="
       fixed top-[56px] bottom-0 left-0 z-50
-      transition-transform duration-300
+      transition-transform duration-300 w-[260px] border-r border-divider flex flex-col bg-surface-2 overflow-hidden
       {mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
     "
-    style="width:260px;border-right:1px solid var(--mep-divider);display:flex;flex-direction:column;background:var(--mep-surface-2);overflow:hidden;"
   >
-    <div style="padding:16px 12px 8px;border-bottom:1px solid var(--mep-divider);">
+    <div class="px-3 pt-4 pb-2 border-b border-divider">
       <button
         onclick={newChat}
         class="btn btn-primary"
@@ -148,30 +147,22 @@
 
     <div style="flex:1;overflow-y:auto;padding:8px 6px;">
       {#if data.sessions.length === 0}
-        <p style="font-size:12px;color:var(--mep-fg-3);text-align:center;padding:24px 8px;">{t('chat.noHistory')}</p>
+        <p class="text-[12px] text-fg-3 text-center px-2 py-6">{t('chat.noHistory')}</p>
       {/if}
       {#each data.sessions as session}
         {@const isActive = session.id === activeSessionId}
-        <div
-          style="
-            display:flex;align-items:center;gap:6px;border-radius:8px;margin-bottom:2px;
-            background:{isActive ? 'var(--mep-hover)' : 'transparent'};
-          "
-        >
+        <div class="flex items-center gap-1.5 rounded-lg mb-0.5" class:bg-hover={isActive}>
           <a
             href="/chat?session={session.id}"
             onclick={() => (mobileSidebarOpen = false)}
-            style="
-              flex:1;min-width:0;padding:8px 10px;text-decoration:none;border-radius:8px;
-              display:block;
-            "
+            style="flex:1;min-width:0;padding:8px 10px;text-decoration:none;border-radius:8px;display:block;"
           >
-            <p style="
-              font-size:12px;font-weight:{isActive ? 600 : 400};
-              color:{isActive ? 'var(--mep-fg)' : 'var(--mep-fg-2)'};
-              white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0 0 2px;
-            ">{session.title}</p>
-            <p style="font-size:11px;color:var(--mep-fg-3);margin:0;">{formatDate(session.updatedAt)}</p>
+            <p class="text-[12px] whitespace-nowrap overflow-hidden text-ellipsis m-0 mb-0.5"
+              class:font-semibold={isActive}
+              class:text-fg={isActive}
+              class:text-fg-2={!isActive}
+            >{session.title}</p>
+            <p class="text-[11px] text-fg-3 m-0">{formatDate(session.updatedAt)}</p>
           </a>
           <form id="delete-session-{session.id}" method="POST" action="?/deleteSession" style="flex-shrink:0;margin-right:4px;">
             <input type="hidden" name="id" value={session.id} />
@@ -190,11 +181,9 @@
     </div>
   </aside>
 
-  <div style="flex:1;min-width:0;display:flex;flex-direction:column;background:var(--mep-bg);">
+  <div class="flex-1 min-w-0 flex flex-col bg-bg">
 
-    <div
-      style="height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-bottom:1px solid var(--mep-divider);background:var(--mep-bg);flex-shrink:0;"
-    >
+    <div class="h-11 flex items-center justify-between px-3 border-b border-divider bg-bg shrink-0">
       <button
         onclick={() => (mobileSidebarOpen = !mobileSidebarOpen)}
         class="btn btn-ghost"
@@ -221,24 +210,21 @@
     >
       {#if messages.length === 0}
         <div style="margin:auto;text-align:center;max-width:420px;">
-          <div style="
-            width:48px;height:48px;border-radius:50%;background:var(--mep-acc-soft);
-            display:flex;align-items:center;justify-content:center;margin:0 auto 16px;
-          ">
+          <div class="w-12 h-12 rounded-full bg-acc-soft flex items-center justify-center mx-auto mb-4">
             {#if locked}
-              <Lock size={20} style="color:var(--mep-acc);" />
+              <Lock size={20} class="text-acc" />
             {:else}
-              <MessageCircle size={22} style="color:var(--mep-acc);" />
+              <MessageCircle size={22} class="text-acc" />
             {/if}
           </div>
           <h2 style="font-size:18px;font-weight:600;margin:0 0 8px;">{t('chat.title')}</h2>
           {#if locked}
-            <p style="font-size:13px;color:var(--mep-fg-3);margin:0 0 20px;">{t('chat.err.upgradeRequired')}</p>
+            <p class="text-[13px] text-fg-3 m-0 mb-5">{t('chat.err.upgradeRequired')}</p>
             <a href="/billing?upgrade=assistant" class="btn btn-primary" style="text-decoration:none;">
               {t('sidebar.upgradeCta')}
             </a>
           {:else}
-            <p style="font-size:13px;color:var(--mep-fg-3);margin:0 0 20px;">{t('chat.empty')}</p>
+            <p class="text-[13px] text-fg-3 m-0 mb-5">{t('chat.empty')}</p>
             <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">
               {#each STARTER_CHIPS as key}
                 <button
@@ -256,22 +242,19 @@
         <div style="display:flex;flex-direction:column;align-items:{msg.role === 'user' ? 'flex-end' : 'flex-start'};gap:6px;">
           {#if msg.role === 'assistant'}
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;">
-              <div style="
-                width:24px;height:24px;border-radius:50%;background:var(--mep-acc-soft);
-                display:flex;align-items:center;justify-content:center;flex-shrink:0;
-              ">
-                <MessageCircle size={12} style="color:var(--mep-acc);" />
+              <div class="w-6 h-6 rounded-full bg-acc-soft flex items-center justify-center shrink-0">
+                <MessageCircle size={12} class="text-acc" />
               </div>
-              <span style="font-size:11px;font-weight:600;color:var(--mep-fg-2);">{t('chat.assistant')}</span>
+              <span class="text-[11px] font-semibold text-fg-2">{t('chat.assistant')}</span>
             </div>
           {/if}
-          <div style="
-            max-width:680px;padding:12px 16px;border-radius:16px;
-            font-size:13px;line-height:1.6;white-space:pre-wrap;
-            {msg.role === 'user'
-              ? 'background:var(--mep-acc);color:var(--mep-acc-fg);border-bottom-right-radius:4px;'
-              : 'background:var(--mep-surface-2);color:var(--mep-fg);border-bottom-left-radius:4px;'}
-          ">{msg.text}</div>
+          <div class="max-w-[680px] px-4 py-3 rounded-2xl text-[13px] leading-[1.6] whitespace-pre-wrap"
+            class:bg-acc={msg.role === 'user'}
+            class:text-acc-fg={msg.role === 'user'}
+            class:bg-surface-2={msg.role !== 'user'}
+            class:text-fg={msg.role !== 'user'}
+            style="{msg.role === 'user' ? 'border-bottom-right-radius:4px;' : 'border-bottom-left-radius:4px;'}"
+          >{msg.text}</div>
           {#if msg.actions && msg.actions.length > 0}
             <div style="display:flex;gap:8px;flex-wrap:wrap;max-width:680px;">
               {#each msg.actions as action}
@@ -288,29 +271,22 @@
 
       {#if chatLoading}
         <div style="display:flex;align-items:center;gap:8px;">
-          <div style="
-            width:24px;height:24px;border-radius:50%;background:var(--mep-acc-soft);
-            display:flex;align-items:center;justify-content:center;flex-shrink:0;
-          ">
-            <MessageCircle size={12} style="color:var(--mep-acc);" />
+          <div class="w-6 h-6 rounded-full bg-acc-soft flex items-center justify-center shrink-0">
+            <MessageCircle size={12} class="text-acc" />
           </div>
-          <div style="background:var(--mep-surface-2);border-radius:16px;border-bottom-left-radius:4px;padding:12px 16px;display:flex;gap:4px;align-items:center;">
-            <span style="width:6px;height:6px;background:var(--mep-fg-3);border-radius:50%;animation:bounce 1s infinite;"></span>
-            <span style="width:6px;height:6px;background:var(--mep-fg-3);border-radius:50%;animation:bounce 1s infinite;animation-delay:150ms;"></span>
-            <span style="width:6px;height:6px;background:var(--mep-fg-3);border-radius:50%;animation:bounce 1s infinite;animation-delay:300ms;"></span>
+          <div class="bg-surface-2 rounded-2xl rounded-bl-[4px] px-4 py-3 flex gap-1 items-center">
+            <span class="w-1.5 h-1.5 bg-fg-3 rounded-full" style="animation:bounce 1s infinite;"></span>
+            <span class="w-1.5 h-1.5 bg-fg-3 rounded-full" style="animation:bounce 1s infinite;animation-delay:150ms;"></span>
+            <span class="w-1.5 h-1.5 bg-fg-3 rounded-full" style="animation:bounce 1s infinite;animation-delay:300ms;"></span>
           </div>
         </div>
       {/if}
     </div>
 
-    <div style="border-top:1px solid var(--mep-divider);background:var(--mep-bg);padding:12px 24px 16px;" data-coach="chat-main">
+    <div class="border-t border-divider bg-bg px-6 pt-3 pb-4" data-coach="chat-main">
       <div style="max-width:800px;margin:0 auto;">
         {#if locked}
-          <div style="
-            display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center;
-            background:var(--mep-acc-soft);border:1px solid var(--mep-acc);color:var(--mep-acc);
-            border-radius:var(--mep-r-input);padding:8px 14px;font-size:13px;margin:0 0 10px;
-          ">
+          <div class="flex items-center gap-2.5 flex-wrap justify-center bg-acc-soft border border-acc text-acc rounded-input px-[14px] py-2 text-[13px] mb-2.5">
             <Lock size={13} style="flex-shrink:0;" />
             <span>{t('chat.err.upgradeRequired')}</span>
             <a href="/billing?upgrade=assistant" class="btn btn-primary" style="height:28px;font-size:13px;padding:0 10px;text-decoration:none;">
@@ -318,7 +294,7 @@
             </a>
           </div>
         {:else}
-          <p style="font-size:11px;color:var(--mep-fg-4);text-align:center;margin:0 0 8px;">{t('chat.privacy')}</p>
+          <p class="text-[11px] text-fg-4 text-center m-0 mb-2">{t('chat.privacy')}</p>
         {/if}
         <div style="display:flex;gap:10px;align-items:center;">
           <input
