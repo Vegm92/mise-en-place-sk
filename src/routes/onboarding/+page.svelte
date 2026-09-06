@@ -20,43 +20,40 @@
 	<title>{t('onboard.metaTitle')} · Mise en Place</title>
 </svelte:head>
 
-<div class="mep" data-accent="tinta" data-density="default"
-	style="min-height:100vh;display:flex;align-items:center;justify-content:center;
-	       padding:24px;background:var(--mep-bg);">
+<div class="mep bg-bg min-h-screen flex items-center justify-center p-6" data-accent="tinta" data-density="default">
 
-	<div style="width:100%;max-width:400px;">
+	<div class="w-full max-w-[400px]">
 
-		<div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+		<div class="flex justify-end mb-4">
 			<button
 				type="button"
 				onclick={toggleLocale}
-				style="font-size:12px;font-weight:600;color:var(--mep-fg-3);background:transparent;border:1px solid var(--mep-divider);border-radius:6px;padding:4px 10px;cursor:pointer;"
+				class="text-[12px] font-semibold text-fg-3 bg-transparent border border-divider rounded-md px-2.5 py-1 cursor-pointer"
 			>
 				{locale.current === 'es' ? 'EN' : 'ES'}
 			</button>
 		</div>
 
-		<div style="display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:32px;">
+		<div class="flex items-center gap-2.5 justify-center mb-8">
 			<Logo size={22} wordmark />
 		</div>
 
-		<div class="card" style="padding:28px;">
-			<h1 style="font-size:17px;font-weight:600;color:var(--mep-fg);margin:0 0 4px;">{t('onboard.title')}</h1>
-			<p style="font-size:13px;color:var(--mep-fg-3);margin:0 0 24px;">
+		<div class="card p-7">
+			<h1 class="text-[17px] font-semibold text-fg m-0 mb-1">{t('onboard.title')}</h1>
+			<p class="text-[13px] text-fg-3 m-0 mb-6">
 				{t('onboard.subtitle')}
 			</p>
 
 			{#if form?.error}
-				<div style="background:var(--mep-neg-soft);border:1px solid var(--mep-neg);color:var(--mep-neg);
-				            border-radius:var(--mep-r-input);padding:10px 12px;font-size:13px;margin-bottom:16px;">
+				<div class="bg-neg-soft border border-neg text-neg rounded-input px-3 py-2.5 text-[13px] mb-4">
 					{form.error}
 				</div>
 			{/if}
 
-			<form method="POST" style="display:flex;flex-direction:column;gap:16px;">
+			<form method="POST" class="flex flex-col gap-4">
 				<input type="hidden" name="idempotency_key" value={idempotencyKey} />
-				<div style="display:flex;flex-direction:column;gap:6px;">
-					<label for="name" style="font-size:12px;font-weight:500;color:var(--mep-fg-2);">
+				<div class="flex flex-col gap-1.5">
+					<label for="name" class="text-[12px] font-medium text-fg-2">
 						{t('onboard.nameLabel')}
 					</label>
 					<input
@@ -72,8 +69,8 @@
 					/>
 				</div>
 
-				<div style="display:flex;flex-direction:column;gap:6px;">
-					<label for="venueType" style="font-size:13px;font-weight:500;color:var(--mep-fg-2);">
+				<div class="flex flex-col gap-1.5">
+					<label for="venueType" class="text-[13px] font-medium text-fg-2">
 						{t('onboard.venue.label')}
 					</label>
 					<select id="venueType" name="venueType" class="input" style="height:36px;" bind:value={venueType}>
@@ -84,8 +81,8 @@
 					</select>
 				</div>
 
-				<div style="display:flex;flex-direction:column;gap:6px;">
-					<label for="topCategory" style="font-size:13px;font-weight:500;color:var(--mep-fg-2);">
+				<div class="flex flex-col gap-1.5">
+					<label for="topCategory" class="text-[13px] font-medium text-fg-2">
 						{t('onboard.category.label')}
 					</label>
 					<select id="topCategory" name="topCategory" class="input" style="height:36px;">
@@ -97,17 +94,17 @@
 				</div>
 
 				{#if data.needsConsent}
-					<label for="terms" style="display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--mep-fg-3);line-height:1.5;cursor:pointer;">
-						<input id="terms" name="terms" type="checkbox" required style="margin-top:2px;flex-shrink:0;" />
+					<label for="terms" class="flex items-start gap-2 text-[12px] text-fg-3 leading-[1.5] cursor-pointer">
+						<input id="terms" name="terms" type="checkbox" required class="mt-0.5 shrink-0" />
 						<span>
 							{t('signup.acceptPre')}
-							<a href="/terms"   style="color:var(--mep-acc);">{t('footer.terms')}</a> {t('signup.acceptMid')}
-							<a href="/privacy" style="color:var(--mep-acc);">{t('set.privacyLink')}</a>.
+							<a href="/terms" class="text-acc">{t('footer.terms')}</a> {t('signup.acceptMid')}
+							<a href="/privacy" class="text-acc">{t('set.privacyLink')}</a>.
 						</span>
 					</label>
 				{/if}
 
-				<button type="submit" class="btn btn-primary" style="height:38px;justify-content:center;margin-top:4px;">
+				<button type="submit" class="btn btn-primary mt-1" style="height:38px;justify-content:center;">
 					{t('onboard.submit')}
 				</button>
 			</form>
