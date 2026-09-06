@@ -60,7 +60,7 @@ describe('trackEvent', () => {
 	it('passes the payload through as an object, unserialised', () => {
 		mockInsert.mockResolvedValue([]);
 		trackEvent('duplicate_detected', 'rid-789', { supplier: 'Acme', amount: 100 });
-		const call = mockInsert.mock.calls[0][0] as { payload: Record<string, unknown> };
+		const call = mockInsert.mock.calls[0]![0] as { payload: Record<string, unknown> };
 		expect(call.payload).toEqual({ supplier: 'Acme', amount: 100 });
 	});
 });

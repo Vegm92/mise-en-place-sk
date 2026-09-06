@@ -19,7 +19,7 @@
   );
 
   const maxCorrections = $derived(
-    data.field_corrections.length ? data.field_corrections[0].corrections : 1
+    data.field_corrections.length ? data.field_corrections[0]!.corrections : 1
   );
 
   const maxTrendRate = $derived(

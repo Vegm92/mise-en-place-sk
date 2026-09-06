@@ -65,9 +65,9 @@ describe.skipIf(!hasDbEnv)('#425 — /api/health counts batch_items, not upload_
 			{ key: 'ns/b.pdf', name: 'b.pdf' },
 			{ key: 'ns/c.pdf', name: 'c.pdf' },
 		]);
-		await store.markQueued(a);
-		await store.markQueued(b);
-		await store.markExtracting(b);
+		await store.markQueued(a!);
+		await store.markQueued(b!);
+		await store.markExtracting(b!);
 		// the third item (ns/c.pdf) is left pending — it must not count
 
 		const after = ((await (await GET(adminHealthEvent())).json()) as { sessions: { active_count: number } })
@@ -83,7 +83,7 @@ describe.skipIf(!hasDbEnv)('#425 — admin overview counts batch_items, not uplo
 		const baseline = ((await load({} as never)) as { pendingExtractions: number }).pendingExtractions;
 
 		const { itemIds: [a] } = await store.createBatch(rid, [{ key: 'ns/d.pdf', name: 'd.pdf' }]);
-		await store.markQueued(a);
+		await store.markQueued(a!);
 
 		const after = ((await load({} as never)) as { pendingExtractions: number }).pendingExtractions;
 		expect(after).toBe(baseline + 1);
@@ -98,12 +98,12 @@ describe.skipIf(!hasDbEnv)('#425 — admin overview counts batch_items, not uplo
 			{ key: 'ns/e.pdf', name: 'e.pdf' },
 			{ key: 'ns/f.pdf', name: 'f.pdf' },
 		]);
-		await store.markQueued(a);
-		await store.markExtracting(a);
-		await store.markDone(a, { supplier_name: 'Test' }, []);
-		await store.markConfirmed(a);
-		await store.markQueued(b);
-		await store.markDiscarded(b);
+		await store.markQueued(a!);
+		await store.markExtracting(a!);
+		await store.markDone(a!, { supplier_name: 'Test' }, []);
+		await store.markConfirmed(a!);
+		await store.markQueued(b!);
+		await store.markDiscarded(b!);
 
 		const after = ((await load({} as never)) as { pendingExtractions: number }).pendingExtractions;
 		expect(after).toBe(baseline);

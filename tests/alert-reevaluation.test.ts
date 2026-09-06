@@ -107,7 +107,7 @@ const runSupplierUpdate = (supplierId: number, formData: FormData) => runAction(
 
 async function invoiceVersion(invoiceId: number): Promise<number> {
 	const [row] = await testSql`SELECT version FROM invoices WHERE id = ${invoiceId}`;
-	return row.version as number;
+	return row!.version as number;
 }
 
 async function notifications(invoiceId: number, notificationType: string) {
@@ -120,7 +120,7 @@ async function notifications(invoiceId: number, notificationType: string) {
 async function expectNotificationStatus(invoiceId: number, notificationType: string, status: string) {
 	const rows = await notifications(invoiceId, notificationType);
 	expect(rows).toHaveLength(1);
-	expect(rows[0].status).toBe(status);
+	expect(rows[0]!.status).toBe(status);
 	return rows[0];
 }
 
@@ -131,7 +131,7 @@ async function runAndExpectResolved(actionPromise: Promise<unknown>, invoiceId: 
 
 async function supplierIdByName(name: string): Promise<number> {
 	const [row] = await testSql`SELECT id FROM suppliers WHERE restaurant_id = ${rid} AND name = ${name}`;
-	return row.id as number;
+	return row!.id as number;
 }
 
 /** Saves a baseline (unitPrice 1.00) then a shocking follow-up (unitPrice 2.00) for the same product; returns the shocking invoice's id. */
@@ -204,7 +204,7 @@ describe.skipIf(!hasDbEnv)('alert re-evaluation on correction (issue #831)', () 
 		const invoiceId = await setupBudgetWarning(supplier, 'Bebidas', 'BO', todayIso);
 
 		const before = await expectNotificationStatus(invoiceId, 'budget_overage', 'pending');
-		expect(before.payload.level).toBe('warning');
+		expect(before!.payload.level).toBe('warning');
 
 		const version = await invoiceVersion(invoiceId);
 		await runAndExpectResolved(
@@ -237,7 +237,7 @@ describe.skipIf(!hasDbEnv)('alert re-evaluation on correction (issue #831)', () 
 		assertSaved(rearmed);
 
 		const raised = await expectNotificationStatus(rearmed.invoiceId, 'budget_overage', 'pending');
-		expect(raised.payload.level).toBe('warning');
+		expect(raised!.payload.level).toBe('warning');
 	});
 
 	it('resolves possible_duplicate_purchase once the corrected total no longer matches', async () => {
@@ -291,7 +291,7 @@ describe.skipIf(!hasDbEnv)('alert re-evaluation on correction (issue #831)', () 
 		})), mismatched.invoiceId, 'verifactu_qr_mismatch');
 
 		const [invoiceRow] = await testSql`SELECT qr_mismatch FROM invoices WHERE id = ${mismatched.invoiceId}`;
-		expect(invoiceRow.qr_mismatch).toBe(false);
+		expect(invoiceRow!.qr_mismatch).toBe(false);
 	});
 
 	it('orphans invoice-bound alerts (price_shock) when the invoice is deleted', async () => {

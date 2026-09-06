@@ -71,18 +71,18 @@ const COUNT = /(?:caja|cajas|pack|packs|paquete|paquetes|estuche|estuches|bliste
 function packFromMultipack(s: string): PackInfo | null {
 	const multi = MULTIPACK.exec(s);
 	if (!multi) return null;
-	const token = sizeToken(multi[3]);
+	const token = sizeToken(multi[3] ?? '');
 	if (!token) return null;
-	return buildPackInfo(num(multi[1]), num(multi[2]), token);
+	return buildPackInfo(num(multi[1] ?? ''), num(multi[2] ?? ''), token);
 }
 
 function packFromSingle(s: string): PackInfo | null {
 	SINGLE.lastIndex = 0;
 	let m: RegExpExecArray | null;
 	while ((m = SINGLE.exec(s)) !== null) {
-		const token = sizeToken(m[2]);
+		const token = sizeToken(m[2] ?? '');
 		if (token) {
-			const info = buildPackInfo(1, num(m[1]), token);
+			const info = buildPackInfo(1, num(m[1] ?? ''), token);
 			if (info) return info;
 		}
 	}
@@ -92,7 +92,7 @@ function packFromSingle(s: string): PackInfo | null {
 function packFromCount(s: string): PackInfo | null {
 	const count = COUNT.exec(s);
 	if (!count) return null;
-	return buildPackInfo(num(count[1]), 1, 'ud');
+	return buildPackInfo(num(count[1] ?? ''), 1, 'ud');
 }
 
 export function parsePack(description: string | null | undefined, unit?: string | null): PackInfo | null {
@@ -580,7 +580,9 @@ export async function resolveLineProducts(
 	}>();
 	for (let i = 0; i < lines.length; i++) {
 		const line = lines[i];
-		const { raw, key } = lineEntries[i];
+		const entry = lineEntries[i];
+		if (!line || !entry) continue;
+		const { raw, key } = entry;
 		if (!key) continue;
 		if (!byKey.has(key)) {
 			byKey.set(key, {
@@ -626,7 +628,7 @@ async function resolveOne(
 			LIMIT 1
 		`);
 		if (skuRows.length > 0) {
-			return { productId: skuRows[0].product_id, status: 'exact' };
+			return { productId: skuRows[0]!.product_id, status: 'exact' };
 		}
 	}
 
@@ -636,7 +638,7 @@ async function resolveOne(
 		LIMIT 1
 	`);
 	if (aliasRows.length > 0) {
-		return { productId: aliasRows[0].product_id, status: 'exact' };
+		return { productId: aliasRows[0]!.product_id, status: 'exact' };
 	}
 
 	const expandedKey = normalizeProductKey(expandAbbreviations(raw));
@@ -651,7 +653,7 @@ async function resolveOne(
 		LIMIT 1
 	`);
 	if (fuzzyRows.length > 0) {
-		const candidate = fuzzyRows[0];
+		const candidate = fuzzyRows[0]!;
 		await insertAlias(tx, restaurantId, candidate.id, supplierId, key, raw, 'fuzzy', null, supplierSku);
 		return {
 			productId: candidate.id,
@@ -666,7 +668,7 @@ async function resolveOne(
 		ON CONFLICT (restaurant_id, name_key) DO UPDATE SET name_key = products.name_key
 		RETURNING id
 	`);
-	const productId = productRows[0].id;
+	const productId = productRows[0]!.id;
 	await insertAlias(tx, restaurantId, productId, supplierId, key, raw, 'exact', 'now()', supplierSku);
 	return { productId, status: 'created' };
 }
@@ -786,8 +788,8 @@ async function previewOne(
 	if (aliasRows.length > 0) {
 		return {
 			description: raw,
-			productId: aliasRows[0].product_id,
-			productName: aliasRows[0].canonical_name,
+			productId: aliasRows[0]!.product_id,
+			productName: aliasRows[0]!.canonical_name,
 			status: 'exact',
 			score: null,
 			suggestedTaxRate: null,
@@ -808,10 +810,10 @@ async function previewOne(
 	if (fuzzyRows.length > 0) {
 		return {
 			description: raw,
-			productId: fuzzyRows[0].id,
-			productName: fuzzyRows[0].canonical_name,
+			productId: fuzzyRows[0]!.id,
+			productName: fuzzyRows[0]!.canonical_name,
 			status: 'fuzzy',
-			score: Number(fuzzyRows[0].score),
+			score: Number(fuzzyRows[0]!.score),
 			suggestedTaxRate: null,
 		};
 	}
@@ -882,7 +884,7 @@ export async function assignLineProduct(
 			END
 	`);
 
-	return { productId, productName: owned[0].canonical_name };
+	return { productId, productName: owned[0]!.canonical_name };
 }
 
 export type AliasDecision =
@@ -1002,7 +1004,7 @@ export async function confirmProductAlias(
 		RETURNING product_id
 	`);
 	if (rows.length === 0) return { ok: false, reason: 'not_found' };
-	return { ok: true, productId: rows[0].product_id };
+	return { ok: true, productId: rows[0]!.product_id };
 }
 
 export async function rejectProductAlias(
@@ -1018,7 +1020,7 @@ export async function rejectProductAlias(
 			LIMIT 1
 		`);
 		if (aliasRows.length === 0) return { ok: false, reason: 'not_found' } as AliasDecision;
-		const alias = aliasRows[0];
+		const alias = aliasRows[0]!;
 
 		const created = await tx.execute<{ id: number }>(sql`
 			INSERT INTO products (restaurant_id, canonical_name, name_key)
@@ -1026,7 +1028,7 @@ export async function rejectProductAlias(
 			ON CONFLICT (restaurant_id, name_key) DO UPDATE SET name_key = products.name_key
 			RETURNING id
 		`);
-		const newProductId = created[0].id;
+		const newProductId = created[0]!.id;
 
 		await tx.execute(sql`
 			UPDATE product_aliases
@@ -1069,7 +1071,7 @@ export async function mergeIntoProduct(
 			LIMIT 1
 		`);
 		if (aliasRows.length === 0) return { ok: false, reason: 'not_found' } as AliasDecision;
-		const alias = aliasRows[0];
+		const alias = aliasRows[0]!;
 		const oldProductId = alias.product_id;
 
 		if (oldProductId !== targetProductId) {

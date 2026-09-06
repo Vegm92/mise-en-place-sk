@@ -29,9 +29,9 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		.where(tdb.scope(invoices.restaurantId, eq(invoices.id, id)))
 		.limit(1);
 
-	if (!rows.length || !rows[0].sourceFile) error(404, 'No source file for this invoice');
+	if (!rows.length || !rows[0]!.sourceFile) error(404, 'No source file for this invoice');
 
-	const key = rows[0].sourceFile;
+	const key = rows[0]!.sourceFile;
 
 	let buf: Buffer;
 	try {

@@ -63,7 +63,7 @@ describe('tenantDataMap (issue #390)', () => {
 	it('has exactly one root entry, and it is restaurants', () => {
 		const roots = tenantDataMap.filter((entry) => entry.deletion === 'root');
 		expect(roots).toHaveLength(1);
-		expect(roots[0].tableName).toBe('restaurants');
+		expect(roots[0]!.tableName).toBe('restaurants');
 		expect(rootEntry().tableName).toBe('restaurants');
 	});
 

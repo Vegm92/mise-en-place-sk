@@ -165,10 +165,10 @@ describe.skipIf(!hasDbEnv)('runCategorySuggestion — the tag proposed by the su
 				const [p] = await testDb.insert(products)
 					.values({ restaurantId, canonicalName: description, nameKey: description.toLowerCase(), category })
 					.returning({ id: products.id });
-				productId = p.id;
+				productId = p!.id;
 			}
 			await testDb.insert(invoiceLineItems).values({
-				restaurantId, invoiceId: inv.id, productId, description,
+				restaurantId, invoiceId: inv!.id, productId, description,
 				quantity: 1, unit: 'ud', unitPrice: amount.toFixed(2), totalPrice: amount.toFixed(2),
 			});
 		}
@@ -184,7 +184,7 @@ describe.skipIf(!hasDbEnv)('runCategorySuggestion — the tag proposed by the su
 			]);
 			const alerts = await runCategorySuggestion(id, r.id, UNCATEGORIZED_CATEGORY);
 			expect(alerts).toHaveLength(1);
-			expect(alerts[0].payload).toMatchObject({
+			expect(alerts[0]!.payload).toMatchObject({
 				suggestedCategory: 'Frutas y Verduras',
 				source: 'lines',
 			});
@@ -214,7 +214,7 @@ describe.skipIf(!hasDbEnv)('runCategorySuggestion — the tag proposed by the su
 			const id = await getOrCreateSupplierId(r.id, 'Bodega Central', testDb);
 			await seedLines(r.id, id, [['Tomate pera', 'Frutas y Verduras', 900]]);
 			const alerts = await runCategorySuggestion(id, r.id, 'Vinos y Cavas');
-			expect(alerts[0].payload).toMatchObject({
+			expect(alerts[0]!.payload).toMatchObject({
 				suggestedCategory: 'Vinos y Cavas',
 				source: 'extraction',
 			});
@@ -252,10 +252,10 @@ describe.skipIf(!hasDbEnv)('#315 suggesting a category for a supplier left in th
 			const id = await getOrCreateSupplierId(r.id, 'Distribuciones Sur', testDb);
 			const alerts = await runCategorySuggestion(id, r.id, 'Bebidas');
 			expect(alerts).toHaveLength(1);
-			expect(alerts[0].notificationType).toBe('supplier_category_suggested');
+			expect(alerts[0]!.notificationType).toBe('supplier_category_suggested');
 			// The user-visible text is an i18n key + vars, not baked-in prose, so
 			// the bell renders it in the reader's locale.
-			expect(alerts[0].payload).toMatchObject({
+			expect(alerts[0]!.payload).toMatchObject({
 				supplierId: id,
 				suggestedCategory: 'Bebidas',
 				messageKey: 'notif.msg.catSuggested',
@@ -295,7 +295,7 @@ describe.skipIf(!hasDbEnv)('#315 suggesting a category for a supplier left in th
 			const id = await getOrCreateSupplierId(r.id, 'Bebidas Norte', testDb);
 			const first = await runCategorySuggestion(id, r.id, 'Bebidas');
 			expect(first).toHaveLength(1);
-			await raise(r.id, first[0].notificationType, first[0].payload as Record<string, unknown>);
+			await raise(r.id, first[0]!.notificationType, first[0]!.payload as Record<string, unknown>);
 
 			expect(await runCategorySuggestion(id, r.id, 'Bebidas')).toEqual([]);
 
@@ -317,11 +317,11 @@ describe.skipIf(!hasDbEnv)('#315 suggesting a category for a supplier left in th
 		try {
 			const id = await getOrCreateSupplierId(r.id, 'Almacenes Vega', testDb);
 			await raise(r.id, 'supplier_uncategorized', { supplierId: id, supplierName: 'Almacenes Vega' });
-			expect((await pending(r.id, 'supplier_uncategorized'))[0].status).toBe('pending');
+			expect((await pending(r.id, 'supplier_uncategorized'))[0]!.status).toBe('pending');
 
 			const alerts = await runCategorySuggestion(id, r.id, 'Bebidas');
 			expect(alerts).toHaveLength(1);
-			expect((await pending(r.id, 'supplier_uncategorized'))[0].status).toBe('sent');
+			expect((await pending(r.id, 'supplier_uncategorized'))[0]!.status).toBe('sent');
 		} finally {
 			await cleanupTestRestaurant(r.id);
 		}
@@ -338,7 +338,7 @@ describe.skipIf(!hasDbEnv)('#315 suggesting a category for a supplier left in th
 
 			const rows = await pending(r.id, 'supplier_uncategorized');
 			expect(rows).toHaveLength(1);
-			expect(rows[0].status).toBe('pending');
+			expect(rows[0]!.status).toBe('pending');
 		} finally {
 			await cleanupTestRestaurant(r.id);
 		}
@@ -492,19 +492,19 @@ describe.skipIf(!hasDbEnv)('per-restaurant categories (issue #881)', () => {
 
 			const [supplierRow] = await testDb.select({ category: suppliers.category })
 				.from(suppliers).where(eq(suppliers.id, supplierId));
-			expect(supplierRow.category).toBe('Márketing Digital');
+			expect(supplierRow!.category).toBe('Márketing Digital');
 
 			const [productRow] = await testDb.select({ category: products.category })
 				.from(products).where(eq(products.restaurantId, r.id));
-			expect(productRow.category).toBe('Márketing Digital');
+			expect(productRow!.category).toBe('Márketing Digital');
 
 			const [budgetRow] = await testDb.select({ category: categoryBudgets.category })
 				.from(categoryBudgets).where(eq(categoryBudgets.restaurantId, r.id));
-			expect(budgetRow.category).toBe('Márketing Digital');
+			expect(budgetRow!.category).toBe('Márketing Digital');
 
 			const [otherSupplierRow] = await testDb.select({ category: suppliers.category })
 				.from(suppliers).where(eq(suppliers.id, otherSupplierId));
-			expect(otherSupplierRow.category).toBe('Marketing');
+			expect(otherSupplierRow!.category).toBe('Marketing');
 		} finally {
 			await cleanupTestRestaurant(r.id);
 			await cleanupTestRestaurant(other.id);
@@ -608,7 +608,7 @@ describe.skipIf(!hasDbEnv)('per-restaurant categories (issue #881)', () => {
 			const id = await getOrCreateSupplierId(r.id, 'Agencia Norte', testDb, 'Marketing');
 			const [row] = await testDb.select({ category: suppliers.category })
 				.from(suppliers).where(eq(suppliers.id, id));
-			expect(row.category).toBe('Marketing');
+			expect(row!.category).toBe('Marketing');
 		} finally {
 			await cleanupTestRestaurant(r.id);
 		}
@@ -623,7 +623,7 @@ describe.skipIf(!hasDbEnv)('per-restaurant categories (issue #881)', () => {
 			const id = await getOrCreateSupplierId(r.id, 'Bodega Sur', testDb, 'Bebidas');
 			const [row] = await testDb.select({ category: suppliers.category })
 				.from(suppliers).where(eq(suppliers.id, id));
-			expect(row.category).toBe(UNCATEGORIZED_CATEGORY);
+			expect(row!.category).toBe(UNCATEGORIZED_CATEGORY);
 		} finally {
 			await cleanupTestRestaurant(r.id);
 		}

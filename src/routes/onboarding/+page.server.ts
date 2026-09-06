@@ -90,6 +90,7 @@ export const actions: Actions = {
 					acquisitionVariant: attribution.variant,
 				})
 				.returning({ id: restaurants.id });
+			if (!restaurant) throw new Error('insert restaurants returned no row');
 
 			await tx.insert(userRestaurants).values({
 				userId,

@@ -65,7 +65,7 @@ export function findInvalidMonetaryField(formData: FormData): string | null {
 	for (const field of MONETARY_LINE_FIELDS) {
 		const values = formData.getAll(field).map(String);
 		for (let i = 0; i < descriptions.length; i++) {
-			if (!descriptions[i].trim()) continue;
+			if (!(descriptions[i] ?? '').trim()) continue;
 			const raw = values[i];
 			if (raw !== undefined && raw.trim() !== '' && parseAmount(raw) === null) return field;
 		}
@@ -183,6 +183,7 @@ async function logExtractionCorrections(
 
 	for (let i = 0; i < compareCount; i++) {
 		const orig = originalLines[i];
+		if (!orig) continue;
 		const lineConf = numericOrNull(orig.confidence);
 		const lineFields: FieldComparison[] = [
 			{ field: 'line_item.description', origRaw: orig.description, submittedVal: lineDescriptions[i] ?? '', confidence: lineConf },
@@ -273,7 +274,7 @@ async function findContentHashDuplicate(
 		.from(invoices)
 		.where(and(tdb.scope(invoices.restaurantId), eq(invoices.contentHash, contentHash), isNull(invoices.deletedAt)))
 		.limit(1);
-	return dup.length > 0 ? dup[0].id : null;
+	return dup.length > 0 ? dup[0]!.id : null;
 }
 
 export type LineFormInput = {
@@ -316,13 +317,13 @@ export function computeFormContentHash(
 
 	const kept: number[] = [];
 	for (let i = 0; i < descriptions.length; i++) {
-		if (descriptions[i].trim()) kept.push(i);
+		if ((descriptions[i] ?? '').trim()) kept.push(i);
 	}
 
 	return computeInvoiceContentHash({
 		...header,
-		lineDescriptions: kept.map(i => descriptions[i]),
-		lineQuantities:   kept.map(i => parseAmount(quantities[i])),
+		lineDescriptions: kept.map(i => descriptions[i] ?? ''),
+		lineQuantities:   kept.map(i => parseAmount(quantities[i] ?? '')),
 		lineUnits:        kept.map(i => units[i]?.trim() || null),
 		lineUnitPrices:   kept.map(i => toMoneyString(unitPrices[i])),
 		lineTotalPrices:  kept.map(i => toMoneyString(totalPrices[i])),
@@ -399,7 +400,7 @@ export function parseLineInputs(formData: FormData): LineFormInput[] {
 
 	const out: LineFormInput[] = [];
 	for (let i = 0; i < descriptions.length; i++) {
-		const desc = descriptions[i].trim();
+		const desc = (descriptions[i] ?? '').trim();
 		if (!desc) continue;
 		const unitVal = units[i]?.trim() || null;
 		const productId = Number.parseInt(productIds[i] ?? '', 10);
@@ -821,7 +822,7 @@ async function runPostSaveEffects(params: {
 	for (const effect of alertEffects) {
 		alertResultsByKey[effect.key] = await isolated(effect.label, [] as Alert[], effect.run);
 	}
-	const duplicatePurchaseAlerts = alertResultsByKey.duplicatePurchase;
+	const duplicatePurchaseAlerts = alertResultsByKey['duplicatePurchase'] ?? [];
 
 	const verifactuVars = { fields: qrMismatches.map((m) => m.field).join(', ') };
 	const verifactuAlerts: Alert[] = qrMismatches.length > 0 ? [{
@@ -1068,7 +1069,7 @@ export async function saveReviewedInvoice(
 			if (idemKey) await releaseRequest(idemKey, tx);
 			return;
 		}
-		invoiceId = insertedInvoice[0].id;
+		invoiceId = insertedInvoice[0]!.id;
 
 		await insertEnrichedLines(tx, { invoiceId: invoiceId!, rid, supplierId, supplierName }, enrichedLines, savedItems, unitConversionAlerts);
 

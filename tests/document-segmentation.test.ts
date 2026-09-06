@@ -128,8 +128,8 @@ describe('segmentDocument — quota is settled before the packet is split', () =
 		const outcome = await run(d);
 
 		expect(d.reserve).toHaveBeenCalledWith(2);
-		expect(d.reserve.mock.invocationCallOrder[0])
-			.toBeLessThan(d.saveSegment.mock.invocationCallOrder[0]);
+		expect(d.reserve.mock.invocationCallOrder[0]!)
+			.toBeLessThan(d.saveSegment.mock.invocationCallOrder[0]!);
 		expect(outcome.action).toBe('split');
 		expect(d.attribute).toHaveBeenCalledWith(['item-0', 'item-1']);
 	});

@@ -68,7 +68,7 @@ describe('tierFromPriceId diagnosis', () => {
 	it('calls out a Stripe account mismatch when the live price is from another account', () => {
 		const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
 		expect(tierFromPriceId(OTHER_ACCOUNT_PRICE)).toBe('starter');
-		const message = String(spy.mock.calls[0][0]);
+		const message = String(spy.mock.calls[0]![0]);
 		expect(message).toContain('different Stripe accounts');
 		expect(message).toContain('BzHhtWXhWL');
 		expect(message).toContain(ACCOUNT_A);
@@ -79,7 +79,7 @@ describe('tierFromPriceId diagnosis', () => {
 		const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
 		sentryMocks.captureException.mockClear();
 		tierFromPriceId('price_1U3ZZzBzHhtWXhWLQq8vNe1P');
-		expect(sentryMocks.captureException.mock.calls[0][1]).toMatchObject({
+		expect(sentryMocks.captureException.mock.calls[0]![1]).toMatchObject({
 			tags: { area: 'billing', billingConfig: 'stripe_account_mismatch' },
 		});
 		spy.mockRestore();
@@ -90,7 +90,7 @@ describe('tierFromPriceId diagnosis', () => {
 	it('does not claim an account mismatch for a rotated price on the same account', () => {
 		const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
 		tierFromPriceId(`price_1U9ZZz${ACCOUNT_A}Qq8vNe1P`);
-		expect(String(spy.mock.calls[0][0])).not.toContain('different Stripe accounts');
+		expect(String(spy.mock.calls[0]![0])).not.toContain('different Stripe accounts');
 		spy.mockRestore();
 	});
 });

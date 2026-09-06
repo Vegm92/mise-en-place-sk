@@ -52,7 +52,7 @@ describe('issue #732 — the escandallo draft row resets after a successful add'
 	it('the key is derived from items.length, not from `form` (a repeated add must produce a NEW key value each time — a same-valued key would not reset the row on a second add)', () => {
 		const keyBlockOpen = source().match(/\{#key\s+([^}]+)\}\s*<RecipeLineRow\s+\{units\}/);
 		expect(keyBlockOpen, 'could not find the {#key ...} opening tag before the draft row').not.toBeNull();
-		expect(keyBlockOpen![1].trim()).toBe('items.length');
+		expect(keyBlockOpen![1]!.trim()).toBe('items.length');
 	});
 
 	it('RecipeLineRow still seeds its $state once via untrack — the mechanism {#key} relies on to reset', () => {

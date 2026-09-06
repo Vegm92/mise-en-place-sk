@@ -90,7 +90,7 @@ describe.skipIf(!hasDbEnv)('#426 — POST /api/chat routes through the LLM provi
 		expect(body.reply).toBe('You spent 120.50 this week.');
 
 		expect(generateMock).toHaveBeenCalledTimes(1);
-		const [content, signal, systemInstruction] = generateMock.mock.calls[0];
+		const [content, signal, systemInstruction] = generateMock.mock.calls[0]!;
 		expect(content).toBe('How much did I spend this week?');
 		expect(signal).toBeUndefined();
 		expect(typeof systemInstruction).toBe('string');
@@ -109,11 +109,11 @@ describe.skipIf(!hasDbEnv)('#426 — POST /api/chat routes through the LLM provi
 			SELECT restaurant_id, model, input_tokens, output_tokens, caller_context
 			FROM llm_usage_log WHERE restaurant_id = ${rid}`;
 		expect(rows).toHaveLength(1);
-		expect(rows[0].restaurant_id).toBe(rid);
-		expect(rows[0].model).toBe('gemini-test');
-		expect(rows[0].input_tokens).toBe(111);
-		expect(rows[0].output_tokens).toBe(22);
-		expect(rows[0].caller_context).toBe('chat');
+		expect(rows[0]!.restaurant_id).toBe(rid);
+		expect(rows[0]!.model).toBe('gemini-test');
+		expect(rows[0]!.input_tokens).toBe(111);
+		expect(rows[0]!.output_tokens).toBe(22);
+		expect(rows[0]!.caller_context).toBe('chat');
 	});
 
 	it('parses an ACTIONS block off the seam reply exactly as before', async () => {

@@ -31,7 +31,7 @@ async function makeProduct(name: string): Promise<number> {
 	const [p] = await testSql`
 		INSERT INTO products (restaurant_id, canonical_name, name_key)
 		VALUES (${rid}, ${name}, ${normalizeProductKey(name)}) RETURNING id`;
-	return p.id;
+	return p!.id;
 }
 
 /** Insert a historical line the way saveReviewedInvoice would (pack fields + product). */
@@ -45,7 +45,7 @@ async function seedLine(description: string, unitPrice: number, invoiceDate: str
 		INSERT INTO invoice_line_items
 			(invoice_id, restaurant_id, description, quantity, unit, unit_price, product_id,
 			 units_per_pack, unit_size, size_unit, base_unit, normalized_unit_price)
-		VALUES (${inv.id}, ${rid}, ${description}, 1, null, ${unitPrice}, ${productId},
+		VALUES (${inv!.id}, ${rid}, ${description}, 1, null, ${unitPrice}, ${productId},
 			${pack?.unitsPerPack ?? null}, ${pack?.unitSize ?? null}, ${pack?.sizeUnit ?? null},
 			${pack?.baseUnit ?? null}, ${norm})`;
 }
@@ -55,7 +55,7 @@ beforeAll(async () => {
 	const r = await createTestRestaurant('pack-shock');
 	rid = r.id;
 	const [sup] = await testSql`INSERT INTO suppliers (restaurant_id, name) VALUES (${rid}, ${SUPPLIER}) RETURNING id`;
-	supplierId = sup.id;
+	supplierId = sup!.id;
 });
 
 afterAll(async () => {
@@ -83,10 +83,10 @@ describe.skipIf(!hasDbEnv)('runPriceShock — pack-normalized comparison (issue 
 		const map = new Map([[normalizeProductKey(newDesc), pid]]);
 		const alerts = await runPriceShock(9_999_002, SUPPLIER, [item(newDesc, 15.0)], rid, map);
 		expect(alerts).toHaveLength(1);
-		expect(alerts[0].payload.basis).toBe('per_base_unit');
-		expect(alerts[0].payload.baseUnit).toBe('kg');
-		expect(alerts[0].payload.oldPrice).toBe(1);
-		expect(alerts[0].payload.newPrice).toBe(1.5);
+		expect(alerts[0]!.payload.basis).toBe('per_base_unit');
+		expect(alerts[0]!.payload.baseUnit).toBe('kg');
+		expect(alerts[0]!.payload.oldPrice).toBe(1);
+		expect(alerts[0]!.payload.newPrice).toBe(1.5);
 	});
 
 	it('falls back to raw unit price when no pack/product grouping applies', async () => {
@@ -95,6 +95,6 @@ describe.skipIf(!hasDbEnv)('runPriceShock — pack-normalized comparison (issue 
 		const map = new Map([[normalizeProductKey('Perejil fresco'), pid]]);
 		const alerts = await runPriceShock(9_999_003, SUPPLIER, [item('Perejil fresco', 2.0)], rid, map);
 		expect(alerts).toHaveLength(1);
-		expect(alerts[0].payload.basis).toBe('per_unit');
+		expect(alerts[0]!.payload.basis).toBe('per_unit');
 	});
 });

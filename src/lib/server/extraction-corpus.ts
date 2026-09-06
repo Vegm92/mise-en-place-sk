@@ -102,7 +102,7 @@ export async function recordExtractionResult(
 		.insert(extractionResults)
 		.values(toInsertRow(input))
 		.returning({ id: extractionResults.id });
-	return rows.length ? rows[0].id : null;
+	return rows.length ? rows[0]!.id : null;
 }
 
 export async function archiveBatchExtractions(dbc: CorpusDb = db): Promise<number> {

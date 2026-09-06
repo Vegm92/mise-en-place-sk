@@ -36,10 +36,10 @@ describe('pdf-pages', () => {
 
 		const [second, third] = await splitPdfRanges(source, [{ start: 2, end: 2 }, { start: 3, end: 3 }]);
 
-		expect(await pdfPageCount(second)).toBe(1);
-		expect(await pdfPageCount(third)).toBe(1);
-		expect((await pdfPageTexts(second))[0]).toContain('0010024015570');
-		expect((await pdfPageTexts(third))[0]).toContain('0010024015571');
+		expect(await pdfPageCount(second!)).toBe(1);
+		expect(await pdfPageCount(third!)).toBe(1);
+		expect((await pdfPageTexts(second!))[0]!).toContain('0010024015570');
+		expect((await pdfPageTexts(third!))[0]!).toContain('0010024015571');
 	});
 
 	it('keeps a multi-page range together in one document', async () => {
@@ -47,7 +47,7 @@ describe('pdf-pages', () => {
 
 		const [merged] = await splitPdfRanges(source, [{ start: 1, end: 2 }]);
 
-		expect(await pdfPageCount(merged)).toBe(2);
+		expect(await pdfPageCount(merged!)).toBe(2);
 	});
 
 	it('refuses a range the document does not have', async () => {

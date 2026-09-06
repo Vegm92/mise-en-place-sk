@@ -64,7 +64,7 @@ describe('retracted product claims stay retracted', () => {
 			// name promises and what rule 1 actually requires. Matching the negation
 			// of availability holds the copy to the claim regardless of how the
 			// roadmap half is worded.
-			expect(answer.toLowerCase()).toMatch(
+			expect(answer!.toLowerCase()).toMatch(
 				loc === 'es' ? /no (est[áa] disponible|disponible)/ : /not (yet )?available/
 			);
 		});

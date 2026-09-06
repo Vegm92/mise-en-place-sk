@@ -67,7 +67,7 @@ describe.skipIf(!hasDbEnv)('0048_notification_message_backfill — legacy row cl
 			await testSql.unsafe(MIGRATION_SQL);
 
 			const [row] = await rowsFor(r.id);
-			expect(row.message).toBe("Clasifica a 'Mercado Central' para incluir su gasto en presupuestos y análisis por categoría.");
+			expect(row!.message).toBe("Clasifica a 'Mercado Central' para incluir su gasto en presupuestos y análisis por categoría.");
 		} finally {
 			await cleanupTestRestaurant(r.id);
 		}
@@ -86,8 +86,8 @@ describe.skipIf(!hasDbEnv)('0048_notification_message_backfill — legacy row cl
 
 			const [mineRow] = await rowsFor(mine.id);
 			const [otherRow] = await rowsFor(other.id);
-			expect(mineRow.message).toBe('Carnes 120% (exceeded)');
-			expect(otherRow.message).toBe('Bebidas 90% (warning)');
+			expect(mineRow!.message).toBe('Carnes 120% (exceeded)');
+			expect(otherRow!.message).toBe('Bebidas 90% (warning)');
 		} finally {
 			await cleanupTestRestaurant(mine.id);
 			await cleanupTestRestaurant(other.id);
@@ -115,7 +115,7 @@ describe.skipIf(!hasDbEnv)('0048_notification_message_backfill — legacy row cl
 				eq(systemNotifications.notificationType, 'supplier_uncategorized'),
 			));
 
-			const shown = notificationMessage(row, tivStub);
+			const shown = notificationMessage(row!, tivStub);
 			expect(shown).toBe('ESPECIAS LOCAL S.L.U.');
 			expect(shown).not.toContain('supplier_uncategorized');
 		} finally {

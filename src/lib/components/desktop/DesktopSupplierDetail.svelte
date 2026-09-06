@@ -607,8 +607,9 @@
                 </svg>
                 <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;">
                   {#if hoveredSlice !== null && productDonut.slices[hoveredSlice]}
-                    <span class="num text-[15px] font-semibold text-fg">{(productDonut.slices[hoveredSlice].pct * 100).toFixed(0)}%</span>
-                    <span class="text-[11px] text-fg-3 max-w-[100px] text-center overflow-hidden text-ellipsis whitespace-nowrap">{productDonut.slices[hoveredSlice].label}</span>
+                    {@const hs = productDonut.slices[hoveredSlice]!}
+                    <span class="num text-[15px] font-semibold text-fg">{(hs.pct * 100).toFixed(0)}%</span>
+                    <span class="text-[11px] text-fg-3 max-w-[100px] text-center overflow-hidden text-ellipsis whitespace-nowrap">{hs.label}</span>
                   {:else}
                     <span class="num text-[15px] font-semibold text-fg">{fmtEur(productDonut.total, locale.current)}</span>
                     <span class="text-[11px] text-fg-3">{t('sup.products.totalSpend')}</span>

@@ -16,7 +16,7 @@ beforeAll(async () => {
 	const r = await createTestRestaurant('backfill');
 	rid = r.id;
 	const [s] = await testSql`INSERT INTO suppliers (restaurant_id, name) VALUES (${rid}, '__backfill_sup__') RETURNING id`;
-	supplierId = s.id;
+	supplierId = s!.id;
 	// An existing product the abbreviation/fuzzy layer should link to.
 	await testSql`INSERT INTO products (restaurant_id, canonical_name, name_key) VALUES (${rid}, 'Ternera aguja', 'ternera aguja')`;
 
@@ -27,8 +27,8 @@ beforeAll(async () => {
 	await testSql`
 		INSERT INTO invoice_line_items (invoice_id, restaurant_id, description, unit, unit_price)
 		VALUES
-			(${inv.id}, ${rid}, 'REF.1042 TERN. AGUJA', 'kg', 8.0),
-			(${inv.id}, ${rid}, 'Aceite girasol garrafa 5L', 'garrafa', 12.5)`;
+			(${inv!.id}, ${rid}, 'REF.1042 TERN. AGUJA', 'kg', 8.0),
+			(${inv!.id}, ${rid}, 'Aceite girasol garrafa 5L', 'garrafa', 12.5)`;
 });
 
 afterAll(async () => {
@@ -48,14 +48,14 @@ describe.skipIf(!hasDbEnv)('backfillRestaurant', () => {
 			SELECT li.product_id, p.name_key
 			FROM invoice_line_items li JOIN products p ON p.id = li.product_id
 			WHERE li.restaurant_id = ${rid} AND li.description = 'REF.1042 TERN. AGUJA'`;
-		expect(tern.name_key).toBe('ternera aguja');
+		expect(tern!.name_key).toBe('ternera aguja');
 
 		// The garrafa line got €/base: 12.5 / 5 L = 2.5 €/L.
 		const [oil] = await testSql`
 			SELECT base_unit, normalized_unit_price FROM invoice_line_items
 			WHERE restaurant_id = ${rid} AND description = 'Aceite girasol garrafa 5L'`;
-		expect(oil.base_unit).toBe('L');
-		expect(Number(oil.normalized_unit_price)).toBeCloseTo(2.5, 4);
+		expect(oil!.base_unit).toBe('L');
+		expect(Number(oil!.normalized_unit_price)).toBeCloseTo(2.5, 4);
 	});
 
 	it('is idempotent — a second run links nothing new', async () => {

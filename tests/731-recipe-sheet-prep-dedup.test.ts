@@ -22,7 +22,7 @@ async function newRecipe(rid: string, name: string, kind: string, yieldQty: stri
 		VALUES (${rid}, ${name}, ${normalizeProductKey(name)}, ${kind}, 'active', '1', ${yieldQty}, ${yieldUnit})
 		RETURNING id
 	`;
-	return Number(row.id);
+	return Number(row!.id);
 }
 
 async function newLine(
@@ -66,7 +66,7 @@ describe.skipIf(!hasDbEnv)('buildRecipeSheet — preps dedup on childRecipeId, n
 		expect(sheet).not.toBeNull();
 		expect(sheet!.lines).toHaveLength(2);
 		expect(sheet!.preps).toHaveLength(1);
-		expect(sheet!.preps[0].name).toBe('Fumet');
+		expect(sheet!.preps[0]!.name).toBe('Fumet');
 	});
 
 	it('two lines pointing at two DIFFERENT preps that share a display label print two blocks', async () => {

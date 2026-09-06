@@ -160,8 +160,8 @@ describe.skipIf(!hasDbEnv)('invoice edit action preserves enrichment (issues #48
 		await runEdit(invoiceId, editForm('INV-481-c', '72.00'));
 		const [after] = await testSql`SELECT content_hash FROM invoices WHERE id = ${invoiceId}`;
 
-		expect(after.content_hash).not.toBe(before.content_hash);
-		expect(after.content_hash).toBeTruthy();
+		expect(after!.content_hash).not.toBe(before!.content_hash);
+		expect(after!.content_hash).toBeTruthy();
 	});
 
 	it('loses the supplier SKU when the form stops posting it — the field the page must render', async () => {
@@ -184,8 +184,8 @@ describe.skipIf(!hasDbEnv)('invoice edit action preserves enrichment (issues #48
 			WHERE restaurant_id = ${rid} AND invoice_id = ${invoiceId} AND action = 'edit'`;
 
 		expect(rows.length).toBe(1);
-		expect(rows[0].user_id).toBe(USER_ID);
-		expect(JSON.parse(rows[0].snapshot).lineItems[0].description).toBe(DESC);
+		expect(rows[0]!.user_id).toBe(USER_ID);
+		expect(JSON.parse(rows[0]!.snapshot).lineItems[0].description).toBe(DESC);
 	});
 });
 

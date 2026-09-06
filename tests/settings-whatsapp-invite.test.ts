@@ -74,7 +74,7 @@ beforeAll(async () => {
 
 	const email = `wa-invite-owner-${Date.now()}@example.com`;
 	const [user] = await testSql`INSERT INTO users (email, name) VALUES (${email}, ${'Chef'}) RETURNING id`;
-	ownerId = user.id;
+	ownerId = user!.id;
 	await testSql`INSERT INTO user_restaurants (user_id, restaurant_id, role) VALUES (${ownerId}, ${ridA}, 'owner')`;
 	await testSql`INSERT INTO user_restaurants (user_id, restaurant_id, role) VALUES (${ownerId}, ${ridB}, 'owner')`;
 });
@@ -103,8 +103,8 @@ describe.skipIf(!hasDbEnv)('addWhatsappContact pre-authorises instead of binding
 			SELECT restaurant_id, phone_number, redeemed_at FROM whatsapp_pairing_codes WHERE phone_number = ${phone}
 		`;
 		expect(invites).toHaveLength(1);
-		expect(invites[0].restaurant_id).toBe(ridA);
-		expect(invites[0].redeemed_at).toBeNull();
+		expect(invites[0]!.restaurant_id).toBe(ridA);
+		expect(invites[0]!.redeemed_at).toBeNull();
 	});
 
 	it('never returns a distinguishable "taken" outcome, even for a number already bound elsewhere', async () => {
@@ -133,11 +133,11 @@ describe.skipIf(!hasDbEnv)('addWhatsappContact pre-authorises instead of binding
 		`;
 		expect(invite).toBeDefined();
 
-		const mismatch = await redeemPairingCode('34699999999', invite.code as string);
+		const mismatch = await redeemPairingCode('34699999999', invite!.code as string);
 		expect(mismatch).toEqual({ ok: false, reason: 'invalid' });
 		expect(await testSql`SELECT id FROM whatsapp_contacts WHERE phone_number = ${phone}`).toHaveLength(0);
 
-		const redeemed = await redeemPairingCode(phone, invite.code as string);
+		const redeemed = await redeemPairingCode(phone, invite!.code as string);
 		expect(redeemed).toEqual({ ok: true, restaurantId: ridA });
 		expect(await testSql`SELECT id FROM whatsapp_contacts WHERE phone_number = ${phone}`).toHaveLength(1);
 	});
@@ -151,7 +151,7 @@ describe.skipIf(!hasDbEnv)('removeWhatsappContact releases and audits (issue #49
 		`;
 
 		const body = new FormData();
-		body.append('id', String(contact.id));
+		body.append('id', String(contact!.id));
 		const result = await runAction('removeWhatsappContact', body, ridA);
 		expect(result.kind).toBe('ok');
 
@@ -163,7 +163,7 @@ describe.skipIf(!hasDbEnv)('removeWhatsappContact releases and audits (issue #49
 			ORDER BY created_at DESC LIMIT 1
 		`;
 		expect(audit).toHaveLength(1);
-		expect(audit[0].payload).toMatchObject({ phoneNumber: phone, method: 'owner', releasedBy: ownerId });
+		expect(audit[0]!.payload).toMatchObject({ phoneNumber: phone, method: 'owner', releasedBy: ownerId });
 
 		const inviteBody = new FormData();
 		inviteBody.append('phone', phone);
@@ -174,7 +174,7 @@ describe.skipIf(!hasDbEnv)('removeWhatsappContact releases and audits (issue #49
 			WHERE phone_number = ${phone} AND redeemed_at IS NULL
 			ORDER BY created_at DESC LIMIT 1
 		`;
-		const redeemed = await redeemPairingCode(phone, invite.code as string);
+		const redeemed = await redeemPairingCode(phone, invite!.code as string);
 		expect(redeemed).toEqual({ ok: true, restaurantId: ridB });
 	});
 });

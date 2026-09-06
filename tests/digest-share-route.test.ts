@@ -51,12 +51,12 @@ describeDb('/s/[token] load() — public anonymised digest view (issue #329)', (
 		`;
 		const [inv] = await testSql`
 			INSERT INTO invoices (restaurant_id, supplier_id, invoice_number, invoice_date, total_amount, status)
-			VALUES (${rid}, ${supplier.id}, ${DISTINCTIVE_INVOICE_NUMBER}, CURRENT_DATE, ${DISTINCTIVE_AMOUNT}, 'paid')
+			VALUES (${rid}, ${supplier!.id}, ${DISTINCTIVE_INVOICE_NUMBER}, CURRENT_DATE, ${DISTINCTIVE_AMOUNT}, 'paid')
 			RETURNING id
 		`;
 		await testSql`
 			INSERT INTO invoice_line_items (invoice_id, restaurant_id, description, quantity, unit, unit_price)
-			VALUES (${inv.id}, ${rid}, 'Vino tinto reserva', 6, 'ud', 12.00)
+			VALUES (${inv!.id}, ${rid}, 'Vino tinto reserva', 6, 'ud', 12.00)
 		`;
 
 		const { randomBytes } = await import('node:crypto');

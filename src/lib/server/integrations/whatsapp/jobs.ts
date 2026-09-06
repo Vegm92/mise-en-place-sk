@@ -149,7 +149,9 @@ export function parseReview(body: string): ParsedReview | null {
 		.filter(Boolean);
 	if (!words.length || words.length > 3) return null;
 
-	const [head, ...rest] = words;
+	const [headRaw, ...rest] = words;
+	if (!headRaw) return null;
+	const head = headRaw;
 	let decision: ReviewDecision | null = null;
 	if (AFFIRMATIVE.has(head)) decision = 'reviewed';
 	else if (NEGATIVE.has(head)) decision = 'to_review';

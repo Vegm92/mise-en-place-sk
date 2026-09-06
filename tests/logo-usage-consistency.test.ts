@@ -56,7 +56,7 @@ const MARK_FINGERPRINT = /M4\.4 18\.5 V9\.5 Q4\.4 5\.5 8\.2 5\.5/;
 /** Pulls every copy of the mark's path data from a snippet — works for both
  *  Logo.svelte's quoted string constant and email.ts's `d="..."` literal. */
 function extractMarkPaths(text: string): string[] {
-	return [...text.matchAll(/(M4\.4 18\.5[^"'`]+)/g)].map(m => m[1].trim());
+	return [...text.matchAll(/(M4\.4 18\.5[^"'`]+)/g)].map(m => m[1]!.trim());
 }
 
 describe('logo usage consistency (issue #571)', () => {

@@ -156,7 +156,7 @@ describe('detectDocumentStructure — scanned documents', () => {
 		await structureOf(scannedPages(2), generate);
 
 		const [parts] = generate.mock.calls[0] as unknown as [Array<{ inlineData: { mimeType: string } }>];
-		expect(parts[0].inlineData.mimeType).toBe('application/pdf');
+		expect(parts[0]!.inlineData.mimeType).toBe('application/pdf');
 	});
 
 	it.each(UNCLEAR_CASES)('sends $label to review rather than splitting on it', async ({ pageCount, map }) => {

@@ -50,24 +50,24 @@ describe.runIf(hasDbEnv)('memberLocations / isLocationLocked contra Postgres', (
 			INSERT INTO restaurants (name, slug, created_at)
 			VALUES ('Casa Lua', ${slug}, now() - interval '3 days') RETURNING id
 		`;
-		parentId = parent.id as string;
+		parentId = parent!.id as string;
 
 		const [one] = await testSql`
 			INSERT INTO restaurants (name, slug, parent_id, created_at)
 			VALUES ('Casa Lua Norte', ${slug + '-1'}, ${parentId}, now() - interval '2 days') RETURNING id
 		`;
-		childOneId = one.id as string;
+		childOneId = one!.id as string;
 
 		const [two] = await testSql`
 			INSERT INTO restaurants (name, slug, parent_id, created_at)
 			VALUES ('Casa Lua Sur', ${slug + '-2'}, ${parentId}, now() - interval '1 day') RETURNING id
 		`;
-		childTwoId = two.id as string;
+		childTwoId = two!.id as string;
 
 		const [user] = await testSql`
 			INSERT INTO users (email, access_status) VALUES (${slug + '@example.com'}, 'approved') RETURNING id
 		`;
-		userId = user.id as string;
+		userId = user!.id as string;
 		for (const rid of [parentId, childOneId, childTwoId]) {
 			await testSql`INSERT INTO user_restaurants (user_id, restaurant_id, role) VALUES (${userId}, ${rid}, 'owner')`;
 		}
@@ -113,7 +113,8 @@ describe.runIf(hasDbEnv)('memberLocations / isLocationLocked contra Postgres', (
 		const rows = await locations.memberLocations(userId);
 
 		expect(rows.every(r => !r.locked)).toBe(true);
-		const [{ count }] = await testSql`SELECT count(*)::int AS count FROM restaurants WHERE COALESCE(parent_id, id) = ${parentId}`;
+		const [_r_] = await testSql`SELECT count(*)::int AS count FROM restaurants WHERE COALESCE(parent_id, id) = ${parentId}`;
+		const { count } = _r_!;
 		expect(count).toBe(3);
 	});
 

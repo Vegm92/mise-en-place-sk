@@ -75,7 +75,7 @@ export async function handleMediaUpload(
 		{ source: 'whatsapp', sourceRef: from, jobCode: await generateJobCode() },
 	);
 
-	await enqueueBatchExtraction(itemIds[0], restaurantId, {
+	await enqueueBatchExtraction(itemIds[0]!, restaurantId, {
 		getItem,
 		getBatchItems,
 		markQueued,

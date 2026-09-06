@@ -98,7 +98,7 @@
   let mobileSection = $state<string | null>(null);
   let query = $state('');
 
-  const sectionOf = (id: string) => sections.find((s) => s.id === id) ?? sections[0];
+  const sectionOf = (id: string) => sections.find((s) => s.id === id) ?? sections[0]!;
 
   const alertTypes = $derived(data.alertGroups.flatMap((g) => g.types));
   const savedPrefs = $derived(data.alertPreferences as Record<string, boolean>);

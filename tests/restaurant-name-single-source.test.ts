@@ -59,7 +59,7 @@ beforeAll(async () => {
 	const email = `name-src-${Date.now()}@example.com`;
 	const [user] = await testSql`
 		INSERT INTO users (email, name) VALUES (${email}, ${'Chef'}) RETURNING id`;
-	userId = user.id;
+	userId = user!.id;
 	await testSql`INSERT INTO user_restaurants (user_id, restaurant_id, role) VALUES (${userId}, ${rid}, 'owner')`;
 });
 
@@ -72,18 +72,18 @@ afterAll(async () => {
 
 describe.skipIf(!hasDbEnv)('restaurant name — single source of truth (issue #515)', () => {
 	it('renameRestaurant writes only restaurants.name, creating no settings row', async () => {
-		const result = await actions.renameRestaurant(formEvent('Casa del Chef'));
+		const result = await actions.renameRestaurant!(formEvent('Casa del Chef'));
 		expect(result).toEqual({ section: 'restaurant', ok: 'set.profile.ok.restaurant' });
 
 		const [row] = await testSql`SELECT name FROM restaurants WHERE id = ${rid}`;
-		expect(row.name).toBe('Casa del Chef');
+		expect(row!.name).toBe('Casa del Chef');
 
 		const settingsRows = await testSql`SELECT 1 FROM settings WHERE restaurant_id = ${rid} AND key = 'restaurant_name'`;
 		expect(settingsRows).toHaveLength(0);
 	});
 
 	it('the settings page and the (app) layout agree on the name right after a rename', async () => {
-		await actions.renameRestaurant(formEvent('Bistro Central'));
+		await actions.renameRestaurant!(formEvent('Bistro Central'));
 
 		const settingsData = await (settingsLoad as (e: unknown) => Promise<Record<string, unknown>>)({ locals: locals() });
 		const layoutData = await (layoutLoad as (e: unknown) => Promise<Record<string, unknown>>)({
@@ -99,26 +99,26 @@ describe.skipIf(!hasDbEnv)('restaurant name — single source of truth (issue #5
 	it('a rename by a non-owner is refused and changes neither read', async () => {
 		const memberEmail = `name-src-member-${Date.now()}@example.com`;
 		const [member] = await testSql`INSERT INTO users (email, name) VALUES (${memberEmail}, ${'Member'}) RETURNING id`;
-		await testSql`INSERT INTO user_restaurants (user_id, restaurant_id, role) VALUES (${member.id}, ${rid}, 'member')`;
+		await testSql`INSERT INTO user_restaurants (user_id, restaurant_id, role) VALUES (${member!.id}, ${rid}, 'member')`;
 		try {
 			const before = await testSql`SELECT name FROM restaurants WHERE id = ${rid}`;
 
 			const memberLocals = () => ({
-				user: { id: member.id, email: memberEmail, name: 'Member', image: null },
+				user: { id: member!.id, email: memberEmail, name: 'Member', image: null },
 				restaurantId: rid,
 				lockedRestaurantIds: [] as string[],
 				entitlements: memoizeEntitlements(rid),
 			});
-			const result = await actions.renameRestaurant({
+			const result = await actions.renameRestaurant!({
 				request: { formData: async () => { const d = new FormData(); d.append('name', 'Hijack'); return d; } },
 				locals: memberLocals(),
 			} as never);
 
 			expect(result).toMatchObject({ status: 403 });
 			const after = await testSql`SELECT name FROM restaurants WHERE id = ${rid}`;
-			expect(after[0].name).toBe(before[0].name);
+			expect(after[0]!.name).toBe(before[0]!.name);
 		} finally {
-			await testSql`DELETE FROM users WHERE id = ${member.id}`;
+			await testSql`DELETE FROM users WHERE id = ${member!.id}`;
 		}
 	});
 });

@@ -47,7 +47,7 @@ function formEvent(fields: Record<string, string>, opts: { userId: string; email
 
 async function runOnboard(event: unknown): Promise<number | null> {
 	try {
-		await actions.default(event as never);
+		await actions.default!(event as never);
 		return null;
 	} catch (e) {
 		if (isRedirect(e)) return e.status;
@@ -60,7 +60,7 @@ async function insertTestUser(founder = false) {
 	const [row] = await testSql`
 		INSERT INTO users (email, founder) VALUES (${email}, ${founder}) RETURNING id
 	`;
-	return { id: row.id as string, email };
+	return { id: row!.id as string, email };
 }
 
 async function restaurantForUser(userId: string) {
@@ -179,7 +179,7 @@ describe.skipIf(!hasDbEnv)('onboarding action — double-submit idempotency is u
 		const restaurantRows = await testDb.select().from(userRestaurants).where(eq(userRestaurants.userId, userId));
 		expect(restaurantRows).toHaveLength(1);
 
-		const subRows = await testDb.select().from(subscriptions).where(eq(subscriptions.restaurantId, restaurantRows[0].restaurantId));
+		const subRows = await testDb.select().from(subscriptions).where(eq(subscriptions.restaurantId, restaurantRows[0]!.restaurantId));
 		expect(subRows).toHaveLength(1);
 
 		expect(welcomeEmailMock).toHaveBeenCalledTimes(1);

@@ -220,7 +220,7 @@ describe('runTrialNoticesJob', () => {
 		const result = await runTrialNoticesJob(boss);
 
 		expect(result).toEqual({ scanned: 1, considered: 1, dispatched: 1 });
-		expect(inserts[0].queue).toBe(TRIAL_TENANT_QUEUE);
+		expect(inserts[0]!.queue).toBe(TRIAL_TENANT_QUEUE);
 		expect(jobsFor(inserts)[0]).toMatchObject({
 			data: { restaurantId: 'rest-1', name: 'Casa Lua', milestone: 7, claim: `${endsAt.toISOString().slice(0, 10)}:7` },
 			singletonKey: `rest-1:${endsAt.toISOString().slice(0, 10)}:7`,
@@ -261,7 +261,7 @@ describe('sendTrialNotice', () => {
 
 		expect(state.claimCalls[0]).toEqual({ key: 'trial_notice_sent', value: '2026-08-01:7' });
 		expect(sendEmailMock).toHaveBeenCalledOnce();
-		expect(sendEmailMock.mock.calls[0][0]).toMatchObject({ kind: 'trial_expiry', to: 'owner@example.com' });
+		expect(sendEmailMock.mock.calls[0]![0]).toMatchObject({ kind: 'trial_expiry', to: 'owner@example.com' });
 	});
 
 	it('sends nothing when the milestone was already claimed', async () => {
@@ -274,7 +274,7 @@ describe('sendTrialNotice', () => {
 	it('uses the lapsed template once the trial has ended', async () => {
 		await sendTrialNotice({ restaurantId: 'rest-1', name: 'Casa Lua', milestone: 0, claim: '2026-08-01:0' });
 
-		expect(sendEmailMock.mock.calls[0][0]).toMatchObject({ kind: 'trial_expired' });
+		expect(sendEmailMock.mock.calls[0]![0]).toMatchObject({ kind: 'trial_expired' });
 	});
 
 	it('stays quiet when the restaurant has no reachable owner', async () => {
@@ -294,9 +294,9 @@ describe('runOverdueRemindersJob', () => {
 		const day = new Date().toISOString().slice(0, 10);
 
 		expect(result).toEqual({ scanned: 2, considered: 2, dispatched: 2 });
-		expect(inserts[0].queue).toBe(REMINDERS_TENANT_QUEUE);
+		expect(inserts[0]!.queue).toBe(REMINDERS_TENANT_QUEUE);
 		expect(jobsFor(inserts).map(j => j.singletonKey)).toEqual([`rest-1:${day}`, `rest-2:${day}`]);
-		expect(jobsFor(inserts)[0].data).toMatchObject({ restaurantId: 'rest-1', day });
+		expect(jobsFor(inserts)[0]!.data).toMatchObject({ restaurantId: 'rest-1', day });
 	});
 });
 
@@ -308,7 +308,7 @@ describe('sendOverdueReminder', () => {
 
 		expect(await sendOverdueReminder(job)).toBe(true);
 		expect(state.claimCalls[0]).toEqual({ key: 'incidencia_digest_sent_day', value: '2026-08-20' });
-		const payload = sendEmailMock.mock.calls[0][0];
+		const payload = sendEmailMock.mock.calls[0]![0];
 		expect(payload.kind).toBe('incidencia_digest');
 		expect(payload.subject).toContain('3');
 		expect(payload.html).toContain('1250.50 €');
@@ -343,7 +343,7 @@ describe('runWeeklyDigestJob', () => {
 		const result = await runWeeklyDigestJob(boss);
 
 		expect(result).toEqual({ scanned: 2, considered: 1, dispatched: 1 });
-		expect(inserts[0].queue).toBe(DIGEST_TENANT_QUEUE);
+		expect(inserts[0]!.queue).toBe(DIGEST_TENANT_QUEUE);
 		expect(jobsFor(inserts)[0]).toMatchObject({
 			data: { restaurantId: 'rest-pro', week: '2026-W30' },
 			singletonKey: 'rest-pro:2026-W30',
@@ -358,7 +358,7 @@ describe('sendWeeklyDigest', () => {
 		expect(await sendWeeklyDigest(job)).toBe(true);
 
 		expect(sendEmailMock).toHaveBeenCalledOnce();
-		expect(sendEmailMock.mock.calls[0][0]).toMatchObject({ kind: 'weekly_digest' });
+		expect(sendEmailMock.mock.calls[0]![0]).toMatchObject({ kind: 'weekly_digest' });
 		expect(state.claimCalls[0]).toEqual({ key: 'weekly_digest_email_week', value: '2026-W30' });
 	});
 
@@ -411,7 +411,7 @@ describe('runAnalyticsRefreshJob', () => {
 
 		expect(result).toEqual({ refreshed: true });
 		expect(executeMock).toHaveBeenCalledOnce();
-		const query = executeMock.mock.calls[0][0];
+		const query = executeMock.mock.calls[0]![0];
 		expect(String(query.queryChunks[0].value[0])).toContain('refresh_analytics_rollups()');
 	});
 });

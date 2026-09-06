@@ -63,12 +63,12 @@ beforeAll(async () => {
 
 	const ownerEmail = `cat-owner-${Date.now()}@example.com`;
 	const [owner] = await testSql`INSERT INTO users (email, name) VALUES (${ownerEmail}, ${'Owner'}) RETURNING id`;
-	ownerId = owner.id;
+	ownerId = owner!.id;
 	await testSql`INSERT INTO user_restaurants (user_id, restaurant_id, role) VALUES (${ownerId}, ${rid}, 'owner')`;
 
 	const memberEmail = `cat-member-${Date.now()}@example.com`;
 	const [member] = await testSql`INSERT INTO users (email, name) VALUES (${memberEmail}, ${'Member'}) RETURNING id`;
-	memberId = member.id;
+	memberId = member!.id;
 	await testSql`INSERT INTO user_restaurants (user_id, restaurant_id, role) VALUES (${memberId}, ${rid}, 'member')`;
 });
 
@@ -131,8 +131,8 @@ describe.skipIf(!hasDbEnv)('addCategory action (issue #881 part 3)', () => {
 describe.skipIf(!hasDbEnv)('renameCategory action (issue #881 part 3)', () => {
 	it('rejects a non-owner member and renames nothing', async () => {
 		const [target] = await loadCategories(ownerId);
-		expectNotOwnerRejection(await runAction('renameCategory', memberId, { id: String(target.id), name: 'Hijacked' }));
-		expect((await loadCategories(ownerId)).find((c) => c.id === target.id)!.name).toBe(target.name);
+		expectNotOwnerRejection(await runAction('renameCategory', memberId, { id: String(target!.id), name: 'Hijacked' }));
+		expect((await loadCategories(ownerId)).find((c) => c.id === target!.id)!.name).toBe(target!.name);
 	});
 
 	it('rejects a non-numeric id with 422 set.categories.err.invalid', async () => {

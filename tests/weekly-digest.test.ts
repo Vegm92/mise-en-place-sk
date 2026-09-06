@@ -81,11 +81,11 @@ describe.skipIf(!hasDbEnv)('getOrGenerateWeeklyDigest — #426 provider seam + u
 			SELECT restaurant_id, model, input_tokens, output_tokens, caller_context
 			FROM llm_usage_log WHERE restaurant_id = ${rid}`;
 		expect(rows).toHaveLength(1);
-		expect(rows[0].restaurant_id).toBe(rid);
-		expect(rows[0].model).toBe('gemini-digest');
-		expect(rows[0].input_tokens).toBe(555);
-		expect(rows[0].output_tokens).toBe(77);
-		expect(rows[0].caller_context).toBe('weekly-digest');
+		expect(rows[0]!.restaurant_id).toBe(rid);
+		expect(rows[0]!.model).toBe('gemini-digest');
+		expect(rows[0]!.input_tokens).toBe(555);
+		expect(rows[0]!.output_tokens).toBe(77);
+		expect(rows[0]!.caller_context).toBe('weekly-digest');
 	});
 
 	it('a cache hit (same stored week) never calls the provider or records usage again', async () => {

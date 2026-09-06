@@ -124,15 +124,15 @@ describe.skipIf(!canRun)('scripts/create-runtime-role.sql', () => {
 		`;
 		expect(inserted?.id).toBeTruthy();
 
-		const [selected] = await runtimeSql!`SELECT name FROM restaurants WHERE id = ${inserted.id}`;
+		const [selected] = await runtimeSql!`SELECT name FROM restaurants WHERE id = ${inserted!.id}`;
 		expect(selected?.name).toBe('Runtime Role Test');
 
-		await runtimeSql!`UPDATE restaurants SET name = 'Renamed' WHERE id = ${inserted.id}`;
-		const [updated] = await runtimeSql!`SELECT name FROM restaurants WHERE id = ${inserted.id}`;
+		await runtimeSql!`UPDATE restaurants SET name = 'Renamed' WHERE id = ${inserted!.id}`;
+		const [updated] = await runtimeSql!`SELECT name FROM restaurants WHERE id = ${inserted!.id}`;
 		expect(updated?.name).toBe('Renamed');
 
-		await runtimeSql!`DELETE FROM restaurants WHERE id = ${inserted.id}`;
-		const [gone] = await runtimeSql!`SELECT id FROM restaurants WHERE id = ${inserted.id}`;
+		await runtimeSql!`DELETE FROM restaurants WHERE id = ${inserted!.id}`;
+		const [gone] = await runtimeSql!`SELECT id FROM restaurants WHERE id = ${inserted!.id}`;
 		expect(gone).toBeUndefined();
 	});
 
