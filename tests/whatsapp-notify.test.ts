@@ -77,13 +77,16 @@ describe('summary formatting', () => {
 	});
 });
 
+async function runNotify(item: unknown, itemId = 'item-1') {
+	getItemMock.mockResolvedValue(item);
+	const { ctx, sent } = fakeTransport();
+	await notifyWhatsAppSender({ itemId, restaurantId: 'rest-1' }, ctx);
+	return sent;
+}
+
 describe('notifyWhatsAppSender', () => {
 	it('sends the summary and opens the job for review', async () => {
-		getItemMock.mockResolvedValue(DONE_ITEM);
-		const { ctx, sent } = fakeTransport();
-
-		await notifyWhatsAppSender({ itemId: 'item-1', restaurantId: 'rest-1' }, ctx);
-
+		const sent = await runNotify(DONE_ITEM);
 		expect(sent).toHaveLength(1);
 		expect(sent[0]!.to).toBe('34600111222');
 		expect(sent[0]!.body).toContain('Frutas Paco');
@@ -91,42 +94,26 @@ describe('notifyWhatsAppSender', () => {
 	});
 
 	it('points a failed extraction at the web panel and flags it To Review', async () => {
-		getItemMock.mockResolvedValue({ ...DONE_ITEM, status: 'failed', extractedData: null });
-		const { ctx, sent } = fakeTransport();
-
-		await notifyWhatsAppSender({ itemId: 'item-1', restaurantId: 'rest-1' }, ctx);
-
+		const sent = await runNotify({ ...DONE_ITEM, status: 'failed', extractedData: null });
 		expect(sent[0]!.body).toMatch(/No he podido leer esta factura/i);
 		expect(sent[0]!.body).toContain('https://app.example.com/batch/batch-1');
 		expect(setReviewStatusMock).toHaveBeenCalledWith('item-1', 'to_review', [null, 'pending']);
 	});
 
 	it('says nothing about an item that did not come from WhatsApp', async () => {
-		getItemMock.mockResolvedValue({ ...DONE_ITEM, source: 'web', sourceRef: null });
-		const { ctx, sent } = fakeTransport();
-
-		await notifyWhatsAppSender({ itemId: 'item-1', restaurantId: 'rest-1' }, ctx);
-
+		const sent = await runNotify({ ...DONE_ITEM, source: 'web', sourceRef: null });
 		expect(sent).toHaveLength(0);
 		expect(setReviewStatusMock).not.toHaveBeenCalled();
 	});
 
 	it('says nothing when the item has been deleted under the job', async () => {
-		getItemMock.mockResolvedValue(null);
-		const { ctx, sent } = fakeTransport();
-
-		await notifyWhatsAppSender({ itemId: 'gone', restaurantId: 'rest-1' }, ctx);
-
+		const sent = await runNotify(null, 'gone');
 		expect(sent).toHaveLength(0);
 	});
 
 	it('says nothing while the item is still in flight', async () => {
 		// The queue retries, and pg-boss can deliver before markDone commits.
-		getItemMock.mockResolvedValue({ ...DONE_ITEM, status: 'extracting' });
-		const { ctx, sent } = fakeTransport();
-
-		await notifyWhatsAppSender({ itemId: 'item-1', restaurantId: 'rest-1' }, ctx);
-
+		const sent = await runNotify({ ...DONE_ITEM, status: 'extracting' });
 		expect(sent).toHaveLength(0);
 	});
 });
