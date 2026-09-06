@@ -27,11 +27,19 @@ export function resetWaitlistRouteMocks() {
 	trackAnonymousEventMock.mockClear();
 }
 
-export function fakeCookies(initial: Record<string, string> = {}) {
-	const store = { ...initial };
+/** Defaults to a jar that has already granted cookie consent, so a caller
+ *  testing attribution capture is not silently testing the consent gate
+ *  instead. Pass `consent: 'denied'` or `'unset'` to exercise the gate. */
+export function fakeCookies(
+	initial: Record<string, string> = {},
+	consent: 'granted' | 'denied' | 'unset' = 'granted',
+) {
+	const store: Record<string, string> = { ...initial };
+	if (consent !== 'unset' && store.mep_consent === undefined) store.mep_consent = consent;
 	return {
 		get: vi.fn((name: string) => store[name]),
 		set: vi.fn((name: string, value: string, _opts?: Record<string, unknown>) => { store[name] = value; }),
+		delete: vi.fn((name: string, _opts?: Record<string, unknown>) => { delete store[name]; }),
 		_store: store,
 	};
 }

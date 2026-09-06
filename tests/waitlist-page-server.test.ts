@@ -64,6 +64,24 @@ describe('/waitlist load — sets the mep_attr cookie', () => {
 		expect(cookies.set).not.toHaveBeenCalled();
 	});
 
+	it('writes nothing on a campaign visit from a jar that has not consented (art. 22.2 LSSI)', async () => {
+		const cookies = fakeCookies({}, 'unset');
+		await load(loadEvent('https://mise-place.com/waitlist?utm_source=x&utm_campaign=y', { cookies }));
+		expect(cookies.set).not.toHaveBeenCalled();
+		expect(cookies._store.mep_attr).toBeUndefined();
+	});
+
+	it('clears a pre-existing attribution cookie once the visitor declines', async () => {
+		const existing = JSON.stringify({
+			source: 'google', campaign: 'spring', variant: null, segment: null,
+			referrer: null, landingPath: '/waitlist', referredBy: null,
+		});
+		const cookies = fakeCookies({ mep_attr: existing }, 'denied');
+		await load(loadEvent('https://mise-place.com/waitlist?utm_source=x', { cookies }));
+		expect(cookies.set).not.toHaveBeenCalled();
+		expect(cookies.delete).toHaveBeenCalledWith('mep_attr', { path: '/' });
+	});
+
 	it('does overwrite an existing cookie when the new visit carries its own signal', async () => {
 		const existing = JSON.stringify({
 			source: 'google', campaign: 'spring', variant: null, segment: null,

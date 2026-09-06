@@ -6,6 +6,7 @@ import {
 	serializeAttribution,
 	type Attribution,
 } from '$lib/attribution';
+import { analyticsConsentGiven } from './cookie-consent';
 
 const ATTRIBUTION_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
 
@@ -15,6 +16,13 @@ export function captureAttribution(
 	referer: string | null,
 	extra?: Partial<Attribution>,
 ): void {
+	if (!analyticsConsentGiven(cookies)) {
+		if (cookies.get(ATTRIBUTION_COOKIE) !== undefined) {
+			cookies.delete(ATTRIBUTION_COOKIE, { path: '/' });
+		}
+		return;
+	}
+
 	const incoming: Attribution = { ...parseAttribution(url, referer), ...extra };
 	const existing = cookies.get(ATTRIBUTION_COOKIE);
 
