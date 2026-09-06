@@ -54,7 +54,7 @@
   let area = $state('steps');
   let query = $state('');
 
-  const areaOf = (id: string) => areas.find((a) => a.id === id) ?? areas[0];
+  const areaOf = (id: string) => areas.find((a) => a.id === id) ?? areas[0]!;
 
   const searchIndex = $derived([
     ...HELP_STEPS.map((step) => ({ key: `help.start.${step.key}.title`, body: `help.start.${step.key}.body`, area: 'steps' })),

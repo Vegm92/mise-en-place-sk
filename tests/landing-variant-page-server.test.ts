@@ -69,7 +69,7 @@ describe('/l/[variant] load — sets the mep_attr cookie with the slug as varian
 		await load(loadEvent('menu-del-dia', 'https://mise-place.com/l/menu-del-dia', { cookies }));
 
 		expect(cookies.set).toHaveBeenCalledOnce();
-		const [name, value] = cookies.set.mock.calls[0];
+		const [name, value] = cookies.set.mock.calls[0]!;
 		expect(name).toBe('mep_attr');
 		expect(JSON.parse(value)).toMatchObject({ variant: 'menu-del-dia' });
 	});
@@ -77,7 +77,7 @@ describe('/l/[variant] load — sets the mep_attr cookie with the slug as varian
 	it('the route slug wins over a ?variant= query param on the same request', async () => {
 		const cookies = fakeCookies();
 		await load(loadEvent('menu-del-dia', 'https://mise-place.com/l/menu-del-dia?variant=spoofed', { cookies }));
-		const value = cookies.set.mock.calls[0][1];
+		const value = cookies.set.mock.calls[0]![1];
 		expect(JSON.parse(value)).toMatchObject({ variant: 'menu-del-dia' });
 	});
 
@@ -88,7 +88,7 @@ describe('/l/[variant] load — sets the mep_attr cookie with the slug as varian
 			'https://mise-place.com/l/aceite-de-oliva?utm_source=ig&utm_campaign=launch',
 			{ cookies },
 		));
-		const value = cookies.set.mock.calls[0][1];
+		const value = cookies.set.mock.calls[0]![1];
 		expect(JSON.parse(value)).toMatchObject({ variant: 'aceite-de-oliva', source: 'ig', campaign: 'launch' });
 	});
 
@@ -100,7 +100,7 @@ describe('/l/[variant] load — sets the mep_attr cookie with the slug as varian
 		const cookies = fakeCookies({ mep_attr: bare });
 		await load(loadEvent('pescado-fresco', 'https://mise-place.com/l/pescado-fresco', { cookies }));
 		expect(cookies.set).toHaveBeenCalledOnce();
-		expect(JSON.parse(cookies.set.mock.calls[0][1])).toMatchObject({ variant: 'pescado-fresco' });
+		expect(JSON.parse(cookies.set.mock.calls[0]![1])).toMatchObject({ variant: 'pescado-fresco' });
 	});
 });
 
@@ -116,7 +116,7 @@ describe('/l/[variant] join action — reuses the shared waitlist join action', 
 				referrer: null, landingPath: '/l/grupo-multi-local', referredBy: null,
 			}),
 		});
-		const result = await actions.join(joinEvent('chef@example.com', cookies));
+		const result = await actions.join!(joinEvent('chef@example.com', cookies));
 		expect(result).toEqual({ success: true });
 		expect(insertWaitlistEmailMock).toHaveBeenCalledWith(
 			'chef@example.com',

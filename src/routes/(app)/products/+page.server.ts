@@ -79,7 +79,7 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 
 		const MONTH_LABELS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 		const trendData = {
-			xLabels: trendRows.map(r => MONTH_LABELS[(Number.parseInt(r.month.split('-')[1], 10) - 1)] ?? r.month),
+			xLabels: trendRows.map(r => MONTH_LABELS[(Number.parseInt(r.month.split('-')[1] ?? '0', 10) - 1)] ?? r.month),
 			series: [{
 				key: 'new',
 				label: 'prod.trend.title',
@@ -140,6 +140,6 @@ export const actions: Actions = {
 			RETURNING id
 		`);
 
-		redirect(303, `/products/${rows[0].id}`);
+		redirect(303, `/products/${rows[0]!.id}`);
 	},
 };

@@ -33,7 +33,7 @@ async function invoiceWithItem(supId: number, date: string, description: string,
 		VALUES (${rid}, ${supId}, ${date}, 'pending') RETURNING id`;
 	await testSql`
 		INSERT INTO invoice_line_items (invoice_id, restaurant_id, description, quantity, unit, unit_price)
-		VALUES (${inv.id}, ${rid}, ${description}, 1, 'kg', ${unitPrice})`;
+		VALUES (${inv!.id}, ${rid}, ${description}, 1, 'kg', ${unitPrice})`;
 }
 
 beforeAll(async () => {
@@ -42,7 +42,7 @@ beforeAll(async () => {
 	rid = r.id;
 	const [sup] = await testSql`
 		INSERT INTO suppliers (restaurant_id, name) VALUES (${rid}, '__price_stability_supplier__') RETURNING id`;
-	supplierId = sup.id;
+	supplierId = sup!.id;
 
 	// Two products, each individually rock-steady, but at very different
 	// price levels — a naive pooled CV would read this as wildly unstable.

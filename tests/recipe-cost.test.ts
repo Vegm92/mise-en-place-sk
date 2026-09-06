@@ -175,8 +175,8 @@ describe('computeRecipeCosts — line pricing', () => {
 		const cost = computeRecipeCosts(graph, new Map()).get(1)!;
 		expect(cost.totalCostCents).toBe(1129);
 		expect(cost.costPerPortionCents).toBe(282);
-		expect(cost.lines[0].priceSource).toBe('manual');
-		expect(cost.lines[0].grossQty).toBeCloseTo(0.941176, 6);
+		expect(cost.lines[0]!.priceSource).toBe('manual');
+		expect(cost.lines[0]!.grossQty).toBeCloseTo(0.941176, 6);
 	});
 
 	it('prices a linked product from the latest invoice, converting the unit', () => {
@@ -188,9 +188,9 @@ describe('computeRecipeCosts — line pricing', () => {
 			asOf: '2026-08-12', supplierName: 'Pescados Rius',
 		}]]);
 		const cost = computeRecipeCosts(graph, prices).get(1)!;
-		expect(cost.lines[0].priceSource).toBe('invoice');
-		expect(cost.lines[0].priceAsOf).toBe('2026-08-12');
-		expect(cost.lines[0].supplierName).toBe('Pescados Rius');
+		expect(cost.lines[0]!.priceSource).toBe('invoice');
+		expect(cost.lines[0]!.priceAsOf).toBe('2026-08-12');
+		expect(cost.lines[0]!.supplierName).toBe('Pescados Rius');
 		expect(cost.totalCostCents).toBe(190);
 	});
 
@@ -202,14 +202,14 @@ describe('computeRecipeCosts — line pricing', () => {
 			rateUnits: toRate('9.50')!, baseUnit: 'kg', source: 'invoice', asOf: null, supplierName: null,
 		}]]);
 		const cost = computeRecipeCosts(graph, prices).get(1)!;
-		expect(cost.lines[0].priceSource).toBe('manual');
+		expect(cost.lines[0]!.priceSource).toBe('manual');
 		expect(cost.totalCostCents).toBe(800);
 	});
 
 	it('flags a line with no resolvable price instead of silently costing zero', () => {
 		const graph = graphOf(node({ id: 1 }, [{ name: 'sal', netQuantity: '0.0100', unit: 'kg' }]));
 		const cost = computeRecipeCosts(graph, new Map()).get(1)!;
-		expect(cost.lines[0].warnings).toContain('missing-price');
+		expect(cost.lines[0]!.warnings).toContain('missing-price');
 		expect(cost.missingPriceCount).toBe(1);
 		expect(cost.warnings).toContain('no-price');
 	});
@@ -222,8 +222,8 @@ describe('computeRecipeCosts — line pricing', () => {
 			rateUnits: toRate('4.00')!, baseUnit: 'kg', source: 'invoice', asOf: null, supplierName: null,
 		}]]);
 		const cost = computeRecipeCosts(graph, prices).get(1)!;
-		expect(cost.lines[0].warnings).toContain('unit-mismatch');
-		expect(cost.lines[0].warnings).toContain('missing-price');
+		expect(cost.lines[0]!.warnings).toContain('unit-mismatch');
+		expect(cost.lines[0]!.warnings).toContain('missing-price');
 	});
 
 	it('reports each line share of the total', () => {
@@ -232,8 +232,8 @@ describe('computeRecipeCosts — line pricing', () => {
 			{ name: 'b', netQuantity: '1.0000', unit: 'kg', unitCost: '1.0000' },
 		]));
 		const cost = computeRecipeCosts(graph, new Map()).get(1)!;
-		expect(cost.lines[0].sharePct).toBeCloseTo(75, 6);
-		expect(cost.lines[1].sharePct).toBeCloseTo(25, 6);
+		expect(cost.lines[0]!.sharePct).toBeCloseTo(75, 6);
+		expect(cost.lines[1]!.sharePct).toBeCloseTo(25, 6);
 	});
 });
 
@@ -250,7 +250,7 @@ describe('computeRecipeCosts — sub-recipes', () => {
 		const cost = computeRecipeCosts(graphOf(plato, sofrito), new Map()).get(1)!;
 		expect(computeRecipeCosts(graphOf(plato, sofrito), new Map()).get(2)!.totalCostCents).toBe(1000);
 		expect(cost.totalCostCents).toBe(100);
-		expect(cost.lines[0].priceSource).toBe('child');
+		expect(cost.lines[0]!.priceSource).toBe('child');
 		expect(cost.depth).toBe(1);
 	});
 
@@ -293,7 +293,7 @@ describe('computeRecipeCosts — sub-recipes', () => {
 			{ kind: 'recipe', name: 'fantasma', childRecipeId: 99, netQuantity: '1.0000', unit: 'kg' },
 		]);
 		const cost = computeRecipeCosts(graphOf(plato), new Map()).get(1)!;
-		expect(cost.lines[0].warnings).toContain('missing-child');
+		expect(cost.lines[0]!.warnings).toContain('missing-child');
 	});
 
 	it('scales a sub-recipe line nutrition on the net quantity, not the gross (issue #728)', () => {
@@ -330,7 +330,7 @@ describe('cycles', () => {
 		]);
 		const costs = computeRecipeCosts(graphOf(a, b), new Map());
 		expect(costs.get(1)!.warnings).toContain('cycle');
-		expect(costs.get(2)!.lines[0].warnings).toContain('cycle');
+		expect(costs.get(2)!.lines[0]!.warnings).toContain('cycle');
 	});
 
 	it('rejects a self-reference on the write side', () => {
@@ -367,7 +367,7 @@ describe('computeRecipeCosts — depth (issue #727)', () => {
 	}
 
 	function chainGraph(ids: number[]): Map<number, RecipeNode> {
-		const nodes = ids.map((id, i) => chainLink(id, i < ids.length - 1 ? ids[i + 1] : null));
+		const nodes = ids.map((id, i) => chainLink(id, i < ids.length - 1 ? ids[i + 1]! : null));
 		return graphOf(...nodes);
 	}
 
@@ -434,7 +434,7 @@ describe('allergens and nutrition', () => {
 		]));
 		const cost = computeRecipeCosts(graph, new Map()).get(1)!;
 		expect(cost.nutritionTotal).toBeNull();
-		expect(cost.lines[0].warnings).toContain('nutrition-skipped');
+		expect(cost.lines[0]!.warnings).toContain('nutrition-skipped');
 	});
 });
 

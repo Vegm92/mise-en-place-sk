@@ -125,6 +125,7 @@ export function createBatchStore(db: BatchDb) {
 		origin: BatchItemOrigin = {},
 	): Promise<{ batchId: string; itemIds: string[] }> {
 		const [batch] = await db.insert(uploadBatches).values({ restaurantId }).returning({ id: uploadBatches.id });
+		if (!batch) throw new Error('insert uploadBatches returned no row');
 		const rows = await db
 			.insert(batchItems)
 			.values(files.map((f, i) => ({
@@ -149,10 +150,11 @@ export function createBatchStore(db: BatchDb) {
 	): Promise<string[]> {
 		// tenant-scope-ok: internal store keyed by batchId; the caller owns the
 		// batch and passes restaurantId, which is written on every inserted row.
-		const [{ max }] = await db
+		const [maxRow] = await db
 			.select({ max: sql<number>`coalesce(max(${batchItems.position}), 0)` })
 			.from(batchItems)
 			.where(eq(batchItems.batchId, batchId));
+		const max = maxRow?.max ?? 0;
 		const rows = await db
 			.insert(batchItems)
 			.values(files.map((f, i) => ({
@@ -172,7 +174,7 @@ export function createBatchStore(db: BatchDb) {
 		// tenant-scope-ok: returns restaurantId on the item so callers can check
 		// ownership; every caller compares it against locals.restaurantId.
 		const rows = await db.select(itemColumns).from(batchItems).where(eq(batchItems.id, itemId)).limit(1);
-		return rows.length ? asItem(rows[0]) : null;
+		return rows.length && rows[0] ? asItem(rows[0]) : null;
 	}
 
 	async function getBatchItems(batchId: string): Promise<BatchItem[]> {
@@ -205,7 +207,7 @@ export function createBatchStore(db: BatchDb) {
 				and(eq(batchItems.id, itemId), inArray(batchItems.status, ['pending', 'failed'])),
 			))
 			.returning(itemColumns);
-		return rows.length ? asItem(rows[0]) : null;
+		return rows.length && rows[0] ? asItem(rows[0]) : null;
 	}
 
 	async function deleteBatch(batchId: string, restaurantId: string): Promise<void> {

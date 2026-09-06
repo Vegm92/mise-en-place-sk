@@ -47,7 +47,7 @@ const silentLogger = {
 function senderOf(msg: WAMessage): string | null {
 	const jid = msg.key.remoteJid;
 	if (!jid || jid.endsWith('@g.us') || jid === 'status@broadcast') return null;
-	const digits = jidNormalizedUser(jid).split('@')[0];
+	const digits = jidNormalizedUser(jid).split('@')[0] ?? '';
 	const normalized = normalizePhoneNumber(digits);
 	return normalized.ok ? normalized.phone : null;
 }

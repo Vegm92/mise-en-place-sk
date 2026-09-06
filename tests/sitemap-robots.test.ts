@@ -88,7 +88,7 @@ describe('sitemap.xml lastmod is real, not request time', () => {
 	async function lastmods(): Promise<string[]> {
 		const res = await sitemapGet(fakeEvent('https://mise-place.com'));
 		const xml = await res.text();
-		return [...xml.matchAll(/<lastmod>([^<]+)<\/lastmod>/g)].map((m) => m[1]);
+		return [...xml.matchAll(/<lastmod>([^<]+)<\/lastmod>/g)].map((m) => m[1]!);
 	}
 
 	it('emits one lastmod per url entry', async () => {
@@ -99,7 +99,7 @@ describe('sitemap.xml lastmod is real, not request time', () => {
 	});
 
 	it('every lastmod is a valid ISO date, not in the future', async () => {
-		const today = new Date().toISOString().split('T')[0];
+		const today = new Date().toISOString().split('T')[0]!;
 		for (const value of await lastmods()) {
 			expect(value, `${value} should be YYYY-MM-DD`).toMatch(/^\d{4}-\d{2}-\d{2}$/);
 			expect(value.localeCompare(today), `${value} is in the future`).toBeLessThanOrEqual(0);
@@ -118,7 +118,7 @@ describe('robots.txt keeps a single user-agent group', () => {
 	}
 
 	it('declares exactly one User-agent group, and it is the wildcard', async () => {
-		const agents = [...(await body()).matchAll(/^User-agent:\s*(.+)$/gm)].map((m) => m[1].trim());
+		const agents = [...(await body()).matchAll(/^User-agent:\s*(.+)$/gm)].map((m) => m[1]!.trim());
 		expect(agents).toEqual(['*']);
 	});
 
@@ -161,7 +161,7 @@ describe('both routes use the configured origin, not the request host', () => {
 		});
 		expect(locs.length).toBeGreaterThan(0);
 		for (const loc of locs) {
-			expect(loc.startsWith(`${CONFIGURED}/`), `${loc} should sit on the configured origin`).toBe(true);
+			expect(loc!.startsWith(`${CONFIGURED}/`), `${loc} should sit on the configured origin`).toBe(true);
 		}
 		expect(locs.join('\n')).not.toContain(REQUEST_HOST);
 	});
@@ -169,7 +169,7 @@ describe('both routes use the configured origin, not the request host', () => {
 	it('robots.txt Sitemap: line uses APP_BASE_URL too', async () => {
 		const sitemapLine = await withConfiguredOrigin(CONFIGURED, async ({ robotsGet: get }) => {
 			const text = await (await get({ url: new URL(`${REQUEST_HOST}/robots.txt`) } as never)).text();
-			return /^Sitemap:\s*(.+)$/m.exec(text)?.[1].trim();
+			return /^Sitemap:\s*(.+)$/m.exec(text)?.[1]?.trim();
 		});
 		expect(sitemapLine).toBe(`${CONFIGURED}/sitemap.xml`);
 	});
@@ -191,7 +191,7 @@ describe('both routes use the configured origin, not the request host', () => {
 		});
 		expect(locs.length).toBeGreaterThan(0);
 		for (const loc of locs) {
-			expect(loc.startsWith(`${REQUEST_HOST}/`)).toBe(true);
+			expect(loc!.startsWith(`${REQUEST_HOST}/`)).toBe(true);
 		}
 	});
 });

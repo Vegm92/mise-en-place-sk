@@ -299,7 +299,7 @@ describe('processExtractionJob — dead-letter routing follows the same classifi
 	it('carries enough payload to replay the job', async () => {
 		await runFailing(new Error('boom'), FINAL_ATTEMPT);
 
-		const payload = deadLetterMocks.recordDeadLetter.mock.calls[0][0].payload;
+		const payload = deadLetterMocks.recordDeadLetter.mock.calls[0]![0].payload;
 		expect(payload).toMatchObject({ itemId: item.id, restaurantId: 'r1', fileKey: item.fileKey });
 	});
 });
@@ -689,8 +689,8 @@ describe('processExtractionJob — composite documents are separated before extr
 			return SPLIT;
 		});
 
-		const releaseOrder = quotaMocks.releaseMonthlyExtraction.mock.invocationCallOrder[0];
-		const reserveOrder = quotaMocks.reserveMonthlyExtractions.mock.invocationCallOrder[0];
+		const releaseOrder = quotaMocks.releaseMonthlyExtraction.mock.invocationCallOrder[0]!;
+		const reserveOrder = quotaMocks.reserveMonthlyExtractions.mock.invocationCallOrder[0]!;
 		expect(releaseOrder).toBeLessThan(reserveOrder);
 		expect(quotaMocks.reserveMonthlyExtractions).toHaveBeenCalledWith('r1', 3);
 	});

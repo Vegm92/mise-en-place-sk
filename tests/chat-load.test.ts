@@ -87,14 +87,14 @@ describe.skipIf(!hasDbEnv)('/chat load — locked preview instead of a 403 (#546
 			`;
 			await testSql`
 				INSERT INTO chat_messages (restaurant_id, session_id, role, text)
-				VALUES (${rid}, ${session.id}, 'user', 'How much did I spend?')
+				VALUES (${rid}, ${session!.id}, 'user', 'How much did I spend?')
 			`;
 
-			const data = await runLoad(rid, String(session.id));
+			const data = await runLoad(rid, String(session!.id));
 			expect(data.locked).toBe(false);
-			expect(data.activeSessionId).toBe(session.id);
+			expect(data.activeSessionId).toBe(session!.id);
 			const sessions = data.sessions as Array<{ id: number }>;
-			expect(sessions.map((s) => s.id)).toContain(session.id);
+			expect(sessions.map((s) => s.id)).toContain(session!.id);
 			const messages = data.messages as Array<{ text: string }>;
 			expect(messages.map((m) => m.text)).toContain('How much did I spend?');
 		} finally {

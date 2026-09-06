@@ -4,7 +4,7 @@
 
 	const { title, subtitle, children }: {
 		title: string;
-		subtitle?: string;
+		subtitle?: string | undefined;
 		children: Snippet;
 	} = $props();
 </script>

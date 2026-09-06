@@ -70,7 +70,7 @@ async function newRecipe(rid: string, name: string, overrides: {
 		)
 		RETURNING id
 	`;
-	return Number(row.id);
+	return Number(row!.id);
 }
 
 async function recipeRow(id: number) {

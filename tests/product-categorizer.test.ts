@@ -128,7 +128,7 @@ async function seedProduct(name: string, category: string | null): Promise<numbe
 		VALUES (${rid}, ${name}, ${name.toLowerCase()}, ${category})
 		RETURNING id
 	`;
-	return Number(row.id);
+	return Number(row!.id);
 }
 
 async function categoryOf(productId: number): Promise<string | null> {

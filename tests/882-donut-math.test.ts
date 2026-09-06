@@ -25,8 +25,8 @@ describe('computeDonutSlices', () => {
 		const { slices, total } = computeDonutSlices(input, RADIUS);
 		expect(total).toBe(100);
 		expect(slices).toHaveLength(2);
-		expect(slices[0].pct).toBeCloseTo(0.3, 10);
-		expect(slices[1].pct).toBeCloseTo(0.7, 10);
+		expect(slices[0]!.pct).toBeCloseTo(0.3, 10);
+		expect(slices[1]!.pct).toBeCloseTo(0.7, 10);
 	});
 
 	it('accumulates offsets so each slice starts where the previous one ended', () => {
@@ -36,9 +36,9 @@ describe('computeDonutSlices', () => {
 			{ label: 'c', value: 50, color: '#000' },
 		];
 		const { slices } = computeDonutSlices(input, RADIUS);
-		expect(slices[0].offset).toBe(0);
-		expect(slices[1].offset).toBeCloseTo(slices[0].dash, 10);
-		expect(slices[2].offset).toBeCloseTo(slices[0].dash + slices[1].dash, 10);
+		expect(slices[0]!.offset).toBe(0);
+		expect(slices[1]!.offset).toBeCloseTo(slices[0]!.dash, 10);
+		expect(slices[2]!.offset).toBeCloseTo(slices[0]!.dash + slices[1]!.dash, 10);
 	});
 
 	it('dash lengths sum to the full circumference', () => {
@@ -75,8 +75,8 @@ describe('computeDonutSlices', () => {
 			{ label: 'a', value: 10, color: '#000', supplierName: 'Frutas Gómez' },
 		];
 		const { slices } = computeDonutSlices(input, RADIUS);
-		expect(slices[0].supplierName).toBe('Frutas Gómez');
-		expect(slices[0].pct).toBe(1);
+		expect(slices[0]!.supplierName).toBe('Frutas Gómez');
+		expect(slices[0]!.pct).toBe(1);
 	});
 });
 

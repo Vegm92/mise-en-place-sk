@@ -224,17 +224,17 @@ export interface ExtractedInvoice {
 	tax_breakdown: Array<{ rate: number; base: number; tax_amount: number; type?: 'iva' | 'rec' }> | null;
 	confidence: number;
 	field_confidences?: {
-		supplier_name?: number;
-		supplier_nif?: number;
-		supplier_category?: number;
-		receiver_name?: number;
-		receiver_nif?: number;
-		invoice_number?: number;
-		document_type?: number;
-		invoice_date?: number;
-		due_date?: number;
-		total_amount?: number;
-		iban?: number;
+		supplier_name?: number | undefined;
+		supplier_nif?: number | undefined;
+		supplier_category?: number | undefined;
+		receiver_name?: number | undefined;
+		receiver_nif?: number | undefined;
+		invoice_number?: number | undefined;
+		document_type?: number | undefined;
+		invoice_date?: number | undefined;
+		due_date?: number | undefined;
+		total_amount?: number | undefined;
+		iban?: number | undefined;
 	};
 	line_items: Array<{
 		description: string;
@@ -440,7 +440,7 @@ export function sanitizeExtractedInvoice(invoice: ExtractedInvoice): ExtractedIn
 		payment_method: isValidPaymentMethod(invoice.payment_method) ? invoice.payment_method : null,
 		iban,
 		payment_terms: sanitizeFreeText(invoice.payment_terms, MAX_PAYMENT_TERMS_LENGTH),
-		field_confidences: fieldConfidences,
+		...(fieldConfidences !== undefined ? { field_confidences: fieldConfidences } : {}),
 		invoice_number: sanitizeFreeText(invoice.invoice_number, MAX_INVOICE_NUMBER_LENGTH),
 		purchase_order: sanitizeFreeText(invoice.purchase_order, MAX_PURCHASE_ORDER_LENGTH),
 		seller_name: sanitizeFreeText(invoice.seller_name, MAX_SUPPLIER_NAME_LENGTH),

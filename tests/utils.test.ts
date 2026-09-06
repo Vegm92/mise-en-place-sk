@@ -81,18 +81,18 @@ describe('initRows', () => {
 			{ description: 'Aceite', quantity: 5, unit: 'L', unit_price: 3.5 },
 		]);
 		expect(rows).toHaveLength(1);
-		expect(rows[0].quantity).toBe('5');
-		expect(rows[0].unit_price).toBe('3.50');
+		expect(rows[0]!.quantity).toBe('5');
+		expect(rows[0]!.unit_price).toBe('3.50');
 	});
 	it('returns a single empty row for empty input', () => {
 		const rows = initRows([]);
 		expect(rows).toHaveLength(1);
-		expect(rows[0].description).toBe('');
+		expect(rows[0]!.description).toBe('');
 	});
 	it('handles null fields gracefully', () => {
 		const rows = initRows([{ description: null, quantity: null, unit: null, unit_price: null }]);
-		expect(rows[0].description).toBe('');
-		expect(rows[0].quantity).toBe('');
+		expect(rows[0]!.description).toBe('');
+		expect(rows[0]!.quantity).toBe('');
 	});
 });
 
@@ -114,8 +114,8 @@ describe('removeRow', () => {
 		];
 		const next = removeRow(rows, 1);
 		expect(next).toHaveLength(2);
-		expect(next[0].description).toBe('A');
-		expect(next[1].description).toBe('C');
+		expect(next[0]!.description).toBe('A');
+		expect(next[1]!.description).toBe('C');
 	});
 	it('does not mutate the original array', () => {
 		const rows = [makeEmptyRow(), makeEmptyRow()];
@@ -128,13 +128,13 @@ describe('updateRow', () => {
 	it('applies a partial patch to the row at the given index', () => {
 		const rows = [makeEmptyRow(), makeEmptyRow()];
 		const next = updateRow(rows, 0, { quantity: '10', unit_price: '2.5' });
-		expect(next[0].quantity).toBe('10');
-		expect(next[0].unit_price).toBe('2.5');
-		expect(next[1].quantity).toBe(''); // unchanged
+		expect(next[0]!.quantity).toBe('10');
+		expect(next[0]!.unit_price).toBe('2.5');
+		expect(next[1]!.quantity).toBe(''); // unchanged
 	});
 	it('does not mutate the original array', () => {
 		const rows = [makeEmptyRow()];
 		updateRow(rows, 0, { description: 'changed' });
-		expect(rows[0].description).toBe('');
+		expect(rows[0]!.description).toBe('');
 	});
 });

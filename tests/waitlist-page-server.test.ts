@@ -47,7 +47,7 @@ describe('/waitlist load — sets the mep_attr cookie', () => {
 		await load(loadEvent('https://mise-place.com/waitlist?utm_source=x&utm_campaign=y', { cookies }));
 
 		expect(cookies.set).toHaveBeenCalledOnce();
-		const [name, value, opts] = cookies.set.mock.calls[0];
+		const [name, value, opts] = cookies.set.mock.calls[0]!;
 		expect(name).toBe('mep_attr');
 		expect(JSON.parse(value)).toMatchObject({ source: 'x', campaign: 'y', landingPath: '/waitlist' });
 		expect(opts).toMatchObject({ path: '/', httpOnly: true, sameSite: 'lax' });
@@ -83,7 +83,7 @@ describe('/waitlist load — sets the mep_attr cookie', () => {
 		const cookies = fakeCookies({ mep_attr: EXISTING_ATTR });
 		await load(loadEvent('https://mise-place.com/waitlist?utm_source=facebook', { cookies }));
 		expect(cookies.set).toHaveBeenCalledOnce();
-		const value = cookies.set.mock.calls[0][1];
+		const value = cookies.set.mock.calls[0]![1];
 		expect(JSON.parse(value)).toMatchObject({ source: 'facebook' });
 	});
 });
@@ -96,7 +96,7 @@ describe('/waitlist join action — persists attribution from the cookie', () =>
 		});
 		const cookies = fakeCookies({ mep_attr: cookieValue });
 
-		const result = await actions.join(joinEvent('chef@example.com', cookies));
+		const result = await actions.join!(joinEvent('chef@example.com', cookies));
 
 		expect(result).toEqual({ success: true });
 		expect(insertWaitlistEmailMock).toHaveBeenCalledWith(
@@ -107,7 +107,7 @@ describe('/waitlist join action — persists attribution from the cookie', () =>
 
 	it('passes empty attribution when there is no cookie', async () => {
 		const cookies = fakeCookies();
-		await actions.join(joinEvent('chef@example.com', cookies));
+		await actions.join!(joinEvent('chef@example.com', cookies));
 		expect(insertWaitlistEmailMock).toHaveBeenCalledWith(
 			'chef@example.com',
 			expect.objectContaining({ source: null, campaign: null }),
@@ -121,7 +121,7 @@ describe('/waitlist join action — persists attribution from the cookie', () =>
 				referrer: null, landingPath: '/waitlist', referredBy: null,
 			}),
 		});
-		await actions.join(joinEvent('chef@example.com', cookies));
+		await actions.join!(joinEvent('chef@example.com', cookies));
 		expect(trackAnonymousEventMock).toHaveBeenCalledWith(
 			'waitlist_joined',
 			expect.objectContaining({ source: 'google', campaign: 'y' }),
@@ -131,7 +131,7 @@ describe('/waitlist join action — persists attribution from the cookie', () =>
 	it('does not track a funnel event for an already-registered email', async () => {
 		insertWaitlistEmailMock.mockResolvedValueOnce(false);
 		const cookies = fakeCookies();
-		const result = await actions.join(joinEvent('chef@example.com', cookies));
+		const result = await actions.join!(joinEvent('chef@example.com', cookies));
 		expect(result).toEqual({ success: true, alreadyRegistered: true });
 		expect(trackAnonymousEventMock).not.toHaveBeenCalled();
 	});

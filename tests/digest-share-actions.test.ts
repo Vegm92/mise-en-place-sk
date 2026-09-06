@@ -39,16 +39,16 @@ describeDb('digest share create/revoke actions (issue #329)', () => {
 
 	it('rejects a missing tenant', async () => {
 		const { actions } = await import('../src/routes/(app)/reports/[type]/+page.server');
-		const result = await actions.share(event(null));
+		const result = await actions.share!(event(null));
 		expect(result).toMatchObject({ status: 401 });
 	});
 
 	it('creates a token on first share and reuses it on a second call (same week)', async () => {
 		const { actions } = await import('../src/routes/(app)/reports/[type]/+page.server');
-		const first = await actions.share(event(ridA)) as { shareToken: string; shareWeek: string };
+		const first = await actions.share!(event(ridA)) as { shareToken: string; shareWeek: string };
 		expect(first.shareToken).toBeTruthy();
 
-		const second = await actions.share(event(ridA)) as { shareToken: string };
+		const second = await actions.share!(event(ridA)) as { shareToken: string };
 		expect(second.shareToken).toBe(first.shareToken);
 
 		const rows = await testSql`SELECT token FROM digest_shares WHERE restaurant_id = ${ridA} AND revoked_at IS NULL`;
@@ -57,10 +57,10 @@ describeDb('digest share create/revoke actions (issue #329)', () => {
 
 	it('revoking sets revoked_at and the token 404s (resolves null) afterwards', async () => {
 		const { actions } = await import('../src/routes/(app)/reports/[type]/+page.server');
-		const created = await actions.share(event(ridB)) as { shareToken: string };
+		const created = await actions.share!(event(ridB)) as { shareToken: string };
 		expect(await resolveShareToken(created.shareToken)).not.toBeNull();
 
-		const revoked = await actions.revokeShare(event(ridB)) as { shareRevoked: boolean };
+		const revoked = await actions.revokeShare!(event(ridB)) as { shareRevoked: boolean };
 		expect(revoked.shareRevoked).toBe(true);
 		expect(await resolveShareToken(created.shareToken)).toBeNull();
 	});
@@ -70,7 +70,7 @@ describeDb('digest share create/revoke actions (issue #329)', () => {
 		const rows = await testSql`SELECT token FROM digest_shares WHERE restaurant_id = ${ridB} ORDER BY created_at DESC LIMIT 1`;
 		const revokedToken = rows[0]?.token as string;
 
-		const fresh = await actions.share(event(ridB)) as { shareToken: string };
+		const fresh = await actions.share!(event(ridB)) as { shareToken: string };
 		expect(fresh.shareToken).not.toBe(revokedToken);
 		expect(await resolveShareToken(fresh.shareToken)).not.toBeNull();
 	});

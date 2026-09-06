@@ -37,7 +37,7 @@ type Rgb = [number, number, number];
 
 function relLuminance([r, g, b]: Rgb): number {
 	const [R, G, B] = [r, g, b].map(srgbToLinear);
-	return 0.2126 * R + 0.7152 * G + 0.0722 * B;
+	return 0.2126 * R! + 0.7152 * G! + 0.0722 * B!;
 }
 
 function contrastRatio(a: Rgb, b: Rgb): number {
@@ -54,7 +54,7 @@ function hexToRgb(hex: string): Rgb {
 }
 
 function compositeOver(fg: Rgb, alpha: number, bg: Rgb): Rgb {
-	return fg.map((c, i) => c * alpha + bg[i] * (1 - alpha)) as Rgb;
+	return fg.map((c, i) => c * alpha + bg[i]! * (1 - alpha)) as Rgb;
 }
 
 /** Text painted in `hex` at full opacity, sitting on `hex` composited at
@@ -75,7 +75,7 @@ function fillRatio(hex: string, surfaceHex: string): number {
  *  CSS text (already narrowed to one `{ … }` rule). */
 function token(block: string, name: string): string {
 	const hex = block.match(new RegExp(`--${name}:\\s*(#[0-9a-fA-F]{6})`));
-	if (hex) return hex[1];
+	if (hex) return hex[1]!;
 	const rgba = block.match(
 		new RegExp(`--${name}:\\s*rgba\\(\\s*[^)]+\\)`),
 	);
@@ -284,10 +284,10 @@ describe('fg-3 vs fg-4 on --mep-surface — account-menu locale hint (#719)', ()
 		for (const [block, surfaces] of cases) {
 			const raw = block.match(/--mep-border-input:\s*rgba\(([^)]+)\)/);
 			expect(raw, '--mep-border-input not found').toBeTruthy();
-			const [r, g, b, a] = raw![1].split(',').map((n) => Number(n.trim()));
+			const [r, g, b, a] = raw![1]!.split(',').map((n) => Number(n.trim()));
 			for (const name of surfaces) {
 				const bg = hexToRgb(token(block, name));
-				const composited = compositeOver([r, g, b], a, bg);
+				const composited = compositeOver([r!, g!, b!], a!, bg);
 				expect(contrastRatio(composited, bg)).toBeGreaterThanOrEqual(3);
 			}
 		}

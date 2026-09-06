@@ -48,7 +48,7 @@ async function newRecipe(rid: string, name: string) {
 		VALUES (${rid}, ${name}, ${normalizeProductKey(name)}, 'plato', 'draft', '4')
 		RETURNING id
 	`;
-	return Number(row.id);
+	return Number(row!.id);
 }
 
 async function recipeName(id: number) {

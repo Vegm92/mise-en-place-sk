@@ -48,7 +48,7 @@ describe.skipIf(!hasDbEnv)('applyExtractedAllergens against a real database', ()
 			INSERT INTO products (restaurant_id, canonical_name, name_key)
 			VALUES (${rid}, 'Merluza', 'merluza') RETURNING id
 		`;
-		productId = Number(row.id);
+		productId = Number(row!.id);
 	});
 
 	afterAll(async () => {

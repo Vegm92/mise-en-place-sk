@@ -217,7 +217,7 @@ describe('/batch/[id] — batch contents must belong to the caller', () => {
 const { actions: batchActions } = await import('../src/routes/(app)/batch/[id]/+page.server');
 const ACTION_NAMES = Object.keys(batchActions);
 const runAction = (name: string, event: unknown) =>
-	(batchActions as Record<string, (e: never) => Promise<unknown>>)[name](event as never);
+	(batchActions as Record<string, (e: never) => Promise<unknown>>)[name]!(event as never);
 
 /** The redirect requireOwnedBatch() itself throws, as opposed to any redirect. */
 const GUARD_LOCATION = '/?error=upload.err.sessionNotFound';

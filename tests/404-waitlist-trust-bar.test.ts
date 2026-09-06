@@ -43,7 +43,7 @@ const TRUST_BAR_KEYS = [
 ];
 
 function tr(loc: Locale, key: string): string {
-	return (translations[loc] as Record<string, string>)[key];
+	return (translations[loc] as Record<string, string>)[key]!;
 }
 
 import { assertSectionUsesTokens } from './helpers/extract-section';
@@ -85,7 +85,7 @@ describe('LandingPage.svelte renders the trust bar between the FAQ and the final
 
 	it('renders exactly three trust-bar items (no 4th unsourced stat)', () => {
 		const block = PAGE_SRC.match(/const trustBarItems = \$derived\(\[([\s\S]*?)\]\);/)![1];
-		const count = (block.match(/\.label'\)/g) ?? []).length;
+		const count = (block!.match(/\.label'\)/g) ?? []).length;
 		expect(count).toBe(3);
 	});
 

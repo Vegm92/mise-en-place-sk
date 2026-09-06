@@ -112,12 +112,12 @@ describe('bandsFromInputs', () => {
   it('omits type when the reviewer left it unspecified', () => {
     const [band] = bandsFromInputs([{ rate: '21', type: '', base: '100.00', amount: '21.00' }]);
     expect(band).toEqual({ rate: 0.21, base: 100, tax_amount: 21 });
-    expect('type' in band).toBe(false);
+    expect('type' in band!).toBe(false);
   });
 
   it('ignores an unrecognised type rather than storing it', () => {
     const [band] = bandsFromInputs([{ rate: '21', type: 'irpf', base: '100.00', amount: '21.00' }]);
-    expect('type' in band).toBe(false);
+    expect('type' in band!).toBe(false);
   });
 
   it('drops rows the reviewer left entirely blank', () => {
@@ -212,7 +212,7 @@ describe('bandsFromLines (different products, different rates)', () => {
 
   it('omits type when none is given', () => {
     const [band] = bandsFromLines([{ totalPrice: '100.00', rate: '21' }]);
-    expect('type' in band).toBe(false);
+    expect('type' in band!).toBe(false);
   });
 
   it('returns nothing when no line carries a rate', () => {

@@ -54,11 +54,11 @@ describe('BODY_SIZE_LIMIT is set high enough for the uploads the app accepts', (
 
 	it('is set explicitly in the image — the adapter default of 512K rejects any phone photo', () => {
 		expect(declared, 'Dockerfile no longer sets BODY_SIZE_LIMIT').not.toBeNull();
-		expect(parseAsBytes(declared![1])).toBeGreaterThan(512 * 1024);
+		expect(parseAsBytes(declared![1]!)).toBeGreaterThan(512 * 1024);
 	});
 
 	it('leaves room for a full client-side queue plus multipart overhead', () => {
-		expect(parseAsBytes(declared![1])).toBeGreaterThan(MAX_UPLOAD_TOTAL_BYTES);
+		expect(parseAsBytes(declared![1]!)).toBeGreaterThan(MAX_UPLOAD_TOTAL_BYTES);
 	});
 
 	it('admits at least one file of the advertised maximum size', () => {

@@ -374,8 +374,8 @@ function payers(rows: TenantMrr[]): number {
 function averageMonthlyChurn(history: Map<string, TenantMrr[]>, months: string[]): number | null {
 	const rates: number[] = [];
 	for (let i = 1; i < months.length; i++) {
-		const previous = history.get(months[i - 1]) ?? [];
-		const current = history.get(months[i]) ?? [];
+		const previous = history.get(months[i - 1]!) ?? [];
+		const current = history.get(months[i]!) ?? [];
 		const startCustomers = payers(previous);
 		if (startCustomers === 0) continue;
 		const currentMap = new Map(current.map(r => [r.restaurantId, r.mrrCents]));
@@ -409,7 +409,7 @@ async function acquisitionFunnel(subs: LiveSubscription[]): Promise<{ funnel: Fu
 
 	const funnel = stages.map((stage, i) => ({
 		...stage,
-		dropFromPrevious: i === 0 ? null : Math.max(stages[i - 1].count - stage.count, 0),
+		dropFromPrevious: i === 0 ? null : Math.max((stages[i - 1]?.count ?? 0) - stage.count, 0),
 	}));
 
 	return { funnel, neverActivated: Math.max(signups - activated, 0) };

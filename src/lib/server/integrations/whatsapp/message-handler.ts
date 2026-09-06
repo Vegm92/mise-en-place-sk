@@ -105,7 +105,7 @@ async function resolveJob(
 	}
 
 	const pending = await pendingJobsFor(from);
-	if (pending.length === 1) return pending[0];
+	if (pending.length === 1) return pending[0]!;
 	if (pending.length === 0) {
 		await ctx.sendText(from, 'No tengo ninguna factura esperando confirmación.');
 		return null;

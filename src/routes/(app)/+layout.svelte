@@ -176,7 +176,7 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
   const visibleTourPages = $derived(TOUR_PAGES.filter(p => p.path !== '/budgets' || data.betaFeatures.budgets));
   const tourPages = $derived(visibleTourPages.filter(p => tourPageAccessible(p.path, data.features)));
   const tourIndex = $derived(tourPages.findIndex(p => p.step === tutorialStep.current));
-  const activeTourPage = $derived(tourIndex >= 0 ? tourPages[tourIndex] : null);
+  const activeTourPage = $derived(tourIndex >= 0 ? (tourPages[tourIndex] ?? null) : null);
   const showTourStep = $derived(activeTourPage !== null && curPath === activeTourPage.path);
 
   async function goToTourStep(next: { step: string; path: string }) {
@@ -195,13 +195,13 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
 
   $effect(() => {
     const stored = visibleTourPages.findIndex(p => p.step === tutorialStep.current);
-    if (stored === -1 || tourPageAccessible(visibleTourPages[stored].path, data.features)) return;
+    if (stored === -1 || tourPageAccessible(visibleTourPages[stored]!.path, data.features)) return;
     const nextIdx = nextAccessibleIndex(visibleTourPages, stored + 1, data.features);
     if (nextIdx === -1) {
       setTutorialStep('dismissed');
       return;
     }
-    void goToTourStep(visibleTourPages[nextIdx]);
+    void goToTourStep(visibleTourPages[nextIdx]!);
   });
 
   onMount(() => {
@@ -913,7 +913,7 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
     {#if data.openBatches?.length > 0 && !is('/batch')}
       <div style="flex-shrink:0;padding:10px 20px;background:var(--mep-warn-soft);border-bottom:1px solid var(--mep-warn);display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
         <span style="flex:1;min-width:200px;font-size:13px;color:var(--mep-warn);">{tp('upload.openBatches.warning', data.openBatches.length)}</span>
-        <a href="/batch/{data.openBatches[0].batchId}" class="btn btn-primary" style="height:34px;padding:0 14px;text-decoration:none;flex-shrink:0;">
+        <a href="/batch/{data.openBatches[0]!.batchId}" class="btn btn-primary" style="height:34px;padding:0 14px;text-decoration:none;flex-shrink:0;">
           {t('upload.openBatches.resume')}
         </a>
       </div>
@@ -1018,7 +1018,7 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
             type="button"
             class="btn btn-primary"
             style="flex:1;height:34px;font-size:13px;justify-content:center;"
-            onclick={() => setTutorialStep(tourPages[0].step)}
+            onclick={() => setTutorialStep(tourPages[0]!.step)}
           >
             {t('tour.nudge.accept')}
           </button>

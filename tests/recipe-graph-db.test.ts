@@ -14,7 +14,7 @@ async function newRecipe(rid: string, name: string, kind: string, yieldQty: stri
 		VALUES (${rid}, ${name}, ${name.toLowerCase()}, ${kind}, 'active', '1', ${yieldQty}, ${yieldUnit})
 		RETURNING id
 	`;
-	return Number(row.id);
+	return Number(row!.id);
 }
 
 describe.skipIf(!hasDbEnv)('recipe graph against a real database', () => {

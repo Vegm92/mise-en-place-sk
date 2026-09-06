@@ -56,7 +56,7 @@ describeDb('/analytics/extraction load() — already unwindowed (issue #539)', (
 		`;
 		await testSql`
 			INSERT INTO invoices (restaurant_id, supplier_id, invoice_number, invoice_date, total_amount, status)
-			VALUES (${ridOld}, ${supplier.id}, 'OLD-1', ${oldDate}, 60.00, 'paid')
+			VALUES (${ridOld}, ${supplier!.id}, 'OLD-1', ${oldDate}, 60.00, 'paid')
 		`;
 
 		await testSql`SELECT refresh_analytics_rollups()`;

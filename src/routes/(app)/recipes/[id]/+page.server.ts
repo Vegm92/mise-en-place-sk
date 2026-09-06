@@ -364,9 +364,10 @@ export const actions: Actions = {
 		const linkError = await linkTargetError(rid, id, fields, graph);
 		if (linkError) return fail(422, { error: linkError });
 
-		const [{ top }] = await db.select({ top: sqlMax(recipeItems.sortOrder) })
+		const [topRow] = await db.select({ top: sqlMax(recipeItems.sortOrder) })
 			.from(recipeItems)
 			.where(tdb.scope(recipeItems.restaurantId, eq(recipeItems.recipeId, id)));
+		const top = topRow?.top;
 
 		const [inserted] = await db.insert(recipeItems).values({
 			restaurantId: rid,
@@ -375,7 +376,7 @@ export const actions: Actions = {
 			...fields,
 		}).returning();
 
-		graph.get(id)?.items.push(inserted);
+		if (inserted) graph.get(id)?.items.push(inserted);
 
 		return { ok: 'rec.ok.lineAdded' };
 	},
@@ -408,8 +409,8 @@ export const actions: Actions = {
 		const node = graph.get(id);
 		if (node) {
 			const idx = node.items.findIndex((i) => i.id === itemId);
-			if (idx >= 0) node.items[idx] = updated[0];
-			else node.items.push(updated[0]);
+			if (idx >= 0) node.items[idx] = updated[0]!;
+			else node.items.push(updated[0]!);
 		}
 
 		return { ok: 'rec.ok.saved' };
@@ -470,7 +471,7 @@ export const actions: Actions = {
 					notes: source.notes,
 				}).onConflictDoNothing().returning({ id: recipes.id });
 				if (inserted.length === 0) return;
-				newId = inserted[0].id;
+				newId = inserted[0]!.id;
 
 				const lines = await tx.select().from(recipeItems)
 					.where(tdb.scope(recipeItems.restaurantId, eq(recipeItems.recipeId, id)))

@@ -52,7 +52,7 @@ describe('every variant override key exists in both locale tables', () => {
 		const variant = LANDING_VARIANTS[slug];
 		for (const loc of LOCALES) {
 			it(`${slug} (${loc}) overrides only real waitlist.* keys`, () => {
-				const keys = Object.keys(variant.overrides[loc]);
+				const keys = Object.keys(variant!.overrides[loc]);
 				expect(keys.length).toBeGreaterThan(0);
 				for (const key of keys) {
 					expect(key.startsWith('waitlist.'), key).toBe(true);
@@ -70,8 +70,8 @@ describe('every variant defines the same override keys in es and en', () => {
 	for (const slug of LAUNCH_SLUGS) {
 		it(`${slug}: es and en override the same key set`, () => {
 			const variant = LANDING_VARIANTS[slug];
-			const esKeys = Object.keys(variant.overrides.es).sort();
-			const enKeys = Object.keys(variant.overrides.en).sort();
+			const esKeys = Object.keys(variant!.overrides.es).sort();
+			const enKeys = Object.keys(variant!.overrides.en).sort();
 			expect(enKeys).toEqual(esKeys);
 		});
 	}
@@ -83,7 +83,7 @@ describe('every variant override commits to its niche (differs from the base cop
 			it(`${slug} (${loc}): no override is byte-identical to the base waitlist.* string`, () => {
 				const variant = LANDING_VARIANTS[slug];
 				const base = translations[loc] as Record<string, string>;
-				for (const [key, value] of Object.entries(variant.overrides[loc])) {
+				for (const [key, value] of Object.entries(variant!.overrides[loc])) {
 					expect(value, `${slug}/${loc}/${key} did not change from the base string`).not.toBe(base[key]);
 				}
 			});
@@ -116,7 +116,7 @@ describe('venueTypeForLandingVariant — onboarding venue-type preselection (iss
 
 describe('the menu-del-dia launch copy matches the issue #327 example', () => {
 	it('headline, sub and pain.0.stat match the example given in the issue', () => {
-		const es = LANDING_VARIANTS['menu-del-dia'].overrides.es;
+		const es = LANDING_VARIANTS['menu-del-dia']!.overrides.es;
 		expect(es['waitlist.headline']).toBe('Tu menú vale 13 €. Tu aceite ya no.');
 		expect(es['waitlist.sub']).toBe(
 			'Para cocinas de menú del día: detectamos cada subida de proveedor el mismo día, ' +

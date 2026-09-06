@@ -72,7 +72,7 @@ function parseActionsBlock(raw: string): { text: string; actions: ChatAction[] }
 	if (!match) return { text: raw.trim(), actions: [] };
 	const text = raw.slice(0, raw.lastIndexOf('\nACTIONS:')).trim();
 	try {
-		const parsed = JSON.parse(match[1]);
+		const parsed = JSON.parse(match[1]!);
 		const actions = Array.isArray(parsed) ? parsed.filter(isValidChatAction).slice(0, 2) : [];
 		return { text, actions };
 	} catch {
@@ -103,6 +103,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const [newSession] = await db.insert(chatSessions)
 			.values({ restaurantId: rid, title: titleWords })
 			.returning({ id: chatSessions.id });
+		if (!newSession) throw error(500, 'Failed to create chat session');
 		resolvedSessionId = newSession.id;
 	} else {
 		const updated = await db.update(chatSessions)

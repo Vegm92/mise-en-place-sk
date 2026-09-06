@@ -164,8 +164,8 @@ export function structureFromSignals(
 	if (detectedBy === 'vision' && boundaryConfidence < MIN_VISION_CONFIDENCE) return unclear;
 
 	const spansWholeFile = segments.length === 1
-		&& segments[0].start === 1
-		&& segments[0].end === pageCount;
+		&& segments[0]!.start === 1
+		&& segments[0]!.end === pageCount;
 
 	return {
 		kind: spansWholeFile ? 'single' : 'composite',

@@ -32,14 +32,14 @@ describeDb('sql<number> money aggregates return real numbers, not strings (issue
 		const [supplier] = await testDb.insert(suppliers)
 			.values({ restaurantId, name: 'Proveedor Test' })
 			.returning({ id: suppliers.id });
-		supplierId = supplier.id;
+		supplierId = supplier!.id;
 
 		const [invoice] = await testDb.insert(invoices)
 			.values({ restaurantId, supplierId, invoiceNumber: 'MNH-1', invoiceDate: '2026-01-15', totalAmount: '99.99', status: 'pending' })
 			.returning({ id: invoices.id });
 
 		await testDb.insert(invoiceLineItems).values({
-			restaurantId, invoiceId: invoice.id, description: 'Artículo de prueba',
+			restaurantId, invoiceId: invoice!.id, description: 'Artículo de prueba',
 			quantity: 1, unit: 'ud', unitPrice: '99.99', totalPrice: '99.99',
 		});
 	});
@@ -53,16 +53,16 @@ describeDb('sql<number> money aggregates return real numbers, not strings (issue
 		const [row] = await testSql`
 			SELECT COALESCE(SUM(total_amount), 0) AS total FROM invoices WHERE restaurant_id = ${restaurantId}
 		`;
-		expect(typeof row.total).toBe('string');
-		expect(row.total).toBe('99.99');
+		expect(typeof row!.total).toBe('string');
+		expect(row!.total).toBe('99.99');
 	});
 
 	it('fixed: the same SUM cast ::float8 comes back as a real number', async () => {
 		const [row] = await testSql`
 			SELECT COALESCE(SUM(total_amount), 0)::float8 AS total FROM invoices WHERE restaurant_id = ${restaurantId}
 		`;
-		expect(typeof row.total).toBe('number');
-		expect(row.total).toBe(99.99);
+		expect(typeof row!.total).toBe('number');
+		expect(row!.total).toBe(99.99);
 	});
 
 	it('supplierTotalSpendExpr() (suppliers list "total_spend") returns a real number', async () => {
@@ -72,8 +72,8 @@ describeDb('sql<number> money aggregates return real numbers, not strings (issue
 			.leftJoin(invoices, eq(invoices.supplierId, suppliers.id))
 			.where(eq(suppliers.id, supplierId))
 			.groupBy(suppliers.id);
-		expect(typeof row.total).toBe('number');
-		expect(row.total).toBe(99.99);
+		expect(typeof row!.total).toBe('number');
+		expect(row!.total).toBe(99.99);
 	});
 
 	it('lineAmountExpr() aggregate (dashboard/trend category spend) returns a real number when cast ::float8', async () => {
@@ -81,7 +81,7 @@ describeDb('sql<number> money aggregates return real numbers, not strings (issue
 			.select({ amount: sql<number>`COALESCE(SUM(${lineAmountExpr()}), 0)::float8` })
 			.from(invoiceLineItems)
 			.where(eq(invoiceLineItems.restaurantId, restaurantId));
-		expect(typeof row.amount).toBe('number');
-		expect(row.amount).toBe(99.99);
+		expect(typeof row!.amount).toBe('number');
+		expect(row!.amount).toBe(99.99);
 	});
 });

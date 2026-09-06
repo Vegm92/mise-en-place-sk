@@ -11,7 +11,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	}
 
 	let items = await getBatchItems(params.id);
-	if (!items.length || items[0].restaurantId !== locals.restaurantId) {
+	if (!items.length || items[0]!.restaurantId !== locals.restaurantId) {
 		return json({ error: 'not found' }, { status: 404 });
 	}
 

@@ -40,7 +40,7 @@ afterAll(async () => {
 
 describe.skipIf(!hasDbEnv)('categoryBudgets — upsert and delete', () => {
 	it('inserts a budget for a VALID_CATEGORY', async () => {
-		const cat = VALID_CATEGORIES[0];
+		const cat = VALID_CATEGORIES[0]!;
 		await testDb.insert(categoryBudgets)
 			.values({ restaurantId: rid1, category: cat, month: MONTH, monthlyBudget: '1500.00' })
 			.onConflictDoUpdate({
@@ -52,11 +52,11 @@ describe.skipIf(!hasDbEnv)('categoryBudgets — upsert and delete', () => {
 			.where(and(eq(categoryBudgets.restaurantId, rid1), eq(categoryBudgets.category, cat)));
 
 		expect(rows).toHaveLength(1);
-		expect(rows[0].monthlyBudget).toBe('1500.00');
+		expect(rows[0]!.monthlyBudget).toBe('1500.00');
 	});
 
 	it('updates an existing budget via upsert', async () => {
-		const cat = VALID_CATEGORIES[0];
+		const cat = VALID_CATEGORIES[0]!;
 		await testDb.insert(categoryBudgets)
 			.values({ restaurantId: rid1, category: cat, month: MONTH, monthlyBudget: '2000.00' })
 			.onConflictDoUpdate({
@@ -68,11 +68,11 @@ describe.skipIf(!hasDbEnv)('categoryBudgets — upsert and delete', () => {
 			.where(and(eq(categoryBudgets.restaurantId, rid1), eq(categoryBudgets.category, cat)));
 
 		expect(rows).toHaveLength(1);
-		expect(rows[0].monthlyBudget).toBe('2000.00');
+		expect(rows[0]!.monthlyBudget).toBe('2000.00');
 	});
 
 	it('deletes a budget row when the amount is cleared', async () => {
-		const cat = VALID_CATEGORIES[1];
+		const cat = VALID_CATEGORIES[1]!;
 		await testDb.insert(categoryBudgets)
 			.values({ restaurantId: rid1, category: cat, month: MONTH, monthlyBudget: '800.00' })
 			.onConflictDoUpdate({
@@ -91,7 +91,7 @@ describe.skipIf(!hasDbEnv)('categoryBudgets — upsert and delete', () => {
 	});
 
 	it('duplicate insert is rejected by the unique constraint', async () => {
-		const cat = VALID_CATEGORIES[2];
+		const cat = VALID_CATEGORIES[2]!;
 		await testDb.insert(categoryBudgets)
 			.values({ restaurantId: rid1, category: cat, month: MONTH, monthlyBudget: '500.00' });
 
@@ -121,7 +121,7 @@ describe.skipIf(!hasDbEnv)('categoryBudgets — custom categories', () => {
 			.where(and(eq(categoryBudgets.restaurantId, rid1), eq(categoryBudgets.category, customCat)));
 
 		expect(rows).toHaveLength(1);
-		expect(rows[0].monthlyBudget).toBe('350.00');
+		expect(rows[0]!.monthlyBudget).toBe('350.00');
 	});
 
 	it('custom category appears when merging DB rows with VALID_CATEGORIES', async () => {
@@ -156,7 +156,7 @@ describe.skipIf(!hasDbEnv)('categoryBudgets — custom categories', () => {
 		const [row] = await testDb.select().from(categoryBudgets)
 			.where(and(eq(categoryBudgets.restaurantId, rid1), eq(categoryBudgets.category, customCat)));
 
-		expect(row.monthlyBudget).toBe('500.00');
+		expect(row!.monthlyBudget).toBe('500.00');
 	});
 });
 
@@ -208,8 +208,8 @@ describe.skipIf(!hasDbEnv)('categoryBudgets — multi-tenancy isolation', () => 
 		const [r2row] = await testDb.select().from(categoryBudgets)
 			.where(and(eq(categoryBudgets.restaurantId, rid2), eq(categoryBudgets.category, sharedName)));
 
-		expect(r1row.monthlyBudget).toBe('1000.00');
-		expect(r2row.monthlyBudget).toBe('9999.00');
+		expect(r1row!.monthlyBudget).toBe('1000.00');
+		expect(r2row!.monthlyBudget).toBe('9999.00');
 	});
 
 	it('load scoped to rid1 does not surface rid2 budgets', async () => {
@@ -228,7 +228,7 @@ describe.skipIf(!hasDbEnv)('categoryBudgets — multi-tenancy isolation', () => 
 			.where(and(eq(categoryBudgets.restaurantId, rid2), eq(categoryBudgets.category, sharedName)));
 
 		expect(r2rows).toHaveLength(1);
-		expect(r2rows[0].monthlyBudget).toBe('9999.00');
+		expect(r2rows[0]!.monthlyBudget).toBe('9999.00');
 	});
 });
 

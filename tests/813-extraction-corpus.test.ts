@@ -124,14 +124,14 @@ describe('anonymizeExtraction', () => {
 describe.skipIf(!hasDbEnv)('corpus persistence', () => {
 	it('keeps a confirmed item\'s raw extraction after the 24h sweep deletes its batch (#813)', async () => {
 		const { batchId, itemIds } = await store.createBatch(rid, [{ key: 'ns/corpus-a.pdf', name: 'a.pdf' }]);
-		await store.markQueued(itemIds[0]);
-		await store.markExtracting(itemIds[0]);
-		await store.markDone(itemIds[0], BASELINE, ['nota']);
-		await store.markConfirmed(itemIds[0]);
+		await store.markQueued(itemIds[0]!);
+		await store.markExtracting(itemIds[0]!);
+		await store.markDone(itemIds[0]!, BASELINE, ['nota']);
+		await store.markConfirmed(itemIds[0]!);
 
 		await recordExtractionResult({
 			restaurantId: rid,
-			batchItemId: itemIds[0],
+			batchItemId: itemIds[0]!,
 			fileKey: 'ns/corpus-a.pdf',
 			displayName: 'a.pdf',
 			promptVersion: EXTRACTION_PROMPT_VERSION,
@@ -156,22 +156,22 @@ describe.skipIf(!hasDbEnv)('corpus persistence', () => {
 			SELECT field_confidences FROM extraction_results
 			WHERE file_key = 'ns/corpus-a.pdf' AND prompt_version = ${EXTRACTION_PROMPT_VERSION}
 		`;
-		expect(row.field_confidences).toEqual({ supplier_name: 0.97, total_amount: 0.88 });
+		expect(row!.field_confidences).toEqual({ supplier_name: 0.97, total_amount: 0.88 });
 	});
 
 	it('archives an extraction the worker never recorded rather than letting the sweep destroy it', async () => {
 		const { batchId, itemIds } = await store.createBatch(rid, [{ key: 'ns/corpus-b.pdf', name: 'b.pdf' }]);
-		await store.markQueued(itemIds[0]);
-		await store.markExtracting(itemIds[0]);
-		await store.markDone(itemIds[0], BASELINE, []);
+		await store.markQueued(itemIds[0]!);
+		await store.markExtracting(itemIds[0]!);
+		await store.markDone(itemIds[0]!, BASELINE, []);
 		await backdateBatch(batchId, 25);
 
 		await store.cleanupStaleBatches(fakeStorage());
 
 		const entries = await corpusEntriesForFile(rid, 'ns/corpus-b.pdf', testDb);
 		expect(entries).toHaveLength(1);
-		expect(entries[0].promptVersion).toBe(UNRECORDED_PROMPT_VERSION);
-		expect(entries[0].batchItemId).toBeNull();
+		expect(entries[0]!.promptVersion).toBe(UNRECORDED_PROMPT_VERSION);
+		expect(entries[0]!.batchItemId).toBeNull();
 	});
 
 	it('lists live entries per tenant and groups the corpus by prompt version', async () => {

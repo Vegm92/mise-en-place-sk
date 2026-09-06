@@ -234,7 +234,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → restaurant phone signal (iss
 
 		const notifications = await phoneMismatchNotifications();
 		expect(notifications.length).toBeGreaterThan(0);
-		const payload = notifications[notifications.length - 1].payload as { current?: string; extracted?: string };
+		const payload = notifications[notifications.length - 1]!.payload as { current?: string; extracted?: string };
 		expect(payload.current).toBe('+34 971 00 11 22');
 		expect(payload.extracted).toBe('+34 600 11 22 33');
 	});
@@ -277,7 +277,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → receiver tax id check (issue
 
 		const notifications = await taxIdMismatchNotifications();
 		expect(notifications).toHaveLength(1);
-		const payload = notifications[0].payload as { current?: string; extracted?: string };
+		const payload = notifications[0]!.payload as { current?: string; extracted?: string };
 		expect(payload.current).toBe('B99999997');
 		expect(payload.extracted).toBe('47306879L');
 	});

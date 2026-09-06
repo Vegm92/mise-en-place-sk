@@ -52,7 +52,7 @@ async function nextSortOrder(rid: string, exec: BatchDb): Promise<number> {
 	const tenant = forTenant(rid);
 	const [row] = await exec.select({ total: count() }).from(categories)
 		.where(tenant.scope(categories.restaurantId));
-	return Number(row.total);
+	return Number(row?.total ?? 0);
 }
 
 export async function seedDefaultCategories(rid: string, exec: BatchDb = db): Promise<void> {
@@ -97,6 +97,7 @@ export async function createCategory(rid: string, name: string, exec: BatchDb = 
 				isDefault: false,
 			})
 			.returning();
+		if (!created) throw new Error('insert categories returned no row');
 		return { ok: true, category: created };
 	});
 }
@@ -127,6 +128,7 @@ export async function renameCategory(
 				.set({ name: validated.name, nameKey: validated.key, slug: categorySlug(validated.name) })
 				.where(tenant.scope(categories.restaurantId, eq(categories.id, id)))
 				.returning();
+			if (!updated) return { ok: false as const, reason: 'invalid' as const };
 			return { ok: true, category: updated };
 		});
 		if (!result.ok) return result;

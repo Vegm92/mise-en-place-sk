@@ -124,7 +124,7 @@ export async function dispatchTenantJobs<D extends TenantJobData>(
 				dispatched += ids?.length ?? jobs.length;
 			}
 
-			cursor = page[page.length - 1].id;
+			cursor = page[page.length - 1]!.id;
 			if (page.length < pageSize) break;
 		}
 	} finally {

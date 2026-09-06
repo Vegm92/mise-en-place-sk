@@ -52,7 +52,7 @@ describe('sentry-api fetches against the configured base URL', () => {
 
 		await listUnresolvedIssues(10);
 
-		const [url] = fetchMock.mock.calls[0];
+		const [url] = fetchMock.mock.calls[0]!;
 		expect(url).toBe(
 			'https://de.sentry.io/api/0/organizations/my-org/issues/?query=is:unresolved&sort=freq&limit=10',
 		);
@@ -68,7 +68,7 @@ describe('sentry-api fetches against the configured base URL', () => {
 
 		await listUnresolvedIssues(10);
 
-		const [url] = fetchMock.mock.calls[0];
+		const [url] = fetchMock.mock.calls[0]!;
 		expect(url).toBe(
 			'https://sentry.io/api/0/organizations/my-org/issues/?query=is:unresolved&sort=freq&limit=10',
 		);

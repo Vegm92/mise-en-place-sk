@@ -73,7 +73,7 @@ export async function segmentDocument(
 
 	const files = segmentFiles(source.fileKey, source.displayName, structure.segments);
 	const fresh = files
-		.map((file, index) => ({ file, range: structure.segments[index] }))
+		.map((file, index) => ({ file, range: structure.segments[index]! }))
 		.filter(({ file }) => !deps.existingKeys.has(file.key));
 
 	if (deps.reserve && fresh.length > 0) {
@@ -92,7 +92,7 @@ export async function segmentDocument(
 
 	const buffers = fresh.length ? await splitPdfRanges(source.buffer, fresh.map((f) => f.range)) : [];
 	for (const [index, { file }] of fresh.entries()) {
-		await deps.saveSegment(file.key, buffers[index]);
+		await deps.saveSegment(file.key, buffers[index]!);
 	}
 
 	const itemIds = fresh.length ? await deps.addItems(fresh.map((f) => f.file)) : [];

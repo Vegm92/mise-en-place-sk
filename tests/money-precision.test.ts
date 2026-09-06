@@ -28,7 +28,7 @@ beforeAll(async () => {
 	const [s] = await testDb.insert(suppliers)
 		.values({ restaurantId, name: 'Money Precision Supplier' })
 		.returning({ id: suppliers.id });
-	supplierId = s.id;
+	supplierId = s!.id;
 });
 
 afterAll(async () => {
@@ -50,12 +50,12 @@ describe.skipIf(!hasDbEnv)('numeric(12,2) — large invoice round-trip', () => {
 
 		const [read] = await testDb.select({ totalAmount: invoices.totalAmount })
 			.from(invoices)
-			.where(eq(invoices.id, row.id));
+			.where(eq(invoices.id, row!.id));
 
 		// float4 (the pre-migration `real` type) cannot hold this value's cents
 		// exactly above ~6-7 significant digits — this asserts the exact string
 		// survives, not an approximation.
-		expect(read.totalAmount).toBe('123456.78');
+		expect(read!.totalAmount).toBe('123456.78');
 	});
 
 	it('stores and reads back a value beyond float4 precision (€1,234,567.89)', async () => {
@@ -70,9 +70,9 @@ describe.skipIf(!hasDbEnv)('numeric(12,2) — large invoice round-trip', () => {
 
 		const [read] = await testDb.select({ totalAmount: invoices.totalAmount })
 			.from(invoices)
-			.where(eq(invoices.id, row.id));
+			.where(eq(invoices.id, row!.id));
 
-		expect(read.totalAmount).toBe('1234567.89');
+		expect(read!.totalAmount).toBe('1234567.89');
 	});
 });
 
@@ -98,7 +98,7 @@ describe.skipIf(!hasDbEnv)('numeric(12,2) — SUM over many line items is exact'
 		await testDb.insert(invoiceLineItems).values(
 			lineTotals.map((totalPrice, i) => ({
 				restaurantId,
-				invoiceId: inv.id,
+				invoiceId: inv!.id,
 				description: `Item ${i}`,
 				unitPrice: totalPrice,
 				totalPrice,
@@ -106,11 +106,12 @@ describe.skipIf(!hasDbEnv)('numeric(12,2) — SUM over many line items is exact'
 			})),
 		);
 
-		const [{ sum }] = await testSql<{ sum: string }[]>`
+		const [_sumRow] = await testSql<{ sum: string }[]>`
 			SELECT COALESCE(SUM(total_price), 0)::text AS sum
 			FROM invoice_line_items
-			WHERE invoice_id = ${inv.id}
+			WHERE invoice_id = ${inv!.id}
 		`;
+		const { sum } = _sumRow!;
 
 		expect(sum).toBe(expectedTotal);
 		expect(expectedTotal).toBe('10027.27');

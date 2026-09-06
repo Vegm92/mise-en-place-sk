@@ -24,7 +24,7 @@ function customCategoryColor(category: string): string {
 	const slug = categorySlug(category);
 	let hash = 0;
 	for (let i = 0; i < slug.length; i++) hash = (hash * 31 + slug.charCodeAt(i)) >>> 0;
-	return SERIES_COLORS[hash % SERIES_COLORS.length];
+	return SERIES_COLORS[hash % SERIES_COLORS.length] ?? SERIES_OTHER;
 }
 
 export function categoryColor(category?: string | null): string {

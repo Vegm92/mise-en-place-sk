@@ -111,7 +111,7 @@ describe('tierFromPriceId', () => {
 		const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
 		tierFromPriceId('price_rotated_in_dashboard');
 		expect(spy).toHaveBeenCalledOnce();
-		expect(String(spy.mock.calls[0][0])).toContain('price_rotated_in_dashboard');
+		expect(String(spy.mock.calls[0]![0])).toContain('price_rotated_in_dashboard');
 		spy.mockRestore();
 	});
 
@@ -129,7 +129,7 @@ describe('tierFromPriceId', () => {
 	it('names the configured price ids so the mismatch is diagnosable from the alert', () => {
 		const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
 		tierFromPriceId('price_unconfigured_a');
-		const message = String(spy.mock.calls[0][0]);
+		const message = String(spy.mock.calls[0]![0]);
 		expect(message).toContain('starter=price_starter');
 		expect(message).toContain('pro=price_pro');
 		expect(message).toContain('business=price_business');

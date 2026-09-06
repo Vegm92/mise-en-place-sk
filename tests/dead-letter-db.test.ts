@@ -100,9 +100,9 @@ describe.skipIf(!hasDbEnv)('recordDeadLetter', () => {
 
 		const rows = await listDeadLetters({ queue: QUEUE });
 		expect(rows).toHaveLength(1);
-		expect(rows[0].occurrences).toBe(3);
-		expect(rows[0].attempt).toBe(3);
-		expect(rows[0].lastSeenAt.getTime()).toBeGreaterThanOrEqual(rows[0].firstSeenAt.getTime());
+		expect(rows[0]!.occurrences).toBe(3);
+		expect(rows[0]!.attempt).toBe(3);
+		expect(rows[0]!.lastSeenAt.getTime()).toBeGreaterThanOrEqual(rows[0]!.firstSeenAt.getTime());
 	});
 
 	it('keeps a different failure mode of the same record separate', async () => {
@@ -136,7 +136,7 @@ describe.skipIf(!hasDbEnv)('listing and counting', () => {
 
 	it('joins the tenant name so the audit view names the restaurant', async () => {
 		const [row] = await listDeadLetters({ queue: QUEUE, status: 'pending' });
-		expect(row.restaurantName).toContain('Test Restaurant dlq');
+		expect(row!.restaurantName).toContain('Test Restaurant dlq');
 	});
 
 	it('filters by queue and by status', async () => {
@@ -148,7 +148,7 @@ describe.skipIf(!hasDbEnv)('listing and counting', () => {
 	it('filters by tenant', async () => {
 		const rows = await listDeadLetters({ restaurantId: rid });
 		expect(rows).toHaveLength(1);
-		expect(rows[0].sourceId).toBe('a');
+		expect(rows[0]!.sourceId).toBe('a');
 	});
 
 	it('reports pending vs total per queue for the admin dashboard', async () => {

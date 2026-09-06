@@ -42,8 +42,8 @@ for (const file of walk(SRC)) {
 	for (const m of src.matchAll(/var\(\s*(--mep-[a-z0-9-]+)(\$\{)?/g)) {
 		if (m[2]) continue; // `var(--mep-cat-${slug})` — the name is built, not read
 		const rel = path.relative(ROOT, file);
-		if (!referencedIn.has(m[1])) referencedIn.set(m[1], new Set());
-		referencedIn.get(m[1])!.add(rel);
+		if (!referencedIn.has(m[1]!)) referencedIn.set(m[1]!, new Set());
+		referencedIn.get(m[1]!)!.add(rel);
 	}
 }
 

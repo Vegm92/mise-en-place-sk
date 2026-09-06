@@ -61,7 +61,7 @@ export function parseSupplierName(raw: string): ParsedSupplierName {
 
 	const cleaned = normalizeProductKey(raw);
 	const match = cleaned.match(SPANISH_LEGAL_FORM_RE);
-	const legalForm = match ? match[1].replace(DOTS_SPACES_RE, '') : null;
+	const legalForm = match ? (match[1] ?? '').replace(DOTS_SPACES_RE, '') : null;
 	const base = cleaned
 		.replace(SPANISH_LEGAL_FORM_RE, '')
 		.replace(PUNCT_RE, ' ')

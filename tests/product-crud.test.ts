@@ -23,8 +23,8 @@ beforeAll(async () => {
 	rid = r.id;
 	const [a] = await testSql`INSERT INTO suppliers (restaurant_id, name) VALUES (${rid}, '__prodcrud_supplier_a__') RETURNING id`;
 	const [b] = await testSql`INSERT INTO suppliers (restaurant_id, name) VALUES (${rid}, '__prodcrud_supplier_b__') RETURNING id`;
-	supplierAId = a.id;
-	supplierBId = b.id;
+	supplierAId = a!.id;
+	supplierBId = b!.id;
 });
 
 afterEach(async () => {
@@ -48,7 +48,7 @@ async function makeProduct(canonicalName: string, nameKey: string) {
 		VALUES (${rid}, ${canonicalName}, ${nameKey}, 'kg')
 		RETURNING id
 	`;
-	return p.id as number;
+	return p!.id as number;
 }
 
 describe.skipIf(!hasDbEnv)('resolveUnitConversionAlerts', () => {
@@ -67,8 +67,8 @@ describe.skipIf(!hasDbEnv)('resolveUnitConversionAlerts', () => {
 
 		await resolveUnitConversionAlerts(testDb, rid, productId);
 
-		const [after] = await testSql`SELECT status FROM system_notifications WHERE id = ${notif.id}`;
-		expect(after.status).toBe('sent');
+		const [after] = await testSql`SELECT status FROM system_notifications WHERE id = ${notif!.id}`;
+		expect(after!.status).toBe('sent');
 	});
 
 	it('leaves unrelated pending notifications untouched', async () => {
@@ -86,8 +86,8 @@ describe.skipIf(!hasDbEnv)('resolveUnitConversionAlerts', () => {
 
 		await resolveUnitConversionAlerts(testDb, rid, productId);
 
-		const [after] = await testSql`SELECT status FROM system_notifications WHERE id = ${unrelated.id}`;
-		expect(after.status).toBe('pending');
+		const [after] = await testSql`SELECT status FROM system_notifications WHERE id = ${unrelated!.id}`;
+		expect(after!.status).toBe('pending');
 	});
 });
 
@@ -108,11 +108,11 @@ describe.skipIf(!hasDbEnv)('deleteProduct — unlink-per-supplier flow', () => {
 		`;
 		await testSql`
 			INSERT INTO invoice_line_items (restaurant_id, invoice_id, description, product_id)
-			VALUES (${rid}, ${invA.id}, 'Tomate Pera A', ${productId})
+			VALUES (${rid}, ${invA!.id}, 'Tomate Pera A', ${productId})
 		`;
 		await testSql`
 			INSERT INTO invoice_line_items (restaurant_id, invoice_id, description, product_id)
-			VALUES (${rid}, ${invB.id}, 'Tomate Pera B', ${productId})
+			VALUES (${rid}, ${invB!.id}, 'Tomate Pera B', ${productId})
 		`;
 
 		// Blocked: both suppliers still linked.
@@ -130,10 +130,10 @@ describe.skipIf(!hasDbEnv)('deleteProduct — unlink-per-supplier flow', () => {
 		const stillLinked = await getLinkedSuppliers(testDb, rid, productId);
 		expect(stillLinked).toEqual([{ supplierId: supplierBId, supplierName: '__prodcrud_supplier_b__' }]);
 
-		const [lineA] = await testSql`SELECT product_id FROM invoice_line_items WHERE restaurant_id = ${rid} AND invoice_id = ${invA.id}`;
-		expect(lineA.product_id).toBeNull();
-		const [lineB] = await testSql`SELECT product_id FROM invoice_line_items WHERE restaurant_id = ${rid} AND invoice_id = ${invB.id}`;
-		expect(lineB.product_id).toBe(productId);
+		const [lineA] = await testSql`SELECT product_id FROM invoice_line_items WHERE restaurant_id = ${rid} AND invoice_id = ${invA!.id}`;
+		expect(lineA!.product_id).toBeNull();
+		const [lineB] = await testSql`SELECT product_id FROM invoice_line_items WHERE restaurant_id = ${rid} AND invoice_id = ${invB!.id}`;
+		expect(lineB!.product_id).toBe(productId);
 
 		// Still blocked — supplier B remains.
 		const stillBlocked = await deleteProduct(testDb, rid, productId);

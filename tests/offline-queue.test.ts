@@ -71,7 +71,7 @@ describe('sweepExpiredEntries', () => {
 
 		expect(result.dropped).toBe(1);
 		expect(result.remaining).toHaveLength(1);
-		expect(result.remaining[0].name).toBe('recent.pdf');
+		expect(result.remaining[0]!.name).toBe('recent.pdf');
 		expect(await queueCount(storage)).toBe(1);
 	});
 
@@ -227,10 +227,10 @@ describe('enqueueFiles', () => {
 		await enqueueFiles(storage, [file], Date.now());
 
 		const [record] = (await storage.getAll()) as OfflineQueueRecord[];
-		expect(record.blob).toBeInstanceOf(Blob);
-		expect('data' in record).toBe(false);
-		expect(record.attempts).toBe(0);
-		expect(record.nextRetryAt).toBe(0);
+		expect(record!.blob).toBeInstanceOf(Blob);
+		expect('data' in record!).toBe(false);
+		expect(record!.attempts).toBe(0);
+		expect(record!.nextRetryAt).toBe(0);
 	});
 });
 

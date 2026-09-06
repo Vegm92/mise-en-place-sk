@@ -140,7 +140,7 @@ describe('tenantPage', () => {
 		state.tenants = tenants(10);
 
 		const first = await tenantPage(null, 4);
-		const second = await tenantPage(first[first.length - 1].id, 4);
+		const second = await tenantPage(first[first.length - 1]!.id, 4);
 
 		expect(first.map(t => t.id)).toEqual(['rest-00000', 'rest-00001', 'rest-00002', 'rest-00003']);
 		expect(second.map(t => t.id)).toEqual(['rest-00004', 'rest-00005', 'rest-00006', 'rest-00007']);
@@ -168,8 +168,8 @@ describe('dispatchTenantJobs', () => {
 
 		expect(result).toEqual({ scanned: 3, considered: 3, dispatched: 3 });
 		expect(inserts).toHaveLength(1);
-		expect(inserts[0].queue).toBe('tenant-test');
-		expect(inserts[0].jobs[0]).toMatchObject({
+		expect(inserts[0]!.queue).toBe('tenant-test');
+		expect(inserts[0]!.jobs[0]).toMatchObject({
 			data: { restaurantId: 'rest-00000' },
 			singletonKey: 'rest-00000',
 			deadLetter: 'tenant-test-dead-letter',
@@ -186,7 +186,7 @@ describe('dispatchTenantJobs', () => {
 		expect(state.queries).toHaveLength(Math.ceil(5_000 / TENANT_PAGE_SIZE) + 1);
 		expect(state.queries.every(q => q.limit === TENANT_PAGE_SIZE)).toBe(true);
 		expect(inserts.every(i => i.jobs.length <= TENANT_PAGE_SIZE)).toBe(true);
-		expect(state.queries[1].afterId).toBe(`rest-${String(TENANT_PAGE_SIZE - 1).padStart(5, '0')}`);
+		expect(state.queries[1]!.afterId).toBe(`rest-${String(TENANT_PAGE_SIZE - 1).padStart(5, '0')}`);
 	});
 
 	it('stops as soon as a page comes back short', async () => {
@@ -210,7 +210,7 @@ describe('dispatchTenantJobs', () => {
 		});
 
 		expect(result).toEqual({ scanned: 4, considered: 1, dispatched: 1 });
-		expect(inserts[0].jobs.map(j => j.data.restaurantId)).toEqual(['rest-00001']);
+		expect(inserts[0]!.jobs.map(j => j.data.restaurantId)).toEqual(['rest-00001']);
 	});
 
 	it('counts a job pg-boss deduped as not dispatched', async () => {
@@ -231,7 +231,7 @@ describe('dispatchTenantJobs', () => {
 
 		await expect(dispatchTenantJobs(boss as unknown as PgBoss, SPEC)).rejects.toThrow('connection reset');
 
-		expect(JSON.parse(state.writes[0].value)).toMatchObject({ scanned: 400, considered: 400, dispatched: 200 });
+		expect(JSON.parse(state.writes[0]!.value)).toMatchObject({ scanned: 400, considered: 400, dispatched: 200 });
 	});
 
 	it('records the run so a dispatch that covered half the tenants is visible', async () => {
@@ -241,8 +241,8 @@ describe('dispatchTenantJobs', () => {
 		await dispatchTenantJobs(boss, SPEC);
 
 		expect(state.writes).toHaveLength(1);
-		expect(state.writes[0].key).toBe('job_run:test-job');
-		expect(JSON.parse(state.writes[0].value)).toMatchObject({ scanned: 2, considered: 2, dispatched: 2 });
+		expect(state.writes[0]!.key).toBe('job_run:test-job');
+		expect(JSON.parse(state.writes[0]!.value)).toMatchObject({ scanned: 2, considered: 2, dispatched: 2 });
 	});
 });
 
@@ -264,7 +264,7 @@ describe('registerTenantFanout', () => {
 		const created: Array<{ name: string; options?: Record<string, unknown> }> = [];
 		const workers: Record<string, { options: Record<string, unknown>; handler: (jobs: unknown[]) => Promise<unknown> }> = {};
 		const boss = {
-			createQueue: vi.fn(async (name: string, options?: Record<string, unknown>) => { created.push({ name, options }); }),
+			createQueue: vi.fn(async (name: string, options?: Record<string, unknown>) => { created.push({ name, ...(options ? { options } : {}) }); }),
 			updateQueue: vi.fn(async () => {}),
 			work: vi.fn(async (name: string, options: Record<string, unknown>, handler: (jobs: unknown[]) => Promise<unknown>) => {
 				workers[name] = { options, handler };
@@ -284,8 +284,8 @@ describe('registerTenantFanout', () => {
 		await registerTenantFanout(boss, { queue: 'tenant-test', label: 'test-job', run: async () => true });
 
 		expect(created.map(c => c.name)).toEqual(['tenant-test-dead-letter', 'tenant-test']);
-		expect(created[1].options).toMatchObject({ policy: 'short', deadLetter: 'tenant-test-dead-letter' });
-		expect(workers['tenant-test'].options).toMatchObject({ perJobResults: true, includeMetadata: true });
+		expect(created[1]!.options).toMatchObject({ policy: 'short', deadLetter: 'tenant-test-dead-letter' });
+		expect(workers['tenant-test']!.options).toMatchObject({ perJobResults: true, includeMetadata: true });
 		expect(workers['tenant-test-dead-letter']).toBeDefined();
 	});
 
@@ -304,7 +304,7 @@ describe('registerTenantFanout', () => {
 			},
 		});
 
-		const results = await workers['tenant-test'].handler([
+		const results = await workers['tenant-test']!.handler([
 			job('job-1', 'rest-1'),
 			job('job-2', 'rest-2'),
 			job('job-3', 'rest-3'),
@@ -340,7 +340,7 @@ describe('registerTenantFanout', () => {
 			},
 		});
 
-		await workers['tenant-test'].handler([
+		await workers['tenant-test']!.handler([
 			job('job-1', 'rest-slow'),
 			job('job-2', 'rest-fast-1'),
 			job('job-3', 'rest-fast-2'),

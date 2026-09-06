@@ -19,7 +19,7 @@ export async function dismissNotification(
 ): Promise<void> {
 	const index = items.findIndex((n) => n.id === id);
 	if (index < 0) return;
-	const removed = items[index];
+	const removed = items[index]!;
 	const next = items.filter((n) => n.id !== id);
 	apply(next);
 	const resp = await postJson('/api/notifications', { id });
