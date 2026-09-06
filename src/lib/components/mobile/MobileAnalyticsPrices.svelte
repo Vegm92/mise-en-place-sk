@@ -68,14 +68,6 @@
     try { return new Date(d).toLocaleDateString(locale.current, { day: '2-digit', month: 'short' }); }
     catch { return d; }
   }
-  function chipBg(pct: number | null) {
-    if (pct === null || Math.abs(pct) < 0.01) return 'var(--mep-hover)';
-    return pct > 0 ? 'var(--mep-neg-soft)' : 'var(--mep-pos-soft)';
-  }
-  function chipFg(pct: number | null) {
-    if (pct === null || Math.abs(pct) < 0.01) return 'var(--mep-fg-3)';
-    return pct > 0 ? 'var(--mep-neg)' : 'var(--mep-pos)';
-  }
   function arrow(pct: number | null) {
     if (pct === null || Math.abs(pct) < 0.01) return '—';
     return pct > 0 ? '↑' : '↓';
@@ -91,7 +83,7 @@
 
 <div style="height: 100%; display: flex; flex-direction: column; overflow: hidden; padding-top: 2px;">
   <div style="padding: 0 18px 10px; position: relative;">
-    <span style="position: absolute; left: 30px; top: 50%; transform: translateY(-50%); color: var(--mep-fg-3); pointer-events: none;">
+    <span class="absolute left-[30px] top-1/2 -translate-y-1/2 text-fg-3 pointer-events-none">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
       </svg>
@@ -149,84 +141,80 @@
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
       <div class="card" style="padding: 12px;">
         <div class="label" style=" margin-bottom: 5px;">{t('prices.tracked')}</div>
-        <div class="num" style="font-size: 20px; font-weight: 600; letter-spacing: -0.4px; line-height: 1.1; color: var(--mep-fg);">
-          {items.length}
-        </div>
-        <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 4px;">{t('prices.inTotal')}</div>
+        <div class="num text-[20px] font-semibold tracking-[-0.4px] leading-[1.1] text-fg">{items.length}</div>
+        <div class="text-[11px] text-fg-3 mt-1">{t('prices.inTotal')}</div>
       </div>
       <div class="card" style="padding: 12px;">
         <div class="label" style=" margin-bottom: 5px;">{t('prices.up')}</div>
-        <div class="num" style="font-size: 20px; font-weight: 600; letter-spacing: -0.4px; line-height: 1.1; color: {totalUp > 0 ? 'var(--mep-neg)' : 'var(--mep-fg)'};">
-          {totalUp}
-        </div>
-        <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 4px;">{totalUp > 0 ? t('prices.upSub') : t('prices.noUp')}</div>
+        <div class="num text-[20px] font-semibold tracking-[-0.4px] leading-[1.1]"
+          class:text-neg={totalUp > 0} class:text-fg={totalUp <= 0}>{totalUp}</div>
+        <div class="text-[11px] text-fg-3 mt-1">{totalUp > 0 ? t('prices.upSub') : t('prices.noUp')}</div>
       </div>
       <div class="card" style="padding: 12px;">
         <div class="label" style=" margin-bottom: 5px;">{t('prices.down')}</div>
-        <div class="num" style="font-size: 20px; font-weight: 600; letter-spacing: -0.4px; line-height: 1.1; color: {totalDown > 0 ? 'var(--mep-pos)' : 'var(--mep-fg)'};">
-          {totalDown}
-        </div>
-        <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 4px;">{totalDown > 0 ? t('prices.downSub') : t('prices.noDown')}</div>
+        <div class="num text-[20px] font-semibold tracking-[-0.4px] leading-[1.1]"
+          class:text-pos={totalDown > 0} class:text-fg={totalDown <= 0}>{totalDown}</div>
+        <div class="text-[11px] text-fg-3 mt-1">{totalDown > 0 ? t('prices.downSub') : t('prices.noDown')}</div>
       </div>
       <div class="card" style="padding: 12px;">
         <div class="label" style=" margin-bottom: 5px;">{t('prices.noChange')}</div>
-        <div class="num" style="font-size: 20px; font-weight: 600; letter-spacing: -0.4px; line-height: 1.1; color: var(--mep-fg);">
-          {totalFlat}
-        </div>
-        <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 4px;">{t('prices.stablePrices')}</div>
+        <div class="num text-[20px] font-semibold tracking-[-0.4px] leading-[1.1] text-fg">{totalFlat}</div>
+        <div class="text-[11px] text-fg-3 mt-1">{t('prices.stablePrices')}</div>
       </div>
     </div>
 
     {#if items.length === 0}
       <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 28px 0; text-align: center;">
-        <p class="body" style="color: var(--mep-fg-3); font-size: 13px; max-width: 260px; margin: 0;">{t('prices.noDataDesc')}</p>
-        <a href="/" style="font-size: 13px; color: var(--mep-acc); text-decoration: none; display: inline-flex; align-items: center; min-height: 44px;">{t('spend.uploadFirst')}</a>
+        <p class="body text-fg-3 text-[13px] max-w-[260px] m-0">{t('prices.noDataDesc')}</p>
+        <a href="/" class="text-[13px] text-acc no-underline inline-flex items-center min-h-[44px]">{t('spend.uploadFirst')}</a>
       </div>
     {:else if filtered.length === 0}
-      <div style="padding: 32px 0; text-align: center; color: var(--mep-fg-3); font-size: 13px;">{t('prices.noResults')}</div>
+      <div class="py-8 text-center text-fg-3 text-[13px]">{t('prices.noResults')}</div>
     {:else}
       <div style="display: flex; flex-direction: column; gap: 8px;">
         {#each filtered as item}
           {@const pct = item.change_pct}
-          {@const flat = pct === null || Math.abs(pct) < 0.01}
+          {@const up   = pct !== null && pct > 0.01}
+          {@const down = pct !== null && pct < -0.01}
+          {@const flat = !up && !down}
           <div class="card" style="padding: 14px;">
             <div style="display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px;">
               <div style="flex: 1; min-width: 0;">
-                <div style="font-size: 13.5px; font-weight: 600; color: var(--mep-fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                <div class="text-[13.5px] font-semibold text-fg overflow-hidden text-ellipsis whitespace-nowrap">
                   {item.description}
                 </div>
-                <div style="font-size: 11.5px; color: var(--mep-fg-3); margin-top: 2px;">{item.supplier_name}</div>
+                <div class="text-[11.5px] text-fg-3 mt-0.5">{item.supplier_name}</div>
               </div>
-              <span class="num" style="
-                font-size: 11px; font-weight: 600; padding: 2px 6px; border-radius: 4px; flex-shrink: 0;
-                background: {chipBg(pct)}; color: {chipFg(pct)};
-                display: inline-flex; align-items: center; gap: 3px;
-              ">
+              <span class="num text-[11px] font-semibold py-px px-1.5 rounded shrink-0 inline-flex items-center gap-[3px]"
+                class:bg-hover={flat} class:text-fg-3={flat}
+                class:bg-neg-soft={up} class:text-neg={up}
+                class:bg-pos-soft={down} class:text-pos={down}
+              >
                 {arrow(pct)} {flat ? '0%' : Math.abs(pct ?? 0).toFixed(1).replace('.', ',') + '%'}
               </span>
             </div>
             <div style="display: flex; align-items: baseline; gap: 8px;">
-              <span class="num" style="font-size: 24px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.5px; line-height: 1;">
+              <span class="num text-[24px] font-semibold text-fg tracking-[-0.5px] leading-none">
                 {fmtPrice(item.latest_price)}
               </span>
               {#if item.unit}
-                <span style="font-size: 12px; color: var(--mep-fg-3);">/ {item.unit}</span>
+                <span class="text-[12px] text-fg-3">/ {item.unit}</span>
               {/if}
               {#if item.latest_normalized_price !== null && item.base_unit}
-                <span class="num" title={t('prices.perBaseHint')} style="font-size: 11px; color: var(--mep-fg-3); border: 1px solid var(--mep-divider); border-radius: 6px; padding: 1px 6px;">
+                <span class="num text-[11px] text-fg-3 border border-divider rounded-md px-1.5 py-px" title={t('prices.perBaseHint')}>
                   {fmtPrice(item.latest_normalized_price)}/{item.base_unit}
                 </span>
               {/if}
               {#if item.prev_price !== null && !flat}
-                <span class="num" style="margin-left: auto; font-size: 12.5px; color: var(--mep-fg-3); text-decoration: line-through;">
+                <span class="num ml-auto text-[12.5px] text-fg-3 line-through">
                   {fmtPrice(item.prev_price)}
                 </span>
               {/if}
             </div>
-            <div style="margin-top: 6px; font-size: 11px; color: var(--mep-fg-3);">
-              {t('prices.latest')}: <span class="num" style="color: var(--mep-fg-2);">{fmtDate(item.latest_date)}</span>
+            <div class="mt-1.5 text-[11px] text-fg-3">
+              {t('prices.latest')}: <span class="num text-fg-2">{fmtDate(item.latest_date)}</span>
               {#if item.prev_date}
-                · {t('prices.previous')}: <span class="num" style="color: var(--mep-fg-2);">{fmtDate(item.prev_date)}</span>
+                · {t('prices.previous')}: <span class="num text-fg-2">{fmtDate(item.prev_date)}</span>
               {/if}
             </div>
           </div>
