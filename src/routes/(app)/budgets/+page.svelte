@@ -58,23 +58,23 @@
     <div class="card" style="padding:18px 20px;flex-shrink:0;" data-coach="budgets-main">
       <div class="label" style="margin-bottom:6px;text-transform:capitalize;">{monthLabel} · {t('bud.atDay')} {today}</div>
       <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
-        <div class="num" style="font-size:32px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.7px;line-height:1;">
+        <div class="num text-[32px] font-semibold text-fg tracking-[-0.7px] leading-none">
           {fmtEur(totalSpent, locale.current)}
         </div>
-        <div style="font-size:13px;color:var(--mep-fg-3);">
-          {t('bud.of')} <span class="num" style="color:var(--mep-fg-2);font-weight:500;">{fmtEur(totalLimit, locale.current)}</span>
+        <div class="text-[13px] text-fg-3">
+          {t('bud.of')} <span class="num text-fg-2 font-medium">{fmtEur(totalLimit, locale.current)}</span>
         </div>
-        <span style="font-size:11px;color:var(--mep-fg-4);">{t('bud.exVat')}</span>
+        <span class="text-[11px] text-fg-4">{t('bud.exVat')}</span>
       </div>
       {#if totalLimit > 0}
-        <div style="height:8px;border-radius:4px;background:var(--mep-surface-2);overflow:hidden;display:flex;">
+        <div class="h-2 rounded bg-surface-2 overflow-hidden flex">
           {#each rows as r}
             {#if r.limit > 0}
-              <span style="width:{(r.spent / totalLimit) * 100}%;height:100%;background:{r.color};border-right:1px solid var(--mep-bg);flex-shrink:0;"></span>
+              <span class="h-full shrink-0 border-r border-bg" style="width:{(r.spent / totalLimit) * 100}%;background:{r.color};"></span>
             {/if}
           {/each}
         </div>
-        <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--mep-fg-3);margin-top:8px;">
+        <div class="flex justify-between text-[11.5px] text-fg-3 mt-2">
           <span>
             <span class="num" style="color:{semColor(totalPct)};font-weight:600;">{totalPct.toFixed(1).replace('.',',')}%</span>
             {t('bud.used')} · {t('bud.projectionClose')} {totalProjectedPct.toFixed(0)}% {t('bud.atClose')} · {t('bud.colPlan')} <span class="num">{fmtEur(totalPlan, locale.current)}</span>
@@ -82,15 +82,15 @@
           <span class="num">{fmtEur(totalLimit - totalSpent, locale.current)} {t('bud.remaining')}</span>
         </div>
       {:else}
-        <div style="font-size:13px;color:var(--mep-fg-3);">{t('bud.emptyDesktop')}</div>
+        <div class="text-[13px] text-fg-3">{t('bud.emptyDesktop')}</div>
       {/if}
     </div>
 
     <div class="card" style="padding:0;overflow:hidden;flex:1;display:flex;flex-direction:column;">
-      <div style="padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--mep-divider);flex-shrink:0;">
+      <div class="px-4 py-3 flex items-center justify-between border-b border-divider shrink-0">
         <div>
           <div class="subtitle">{t('bud.tableTitle')}</div>
-          <div style="font-size:12px;color:var(--mep-fg-3);margin-top:2px;">{t('bud.tableSub')}</div>
+          <div class="text-[12px] text-fg-3 mt-0.5">{t('bud.tableSub')}</div>
         </div>
       </div>
 
@@ -117,12 +117,12 @@
                   <td>
                     <div style="display:flex;align-items:center;gap:8px;">
                       <span style="width:14px;height:14px;border-radius:3px;background:{r.color};flex-shrink:0;"></span>
-                      <span style="font-size:13px;font-weight:500;color:var(--mep-fg);">{tcat(r.cat)}</span>
+                      <span class="text-[13px] font-medium text-fg">{tcat(r.cat)}</span>
                     </div>
                   </td>
                   <td class="num">
                     {#if isPastMonth}
-                      <div class="num" style="height:30px;font-size:12.5px;width:130px;text-align:right;display:flex;align-items:center;justify-content:flex-end;padding:0 8px;background:var(--mep-surface-2);border-bottom:1px solid var(--mep-divider);color:var(--mep-fg-2);">
+                      <div class="num h-[30px] text-[12.5px] w-[130px] text-right flex items-center justify-end px-2 bg-surface-2 border-b border-divider text-fg-2">
                         {r.limit > 0 ? r.limit : t('bud.noLimit')}
                       </div>
                     {:else}
@@ -134,38 +134,36 @@
                         style="height:30px;width:130px;text-align:right;" />
                     {/if}
                   </td>
-                  <td class="num" style="color:var(--mep-fg-2);">{fmtEur(r.spent, locale.current)}</td>
-                  <td class="num" style="color:{r.limit > 0 && r.remaining < 0 ? 'var(--mep-neg)' : 'var(--mep-fg-2)'};font-weight:{r.limit > 0 && r.remaining < 0 ? 500 : 400};">
+                  <td class="num text-fg-2">{fmtEur(r.spent, locale.current)}</td>
+                  <td class="num" class:text-neg={r.limit > 0 && r.remaining < 0} class:text-fg-2={!(r.limit > 0 && r.remaining < 0)} class:font-medium={r.limit > 0 && r.remaining < 0}>
                     {r.limit > 0 ? fmtEur(r.remaining, locale.current) : '—'}
                   </td>
                   <td>
                     {#if r.limit > 0}
-                      <div style="position:relative;height:8px;border-radius:4px;background:var(--mep-surface-2);overflow:visible;">
-                        <div style="width:{Math.min(r.pct, 100)}%;height:100%;border-radius:4px;background:{semColor(r.pct)};"></div>
+                      <div class="relative h-2 rounded bg-surface-2 overflow-visible">
+                        <div class="h-full rounded" style="width:{Math.min(r.pct, 100)}%;background:{semColor(r.pct)};"></div>
                         {#if r.pct > 100}
                           <div style="position:absolute;left:100%;top:0;bottom:0;width:{Math.min(r.pct - 100, 40)}%;
                             background:repeating-linear-gradient(45deg,var(--mep-neg),var(--mep-neg) 4px,var(--mep-neg-soft) 4px,var(--mep-neg-soft) 8px);
                             border-radius:0 4px 4px 0;"></div>
                         {/if}
-                        <div style="position:absolute;left:80%;top:-3px;bottom:-3px;width:1.5px;background:var(--mep-fg-3);opacity:0.4;"></div>
+                        <div class="absolute left-[80%] -top-[3px] -bottom-[3px] w-[1.5px] bg-fg-3 opacity-40"></div>
                       </div>
                     {:else}
-                      <span style="font-size:11.5px;color:var(--mep-fg-4);">{t('bud.noBudget')}</span>
+                      <span class="text-[11.5px] text-fg-4">{t('bud.noBudget')}</span>
                     {/if}
                   </td>
-                  <td class="num" style="color:{r.limit > 0 ? semColor(r.pct) : 'var(--mep-fg-3)'};font-weight:600;">
+                  <td class="num font-semibold" class:text-fg-3={r.limit <= 0} style="{r.limit > 0 ? `color:${semColor(r.pct)}` : ''}">
                     {r.limit > 0 ? Math.round(r.pct) + '%' : '—'}
                   </td>
                   <td>
                     {#if r.limit > 0}
-                      <span class="num" style="
-                        font-size:11px;font-weight:500;padding:2px 6px;border-radius:4px;
-                        background:{projOver ? 'var(--mep-neg-soft)' : 'var(--mep-pos-soft)'};
-                        color:{projOver ? 'var(--mep-neg)' : 'var(--mep-pos)'};
-                        display:inline-flex;align-items:center;gap:3px;
-                      ">{projOver ? '↑' : '✓'} {Math.round(r.projected)}%</span>
+                      <span class="num text-[11px] font-medium py-0.5 px-1.5 rounded inline-flex items-center gap-[3px]"
+                        class:bg-neg-soft={projOver} class:text-neg={projOver}
+                        class:bg-pos-soft={!projOver} class:text-pos={!projOver}
+                      >{projOver ? '↑' : '✓'} {Math.round(r.projected)}%</span>
                     {:else}
-                      <span style="color:var(--mep-fg-4);font-size:11.5px;">—</span>
+                      <span class="text-fg-4 text-[11.5px]">—</span>
                     {/if}
                   </td>
                 </tr>
@@ -173,8 +171,8 @@
               {#if !isPastMonth}
                 {#if showAddForm}
                   <tr>
-                    <td colspan={7} style="padding:8px 12px;background:var(--mep-surface-2);">
-                      <div style="display:flex;align-items:center;gap:8px;">
+                    <td colspan={7} class="px-3 py-2 bg-surface-2">
+                      <div class="flex items-center gap-2">
                         <input
                           type="text" maxlength="80"
                           bind:value={newCatName}
@@ -192,9 +190,9 @@
                   </tr>
                 {:else}
                   <tr>
-                    <td colspan={7} style="padding:0;background:var(--mep-surface-2);">
+                    <td colspan={7} class="p-0 bg-surface-2">
                       <button type="button"
-                        style="width:100%;text-align:left;padding:10px 12px;cursor:pointer;color:var(--mep-fg-3);font-size:12.5px;font-weight:500;background:transparent;border:none;font:inherit;display:flex;align-items:center;gap:6px;"
+                        class="w-full text-left px-3 py-2.5 cursor-pointer text-fg-3 text-[12.5px] font-medium bg-transparent border-0 flex items-center gap-1.5 [font:inherit]"
                         onclick={() => showAddForm = true}>
                         <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8">
                           <line x1="6" y1="1" x2="6" y2="11"/><line x1="1" y1="6" x2="11" y2="6"/>
@@ -209,10 +207,10 @@
             {#if totalLimit > 0}
               <tfoot>
                 <tr>
-                  <td style="font-weight:600;color:var(--mep-fg);font-size:13px;padding:12px;">{t('bud.total')}</td>
-                  <td class="num" style="font-weight:600;font-size:13px;">{fmtEur(totalLimit, locale.current)}</td>
-                  <td class="num" style="font-weight:600;font-size:13px;">{fmtEur(totalSpent, locale.current)}</td>
-                  <td class="num" style="font-weight:600;font-size:13px;color:var(--mep-fg-2);">{fmtEur(totalLimit - totalSpent, locale.current)}</td>
+                  <td class="font-semibold text-fg text-[13px] p-3">{t('bud.total')}</td>
+                  <td class="num font-semibold text-[13px]">{fmtEur(totalLimit, locale.current)}</td>
+                  <td class="num font-semibold text-[13px]">{fmtEur(totalSpent, locale.current)}</td>
+                  <td class="num font-semibold text-[13px] text-fg-2">{fmtEur(totalLimit - totalSpent, locale.current)}</td>
                   <td colspan={2} class="num" style="font-weight:600;font-size:13px;color:{semColor(totalPct)};">
                     {totalPct.toFixed(1).replace('.',',')}%
                   </td>
@@ -222,7 +220,7 @@
             {/if}
           </table>
           {#if !isPastMonth}
-            <div style="padding:14px 16px;border-top:1px solid var(--mep-divider);">
+            <div class="px-4 py-3.5 border-t border-divider">
               <button type="submit" class="btn btn-primary" style="height:36px;">{t('bud.save')}</button>
             </div>
           {/if}
@@ -245,23 +243,23 @@
           <div class="label">{t('bud.atDay')} {today}</div>
           </div>
         <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px;flex-wrap:wrap;">
-          <div class="num" style="font-size:30px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.6px;line-height:1;">
+          <div class="num text-[30px] font-semibold text-fg tracking-[-0.6px] leading-none">
             {fmtEur(totalSpent, locale.current)}
           </div>
-          <div style="font-size:12.5px;color:var(--mep-fg-3);">
-            {t('bud.of')} <span class="num" style="color:var(--mep-fg-2);font-weight:500;">{fmtEur(totalLimit, locale.current)}</span>
+          <div class="text-[12.5px] text-fg-3">
+            {t('bud.of')} <span class="num text-fg-2 font-medium">{fmtEur(totalLimit, locale.current)}</span>
           </div>
         </div>
-        <div style="font-size:11px;color:var(--mep-fg-4);margin-bottom:8px;">{t('bud.exVat')}</div>
+        <div class="text-[11px] text-fg-4 mb-2">{t('bud.exVat')}</div>
         {#if totalLimit > 0}
-          <div style="height:8px;border-radius:4px;background:var(--mep-surface-2);overflow:hidden;display:flex;margin-bottom:10px;">
+          <div class="h-2 rounded bg-surface-2 overflow-hidden flex mb-2.5">
             {#each activeRows as r}
               {#if r.limit > 0}
-                <span style="width:{(r.spent / totalLimit) * 100}%;height:100%;background:{r.color};border-right:1px solid var(--mep-bg);flex-shrink:0;"></span>
+                <span class="h-full shrink-0 border-r border-bg" style="width:{(r.spent / totalLimit) * 100}%;background:{r.color};"></span>
               {/if}
             {/each}
           </div>
-          <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--mep-fg-3);">
+          <div class="flex justify-between text-[11.5px] text-fg-3">
             <span>
               <span class="num" style="color:{semColor(totalPct)};font-weight:600;">{totalPct.toFixed(1).replace('.',',')}%</span>
               · {t('bud.projectionClose')} {totalProjectedPct.toFixed(0)}% {t('bud.atClose')} · {t('bud.colPlan')} <span class="num">{fmtEur(totalPlan, locale.current)}</span>
@@ -269,7 +267,7 @@
             <span class="num">{fmtEur(totalLimit - totalSpent, locale.current)} {t('bud.remaining')}</span>
           </div>
         {:else}
-          <div style="font-size:13px;color:var(--mep-fg-3);">
+          <div class="text-[13px] text-fg-3">
             {t('bud.emptyMobile')}
           </div>
         {/if}
@@ -285,45 +283,43 @@
 
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
             <span style="width:8px;height:28px;border-radius:2px;background:{r.color};flex-shrink:0;"></span>
-            <span style="flex:1;min-width:0;font-size:14px;font-weight:500;color:var(--mep-fg);
-              overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{tcat(r.cat)}</span>
+            <span class="flex-1 min-w-0 text-[14px] font-medium text-fg overflow-hidden text-ellipsis whitespace-nowrap">{tcat(r.cat)}</span>
             {#if r.limit > 0}
-              <span class="num" style="
-                font-size:11px;font-weight:500;padding:2px 7px;border-radius:4px;min-width:0;
-                background:{projOver ? 'var(--mep-neg-soft)' : 'var(--mep-pos-soft)'};
-                color:{projOver ? 'var(--mep-neg)' : 'var(--mep-pos)'};
-              ">{projOver ? '↑' : '✓'} {Math.round(r.projected)}% {t('bud.closeShort')}</span>
+              <span class="num text-[11px] font-medium py-0.5 px-[7px] rounded min-w-0"
+                class:bg-neg-soft={projOver} class:text-neg={projOver}
+                class:bg-pos-soft={!projOver} class:text-pos={!projOver}
+              >{projOver ? '↑' : '✓'} {Math.round(r.projected)}% {t('bud.closeShort')}</span>
             {/if}
           </div>
 
           {#if r.limit > 0}
-            <div style="position:relative;height:7px;border-radius:4px;background:var(--mep-surface-2);overflow:visible;margin-bottom:10px;">
-              <div style="width:{Math.min(r.pct, 100)}%;height:100%;border-radius:4px;background:{semColor(r.pct)};"></div>
+            <div class="relative h-[7px] rounded bg-surface-2 overflow-visible mb-2.5">
+              <div class="h-full rounded" style="width:{Math.min(r.pct, 100)}%;background:{semColor(r.pct)};"></div>
               {#if r.pct > 100}
                 <div style="position:absolute;left:100%;top:0;bottom:0;width:{Math.min(r.pct - 100, 40)}%;
                   background:repeating-linear-gradient(45deg,var(--mep-neg),var(--mep-neg) 4px,var(--mep-neg-soft) 4px,var(--mep-neg-soft) 8px);
                   border-radius:0 4px 4px 0;"></div>
               {/if}
-              <div style="position:absolute;left:80%;top:-3px;bottom:-3px;width:1.5px;background:var(--mep-fg-3);opacity:0.4;"></div>
+              <div class="absolute left-[80%] -top-[3px] -bottom-[3px] w-[1.5px] bg-fg-3 opacity-40"></div>
             </div>
           {/if}
 
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div class="flex items-center justify-between mb-2.5">
             <div>
-              <span class="num" style="font-size:13.5px;font-weight:600;color:var(--mep-fg);">{fmtEur(r.spent, locale.current)}</span>
+              <span class="num text-[13.5px] font-semibold text-fg">{fmtEur(r.spent, locale.current)}</span>
               {#if r.limit > 0}
-                <span style="font-size:11.5px;color:var(--mep-fg-3);"> · {fmtEur(r.limit, locale.current)}</span>
+                <span class="text-[11.5px] text-fg-3"> · {fmtEur(r.limit, locale.current)}</span>
               {/if}
             </div>
-            <span class="num" style="font-size:13.5px;font-weight:600;color:{r.limit > 0 ? semColor(r.pct) : 'var(--mep-fg-3)'};">
+            <span class="num text-[13.5px] font-semibold" class:text-fg-3={r.limit <= 0} style="{r.limit > 0 ? `color:${semColor(r.pct)}` : ''}">
               {r.limit > 0 ? Math.round(r.pct) + '%' : '—'}
             </span>
           </div>
 
           <div style="display:flex;align-items:center;gap:8px;">
-            <label for="budget-{r.cat}" style="font-size:11px;color:var(--mep-fg-3);font-weight:500;white-space:nowrap;">{t('bud.colBudget')}</label>
+            <label for="budget-{r.cat}" class="text-[11px] text-fg-3 font-medium whitespace-nowrap">{t('bud.colBudget')}</label>
             {#if isPastMonth}
-              <div class="num" style="flex:1;height:34px;font-size:13px;text-align:right;display:flex;align-items:center;justify-content:flex-end;padding:0 8px;background:var(--mep-surface-2);border-bottom:1px solid var(--mep-divider);color:var(--mep-fg-2);">
+              <div class="num flex-1 h-[34px] text-[13px] text-right flex items-center justify-end px-2 bg-surface-2 border-b border-divider text-fg-2">
                 {r.limit > 0 ? r.limit : t('bud.noLimit')}
               </div>
             {:else}
@@ -344,11 +340,7 @@
       {/each}
 
       {#if inactiveRows.length > 0}
-        <button type="button" class="card"
-          style="padding:14px;display:flex;align-items:center;justify-content:center;gap:8px;
-            background:transparent;border:1px solid var(--mep-divider);
-            color:var(--mep-fg-3);font-size:13px;font-weight:500;
-            width:100%;cursor:pointer;font-family:inherit;"
+        <button type="button" class="card p-3.5 flex items-center justify-center gap-2 bg-transparent border border-divider text-fg-3 text-[13px] font-medium w-full cursor-pointer font-[inherit]"
           aria-expanded={showAllCats}
           onclick={() => showAllCats = !showAllCats}>
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"
@@ -367,7 +359,7 @@
       {#if !isPastMonth}
       {#if showAddForm}
         <div class="card" style="padding:14px;display:flex;flex-direction:column;gap:10px;">
-          <div style="font-size:13px;font-weight:500;color:var(--mep-fg);">{t('bud.newCategory')}</div>
+          <div class="text-[13px] font-medium text-fg">{t('bud.newCategory')}</div>
           <input
             type="text" maxlength="80"
             bind:value={newCatName}
