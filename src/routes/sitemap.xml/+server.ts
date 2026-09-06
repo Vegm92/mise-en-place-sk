@@ -9,6 +9,9 @@ const PUBLIC_ROUTES = [
 	{ path: '/signup',   priority: '0.6', changefreq: 'yearly',  lastmod: '2026-08-28'    },
 	{ path: '/privacy',  priority: '0.3', changefreq: 'yearly',  lastmod: '2026-08-28'    },
 	{ path: '/terms',    priority: '0.3', changefreq: 'yearly',  lastmod: '2026-08-27'    },
+	{ path: '/cookies',  priority: '0.3', changefreq: 'yearly',  lastmod: '2026-09-06'    },
+	{ path: '/refunds',  priority: '0.3', changefreq: 'yearly',  lastmod: '2026-09-06'    },
+	{ path: '/legal',    priority: '0.3', changefreq: 'yearly',  lastmod: '2026-09-06'    },
 	{ path: '/login',    priority: '0.4', changefreq: 'yearly',  lastmod: '2026-08-28'    },
 ];
 

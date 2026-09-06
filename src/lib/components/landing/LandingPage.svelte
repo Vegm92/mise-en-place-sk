@@ -77,6 +77,8 @@
 
   let openFaq = $state(0);
 
+  const faqUid = $props.id();
+
   const spotPct = $derived((data.spotTaken / SPOT_TOTAL) * 100);
 
   const painItems = $derived([
@@ -120,19 +122,6 @@
     { num: '03', tag: t('waitlist.steps.2.tag'), title: t('waitlist.steps.2.title'), body: t('waitlist.steps.2.body') },
   ]);
 
-  function splitRole(role: string): { roleLine: string; venueType: string | null } {
-    const parts = role.split(' · ');
-    if (parts.length !== 3) return { roleLine: role, venueType: null };
-    const [title, venueType, place] = parts;
-    return { roleLine: `${title} · ${place}`, venueType };
-  }
-
-  const testimonialItems = $derived([
-    { quote: t('waitlist.testimonials.0.quote'), name: t('waitlist.testimonials.0.name'), ...splitRole(t('waitlist.testimonials.0.role')) },
-    { quote: t('waitlist.testimonials.1.quote'), name: t('waitlist.testimonials.1.name'), ...splitRole(t('waitlist.testimonials.1.role')) },
-    { quote: t('waitlist.testimonials.2.quote'), name: t('waitlist.testimonials.2.name'), ...splitRole(t('waitlist.testimonials.2.role')) },
-  ]);
-
   const foundingItems = $derived([
     { title: t('waitlist.founding.0.title'), body: t('waitlist.founding.0.body') },
     { title: t('waitlist.founding.1.title'), body: t('waitlist.founding.1.body') },
@@ -172,6 +161,8 @@
     errRateLimited: t('waitlist.form.errRateLimited'),
     errBot:         t('signup.err.bot'),
     privacy:        t('waitlist.form.privacy'),
+    privacyLink:    t('waitlist.form.privacyLink'),
+    emailLabel:     t('waitlist.form.emailLabel'),
   });
 
   const dashboardMockCopy = $derived({
@@ -336,7 +327,7 @@
       <h2 class="m-0 max-w-[640px] text-[32px] font-semibold text-fg tracking-[-0.025em] leading-[1.15]">{t('waitlist.compareHead')}</h2>
 
       <div class="mep-compare-grid" style="margin-top:44px;display:grid;grid-template-columns:1fr 1fr;gap:24px;">
-        <div class="rounded-card border border-neg bg-neg-soft p-7">
+        <div class="mep-compare-card mep-compare-card-neg rounded-card border border-neg p-7">
           <div class="text-base font-semibold text-neg tracking-[-0.01em] mb-5">{t('waitlist.compare.without.title')}</div>
           <div style="display:flex;flex-direction:column;gap:16px;">
             {#each compareWithoutItems as item}
@@ -350,7 +341,7 @@
           </div>
         </div>
 
-        <div class="rounded-card border border-pos bg-pos-soft p-7">
+        <div class="mep-compare-card mep-compare-card-pos rounded-card border border-pos p-7">
           <div class="text-base font-semibold text-pos tracking-[-0.01em] mb-5">{t('waitlist.compare.with.title')}</div>
           <div style="display:flex;flex-direction:column;gap:16px;">
             {#each compareWithItems as item}
@@ -398,36 +389,9 @@
     </div>
   </section>
 
-  <section class="mep-section mep-tinted" style="padding:76px 72px;">
-    <div class="mep-container">
-      <div class="mep-eyebrow" style="margin-bottom:14px;">{t('waitlist.testimonialsEyebrow')}</div>
-      <p class="mt-0 mx-0 mb-[34px] text-[13px] leading-[1.55] text-fg-3 max-w-[620px]">
-        {t('waitlist.testimonialsDisclaimer')}
-      </p>
-      <div class="mep-grid-3">
-        {#each testimonialItems as item}
-          <div class="pt-[22px] border-t border-border">
-            <p class="m-0 text-[17px] leading-[1.6] text-fg tracking-[-0.005em]">
-              &ldquo;{item.quote}&rdquo;
-            </p>
-            <div class="mt-[18px] text-[13.5px] text-fg-2">
-              <span class="font-semibold text-fg">{item.name}</span>
-            </div>
-            <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:6px;">
-              {#if item.venueType}
-                <span class="badge badge-neutral">{item.venueType}</span>
-              {/if}
-              <span class="text-[12.5px] text-fg-3">{item.roleLine}</span>
-            </div>
-          </div>
-        {/each}
-      </div>
-    </div>
-  </section>
-
   <section class="mep-section" style="padding:76px 72px;">
     <div class="mep-founder-card max-w-[860px] mx-auto flex gap-6 items-start py-8 px-9 rounded-2xl bg-surface border border-divider">
-      <div class="w-[92px] h-[92px] rounded-full shrink-0 bg-[linear-gradient(135deg,var(--mep-acc-soft)_0%,var(--mep-acc)_200%)] text-acc-fg flex items-center justify-center text-[31px] font-bold font-mono tracking-[-1px] border border-border">{t('waitlist.founderInitials')}</div>
+      <div class="w-[92px] h-[92px] rounded-full shrink-0 bg-acc text-acc-fg flex items-center justify-center text-[31px] font-bold font-mono tracking-[-1px] border border-border">{t('waitlist.founderInitials')}</div>
       <div style="flex:1;">
         <div class="text-[11.5px] font-semibold tracking-[0.14em] uppercase text-acc font-mono mb-2.5">{t('waitlist.founderEyebrow')}</div>
         <p class="m-0 text-[19px] leading-[1.55] text-fg tracking-[-0.005em]">
@@ -485,7 +449,7 @@
               {#each TIER_COPY[tier.id].bullets(tier.quota) as bullet}
                 <div class="flex gap-2 items-start text-sm text-fg-2">
                   <span class="mt-px shrink-0 {tier.recommended ? 'text-acc' : 'text-fg-3'}">
-                    <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5l3.5 3.5L16 5.5"/></svg>
+                    <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 10.5l3.5 3.5L16 5.5"/></svg>
                   </span>
                   <span style="line-height:1.4;">{bullet.interpolate ? ti(bullet.key, bullet.interpolate) : t(bullet.key)}</span>
                 </div>
@@ -524,20 +488,27 @@
         {#each faqItems as row, i}
           {@const isOpen = openFaq === i}
           <div class="border-t border-divider {i === faqItems.length - 1 ? 'border-b border-divider' : ''}">
-            <button onclick={() => { openFaq = isOpen ? -1 : i; }}
-              style="width:100%;background:transparent;border:0;cursor:pointer;padding:18px 4px;
-                     display:flex;align-items:center;gap:16px;font-family:inherit;text-align:left;">
-              <span class="text-[13px] font-mono text-acc font-semibold w-[30px] shrink-0">0{i + 1}</span>
-              <span class="flex-1 text-[17px] font-medium text-fg tracking-[-0.01em]">{row.q}</span>
-              <span class="w-6 h-6 rounded-full border border-border flex items-center justify-center text-fg-2 shrink-0"
-                style="transform:rotate({isOpen ? '45deg' : '0'});transition:transform 180ms;">
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                  <path d="M5 1v8M1 5h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
-                </svg>
-              </span>
-            </button>
+            <h3 style="margin:0;">
+              <button type="button" onclick={() => { openFaq = isOpen ? -1 : i; }}
+                id="{faqUid}-q{i}"
+                aria-expanded={isOpen}
+                aria-controls={isOpen ? `${faqUid}-a${i}` : undefined}
+                style="width:100%;background:transparent;border:0;cursor:pointer;padding:18px 4px;
+                       display:flex;align-items:center;gap:16px;font-family:inherit;text-align:left;">
+                <span class="text-[13px] font-mono text-acc font-semibold w-[30px] shrink-0" aria-hidden="true">0{i + 1}</span>
+                <span class="flex-1 text-[17px] font-medium text-fg tracking-[-0.01em]">{row.q}</span>
+                <span class="w-6 h-6 rounded-full border border-border flex items-center justify-center text-fg-2 shrink-0"
+                  aria-hidden="true"
+                  style="transform:rotate({isOpen ? '45deg' : '0'});transition:transform 180ms;">
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" focusable="false">
+                    <path d="M5 1v8M1 5h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+                  </svg>
+                </span>
+              </button>
+            </h3>
             {#if isOpen}
-              <div transition:slide={{ duration: 280, easing: cubicOut }}
+              <div id="{faqUid}-a{i}" role="region" aria-labelledby="{faqUid}-q{i}"
+                transition:slide={{ duration: 280, easing: cubicOut }}
                 class="pt-0 pr-1 pb-[18px] pl-[50px] text-[14.5px] leading-[1.65] text-fg-2">
                 {row.a}
               </div>
@@ -588,12 +559,32 @@
     <div style="display:flex;align-items:center;gap:10px;">
       <Logo size={20} wordmark />
     </div>
+    <nav class="mep-footer-links flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12.5px]"
+         aria-label={t('waitlist.footerLegalLabel')}>
+      <a href="/privacy" class="text-fg-2 underline underline-offset-2">{t('waitlist.footerPrivacy')}</a>
+      <a href="/terms" class="text-fg-2 underline underline-offset-2">{t('waitlist.footerTerms')}</a>
+      <a href="/cookies" class="text-fg-2 underline underline-offset-2">{t('waitlist.footerCookies')}</a>
+      <a href="/refunds" class="text-fg-2 underline underline-offset-2">{t('waitlist.footerRefunds')}</a>
+      <a href="/legal" class="text-fg-2 underline underline-offset-2">{t('waitlist.footerLegal')}</a>
+    </nav>
     <div class="text-[12.5px] text-fg-3 font-mono">{t('waitlist.footerNote')}</div>
   </footer>
 
 </div>
 
 <style>
+  /* The soft tints are calibrated to carry their own colour as text over
+     --mep-surface (ADR-026, issues #720/#749). These cards sit on a plain
+     section, so the tint was compositing over --mep-bg instead and the
+     heading measured 4.31:1 in light. Painting the surface underneath puts
+     the pair back on the background the tint was tuned against. */
+  .mep-compare-card {
+    background-color: var(--mep-surface);
+    background-image: linear-gradient(var(--tint), var(--tint));
+  }
+  .mep-compare-card-neg { --tint: var(--mep-neg-soft); }
+  .mep-compare-card-pos { --tint: var(--mep-pos-soft); }
+
   .mep-trust-bar-item:not(:first-child) {
     border-left: 1px solid var(--mep-divider);
   }

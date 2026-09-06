@@ -23,8 +23,15 @@
       errRateLimited: string;
       errBot: string;
       privacy: string;
+      privacyLink: string;
+      emailLabel: string;
     };
   } = $props();
+
+  const uid = $props.id();
+  const inputId = `${uid}-email`;
+  const errorId = `${uid}-error`;
+  const noticeId = `${uid}-notice`;
 
   let emailError = $state('');
   const EMAIL_RE = /^[^\s@]+@[^\s@](?=[^\s@]*\.[^\s@])[^\s@]*$/;
@@ -44,14 +51,27 @@
     if (err === 'bot_suspected') return copy.errBot;
     return '';
   }
+
+  const shownError = $derived(emailError || serverError());
+
+  const privacyParts = $derived.by(() => {
+    const idx = copy.privacy.toLowerCase().lastIndexOf(copy.privacyLink.toLowerCase());
+    if (idx === -1) return { before: copy.privacy, link: '', after: '' };
+    return {
+      before: copy.privacy.slice(0, idx),
+      link: copy.privacy.slice(idx, idx + copy.privacyLink.length),
+      after: copy.privacy.slice(idx + copy.privacyLink.length),
+    };
+  });
 </script>
 
 {#if form?.success}
-  <div style="background:var(--mep-pos-soft);border:1px solid var(--mep-pos);border-radius:10px;
+  <div role="status"
+    style="background:var(--mep-pos-soft);border:1px solid var(--mep-pos);border-radius:10px;
               padding:{big ? '18px 20px' : '14px 16px'};display:flex;align-items:flex-start;gap:12px;">
     <div style="width:26px;height:26px;border-radius:13px;flex-shrink:0;background:var(--mep-pos);
                 color:var(--mep-pos-fg);display:flex;align-items:center;justify-content:center;">
-      <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5l3.5 3.5L16 5.5"/></svg>
+      <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 10.5l3.5 3.5L16 5.5"/></svg>
     </div>
     <div>
       <div style="font-size:15px;font-weight:600;color:var(--mep-pos);margin-bottom:3px;">{copy.success}</div>
@@ -61,24 +81,28 @@
     </div>
   </div>
 {:else}
-  <form method="POST" action="?/join" use:enhance
+  <form method="POST" action="?/join" use:enhance novalidate
     onsubmit={(e) => {
       const input = (e.currentTarget as HTMLFormElement).querySelector('input[name="email"]') as HTMLInputElement;
       const err = validateEmail(input.value);
-      if (err) { emailError = err; e.preventDefault(); }
+      if (err) { emailError = err; e.preventDefault(); input.focus(); }
     }}
     style="display:flex;flex-direction:column;gap:8px;">
     <input type="text" name="_hp" tabindex="-1" autocomplete="off" aria-hidden="true"
       style="position:absolute;left:-9999px;opacity:0;height:0;width:0;" />
     <div style="display:flex;gap:8px;">
       <div style="position:relative;flex:1;">
-        <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--mep-fg-3);pointer-events:none;display:flex;">
-          <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4.5" width="15" height="11" rx="1.5"/><path d="M3 6l7 5 7-5"/></svg>
+        <label for={inputId} class="mep-visually-hidden">{copy.emailLabel}</label>
+        <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--mep-fg-3);pointer-events:none;display:flex;" aria-hidden="true">
+          <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" focusable="false"><rect x="2.5" y="4.5" width="15" height="11" rx="1.5"/><path d="M3 6l7 5 7-5"/></svg>
         </span>
-        <input type="email" name="email" placeholder={copy.placeholder} autocomplete="email"
+        <input type="email" id={inputId} name="email" placeholder={copy.placeholder} autocomplete="email"
+          required
+          aria-invalid={shownError ? 'true' : undefined}
+          aria-describedby={shownError ? `${errorId} ${noticeId}` : noticeId}
           style="width:100%;height:{big ? 52 : 44}px;padding:0 14px 0 38px;font-family:inherit;
                  font-size:{big ? 16 : 14.5}px;border-radius:8px;background:var(--mep-surface);
-                 color:var(--mep-fg);border:1px solid var(--mep-border-strong);outline:none;box-sizing:border-box;"
+                 color:var(--mep-fg);border:1px solid var(--mep-border-input);box-sizing:border-box;"
           oninput={() => { emailError = ''; }}
         />
       </div>
@@ -89,9 +113,11 @@
       </button>
     </div>
     <Turnstile />
-    {#if emailError || serverError()}
-      <div style="font-size:12.5px;color:var(--mep-neg);padding-left:4px;">{emailError || serverError()}</div>
+    {#if shownError}
+      <div id={errorId} role="alert" style="font-size:12.5px;color:var(--mep-neg);padding-left:4px;">{shownError}</div>
     {/if}
-    <div style="font-size:12px;color:var(--mep-fg-3);padding-left:2px;">{copy.privacy}</div>
+    <p id={noticeId} style="font-size:12px;color:var(--mep-fg-3);padding-left:2px;margin:0;line-height:1.45;">
+      {privacyParts.before}{#if privacyParts.link}<a href="/privacy" class="text-fg-2">{privacyParts.link}</a>{/if}{privacyParts.after}
+    </p>
   </form>
 {/if}

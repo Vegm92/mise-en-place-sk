@@ -8,6 +8,10 @@ export function isPendingAllowedPath(path: string): boolean {
 		path === '/logout'                      ||
 		path === '/privacy'                     ||
 		path === '/terms'                       ||
+		path === '/cookies'                     ||
+		path === '/refunds'                     ||
+		path === '/legal'                       ||
+		path === '/cookie-consent'              ||
 		path === '/robots.txt'                  ||
 		path === '/sitemap.xml'                 ||
 		path === '/api/health'                  ||

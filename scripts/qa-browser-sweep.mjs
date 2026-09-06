@@ -17,7 +17,7 @@ const ADMIN_ROUTES = [
 	'/admin', '/admin/access', '/admin/dead-letters', '/admin/errors',
 	'/admin/events', '/admin/health', '/admin/revenue',
 ];
-const PUBLIC_ROUTES = ['/waitlist', '/login', '/signup', '/privacy', '/terms', '/forgot-password'];
+const PUBLIC_ROUTES = ['/waitlist', '/login', '/signup', '/privacy', '/terms', '/cookies', '/refunds', '/legal', '/forgot-password'];
 const GATED_PROBES = ['/dashboard', '/invoices', '/settings', '/billing', '/admin'];
 const VIEWPORTS = [[390, 844], [768, 1024], [1280, 720]];
 

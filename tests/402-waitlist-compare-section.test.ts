@@ -86,9 +86,27 @@ describe('LandingPage.svelte renders the comparison section between pain and how
 
 	it('uses the established pos/neg design tokens, not new or hardcoded colors', () => {
 		assertSectionUsesTokens(PAGE_SRC, "t('waitlist.compareEyebrow')", [
-			'border-neg', 'bg-neg-soft', 'text-neg', 'bg-neg', 'text-neg-fg',
-			'border-pos', 'bg-pos-soft', 'text-pos', 'bg-pos', 'text-pos-fg',
+			'border-neg', 'mep-compare-card-neg', 'text-neg', 'bg-neg', 'text-neg-fg',
+			'border-pos', 'mep-compare-card-pos', 'text-pos', 'bg-pos', 'text-pos-fg',
 		]);
+	});
+
+	/**
+	 * The card fills moved off the bare `bg-neg-soft` / `bg-pos-soft` utilities
+	 * during the flight-test QA pass. The -soft alphas are calibrated to carry
+	 * their own colour as text over `--mep-surface` (ADR-026, issues #720/#749),
+	 * but these cards sit on a plain section, so the tint was compositing over
+	 * `--mep-bg` and the "Sin Mise en Place" heading measured 4.31:1 in light —
+	 * under the AA floor. The two classes paint `--mep-surface` underneath and
+	 * layer the same token as the tint, which puts the pair back on the
+	 * background the alpha was tuned against. The tokens themselves are
+	 * unchanged, which is what this pins.
+	 */
+	it('binds the card classes to the -soft tokens, painting them over --mep-surface', () => {
+		const style = PAGE_SRC.slice(PAGE_SRC.indexOf('<style>'));
+		expect(style).toMatch(/\.mep-compare-card\s*\{[^}]*background-color:\s*var\(--mep-surface\)/);
+		expect(style).toMatch(/\.mep-compare-card-neg\s*\{[^}]*--tint:\s*var\(--mep-neg-soft\)/);
+		expect(style).toMatch(/\.mep-compare-card-pos\s*\{[^}]*--tint:\s*var\(--mep-pos-soft\)/);
 	});
 
 	it('collapses to a single column on mobile via the shared .mep-compare-grid breakpoint rule', () => {

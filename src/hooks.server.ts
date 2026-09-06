@@ -327,6 +327,10 @@ function isPublicPath(path: string): boolean {
 		path === '/verify-email'                ||
 		path === '/privacy'                     ||
 		path === '/terms'                       ||
+		path === '/cookies'                     ||
+		path === '/refunds'                     ||
+		path === '/legal'                       ||
+		path === '/cookie-consent'              ||
 		path === '/robots.txt'                  ||
 		path === '/sitemap.xml'                 ||
 		path === '/api/health'                  ||

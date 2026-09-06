@@ -232,8 +232,18 @@ describe('on-tint contrast — text painted in a semantic colour on its own -sof
  * headings, locked labels, switcher label, plan-card separator). This test
  * pins `--mep-fg-3` on `--mep-surface` above 4.5:1 in both themes using the
  * literal token values (not prose numbers, which drift — see the dark
- * `--mep-surface` amendment in ADR-026) and confirms `--mep-fg-4` still
- * fails dark today, so the regression the fix addressed stays reproducible.
+ * `--mep-surface` amendment in ADR-026).
+ *
+ * The flight-test QA pass closed the underlying hole rather than routing
+ * around it: `--mep-fg-4` is the placeholder colour (`.input::placeholder`,
+ * `.rev-input::placeholder`, `.rev-cell-rate::placeholder`), and placeholder
+ * text is text, so the "may not clear AA at small sizes" rung was not a rung
+ * the app could keep. It was darkened to `#666a72` in light and lifted to
+ * `#8a8d96` in dark until it clears 4.5:1 on all three surfaces a page paints
+ * it over — `--mep-bg`, `--mep-surface` and `--mep-surface-2` — which is what
+ * this block now pins. Dark has almost no room left below `--mep-fg-3` at
+ * that floor; that is the ramp being honest about its own range, not a value
+ * to nudge back down.
  */
 describe('fg-3 vs fg-4 on --mep-surface — account-menu locale hint (#719)', () => {
 	it('fg-3 on surface clears the 4.5:1 AA floor in both themes', () => {
@@ -247,10 +257,40 @@ describe('fg-3 vs fg-4 on --mep-surface — account-menu locale hint (#719)', ()
 		expect(ratioDark).toBeGreaterThanOrEqual(4.5);
 	});
 
-	it('fg-4 on surface still falls short in dark, confirming the bug fg-3 was moved to fix', () => {
+	it('fg-4 clears the 4.5:1 AA floor on every surface it is painted over, in both themes', () => {
+		const bgLight = token(lightBlock, 'mep-bg');
+		const bgDark = token(darkBlock, 'mep-bg');
+		const surface2Light = token(lightBlock, 'mep-surface-2');
+		const surface2Dark = token(darkBlock, 'mep-surface-2');
+		const fg4Light = token(lightBlock, 'mep-fg-4');
 		const fg4Dark = token(darkBlock, 'mep-fg-4');
-		const ratioDark = fillRatio(fg4Dark, surfaceDark);
-		expect(ratioDark).toBeLessThan(4.5);
+
+		for (const bg of [bgLight, surfaceLight, surface2Light]) {
+			expect(fillRatio(fg4Light, bg)).toBeGreaterThanOrEqual(4.5);
+		}
+		for (const bg of [bgDark, surfaceDark, surface2Dark]) {
+			expect(fillRatio(fg4Dark, bg)).toBeGreaterThanOrEqual(4.5);
+		}
+	});
+
+	it('--mep-border-input clears the 3:1 non-text floor (WCAG 1.4.11) on every surface', () => {
+		const css2 = readFileSync(path.join(ROOT, 'src/app.css'), 'utf8');
+		expect(css2).toMatch(/\.input\b[^}]*border:\s*1px solid var\(--mep-border-input\)/);
+
+		const cases: [string, string[]][] = [
+			[lightBlock, ['mep-bg', 'mep-surface', 'mep-surface-2']],
+			[darkBlock, ['mep-bg', 'mep-surface', 'mep-surface-2']],
+		];
+		for (const [block, surfaces] of cases) {
+			const raw = block.match(/--mep-border-input:\s*rgba\(([^)]+)\)/);
+			expect(raw, '--mep-border-input not found').toBeTruthy();
+			const [r, g, b, a] = raw![1].split(',').map((n) => Number(n.trim()));
+			for (const name of surfaces) {
+				const bg = hexToRgb(token(block, name));
+				const composited = compositeOver([r, g, b], a, bg);
+				expect(contrastRatio(composited, bg)).toBeGreaterThanOrEqual(3);
+			}
+		}
 	});
 
 	it('the account-menu locale hint does not use --mep-fg-4', () => {
