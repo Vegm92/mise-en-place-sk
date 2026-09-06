@@ -64,7 +64,7 @@
       p11b:       '. Nos reservamos el derecho de suspender cuentas que incumplan estos Términos.',
 
       h12:        '12. Ley aplicable y jurisdicción',
-      p12:        'Estos Términos se rigen por la ley española. Las partes se someten a la jurisdicción de los Juzgados y Tribunales de Madrid, con renuncia expresa a cualquier otro fuero que pudiera corresponderles.',
+      p12:        'Estos Términos se rigen por la ley española. Las partes se someten a la jurisdicción de los Juzgados y Tribunales de Barcelona, con renuncia expresa a cualquier otro fuero que pudiera corresponderles.',
 
       h13:        '13. Contacto',
       p13:        'Para cualquier consulta sobre estos Términos: ',
@@ -133,7 +133,7 @@
       p11b:       '. We reserve the right to suspend accounts that breach these Terms.',
 
       h12:        '12. Governing law and jurisdiction',
-      p12:        'These Terms are governed by Spanish law. The parties submit to the jurisdiction of the Courts and Tribunals of Madrid, expressly waiving any other jurisdiction that might apply to them.',
+      p12:        'These Terms are governed by Spanish law. The parties submit to the jurisdiction of the Courts and Tribunals of Barcelona, expressly waiving any other jurisdiction that might apply to them.',
 
       h13:        '13. Contact',
       p13:        'For any query regarding these Terms: ',
