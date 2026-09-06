@@ -44,10 +44,10 @@
   interface Props {
     data: {
       saved: boolean; duplicate: boolean; error: string | null;
-      errorVars?: ErrorVars; hasCompletedOnboarding: boolean; upgradeUrl?: string | null;
-      trialExpired?: boolean; existingFilenames?: string[];
+      errorVars?: ErrorVars | undefined; hasCompletedOnboarding: boolean; upgradeUrl?: string | null | undefined;
+      trialExpired?: boolean | undefined; existingFilenames?: string[] | undefined;
     };
-    form: { error?: string; errorVars?: ErrorVars; upgradeUrl?: string } | null;
+    form: { error?: string; errorVars?: ErrorVars; upgradeUrl?: string } | null | undefined;
   }
 
   const { data, form }: Props = $props();

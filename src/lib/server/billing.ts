@@ -788,7 +788,7 @@ async function handleCheckoutCompleted(event: Stripe.Event, eventCreatedAt: Date
 				lastEventAt: eventCreatedAt,
 				updatedAt: new Date(),
 			},
-			setWhere: or(isNull(subscriptions.lastEventAt), lte(subscriptions.lastEventAt, eventCreatedAt)),
+			setWhere: or(isNull(subscriptions.lastEventAt), lte(subscriptions.lastEventAt, eventCreatedAt))!,
 		})
 		.returning({ id: subscriptions.id });
 	if (applied.length === 0) return;

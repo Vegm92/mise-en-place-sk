@@ -264,7 +264,7 @@ describe('malformed route params — issue #542', () => {
 			it.each(MALFORMED_IDS)('rejects id=%j with 400 and touches nothing', async (id) => {
 				const sentinel = route.uses === 'sentinel' ? sentinelRequest() : undefined;
 
-				const outcome = await route.run(id, { sentinel }).catch((e: unknown) => e);
+				const outcome = await route.run(id, { ...(sentinel ? { sentinel } : {}) }).catch((e: unknown) => e);
 
 				expect(isHttpError(outcome, 400)).toBe(true);
 				expect((outcome as { body: { message: string } }).body.message).toBe(`Invalid ${route.label} id`);
@@ -275,7 +275,7 @@ describe('malformed route params — issue #542', () => {
 			it('lets a valid positive integer id past the guard', async () => {
 				const { id, sentinel } = route.validEvent();
 
-				const outcome = await route.run(id, { sentinel }).catch((e: unknown) => e);
+				const outcome = await route.run(id, { ...(sentinel ? { sentinel } : {}) }).catch((e: unknown) => e);
 
 				if (route.uses === 'sentinel') {
 					expect(outcome).toBe(SENTINEL);

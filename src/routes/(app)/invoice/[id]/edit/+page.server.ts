@@ -237,8 +237,8 @@ export const actions: Actions = {
 				documentType,
 				lineItems: enrichedLines.map((line) => line.item),
 				lineDescriptions: lineInputs.map((li) => li.desc),
-				productByKey,
-				purchaseOrder: documentReferences.purchaseOrder,
+				...(productByKey ? { productByKey } : {}),
+				purchaseOrder: documentReferences.purchaseOrder ?? null,
 			});
 		}
 

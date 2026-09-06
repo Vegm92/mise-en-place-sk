@@ -1121,7 +1121,7 @@ export async function reevaluateInvoiceAlerts(input: InvoiceReevaluationInput): 
 	await safely('possible duplicate purchase', () =>
 		reevaluateDuplicatePurchaseAlerts({
 			invoiceId, supplierId, supplierName, restaurantId,
-			documentType, invoiceDate, totalAmount, lineDescriptions, purchaseOrder,
+			documentType, invoiceDate, totalAmount, lineDescriptions, purchaseOrder: purchaseOrder ?? null,
 		}));
 
 	await safely('VERI*FACTU mismatch', () =>

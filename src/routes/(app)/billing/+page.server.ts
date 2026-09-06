@@ -127,7 +127,7 @@ async function createCheckoutUrl(args: {
 			tier: args.tier,
 			successUrl,
 			cancelUrl,
-			idempotencyKey: args.idemKey ?? undefined,
+			...(args.idemKey != null ? { idempotencyKey: args.idemKey } : {}),
 			userId: args.userId,
 		});
 	} catch (err) {
@@ -211,7 +211,7 @@ export const actions: Actions = {
 					tier,
 					successUrl: `${url.origin}/billing/confirm?session_id={CHECKOUT_SESSION_ID}`,
 					cancelUrl: `${url.origin}/billing`,
-					idempotencyKey: idemKey ?? undefined,
+					...(idemKey != null ? { idempotencyKey: idemKey } : {}),
 					userId: locals.user.id,
 				});
 			} catch (err) {

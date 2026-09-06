@@ -50,7 +50,7 @@ describe('Migrations', () => {
 });
 
 function heartbeat(seenMsAgo: number, details?: WorkerHeartbeat['details']): WorkerHeartbeat {
-	return { id: 'worker', startedAt: new Date(NOW - 3_600_000), lastSeenAt: new Date(NOW - seenMsAgo), lastJobCompletedAt: null, jobsCompleted: 0, details };
+	return { id: 'worker', startedAt: new Date(NOW - 3_600_000), lastSeenAt: new Date(NOW - seenMsAgo), lastJobCompletedAt: null, jobsCompleted: 0, details: details ?? null };
 }
 
 describe('Worker heartbeat + env', () => {
