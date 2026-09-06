@@ -124,7 +124,7 @@
     </svg>
     <div style="flex:1;min-width:0;">
       <div style="font-size:12.5px;color:var(--mep-fg);font-weight:600;">{copy.mockAlertTitle}</div>
-      <div style="font-size:11.5px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);">
+      <div style="font-size:11.5px;color:var(--mep-fg-2);font-family:var(--mep-fs-mono);">
         Aceites Gómez Hermanos · 4,80 € → 5,19 € / L
       </div>
     </div>

@@ -11,11 +11,14 @@
  * fixed before any structured data is allowed to amplify it.
  *
  * This file is a ratchet, not a description: it fails if the retracted
- * claims come back, and if Review/AggregateRating markup ever appears while
- * the testimonials remain illustrative (rule 1, and an EU
- * unfair-commercial-practices exposure). It also pins the disclaimer that
- * marks those testimonials as illustrative to both locales and to the
- * rendered page.
+ * claims come back, and if Review/AggregateRating markup ever appears.
+ *
+ * The three named "illustrative" testimonials (invented quotes attributed to
+ * invented people at invented venues, carrying a disclaimer) were removed
+ * outright during the flight-test QA pass: Annex I point 23b of the UCPD, as
+ * transposed in art. 20 bis LGDCU, makes presenting consumer reviews that are
+ * not genuine a per-se banned practice, and a disclaimer does not cure an
+ * invented attributed quote. This file now ratchets their absence.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -87,21 +90,23 @@ describe('unverified data-handling claims stay out of the copy', () => {
 	}
 });
 
-describe('illustrative testimonials are marked as such', () => {
+describe('no fabricated testimonials on the landing page', () => {
+	const TESTIMONIAL_KEYS = /^waitlist\.testimonials/;
+
 	for (const loc of LOCALES) {
-		it(`${loc}: a disclaimer key exists and names the pre-launch status`, () => {
-			const disclaimer = table(loc)['waitlist.testimonialsDisclaimer'];
-			expect(disclaimer).toBeTruthy();
-			expect(disclaimer.toLowerCase()).toMatch(loc === 'es' ? /ilustrativ/ : /illustrative/);
+		it(`${loc}: no waitlist.testimonials.* keys remain in the table`, () => {
+			const keys = Object.keys(table(loc)).filter((k) => TESTIMONIAL_KEYS.test(k));
+			expect(keys).toEqual([]);
 		});
 	}
 
-	it('the disclaimer is rendered on the page, not just defined', () => {
-		expect(PAGE_SRC).toContain("t('waitlist.testimonialsDisclaimer')");
+	it('the page renders no testimonial section', () => {
+		expect(PAGE_SRC).not.toContain('waitlist.testimonials');
+		expect(PAGE_SRC).not.toContain('splitRole');
 	});
 });
 
-describe('no review markup while testimonials are illustrative', () => {
+describe('no review markup on the landing page', () => {
 	const FORBIDDEN = ['AggregateRating', 'ratingValue', '"@type":"Review"', "'@type': 'Review'"];
 
 	for (const term of FORBIDDEN) {

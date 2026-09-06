@@ -4,6 +4,7 @@
   import { locale, initLocale, setMessages } from '$lib/i18n';
   import { setLocaleContext, setMessagesContext } from '$lib/i18n-context';
   import { registerPWA } from '$lib/pwa';
+  import CookieConsent from '$lib/components/CookieConsent.svelte';
   const { data, children } = $props();
 
   untrack(() => setMessages('es', data.messages));
@@ -21,3 +22,5 @@
 </script>
 
 {@render children()}
+
+<CookieConsent state={data.cookieConsent} />

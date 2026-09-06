@@ -70,10 +70,11 @@
   --mep-fg:   #15181f;
   --mep-fg-2: #44464e;
   --mep-fg-3: #595c65;
-  --mep-fg-4: #696c75;
+  --mep-fg-4: #666a72;
 
   --mep-border:       rgba(20, 24, 36, 0.14);
   --mep-border-strong:rgba(20, 24, 36, 0.23);
+  --mep-border-input: rgba(20, 24, 36, 0.48);
   --mep-divider:      rgba(20, 24, 36, 0.08);
 
   --mep-scrim:       rgba(20, 24, 36, 0.45);
@@ -130,10 +131,11 @@
   --mep-fg:   #eceef2;
   --mep-fg-2: #a4a7b0;
   --mep-fg-3: #8d9099;
-  --mep-fg-4: #787b84;
+  --mep-fg-4: #8a8d96;
 
   --mep-border:       rgba(255, 255, 255, 0.09);
   --mep-border-strong:rgba(255, 255, 255, 0.16);
+  --mep-border-input: rgba(255, 255, 255, 0.35);
   --mep-divider:      rgba(255, 255, 255, 0.06);
 
   --mep-scrim:       rgba(0, 0, 0, 0.62);
@@ -321,6 +323,7 @@
   --color-fg-2:          var(--mep-fg-2);
   --color-fg-3:          var(--mep-fg-3);
   --color-fg-4:          var(--mep-fg-4);
+  --color-border-input:  var(--mep-border-input);
   --color-border:        var(--mep-border);
   --color-border-strong: var(--mep-border-strong);
   --color-divider:       var(--mep-divider);
@@ -725,7 +728,7 @@
     height: 32px;
     padding: 0 10px;
     border-radius: var(--mep-r-input);
-    border: 1px solid var(--mep-border-strong);
+    border: 1px solid var(--mep-border-input);
     background: var(--mep-surface);
     color: var(--mep-fg);
     outline: none;
@@ -1731,6 +1734,43 @@
     /* Prevents white flash on dark theme before .mep paints */
     background: var(--mep-bg, #f5f4f0);
   }
+
+  /* WCAG 2.4.7 / 2.4.11: every interactive element keeps a keyboard focus
+     indicator, including the many that reset `outline` or carry only inline
+     styles. Scoped to :focus-visible so pointer users see nothing. */
+  .mep :is(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 2px solid var(--mep-acc);
+    outline-offset: 2px;
+    border-radius: var(--mep-r-input);
+  }
+
+  .mep-visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .mep-skip-link {
+    position: absolute;
+    left: 8px;
+    top: -100px;
+    z-index: 100;
+    padding: 10px 16px;
+    border-radius: var(--mep-r-input);
+    background: var(--mep-acc);
+    color: var(--mep-acc-fg);
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: top 120ms;
+  }
+  .mep-skip-link:focus { top: 8px; }
 }
 
 /* ── Stacked list tables (issue #651) ─────────────────────────────────
