@@ -369,12 +369,7 @@
 
   {#if offlineBanner}
     <div style="padding:0 18px 8px;flex-shrink:0;">
-      <div style="
-        display:flex;align-items:center;gap:10px;
-        padding:10px 12px;border-radius:10px;
-        background:var(--mep-warn-soft);border:1px solid var(--mep-warn);
-        font-size:12.5px;color:var(--mep-warn);
-      ">
+      <div class="flex items-center gap-2.5 px-3 py-2.5 rounded-[10px] bg-warn-soft border border-warn text-[12.5px] text-warn">
         {#if offlineBanner === 'retrying'}
           <svg width="14" height="14" viewBox="0 0 16 16" style="animation:mepspin 1.1s linear infinite;flex-shrink:0;">
             <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-opacity="0.3" stroke-width="2" />
@@ -393,21 +388,14 @@
 
     <div class="card" data-coach="upload-zone" style="padding:16px;">
       {#if trialExpired}
-        <div style="
-          border:1.5px dashed var(--mep-border-strong);
-          border-radius:10px;
-          display:flex;flex-direction:column;align-items:center;
-          padding:24px 16px;
-          background:var(--mep-surface-2);
-          opacity:0.7;
-        ">
-          <div style="width:48px;height:48px;border-radius:var(--mep-r-pill);background:var(--mep-hover);color:var(--mep-fg-3);display:flex;align-items:center;justify-content:center;margin-bottom:12px;flex-shrink:0;">
+        <div class="border-[1.5px] border-dashed border-border-strong rounded-[10px] flex flex-col items-center px-4 py-6 bg-surface-2 opacity-70">
+          <div class="w-12 h-12 rounded-pill bg-hover text-fg-3 flex items-center justify-center mb-3 shrink-0">
             <Lock size={22} />
           </div>
-          <div style="font-size:16px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.2px;margin-bottom:4px;text-align:center;">
+          <div class="text-[16px] font-semibold text-fg tracking-[-0.2px] mb-1 text-center">
             {t('upload.trialExpiredTitle')}
           </div>
-          <div style="font-size:13px;color:var(--mep-fg-2);margin-bottom:14px;text-align:center;">
+          <div class="text-[13px] text-fg-2 mb-[14px] text-center">
             {t('billing.trialExpiredMsg')}
           </div>
           <a href="/billing?upgrade=trial" class="btn btn-primary" style="height:36px;padding:0 16px;text-decoration:none;">
@@ -416,15 +404,8 @@
         </div>
       {:else}
       <div
-        style="
-          border:1.5px dashed {isDragging?'var(--mep-acc)':'var(--mep-border-strong)'};
-          border-radius:10px;
-          display:flex;flex-direction:column;align-items:center;
-          padding:24px 16px;
-          background:{isDragging?'var(--mep-acc-soft)':'var(--mep-surface-2)'};
-          cursor:pointer;
-          transition:border-color 150ms,background 150ms;
-        "
+        class="border-[1.5px] border-dashed rounded-[10px] flex flex-col items-center px-4 py-6 cursor-pointer transition-[border-color,background] duration-150"
+        style="border-color:{isDragging?'var(--mep-acc)':'var(--mep-border-strong)'};background:{isDragging?'var(--mep-acc-soft)':'var(--mep-surface-2)'};"
         role="button"
         tabindex="0"
         onclick={() => fileInputEl?.click()}
@@ -433,15 +414,15 @@
         ondragleave={() => isDragging=false}
         ondrop={onDrop}
       >
-        <div style="width:48px;height:48px;border-radius:24px;background:var(--mep-acc-soft);color:var(--mep-acc);display:flex;align-items:center;justify-content:center;margin-bottom:12px;flex-shrink:0;">
+        <div class="w-12 h-12 rounded-full bg-acc-soft text-acc flex items-center justify-center mb-3 shrink-0">
           <Upload size={22} />
         </div>
-        <div style="font-size:16px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.2px;margin-bottom:4px;text-align:center;">
+        <div class="text-[16px] font-semibold text-fg tracking-[-0.2px] mb-1 text-center">
           {data.hasCompletedOnboarding ? t('upload.dropHeadline') : t('dash.firstInvoice')}
         </div>
-        <div style="font-size:12.5px;color:var(--mep-fg-2);margin-bottom:14px;text-align:center;">
+        <div class="text-[12.5px] text-fg-2 mb-[14px] text-center">
           {#if data.hasCompletedOnboarding}
-            <span style="color:var(--mep-acc);font-weight:500;">{t('upload.dropBrowse')}</span> · {t('upload.dropSub')}
+            <span class="text-acc font-medium">{t('upload.dropBrowse')}</span> · {t('upload.dropSub')}
           {:else}
             {t('upload.onboardHintShort')}
           {/if}
@@ -477,7 +458,7 @@
         </div>
 
         {#if !canPickFolder}
-          <div style="font-size:11px;color:var(--mep-fg-3);margin-top:10px;text-align:center;max-width:300px;line-height:1.45;">
+          <div class="text-[11px] text-fg-3 mt-2.5 text-center max-w-[300px] leading-[1.45]">
             {t('upload.folderZipHint')}
           </div>
         {/if}
@@ -490,10 +471,10 @@
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
         <span class="subtitle">{t('upload.queue')}</span>
         {#if files.length > 0}
-          <span class="num" style="font-size:11px;font-weight:600;padding:2px 7px;border-radius:999px;background:var(--mep-acc-soft);color:var(--mep-acc);">{files.length}</span>
+          <span class="num text-[11px] font-semibold py-px px-[7px] rounded-full bg-acc-soft text-acc">{files.length}</span>
         {/if}
       </div>
-      <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:10px;">
+      <div class="text-[12px] text-fg-3 mb-2.5">
         {files.length===0 ? t('upload.queueEmpty') : t('upload.queueNotStarted')}
       </div>
 
@@ -501,13 +482,13 @@
         <div style="display:flex;flex-direction:column;gap:6px;">
           {#each files as f, i}
             {@const kind = fileKind(f.name)}
-            <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:1px solid var(--mep-divider);background:var(--mep-surface);">
+            <div class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg border border-divider bg-surface">
               <FileTypeBadge kind={kind === 'pdf' ? 'pdf' : 'other'} label={kind === 'pdf' ? 'PDF' : kind === 'zip' ? 'ZIP' : 'IMG'} size="sm" />
               <div style="flex:1;min-width:0;">
-                <div style="font-size:12.5px;font-weight:500;color:var(--mep-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{f.name}</div>
-                <div class="num" style="font-size:11px;color:var(--mep-fg-3);">{fmtSize(f.size, locale.current)}</div>
+                <div class="text-[12.5px] font-medium text-fg overflow-hidden text-ellipsis whitespace-nowrap">{f.name}</div>
+                <div class="num text-[11px] text-fg-3">{fmtSize(f.size, locale.current)}</div>
                 {#if isLikelyDuplicate(f.name)}
-                  <div style="font-size:11px;color:var(--mep-neg);">{t('upload.possibleDuplicate')}</div>
+                  <div class="text-[11px] text-neg">{t('upload.possibleDuplicate')}</div>
                 {/if}
               </div>
               <button type="button" class="btn btn-ghost" style="width:24px;height:24px;padding:0;justify-content:center;" onclick={() => removeFile(i)}>
@@ -518,17 +499,17 @@
         </div>
       {:else}
         <div style="display:flex;align-items:center;justify-content:center;padding:16px 0;">
-          <span class="body" style="font-size:12px;color:var(--mep-fg-4);">{t('upload.noFiles')}</span>
+          <span class="body text-[12px] text-fg-4">{t('upload.noFiles')}</span>
         </div>
       {/if}
     </div>
 
   </div>
 
-  <div style="padding:12px 18px 24px;border-top:1px solid var(--mep-divider);background:var(--mep-bg);flex-shrink:0;">
+  <div class="px-[18px] pt-3 pb-6 border-t border-divider bg-bg shrink-0">
     {#if uploading && uploadProgress > 0}
-      <div style="margin-bottom:8px;border-radius:4px;overflow:hidden;background:var(--mep-surface-2);height:4px;">
-        <div style="height:100%;background:var(--mep-acc);width:{uploadProgress}%;transition:width 200ms linear;border-radius:4px;"></div>
+      <div class="mb-2 rounded bg-surface-2 h-1 overflow-hidden">
+        <div class="h-full bg-acc rounded" style="width:{uploadProgress}%;transition:width 200ms linear;"></div>
       </div>
     {/if}
     <button
@@ -596,21 +577,14 @@
 
     <div class="card" data-coach="upload-zone" style="padding:20px;display:flex;flex-direction:column;">
       {#if trialExpired}
-        <div style="
-          flex:1;border:1.5px dashed var(--mep-border-strong);
-          border-radius:10px;
-          display:flex;flex-direction:column;align-items:center;justify-content:center;
-          padding:32px 24px;
-          background:var(--mep-surface-2);
-          opacity:0.7;
-        ">
-          <div style="width:56px;height:56px;border-radius:var(--mep-r-pill);background:var(--mep-hover);color:var(--mep-fg-3);display:flex;align-items:center;justify-content:center;margin-bottom:16px;flex-shrink:0;">
+        <div class="flex-1 border-[1.5px] border-dashed border-border-strong rounded-[10px] flex flex-col items-center justify-center px-6 py-8 bg-surface-2 opacity-70">
+          <div class="w-14 h-14 rounded-pill bg-hover text-fg-3 flex items-center justify-center mb-4 shrink-0">
             <Lock size={24} />
           </div>
-          <div style="font-size:20px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.2px;margin-bottom:6px;text-align:center;">
+          <div class="text-[20px] font-semibold text-fg tracking-[-0.2px] mb-1.5 text-center">
             {t('upload.trialExpiredTitle')}
           </div>
-          <div style="font-size:13px;color:var(--mep-fg-2);margin-bottom:16px;text-align:center;max-width:360px;">
+          <div class="text-[13px] text-fg-2 mb-4 text-center max-w-[360px]">
             {t('billing.trialExpiredMsg')}
           </div>
           <a href="/billing?upgrade=trial" class="btn btn-primary" style="height:36px;padding:0 14px;text-decoration:none;">
@@ -619,16 +593,8 @@
         </div>
       {:else}
       <div
-        style="
-          flex:1;border:1.5px dashed {isDragging ? 'var(--mep-acc)' : 'var(--mep-border-strong)'};
-          border-radius:10px;
-          display:flex;flex-direction:column;align-items:center;justify-content:center;
-          padding:32px 24px;
-          background:{isDragging ? 'var(--mep-acc-soft)' : 'var(--mep-surface-2)'};
-          cursor:pointer;
-          transition:border-color 150ms,background 150ms;
-          position:relative;
-        "
+        class="flex-1 border-[1.5px] border-dashed rounded-[10px] flex flex-col items-center justify-center px-6 py-8 cursor-pointer transition-[border-color,background] duration-150 relative"
+        style="border-color:{isDragging ? 'var(--mep-acc)' : 'var(--mep-border-strong)'};background:{isDragging ? 'var(--mep-acc-soft)' : 'var(--mep-surface-2)'};"
         role="button"
         tabindex="0"
         onclick={() => fileInputEl?.click()}
@@ -637,16 +603,16 @@
         ondragleave={() => isDragging = false}
         ondrop={onDrop}
       >
-        <div style="width:56px;height:56px;border-radius:28px;background:var(--mep-acc-soft);color:var(--mep-acc);display:flex;align-items:center;justify-content:center;margin-bottom:16px;flex-shrink:0;">
+        <div class="w-14 h-14 rounded-full bg-acc-soft text-acc flex items-center justify-center mb-4 shrink-0">
           <Upload size={24} />
         </div>
 
-        <div style="font-size:18px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.2px;margin-bottom:6px;text-align:center;">
+        <div class="text-[18px] font-semibold text-fg tracking-[-0.2px] mb-1.5 text-center">
           {data.hasCompletedOnboarding ? t('upload.dropHeadline') : t('dash.firstInvoice')}
         </div>
-        <div style="font-size:13px;color:var(--mep-fg-2);margin-bottom:16px;text-align:center;max-width:360px;">
+        <div class="text-[13px] text-fg-2 mb-4 text-center max-w-[360px]">
           {#if data.hasCompletedOnboarding}
-            O <span style="color:var(--mep-acc);font-weight:500;">{t('upload.dropBrowse')}</span> · {t('upload.dropSub')}
+            O <span class="text-acc font-medium">{t('upload.dropBrowse')}</span> · {t('upload.dropSub')}
           {:else}
             {t('upload.onboardHint')}
           {/if}
@@ -673,7 +639,7 @@
         </div>
 
         {#if !canPickFolder}
-          <div style="font-size:11px;color:var(--mep-fg-3);margin-top:10px;text-align:center;max-width:300px;line-height:1.45;">
+          <div class="text-[11px] text-fg-3 mt-2.5 text-center max-w-[300px] leading-[1.45]">
             {t('upload.folderZipHint')}
           </div>
         {/if}
@@ -686,10 +652,10 @@
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
         <span class="subtitle">{t('upload.queue')}</span>
         {#if files.length > 0}
-          <span class="num" style="font-size:11px;font-weight:600;padding:2px 7px;border-radius:999px;background:var(--mep-acc-soft);color:var(--mep-acc);">{files.length}</span>
+          <span class="num text-[11px] font-semibold py-px px-[7px] rounded-full bg-acc-soft text-acc">{files.length}</span>
         {/if}
       </div>
-      <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:12px;">
+      <div class="text-[12px] text-fg-3 mb-3">
         {files.length === 0 ? t('upload.queueEmpty') : t('upload.queueNotStarted')}
       </div>
 
@@ -697,13 +663,13 @@
         <div style="display:flex;flex-direction:column;gap:6px;flex:1;overflow-y:auto;min-height:0;">
           {#each files as f, i}
             {@const kind = fileKind(f.name)}
-            <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:1px solid var(--mep-divider);background:var(--mep-surface);">
+            <div class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg border border-divider bg-surface">
               <FileTypeBadge kind={kind === 'pdf' ? 'pdf' : 'other'} label={kind === 'pdf' ? 'PDF' : kind === 'zip' ? 'ZIP' : 'IMG'} size="lg" />
               <div style="flex:1;min-width:0;">
-                <div style="font-size:12.5px;font-weight:500;color:var(--mep-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{f.name}</div>
-                <div class="num" style="font-size:11px;color:var(--mep-fg-3);">{fmtSize(f.size, locale.current)}</div>
+                <div class="text-[12.5px] font-medium text-fg overflow-hidden text-ellipsis whitespace-nowrap">{f.name}</div>
+                <div class="num text-[11px] text-fg-3">{fmtSize(f.size, locale.current)}</div>
                 {#if isLikelyDuplicate(f.name)}
-                  <div style="font-size:11px;color:var(--mep-neg);">{t('upload.possibleDuplicate')}</div>
+                  <div class="text-[11px] text-neg">{t('upload.possibleDuplicate')}</div>
                 {/if}
               </div>
               <button type="button" class="btn btn-ghost" style="width:24px;height:24px;padding:0;justify-content:center;" onclick={() => removeFile(i)}>
@@ -716,12 +682,12 @@
         <div style="flex:1;display:flex;align-items:center;justify-content:center;">
           <div style="text-align:center;">
             <div style="font-size:28px;margin-bottom:8px;opacity:0.3;">📂</div>
-            <span class="body" style="font-size:12px;color:var(--mep-fg-4);">{t('upload.noFiles')}</span>
+            <span class="body text-[12px] text-fg-4">{t('upload.noFiles')}</span>
           </div>
         </div>
       {/if}
 
-      <div style="padding-top:12px;border-top:1px solid var(--mep-divider);margin-top:12px;">
+      <div class="pt-3 border-t border-divider mt-3">
         <button
           type="button"
           class="btn btn-primary"
@@ -804,13 +770,13 @@
         style="max-width:100%;max-height:100%;border-radius:10px;object-fit:contain;box-shadow:0 4px 32px rgba(0,0,0,0.5);"
       />
     </div>
-    <div style="padding:16px 20px calc(28px + env(safe-area-inset-bottom,0px));background:var(--mep-bg);border-radius:20px 20px 0 0;display:flex;flex-direction:column;gap:10px;">
-      <div style="display:flex;align-items:flex-start;gap:8px;font-size:12.5px;color:var(--mep-fg-2);line-height:1.45;">
-        <Camera size={14} style="flex-shrink:0;margin-top:1px;color:var(--mep-acc);" />
+    <div class="flex flex-col gap-2.5 bg-bg" style="padding:16px 20px calc(28px + env(safe-area-inset-bottom,0px));border-radius:20px 20px 0 0;">
+      <div class="flex items-start gap-2 text-[12.5px] text-fg-2 leading-[1.45]">
+        <Camera size={14} class="shrink-0 mt-px text-acc" />
         <span>{t('upload.captureTip')}</span>
       </div>
       {#if previewFile}
-        <div style="font-size:12px;color:var(--mep-fg-3);text-align:center;">
+        <div class="text-[12px] text-fg-3 text-center">
           {previewFile.name} · {fmtSize(previewFile.size, locale.current)}
         </div>
       {/if}

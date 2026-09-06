@@ -89,19 +89,16 @@
     return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
   }
 
-  function deltaColor(v: number) {
-    return v > 0 ? 'var(--mep-neg)' : 'var(--mep-pos)';
-  }
 
   function chipClass(active: boolean) {
     return active ? 'chip active' : 'chip';
   }
 </script>
 
-<div style="height: 100%; display: flex; flex-direction: column; overflow: hidden; padding-top: 2px;">
+<div class="h-full flex flex-col overflow-hidden pt-0.5">
 
-  <div style="padding: 0 18px 10px; position: relative;">
-    <span style="position: absolute; left: 30px; top: 50%; transform: translateY(-50%); color: var(--mep-fg-3); pointer-events: none;">
+  <div class="px-[18px] pb-[10px] relative">
+    <span class="absolute left-[30px] top-1/2 -translate-y-1/2 text-fg-3 pointer-events-none">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
       </svg>
@@ -194,59 +191,49 @@
     </div>
   {/if}
 
-  <div class="card" style="margin: 0 18px 12px; padding: 10px 14px; flex-shrink: 0; display: flex; align-items: center; gap: 0;">
-    <div style="flex: 1; text-align: center;">
-      <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.3px;">{suppliers.length}</div>
-      <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 1px;">{t('sup.suppliersChip')}</div>
+  <div class="card mx-[18px] mb-3 px-[14px] py-[10px] shrink-0 flex items-center gap-0">
+    <div class="flex-1 text-center">
+      <div class="num text-[16px] font-semibold text-fg tracking-[-0.3px]">{suppliers.length}</div>
+      <div class="text-[11px] text-fg-3 mt-px">{t('sup.suppliersChip')}</div>
     </div>
-    <div style="width: 1px; height: 28px; background: var(--mep-divider);"></div>
-    <div style="flex: 1; text-align: center;">
-      <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.3px;">{fmtEur(totalSpend, locale.current)}</div>
-      <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 1px;">{t('sup.monthSpendChip')}</div>
+    <div class="w-px h-[28px] bg-divider"></div>
+    <div class="flex-1 text-center">
+      <div class="num text-[16px] font-semibold text-fg tracking-[-0.3px]">{fmtEur(totalSpend, locale.current)}</div>
+      <div class="text-[11px] text-fg-3 mt-px">{t('sup.monthSpendChip')}</div>
     </div>
-    <div style="width: 1px; height: 28px; background: var(--mep-divider);"></div>
-    <div style="flex: 1; text-align: center;">
-      <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.3px;">{totalMonthInvoices}</div>
-      <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 1px;">{t('sup.invoicesList')}</div>
+    <div class="w-px h-[28px] bg-divider"></div>
+    <div class="flex-1 text-center">
+      <div class="num text-[16px] font-semibold text-fg tracking-[-0.3px]">{totalMonthInvoices}</div>
+      <div class="text-[11px] text-fg-3 mt-px">{t('sup.invoicesList')}</div>
     </div>
   </div>
 
-  <div style="flex: 1; overflow: auto; padding: 0 18px 24px; display: flex; flex-direction: column; gap: 8px;">
+  <div class="flex-1 overflow-auto px-[18px] pb-6 flex flex-col gap-2">
     {#if suppliers.length === 0}
-      <div style="padding: 40px 0; text-align: center; color: var(--mep-fg-3); font-size: 13px;">
+      <div class="py-[40px] text-center text-fg-3 text-[13px]">
         {appliedSearch || category || uncategorizedOnly ? t('sup.noResults') : t('sup.noSuppliers')}
       </div>
     {:else}
       {#each suppliers as s}
-        <a href="/suppliers/{s.id}" style="
-          display: flex; align-items: center; gap: 12px;
-          padding: 12px; border-radius: 10px;
-          background: var(--mep-surface);
-          text-decoration: none;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        ">
-          <div style="
-            width: 40px; height: 40px; border-radius: 20px; flex-shrink: 0;
-            background: {categoryTint(s.category)}; color: {categoryColor(s.category)};
-            display: flex; align-items: center; justify-content: center;
-            font-size: 12px; font-weight: 600;
-          ">
+        <a href="/suppliers/{s.id}" class="flex items-center gap-3 p-3 rounded-[10px] bg-surface no-underline" style="box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+          <div class="w-10 h-10 rounded-full shrink-0 flex items-center justify-center text-[12px] font-semibold"
+            style="background:{categoryTint(s.category)};color:{categoryColor(s.category)};">
             {initials(s.name)}
           </div>
-          <div style="flex: 1; min-width: 0;">
-            <div style="font-size: 13.5px; font-weight: 500; color: var(--mep-fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+          <div class="flex-1 min-w-0">
+            <div class="text-[13.5px] font-medium text-fg overflow-hidden text-ellipsis whitespace-nowrap">
               {s.name}
             </div>
-            <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 2px;">
+            <div class="text-[11px] text-fg-3 mt-0.5">
               {tcat(s.category)}{s.month_invoice_count ? ` · ${s.month_invoice_count} ${t('sup.invoicesSuffix')}` : ''}
             </div>
           </div>
-          <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
-            <div class="num" style="font-size: 13px; font-weight: 500; color: var(--mep-fg);">
+          <div class="text-right shrink-0 flex flex-col items-end gap-1">
+            <div class="num text-[13px] font-medium text-fg">
               {s.month_spend != null ? fmtEur(s.month_spend, locale.current) : '—'}
             </div>
             {#if s.delta_pct != null && Math.abs(s.delta_pct) >= 0.1}
-              <div class="num" style="font-size: 11px; color: {deltaColor(s.delta_pct)};">
+              <div class="num text-[11px]" class:text-neg={s.delta_pct > 0} class:text-pos={s.delta_pct <= 0}>
                 {s.delta_pct > 0 ? '↑' : '↓'}{Math.abs(s.delta_pct).toFixed(1).replace('.', ',')}%
               </div>
             {/if}
@@ -257,7 +244,7 @@
               <div class="num text-[11px] {s.cadence.late ? 'text-neg' : 'text-fg-3'}">{cadenceLabel(s.cadence, locale.current)}</div>
             {/if}
           </div>
-          <ChevronRight size={14} style="color: var(--mep-fg-3); flex-shrink: 0;" />
+          <ChevronRight size={14} class="text-fg-3 shrink-0" />
         </a>
       {/each}
     {/if}

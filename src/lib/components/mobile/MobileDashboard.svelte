@@ -66,35 +66,32 @@
     return ti('turno.ribbon.paceNoBudget', { delta: (pct >= 0 ? '+' : '') + pct + '%' });
   });
 
-  const reviewColor = $derived.by(() => {
-    if (data.review.incidencias > 0) return 'var(--mep-neg)';
-    if (data.review.count > 0) return 'var(--mep-caution)';
-    return 'var(--mep-pos)';
-  });
+  const reviewNeg     = $derived(data.review.incidencias > 0);
+  const reviewCaution = $derived(!reviewNeg && data.review.count > 0);
 
 </script>
 
-<div style="height: 100%; overflow: auto; padding-bottom: 24px;">
-  <div style="padding: 14px 18px 24px; display: flex; flex-direction: column; gap: 14px;">
+<div class="h-full overflow-auto pb-6">
+  <div class="px-[18px] pt-[14px] pb-6 flex flex-col gap-[14px]">
 
-    <div style="font-size:13px;color:var(--mep-fg-3);">
+    <div class="text-[13px] text-fg-3">
       {t(greeting)} · {dateStr}
     </div>
 
-    <div class="card" style="padding: 16px;">
-      <div class="label" style="margin-bottom: 6px;">{t('turno.atStake')}</div>
-      <div class="num" style="font-size: 32px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.025em; line-height: 1;">
+    <div class="card p-4">
+      <div class="label mb-1.5">{t('turno.atStake')}</div>
+      <div class="num text-[32px] font-semibold text-fg tracking-[-0.025em] leading-none">
         {stake > 0 ? fmtEur(stake, locale.current) : '—'}
       </div>
-      <div class="body" style="margin-top: 6px;">
+      <div class="body mt-1.5">
         {worklist.length > 0 ? ti('mdash.turno.stakeSub', { n: worklist.length, urgent: urgentCount }) : t('turno.worklist.subMoney.zero')}
       </div>
     </div>
 
-    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
-      <div class="card" style="padding: 12px; display: flex; flex-direction: column; gap: 5px; min-width: 0;">
+    <div class="grid grid-cols-2 gap-[10px]">
+      <div class="card p-3 flex flex-col gap-[5px] min-w-0">
         <span class="label">{t('turno.ribbon.pace')}</span>
-        <span class="num" style="font-size: 20px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; color: var(--mep-fg);">
+        <span class="num text-[20px] font-semibold tracking-[-0.02em] leading-[1.1] text-fg">
           {fmtEurCompact(data.mom.this_month, locale.current)}
         </span>
         {#if hasBudget}
@@ -107,25 +104,28 @@
             label={ti('turno.ribbon.paceAria', { spent: fmtEurCompact(data.mom.this_month, locale.current), plan: fmtEurCompact(planMtd, locale.current), budget: fmtEurCompact(data.total_budget, locale.current) })}
           />
         {/if}
-        <span class="num" style="font-size: 11px; font-weight: 500; color: {hasBudget && paceDelta > 0 ? 'var(--mep-neg)' : 'var(--mep-pos)'};">
+        <span class="num text-[11px] font-medium"
+          class:text-neg={hasBudget && paceDelta > 0} class:text-pos={!(hasBudget && paceDelta > 0)}>
           {hasBudget ? ti('turno.ribbon.paceNote', { delta: fmtEurSigned(paceDelta, locale.current), day: daysElapsed }) : momNote}
         </span>
       </div>
-      <div class="card" style="padding: 12px; display: flex; flex-direction: column; gap: 5px; min-width: 0;">
+      <div class="card p-3 flex flex-col gap-[5px] min-w-0">
         <span class="label">{t('turno.ribbon.forecast')}</span>
-        <span class="num" style="font-size: 20px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; color: var(--mep-fg);">
+        <span class="num text-[20px] font-semibold tracking-[-0.02em] leading-[1.1] text-fg">
           {fmtEurCompact(projectedEom, locale.current)}
         </span>
-        <span class="num" style="font-size: 11px; font-weight: 500; color: {hasBudget && overrun > 0 ? 'var(--mep-neg)' : 'var(--mep-pos)'};">
+        <span class="num text-[11px] font-medium"
+          class:text-neg={hasBudget && overrun > 0} class:text-pos={!(hasBudget && overrun > 0)}>
           {hasBudget ? ti('turno.ribbon.forecastNote', { delta: fmtEurSigned(overrun, locale.current) }) : t('turno.ribbon.forecastNoBudget')}
         </span>
       </div>
-      <div class="card" style="grid-column: 1 / -1; padding: 12px; display: flex; flex-direction: column; gap: 5px; min-width: 0;">
+      <div class="card col-span-2 p-3 flex flex-col gap-[5px] min-w-0">
         <span class="label">{t('turno.ribbon.review')}</span>
-        <span class="num" style="font-size: 20px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; color: var(--mep-fg);">
+        <span class="num text-[20px] font-semibold tracking-[-0.02em] leading-[1.1] text-fg">
           {fmtEurCompact(data.review.amount, locale.current)}
         </span>
-        <span class="num" style="font-size: 11px; font-weight: 500; color: {reviewColor};">
+        <span class="num text-[11px] font-medium"
+          class:text-neg={reviewNeg} class:text-caution={reviewCaution} class:text-pos={!reviewNeg && !reviewCaution}>
           {data.review.incidencias > 0
             ? tp('turno.ribbon.issuesNote', data.review.incidencias)
             : tp('turno.ribbon.reviewNote', data.review.count)}
@@ -133,17 +133,17 @@
       </div>
     </div>
 
-    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 2px;">
-      <div style="min-width: 0;">
+    <div class="flex items-center justify-between gap-2 pt-0.5">
+      <div class="min-w-0">
         <div class="subtitle">{t('turno.worklist.title')}</div>
-        <div class="body" style="margin-top: 1px;">
+        <div class="body mt-px">
           {tp(sortMode === 'money' ? 'turno.worklist.subMoney' : 'turno.worklist.subUrgency', worklist.length)}
         </div>
       </div>
       {#if worklist.length > 1}
         <button
           type="button"
-          style="display: inline-flex; align-items: center; gap: 6px; background: none; border: 0; font-size: 13px; font-weight: 500; color: var(--mep-acc); min-height: 44px; flex-shrink: 0;"
+          class="inline-flex items-center gap-1.5 bg-transparent border-0 text-[13px] font-medium text-acc min-h-[44px] shrink-0 cursor-pointer"
           onclick={() => sortMode = sortMode === 'money' ? 'urgency' : 'money'}
         >
           {t(sortMode === 'money' ? 'turno.sort.toUrgency' : 'turno.sort.toMoney')}
@@ -169,15 +169,15 @@
     <RailBlock title={t('turno.rail.pace')}>
       {#snippet headerRight()}
         {#if hasBudget}
-          <span class="num" style="font-size: 11px; font-weight: 500; color: {overrun > 0 ? 'var(--mep-neg)' : 'var(--mep-pos)'};">
+          <span class="num text-[11px] font-medium" class:text-neg={overrun > 0} class:text-pos={overrun <= 0}>
             {fmtEurSigned(overrun, locale.current)}
           </span>
         {/if}
       {/snippet}
       {#if !hasPaceData && data.invoices_outside_month > 0}
-        <div style="display:flex;flex-direction:column;gap:6px;">
+        <div class="flex flex-col gap-1.5">
           <div class="body">{tp('turno.rail.paceOutOfRange', data.invoices_outside_month)}</div>
-          <a href="/invoices" style="font-size:11px;color:var(--mep-acc);text-decoration:none;">{t('turno.rail.paceOutOfRangeAction')}</a>
+          <a href="/invoices" class="text-[11px] text-acc no-underline">{t('turno.rail.paceOutOfRangeAction')}</a>
         </div>
       {:else if !hasPaceData}
         <div class="body">{t('turno.rail.paceEmpty')}</div>
@@ -198,7 +198,7 @@
 
     <RailBlock title={t('turno.rail.cats')}>
       {#snippet headerRight()}
-        <a href="/budgets" style="font-size: 13px; font-weight: 500; color: var(--mep-acc); text-decoration: none; min-height: 44px; display: inline-flex; align-items: center;">
+        <a href="/budgets" class="text-[13px] font-medium text-acc no-underline min-h-[44px] inline-flex items-center">
           {t('turno.rail.catsAll')}
         </a>
       {/snippet}
@@ -210,8 +210,8 @@
             <div>
               <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 5px;">
                 <span class="body-strong" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{tcat(cat.category)}</span>
-                <span class="num" style="font-size: 11px; color: var(--mep-fg-3); flex-shrink: 0;">
-                  {fmtEurCompact(cat.spent, locale.current)} <span style="color: var(--mep-fg-4);">/ {fmtEurCompact(cat.budget, locale.current)}</span>
+                <span class="num text-[11px] text-fg-3 shrink-0">
+                  {fmtEurCompact(cat.spent, locale.current)} <span class="text-fg-4">/ {fmtEurCompact(cat.budget, locale.current)}</span>
                 </span>
               </div>
               <Bullet
@@ -223,7 +223,7 @@
                 height={10}
                 label={ti('turno.rail.catBullet', { category: tcat(cat.category), spent: fmtEurCompact(cat.spent, locale.current), budget: fmtEurCompact(cat.budget, locale.current) })}
               />
-              <div class="num" style="font-size: 11px; margin-top: 5px; color: {cat.overrun > 0 ? 'var(--mep-neg)' : 'var(--mep-fg-3)'};">
+              <div class="num text-[11px] mt-[5px]" class:text-neg={cat.overrun > 0} class:text-fg-3={cat.overrun <= 0}>
                 {ti('turno.rail.catForecast', { amount: fmtEurCompact(cat.forecast, locale.current), delta: fmtEurSigned(cat.overrun, locale.current) })}
               </div>
             </div>

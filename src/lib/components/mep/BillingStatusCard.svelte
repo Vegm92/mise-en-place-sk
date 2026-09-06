@@ -40,30 +40,30 @@
 		<div style="display:flex;flex-direction:column;gap:8px;">
 			<span class="label">{t('billing.yourPlan')}</span>
 			<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-				<span style="font-size:32px;font-weight:600;letter-spacing:-0.025em;line-height:1;color:var(--mep-fg);">{planName}</span>
+				<span class="text-[32px] font-semibold tracking-[-0.025em] leading-none text-fg">{planName}</span>
 				{#if status === 'active'}
-					<span style="background:var(--mep-pos-soft);color:var(--mep-pos);padding:3px 10px;border-radius:999px;font-size:12px;font-weight:500;">{t('billing.active')}</span>
+					<span class="bg-pos-soft text-pos py-[3px] px-2.5 rounded-full text-[12px] font-medium">{t('billing.active')}</span>
 				{:else if status === 'trialing'}
-					<span style="background:var(--mep-acc-soft);color:var(--mep-acc);padding:3px 10px;border-radius:999px;font-size:12px;font-weight:500;">
+					<span class="bg-acc-soft text-acc py-[3px] px-2.5 rounded-full text-[12px] font-medium">
 						{t('billing.trial')}{trialDaysLeft > 0 ? ti('billing.trialLeft', { n: trialDaysLeft }) : t('billing.trialExpiredSuffix')}
 					</span>
 				{:else if status === 'past_due'}
-					<span style="background:var(--mep-neg-soft);color:var(--mep-neg);padding:3px 10px;border-radius:999px;font-size:12px;font-weight:500;">{t('billing.pastDue')}</span>
+					<span class="bg-neg-soft text-neg py-[3px] px-2.5 rounded-full text-[12px] font-medium">{t('billing.pastDue')}</span>
 				{:else if status === 'paused'}
-					<span style="background:var(--mep-hover);color:var(--mep-fg-2);padding:3px 10px;border-radius:999px;font-size:12px;font-weight:500;">{t('billing.paused')}</span>
+					<span class="bg-hover text-fg-2 py-[3px] px-2.5 rounded-full text-[12px] font-medium">{t('billing.paused')}</span>
 				{:else}
-					<span style="background:var(--mep-hover);color:var(--mep-fg-2);padding:3px 10px;border-radius:999px;font-size:12px;font-weight:500;">{t('billing.canceled')}</span>
+					<span class="bg-hover text-fg-2 py-[3px] px-2.5 rounded-full text-[12px] font-medium">{t('billing.canceled')}</span>
 				{/if}
 			</div>
 
 			{#if status === 'active' && periodEnd}
-				<span style="font-size:13px;color:var(--mep-fg-3);">
+				<span class="text-[13px] text-fg-3">
 					{#if cancelAtPeriodEnd}{ti('billing.cancelsOn', { date: fmt(periodEnd) })}{:else}{ti('billing.renewsOn', { date: fmt(periodEnd) })}{#if price !== null}{' · '}<span class="num">{price} €</span>{t('billing.perMonthShort')}{/if}{/if}
 				</span>
 			{:else if status === 'trialing' && trialEnd && trialDaysLeft > 0}
-				<span style="font-size:13px;color:var(--mep-fg-3);">{ti('billing.trialEndsOn', { date: fmt(trialEnd) })}</span>
+				<span class="text-[13px] text-fg-3">{ti('billing.trialEndsOn', { date: fmt(trialEnd) })}</span>
 			{:else if status === 'trialing' && trialDaysLeft <= 0}
-				<span style="font-size:13px;color:var(--mep-neg);">{t('billing.trialExpiredMsg')}</span>
+				<span class="text-[13px] text-neg">{t('billing.trialExpiredMsg')}</span>
 			{/if}
 		</div>
 
@@ -76,34 +76,34 @@
 		{/if}
 	</div>
 
-	<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border-top:1px solid var(--mep-divider);background:var(--mep-surface-2);">
-		<div style="padding:16px 24px;display:flex;flex-direction:column;gap:8px;border-right:1px solid var(--mep-divider);">
+	<div class="grid grid-cols-2 border-t border-divider bg-surface-2">
+		<div class="px-6 py-4 flex flex-col gap-2 border-r border-divider">
 			<span class="label">{t('billing.invoicesThisMonth')}</span>
 			<div style="display:flex;align-items:baseline;gap:6px;">
-				<span class="num" style="font-size:20px;font-weight:600;letter-spacing:-0.015em;color:var(--mep-fg);">{quotaUsed}</span>
-				<span class="num" style="font-size:13px;color:var(--mep-fg-3);">
+				<span class="num text-[20px] font-semibold tracking-[-0.015em] text-fg">{quotaUsed}</span>
+				<span class="num text-[13px] text-fg-3">
 					{quotaLimit === null ? t('billing.unlimited') : ti('billing.ofQuota', { n: quotaLimit })}
 				</span>
 			</div>
 			{#if quotaLimit !== null}
-				<div style="height:4px;border-radius:2px;background:var(--mep-divider);overflow:hidden;">
-					<div style="width:{quotaPct}%;height:100%;background:var(--mep-acc);border-radius:2px;"></div>
+				<div class="h-1 rounded bg-divider overflow-hidden">
+					<div class="h-full bg-acc rounded" style="width:{quotaPct}%;"></div>
 				</div>
 			{/if}
 		</div>
-		<div style="padding:16px 24px;display:flex;flex-direction:column;gap:8px;">
+		<div class="px-6 py-4 flex flex-col gap-2">
 			<span class="label">{t('billing.matrix.row.locations')}</span>
 			<div style="display:flex;align-items:baseline;gap:6px;">
-				<span class="num" style="font-size:20px;font-weight:600;letter-spacing:-0.015em;color:var(--mep-fg);">{locationsUsed}</span>
-				<span class="num" style="font-size:13px;color:var(--mep-fg-3);">{ti('billing.ofQuota', { n: maxLocations })}</span>
+				<span class="num text-[20px] font-semibold tracking-[-0.015em] text-fg">{locationsUsed}</span>
+				<span class="num text-[13px] text-fg-3">{ti('billing.ofQuota', { n: maxLocations })}</span>
 			</div>
 			{#if lockedLocations > 0}
-				<span style="font-size:11px;color:var(--mep-fg-3);">
+				<span class="text-[11px] text-fg-3">
 					{ti('billing.locationsLocked', { n: lockedLocations })}
 				</span>
 			{/if}
 			{#if upgradeName}
-				<span style="font-size:12px;color:var(--mep-fg-3);">
+				<span class="text-[12px] text-fg-3">
 					{ti('billing.higherTierLocations', { name: upgradeName, n: upgradeMaxLocations })}
 				</span>
 			{/if}
