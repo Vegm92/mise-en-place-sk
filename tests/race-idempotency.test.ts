@@ -68,7 +68,7 @@ describe.skipIf(!hasDbEnv)('#237 content-hash dedup is a hard unique constraint'
 			// The partial index excludes deleted rows, so a fresh live save is fine.
 			await testSql`INSERT INTO invoices (restaurant_id, content_hash, status) VALUES (${r.id}, 'dup', 'pending')`;
 			const rows = await testSql`SELECT count(*)::int AS n FROM invoices WHERE restaurant_id = ${r.id}`;
-			expect(rows[0].n).toBe(2);
+			expect(rows[0]!.n).toBe(2);
 		} finally {
 			await cleanupTestRestaurant(r.id);
 		}

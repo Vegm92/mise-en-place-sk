@@ -74,13 +74,13 @@ async function makeUser(suffix: string, passwordHash: string | null = null) {
 		VALUES (${email}, ${'Chef ' + suffix}, ${passwordHash}, now())
 		RETURNING id
 	`;
-	return { id: row.id as string, email };
+	return { id: row!.id as string, email };
 }
 
 async function makeRestaurant(suffix: string) {
 	const slug = `test-vitest-acct-del-${suffix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 	const [row] = await testSql`INSERT INTO restaurants (name, slug) VALUES (${'Rest ' + suffix}, ${slug}) RETURNING id`;
-	return row.id as string;
+	return row!.id as string;
 }
 
 async function membership(userId: string, restaurantId: string, role: 'owner' | 'member' = 'owner') {
@@ -296,25 +296,25 @@ describe.skipIf(!hasDbEnv)('POST /api/user/delete (issue #492)', () => {
 		`;
 		await testSql`
 			INSERT INTO invoice_line_items (restaurant_id, invoice_id, description)
-			VALUES (${rid}, ${invoiceRow.id}, 'line 1')
+			VALUES (${rid}, ${invoiceRow!.id}, 'line 1')
 		`;
 		const [sessionRow] = await testSql`
 			INSERT INTO chat_sessions (restaurant_id, title) VALUES (${rid}, 'session') RETURNING id
 		`;
 		await testSql`
 			INSERT INTO chat_messages (restaurant_id, session_id, role, text)
-			VALUES (${rid}, ${sessionRow.id}, 'user', 'hi')
+			VALUES (${rid}, ${sessionRow!.id}, 'user', 'hi')
 		`;
 		const [productRow] = await testSql`
 			INSERT INTO products (restaurant_id, canonical_name, name_key) VALUES (${rid}, 'Aceite', 'aceite-mapfk') RETURNING id
 		`;
 		await testSql`
-			INSERT INTO product_aliases (restaurant_id, product_id, raw_key) VALUES (${rid}, ${productRow.id}, 'aceite-raw')
+			INSERT INTO product_aliases (restaurant_id, product_id, raw_key) VALUES (${rid}, ${productRow!.id}, 'aceite-raw')
 		`;
 		const [batchRow] = await testSql`INSERT INTO upload_batches (restaurant_id) VALUES (${rid}) RETURNING id`;
 		await testSql`
 			INSERT INTO batch_items (batch_id, restaurant_id, position, file_key, display_name)
-			VALUES (${batchRow.id}, ${rid}, 1, 'k', 'd')
+			VALUES (${batchRow!.id}, ${rid}, 1, 'k', 'd')
 		`;
 
 		const result = await runDelete(userId, email, { password: 'correct-horse' });

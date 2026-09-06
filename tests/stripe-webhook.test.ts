@@ -399,8 +399,8 @@ describe.skipIf(!hasDbEnv)('cancelDuplicateSubscriptionsForUser — notifies the
 				.values({ email: `dup-owner-${Date.now()}@example.com` })
 				.returning({ id: users.id });
 			await testDb.insert(userRestaurants).values([
-				{ userId: user.id, restaurantId: keep.id, role: 'owner' },
-				{ userId: user.id, restaurantId: drop.id, role: 'owner' },
+				{ userId: user!.id, restaurantId: keep.id, role: 'owner' },
+				{ userId: user!.id, restaurantId: drop.id, role: 'owner' },
 			]);
 			await testDb.insert(subscriptions).values([
 				{ restaurantId: keep.id, planTier: 'pro', status: 'active', stripeSubscriptionId: subKeep, stripeCustomerId: cusKeep },
@@ -408,13 +408,13 @@ describe.skipIf(!hasDbEnv)('cancelDuplicateSubscriptionsForUser — notifies the
 			]);
 			const cancelSpy = vi.spyOn(stripe!.subscriptions, 'cancel').mockResolvedValue({} as never);
 			try {
-				await cancelDuplicateSubscriptionsForUser(user.id, keep.id);
+				await cancelDuplicateSubscriptionsForUser(user!.id, keep.id);
 
 				expect(cancelSpy).toHaveBeenCalledWith(subDropId);
 				expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: expect.stringContaining('dup-owner-') }));
 			} finally {
 				cancelSpy.mockRestore();
-				await testDb.delete(users).where(eq(users.id, user.id));
+				await testDb.delete(users).where(eq(users.id, user!.id));
 			}
 		} finally {
 			await cleanupTestRestaurant(keep.id);

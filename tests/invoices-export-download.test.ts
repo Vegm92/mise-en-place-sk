@@ -64,7 +64,7 @@ beforeAll(async () => {
 	const [s] = await testSql`
 		INSERT INTO suppliers (restaurant_id, name) VALUES (${rid}, '__export493_supplier__') RETURNING id
 	`;
-	supplierId = s.id;
+	supplierId = s!.id;
 });
 
 beforeEach(() => {
@@ -108,7 +108,7 @@ async function insertInvoice(rest: {
 			${rest.taxBase ?? null}, ${rest.totalAmount ?? null}, ${rest.sourceFile ?? null}, 'pending'
 		) RETURNING id
 	`;
-	return row.id;
+	return row!.id;
 }
 
 async function runGet(qs: string) {
@@ -252,7 +252,7 @@ describe.skipIf(!hasDbEnv)('/invoices/export/download — issue #883 taxable bas
 			INSERT INTO invoices (restaurant_id, invoice_number, status) VALUES (${other.id}, 'INV-883-FOREIGN', 'pending') RETURNING id
 		`;
 
-		const sheet = await parseSheet(await runGet(`?ids=${mine},${foreign.id}`));
+		const sheet = await parseSheet(await runGet(`?ids=${mine},${foreign!.id}`));
 		expect(sheet.rowCount).toBe(2);
 		expect(sheet.getRow(2).getCell(3).value).toBe('INV-883-MINE');
 

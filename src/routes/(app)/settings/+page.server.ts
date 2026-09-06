@@ -296,14 +296,15 @@ export const actions: Actions = {
 				await tx.execute(sql`SET LOCAL app.admin = 'true'`);
 				await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${'loc:' + billingRid}))`);
 
-				const [{ cnt }] = await tx.select({ cnt: sql<number>`count(*)::int` })
+				const [cntRow] = await tx.select({ cnt: sql<number>`count(*)::int` })
 					.from(restaurants)
 					.where(eq(BILLING_PARENT, billingRid));
-				if (Number(cnt) >= maxLocations) throw new LocationLimitReachedError();
+				if (Number(cntRow?.cnt ?? 0) >= maxLocations) throw new LocationLimitReachedError();
 
 				const [created] = await tx.insert(restaurants)
 					.values({ name, slug, parentId: billingRid })
 					.returning({ id: restaurants.id });
+				if (!created) throw new Error('insert restaurants returned no row');
 				await tx.insert(userRestaurants).values({ userId, restaurantId: created.id, role: 'owner' });
 				await seedDefaultCategories(created.id, tx);
 				return created.id;

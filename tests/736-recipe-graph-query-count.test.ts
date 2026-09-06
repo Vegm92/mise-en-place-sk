@@ -60,7 +60,7 @@ async function newRecipe(rid: string, name: string, kind: 'plato' | 'elaboracion
 		VALUES (${rid}, ${name}, ${normalizeProductKey(name)}, ${kind}, 'active', '4')
 		RETURNING id
 	`;
-	return Number(row.id);
+	return Number(row!.id);
 }
 
 async function newItem(rid: string, recipeId: number, name: string) {

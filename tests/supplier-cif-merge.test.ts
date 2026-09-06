@@ -51,14 +51,14 @@ async function addSupplier(rid: string, name: string, normalizedCif: string | nu
 	const [row] = await testSql`
 		INSERT INTO suppliers (restaurant_id, name, cif, normalized_cif)
 		VALUES (${rid}, ${name}, ${normalizedCif}, ${normalizedCif}) RETURNING id`;
-	return row.id as number;
+	return row!.id as number;
 }
 
 async function addInvoice(rid: string, supplierId: number, invoiceNumber: string | null) {
 	const [row] = await testSql`
 		INSERT INTO invoices (restaurant_id, supplier_id, invoice_number, invoice_date)
 		VALUES (${rid}, ${supplierId}, ${invoiceNumber}, '2026-07-01') RETURNING id`;
-	return row.id as number;
+	return row!.id as number;
 }
 
 async function supplierIds(rid: string) {
@@ -68,7 +68,7 @@ async function supplierIds(rid: string) {
 
 async function supplierOf(invoiceId: number) {
 	const [row] = await testSql`SELECT supplier_id FROM invoices WHERE id = ${invoiceId}`;
-	return row.supplier_id as number;
+	return row!.supplier_id as number;
 }
 
 async function cifsOf(supplierId: number) {
@@ -178,7 +178,7 @@ describe.skipIf(!hasDbEnv)('0074_supplier_cif_merge — merge (issue #949)', () 
 				VALUES (${rid}, ${loser}, 'Loser Antiguo', 'loser antiguo') RETURNING id`;
 			const [productAlias] = await testSql`
 				INSERT INTO product_aliases (restaurant_id, product_id, supplier_id, raw_key)
-				VALUES (${rid}, ${product.id}, ${loser}, 'tomate pera 5kg') RETURNING id`;
+				VALUES (${rid}, ${product!.id}, ${loser}, 'tomate pera 5kg') RETURNING id`;
 			const [conversion] = await testSql`
 				INSERT INTO unit_conversions (restaurant_id, supplier_id, supplier_name, ingredient, purchase_unit, canonical_unit, conversion_factor)
 				VALUES (${rid}, ${loser}, 'Loser', 'tomate', 'caja', 'kg', 5) RETURNING id`;
@@ -189,10 +189,10 @@ describe.skipIf(!hasDbEnv)('0074_supplier_cif_merge — merge (issue #949)', () 
 			await testSql.unsafe(MIGRATION_SQL);
 
 			const moved = await testSql`
-				SELECT supplier_id FROM supplier_aliases WHERE id = ${alias.id}
-				UNION ALL SELECT supplier_id FROM product_aliases WHERE id = ${productAlias.id}
-				UNION ALL SELECT supplier_id FROM unit_conversions WHERE id = ${conversion.id}
-				UNION ALL SELECT supplier_id FROM extraction_corrections WHERE id = ${correction.id}`;
+				SELECT supplier_id FROM supplier_aliases WHERE id = ${alias!.id}
+				UNION ALL SELECT supplier_id FROM product_aliases WHERE id = ${productAlias!.id}
+				UNION ALL SELECT supplier_id FROM unit_conversions WHERE id = ${conversion!.id}
+				UNION ALL SELECT supplier_id FROM extraction_corrections WHERE id = ${correction!.id}`;
 			expect(moved.map((row) => row.supplier_id)).toEqual([winner, winner, winner, winner]);
 		}));
 

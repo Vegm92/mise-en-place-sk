@@ -85,8 +85,8 @@ describe('notifyWhatsAppSender', () => {
 		await notifyWhatsAppSender({ itemId: 'item-1', restaurantId: 'rest-1' }, ctx);
 
 		expect(sent).toHaveLength(1);
-		expect(sent[0].to).toBe('34600111222');
-		expect(sent[0].body).toContain('Frutas Paco');
+		expect(sent[0]!.to).toBe('34600111222');
+		expect(sent[0]!.body).toContain('Frutas Paco');
 		expect(setReviewStatusMock).toHaveBeenCalledWith('item-1', 'pending', [null]);
 	});
 
@@ -96,8 +96,8 @@ describe('notifyWhatsAppSender', () => {
 
 		await notifyWhatsAppSender({ itemId: 'item-1', restaurantId: 'rest-1' }, ctx);
 
-		expect(sent[0].body).toMatch(/No he podido leer esta factura/i);
-		expect(sent[0].body).toContain('https://app.example.com/batch/batch-1');
+		expect(sent[0]!.body).toMatch(/No he podido leer esta factura/i);
+		expect(sent[0]!.body).toContain('https://app.example.com/batch/batch-1');
 		expect(setReviewStatusMock).toHaveBeenCalledWith('item-1', 'to_review', [null, 'pending']);
 	});
 

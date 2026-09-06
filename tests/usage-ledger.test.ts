@@ -38,7 +38,7 @@ async function ledgerTotal(): Promise<number> {
 		SELECT COALESCE(SUM(delta), 0)::int AS total
 		FROM usage_events
 		WHERE restaurant_id = ${rid} AND month = to_char(now(), 'YYYY-MM')`;
-	return row.total;
+	return row!.total;
 }
 
 async function expectConsistent(used: number) {

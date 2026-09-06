@@ -48,7 +48,7 @@ async function newProduct(rid: string, name: string) {
 		INSERT INTO products (restaurant_id, canonical_name, name_key)
 		VALUES (${rid}, ${name}, ${normalizeProductKey(name)}) RETURNING id
 	`;
-	return Number(row.id);
+	return Number(row!.id);
 }
 
 async function productRow(id: number) {

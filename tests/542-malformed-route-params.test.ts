@@ -128,7 +128,7 @@ const ROUTES: RouteCase[] = [
 		label: 'invoice',
 		uses: 'db',
 		run: async (id) =>
-			(await invoiceDetail()).actions.relinkProducts({ params: { id }, locals: { restaurantId: RID } } as never),
+			(await invoiceDetail()).actions.relinkProducts!({ params: { id }, locals: { restaurantId: RID } } as never),
 		validEvent: () => ({ id: '5' }),
 	},
 	{
@@ -136,7 +136,7 @@ const ROUTES: RouteCase[] = [
 		label: 'invoice',
 		uses: 'db',
 		run: async (id) =>
-			(await invoiceDetail()).actions.delete(
+			(await invoiceDetail()).actions.delete!(
 				{ params: { id }, locals: { restaurantId: RID, user: { id: 'u1' } } } as never,
 			),
 		validEvent: () => ({ id: '5' }),
@@ -153,7 +153,7 @@ const ROUTES: RouteCase[] = [
 		label: 'invoice',
 		uses: 'sentinel',
 		run: async (id, { sentinel }) =>
-			(await invoiceEdit()).actions.save(
+			(await invoiceEdit()).actions.save!(
 				{
 					params: { id },
 					locals: { restaurantId: RID, user: { id: 'u1' } },
@@ -181,7 +181,7 @@ const ROUTES: RouteCase[] = [
 		label: 'product',
 		uses: 'sentinel',
 		run: async (id, { sentinel }) =>
-			(await productDetail()).actions.update(
+			(await productDetail()).actions.update!(
 				{ params: { id }, locals: { restaurantId: RID }, request: sentinel!.request } as never,
 			),
 		validEvent: () => ({ id: '5', sentinel: sentinelRequest() }),
@@ -191,7 +191,7 @@ const ROUTES: RouteCase[] = [
 		label: 'product',
 		uses: 'sentinel',
 		run: async (id, { sentinel }) =>
-			(await productDetail()).actions.unlinkSupplier(
+			(await productDetail()).actions.unlinkSupplier!(
 				{ params: { id }, locals: { restaurantId: RID }, request: sentinel!.request } as never,
 			),
 		validEvent: () => ({ id: '5', sentinel: sentinelRequest() }),
@@ -201,7 +201,7 @@ const ROUTES: RouteCase[] = [
 		label: 'product',
 		uses: 'db',
 		run: async (id) =>
-			(await productDetail()).actions.delete({ params: { id }, locals: { restaurantId: RID } } as never),
+			(await productDetail()).actions.delete!({ params: { id }, locals: { restaurantId: RID } } as never),
 		validEvent: () => ({ id: '5' }),
 	},
 	{
@@ -219,7 +219,7 @@ const ROUTES: RouteCase[] = [
 		label: 'supplier',
 		uses: 'sentinel',
 		run: async (id, { sentinel }) =>
-			(await supplierDetail()).actions.update(
+			(await supplierDetail()).actions.update!(
 				{ params: { id }, locals: { restaurantId: RID }, request: sentinel!.request } as never,
 			),
 		validEvent: () => ({ id: '5', sentinel: sentinelRequest() }),
@@ -229,7 +229,7 @@ const ROUTES: RouteCase[] = [
 		label: 'supplier',
 		uses: 'sentinel',
 		run: async (id, { sentinel }) =>
-			(await supplierDetail()).actions.addConversion(
+			(await supplierDetail()).actions.addConversion!(
 				{ params: { id }, locals: { restaurantId: RID }, request: sentinel!.request } as never,
 			),
 		validEvent: () => ({ id: '5', sentinel: sentinelRequest() }),
@@ -239,7 +239,7 @@ const ROUTES: RouteCase[] = [
 		label: 'supplier',
 		uses: 'sentinel',
 		run: async (id, { sentinel }) =>
-			(await supplierDetail()).actions.deleteConversion(
+			(await supplierDetail()).actions.deleteConversion!(
 				{ params: { id }, locals: { restaurantId: RID }, request: sentinel!.request } as never,
 			),
 		validEvent: () => ({ id: '5', sentinel: sentinelRequest() }),
@@ -249,7 +249,7 @@ const ROUTES: RouteCase[] = [
 		label: 'supplier',
 		uses: 'db',
 		run: async (id) =>
-			(await supplierDetail()).actions.delete({ params: { id }, locals: { restaurantId: RID } } as never),
+			(await supplierDetail()).actions.delete!({ params: { id }, locals: { restaurantId: RID } } as never),
 		validEvent: () => ({ id: '5' }),
 	},
 ];

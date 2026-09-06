@@ -76,12 +76,12 @@ describe('seedAdminUser', () => {
 
 		const restaurant = state.inserts.restaurants![0];
 		const sub = state.inserts.subscriptions![0];
-		expect(sub.restaurantId).toBe('restaurants-0');
-		expect(restaurant.name).toBe('Casa Lua');
-		expect(sub.status).toBe('trialing');
-		expect(sub.trialEndsAt).toBeInstanceOf(Date);
+		expect(sub!.restaurantId).toBe('restaurants-0');
+		expect(restaurant!.name).toBe('Casa Lua');
+		expect(sub!.status).toBe('trialing');
+		expect(sub!.trialEndsAt).toBeInstanceOf(Date);
 
-		const expiresIn = (sub.trialEndsAt as Date).getTime() - Date.now();
+		const expiresIn = (sub!.trialEndsAt as Date).getTime() - Date.now();
 		expect(expiresIn).toBeGreaterThan((TRIAL_DAYS - 1) * DAY_MS);
 		expect(expiresIn).toBeLessThanOrEqual(TRIAL_DAYS * DAY_MS);
 	});

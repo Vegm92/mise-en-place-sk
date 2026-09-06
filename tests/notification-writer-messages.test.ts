@@ -38,12 +38,12 @@ describe.skipIf(!hasDbEnv)('alert writers — message column carries no machine 
 
 			expect(alerts).toHaveLength(1);
 			const [alert] = alerts;
-			expect(looksLikeMachineEnum(alert.message, alert.notificationType)).toBe(false);
-			expect(alert.message).not.toContain('supplier_uncategorized');
-			expect(alert.message).toBe(
+			expect(looksLikeMachineEnum(alert!.message, alert!.notificationType)).toBe(false);
+			expect(alert!.message).not.toContain('supplier_uncategorized');
+			expect(alert!.message).toBe(
 				renderTemplate('es', 'notif.msg.uncategorized', { supplier: 'ESPECIAS LOCAL S.L.U.' }),
 			);
-			expect(alert.payload).toMatchObject({
+			expect(alert!.payload).toMatchObject({
 				messageKey: 'notif.msg.uncategorized',
 				messageVars: { supplier: 'ESPECIAS LOCAL S.L.U.' },
 			});
@@ -60,9 +60,9 @@ describe.skipIf(!hasDbEnv)('alert writers — message column carries no machine 
 
 			expect(alerts).toHaveLength(1);
 			const [alert] = alerts;
-			expect(looksLikeMachineEnum(alert.message, alert.notificationType)).toBe(false);
-			expect(alert.message).not.toContain('->');
-			expect(alert.message).toBe(
+			expect(looksLikeMachineEnum(alert!.message, alert!.notificationType)).toBe(false);
+			expect(alert!.message).not.toContain('->');
+			expect(alert!.message).toBe(
 				renderTemplate('es', 'notif.msg.catSuggested', { supplier: 'Distribuciones Sur', category: 'Bebidas' }),
 			);
 		} finally {
@@ -79,11 +79,11 @@ describe.skipIf(!hasDbEnv)('alert writers — message column carries no machine 
 				.values({ restaurantId: r.id, supplierId, invoiceNumber: 'BM-1', invoiceDate: new Date().toISOString().slice(0, 10), totalAmount: '150.00', status: 'pending' })
 				.returning({ id: invoices.id });
 			await testDb.insert(invoiceLineItems).values([
-				{ restaurantId: r.id, invoiceId: inv.id, description: 'Carne', quantity: 1, unit: 'kg', unitPrice: '150.00', totalPrice: '150.00' },
+				{ restaurantId: r.id, invoiceId: inv!.id, description: 'Carne', quantity: 1, unit: 'kg', unitPrice: '150.00', totalPrice: '150.00' },
 			]);
 			await testDb.insert(categoryBudgets).values({ restaurantId: r.id, category: 'Carnes y Derivados', month, monthlyBudget: '100.00' });
 
-			const alerts = await runBudgetCheck(inv.id, supplierId, r.id);
+			const alerts = await runBudgetCheck(inv!.id, supplierId, r.id);
 
 			expect(alerts.length).toBeGreaterThanOrEqual(1);
 			for (const alert of alerts) {

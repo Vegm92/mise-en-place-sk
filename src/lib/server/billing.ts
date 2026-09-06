@@ -839,6 +839,7 @@ async function handleSubscriptionChanged(event: Stripe.Event, eventCreatedAt: Da
 	}
 
 	if (missingSubscriptionMetadata(event.type, sub.id, restaurantId)) return;
+	if (!restaurantId) return;
 
 	const { priceId, tier, periodEnd } = subscriptionFields(sub);
 	const applied = await db.update(subscriptions)
@@ -888,6 +889,7 @@ async function handleTrialWillEnd(event: Stripe.Event): Promise<void> {
 	const sub = event.data.object as Stripe.Subscription;
 	const restaurantId = sub.metadata?.restaurantId;
 	if (missingSubscriptionMetadata(event.type, sub.id, restaurantId)) return;
+	if (!restaurantId) return;
 
 	trackEvent('trial_will_end', restaurantId, { subscription_id: sub.id });
 }
@@ -983,6 +985,7 @@ async function resolveLiveSubscription(
 	const liveSubs = liveList.data.filter((s) => isLiveSubscription(s));
 	if (liveSubs.length === 1) {
 		const sub = liveSubs[0];
+		if (!sub) return null;
 		const subId = sub.id;
 		const subMeta = JSON.stringify(sub.metadata ?? {});
 		const msg = `[billing] reconcile fallback: subscription ${subId} has no restaurantId metadata — customer=${customerId}, restaurant=${rootRid}, metadata=${subMeta}`;

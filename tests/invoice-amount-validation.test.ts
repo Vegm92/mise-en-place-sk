@@ -288,7 +288,7 @@ describe.skipIf(!hasDbEnv)('batch route save action — malformed amount wiring 
 		const store = createBatchStore(testDb);
 		const { batchId, itemIds: [itemId] } = await store.createBatch(rid, [{ key: 'ns/508.pdf', name: '508.pdf' }]);
 
-		const result = await runBatchSave(batchId, itemId, saveForm('INV-508-BATCH', '12abc'));
+		const result = await runBatchSave(batchId, itemId!, saveForm('INV-508-BATCH', '12abc'));
 		expect(result).toMatchObject({ status: 400, data: { errorKey: 'error.invalidAmount' } });
 		expect(await invoiceCountFor('INV-508-BATCH')).toBe(0);
 	});

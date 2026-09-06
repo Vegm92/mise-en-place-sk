@@ -126,7 +126,7 @@ describe.skipIf(!hasDbEnv)('issue #570 — new-invoice classifier trigger chain'
 		// classify it.
 		const [item1] = await testSql`
 			SELECT product_id FROM invoice_line_items WHERE invoice_id = ${out.invoiceId}`;
-		const productId = item1.product_id as number;
+		const productId = item1!.product_id as number;
 		expect(await productCategoryOf(productId)).toBeNull();
 
 		expect(enqueueCategorizeMock).toHaveBeenCalledTimes(1);

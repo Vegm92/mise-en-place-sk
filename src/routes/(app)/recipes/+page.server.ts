@@ -68,7 +68,7 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 			period,
 			trendData: {
 				xLabels: trend.points.map(
-					(pt) => MONTH_LABELS[Number.parseInt(pt.asOf.split('-')[1], 10) - 1] ?? pt.asOf
+					(pt) => MONTH_LABELS[Number.parseInt(pt.asOf.split('-')[1] ?? '0', 10) - 1] ?? pt.asOf
 				),
 				series: [{
 					key: 'foodCost',
@@ -121,6 +121,6 @@ export const actions: Actions = {
 		`);
 
 		if (rows.length === 0) return fail(409, { error: 'rec.err.duplicate' });
-		redirect(303, `/recipes/${rows[0].id}`);
+		redirect(303, `/recipes/${rows[0]!.id}`);
 	},
 };

@@ -104,7 +104,7 @@ describe('Worker liveness monitor', () => {
 		const states: Array<'alive' | 'stale'> = ['alive', 'alive', 'stale', 'stale', 'alive'];
 		let i = 0;
 		const check = createWorkerLivenessMonitor(async () => ({
-			state: states[i++], lastSeenAt: null, lastJobCompletedAt: null, jobsCompleted: 0, staleAfterSeconds: 120, ageSeconds: 200, details: null,
+			state: states[i++]!, lastSeenAt: null, lastJobCompletedAt: null, jobsCompleted: 0, staleAfterSeconds: 120, ageSeconds: 200, details: null,
 		}));
 		const seen = [];
 		for (let n = 0; n < states.length; n++) seen.push(await check());
@@ -187,7 +187,7 @@ describe('Env rows and formatting', () => {
 			{ name: 'Env: SENTRY_DSN', status: 'error', detail: 'Missing on the web service' },
 			{ name: 'Env: HEALTH_CHECK_TOKEN', status: 'warn', detail: 'Recommended on the web service' },
 		]);
-		expect(envChecks({ missing: ['SENTRY_DSN'], recommended: [] }, false)[0].status).toBe('warn');
+		expect(envChecks({ missing: ['SENTRY_DSN'], recommended: [] }, false)[0]!.status).toBe('warn');
 		expect(envChecks({ missing: [], recommended: [] }, true)).toEqual([{ name: 'Env (web)', status: 'ok', detail: 'All required variables set' }]);
 	});
 

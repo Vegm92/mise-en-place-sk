@@ -59,8 +59,9 @@
   </svg>
   <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
     {#if hovered !== null && computed.slices[hovered]}
-      <span class="num subtitle">{Math.round(computed.slices[hovered].pct * 100)}%</span>
-      <span class="text-[11px] text-fg-3 text-center truncate" style="max-width:{Math.round(size * 0.65)}px;">{computed.slices[hovered].label}</span>
+      {@const hs = computed.slices[hovered]!}
+      <span class="num subtitle">{Math.round(hs.pct * 100)}%</span>
+      <span class="text-[11px] text-fg-3 text-center truncate" style="max-width:{Math.round(size * 0.65)}px;">{hs.label}</span>
     {:else}
       <span class="num subtitle">{valueFormatter(grandTotal)}</span>
       {#if centerLabel}

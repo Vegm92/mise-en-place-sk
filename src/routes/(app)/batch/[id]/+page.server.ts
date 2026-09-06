@@ -274,7 +274,7 @@ export const actions: Actions = {
 		const items = await requireOwnedBatch(params.id, locals);
 		const rid = locals.restaurantId!;
 
-		await enqueueBatchExtraction(items[0].id, rid, {
+		await enqueueBatchExtraction(items[0]!.id, rid, {
 			getItem,
 			getBatchItems,
 			markQueued,
@@ -358,11 +358,11 @@ export const actions: Actions = {
 
 		const { saved, keys } = await saveUploadedFiles(files, params.id);
 		if (saved.length > 0) {
-			const added = await addItems(params.id, items[0].restaurantId, saved.map((name, i) => ({ key: keys[i], name })));
+			const added = await addItems(params.id, items[0]!.restaurantId, saved.map((name, i) => ({ key: keys[i]!, name })));
 			const anyActive = items.some(i => i.status === 'queued' || i.status === 'extracting' || i.status === 'done');
 			if (anyActive) {
 				for (const id of added) {
-					if (await markQueued(id)) await enqueueExtraction(id, items[0].restaurantId);
+					if (await markQueued(id)) await enqueueExtraction(id, items[0]!.restaurantId);
 				}
 			}
 		}

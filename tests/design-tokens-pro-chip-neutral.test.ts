@@ -36,12 +36,12 @@ describe('PRO chip stays neutral (ADR-026)', () => {
 	});
 
 	it('never spells a PRO chip with --mep-acc', () => {
-		const offenders = chipSpans.filter(style => /--mep-acc/.test(style));
+		const offenders = chipSpans.filter(style => /--mep-acc/.test(style!));
 		expect(offenders).toEqual([]);
 	});
 
 	it('every PRO chip uses the neutral background/color/border triple', () => {
-		const offenders = chipSpans.filter(style => !NEUTRAL_CHIP.test(style));
+		const offenders = chipSpans.filter(style => !NEUTRAL_CHIP.test(style!));
 		expect(offenders).toEqual([]);
 	});
 });

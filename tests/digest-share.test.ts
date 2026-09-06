@@ -46,22 +46,22 @@ describeDb('digest-share — anonymised public payload (issue #329, security)', 
 
 		const [invCur] = await testSql`
 			INSERT INTO invoices (restaurant_id, supplier_id, invoice_number, invoice_date, total_amount, status)
-			VALUES (${rid}, ${supplier.id}, ${DISTINCTIVE_INVOICE_NUMBER}, ${cur.start}, ${DISTINCTIVE_AMOUNT}, 'paid')
+			VALUES (${rid}, ${supplier!.id}, ${DISTINCTIVE_INVOICE_NUMBER}, ${cur.start}, ${DISTINCTIVE_AMOUNT}, 'paid')
 			RETURNING id
 		`;
 		await testSql`
 			INSERT INTO invoice_line_items (invoice_id, restaurant_id, description, quantity, unit, unit_price)
-			VALUES (${invCur.id}, ${rid}, 'Solomillo de ternera', 10, 'kg', 30.00)
+			VALUES (${invCur!.id}, ${rid}, 'Solomillo de ternera', 10, 'kg', 30.00)
 		`;
 
 		const [invPrev] = await testSql`
 			INSERT INTO invoices (restaurant_id, supplier_id, invoice_number, invoice_date, total_amount, status)
-			VALUES (${rid}, ${supplier.id}, 'PREV-1', ${prev.start}, 500.00, 'paid')
+			VALUES (${rid}, ${supplier!.id}, 'PREV-1', ${prev.start}, 500.00, 'paid')
 			RETURNING id
 		`;
 		await testSql`
 			INSERT INTO invoice_line_items (invoice_id, restaurant_id, description, quantity, unit, unit_price)
-			VALUES (${invPrev.id}, ${rid}, 'Solomillo de ternera', 10, 'kg', 20.00)
+			VALUES (${invPrev!.id}, ${rid}, 'Solomillo de ternera', 10, 'kg', 20.00)
 		`;
 	});
 

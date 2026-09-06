@@ -41,8 +41,8 @@ describe('issue #747 — sidebar account-footer icon buttons are accessible', ()
 		expect(matches).toHaveLength(2);
 		for (const m of matches) {
 			const style = m[2];
-			const width = Number(style.match(/width:(\d+)px/)?.[1] ?? 0);
-			const height = Number(style.match(/height:(\d+)px/)?.[1] ?? 0);
+			const width = Number(style!.match(/width:(\d+)px/)?.[1] ?? 0);
+			const height = Number(style!.match(/height:(\d+)px/)?.[1] ?? 0);
 			expect(width, `${m[1]} button width`).toBeGreaterThanOrEqual(40);
 			expect(height, `${m[1]} button height`).toBeGreaterThanOrEqual(40);
 		}

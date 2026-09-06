@@ -16,7 +16,7 @@ export function normalizeTaxId(raw: string | null | undefined): string | null {
 }
 
 function personalControlLetter(digits: string): string {
-	return DNI_LETTERS[Number(digits) % 23];
+	return DNI_LETTERS[Number(digits) % 23] ?? '';
 }
 
 function cifControlDigit(body: string): number {
@@ -37,15 +37,15 @@ export function isValidSpanishTaxId(value: string | null | undefined): boolean {
 	const id = normalizeTaxId(value);
 	if (!id) return false;
 	if (DNI_RE.test(id)) return id[8] === personalControlLetter(id.slice(0, 8));
-	if (NIE_RE.test(id)) return id[8] === personalControlLetter(NIE_PREFIX[id[0]] + id.slice(1, 8));
+	if (NIE_RE.test(id)) return id[8] === personalControlLetter((NIE_PREFIX[id[0] ?? ''] ?? '') + id.slice(1, 8));
 	if (!CIF_RE.test(id)) return false;
 
-	const kind = id[0];
-	const control = id[8];
+	const kind = id[0]!;
+	const control = id[8]!;
 	const expected = cifControlDigit(id.slice(1, 8));
-	if (CIF_LETTER_ONLY.includes(kind)) return control === CIF_CONTROL_LETTERS[expected];
+	if (CIF_LETTER_ONLY.includes(kind)) return control === (CIF_CONTROL_LETTERS[expected] ?? '');
 	if (CIF_DIGIT_ONLY.includes(kind)) return control === String(expected);
-	return control === String(expected) || control === CIF_CONTROL_LETTERS[expected];
+	return control === String(expected) || control === (CIF_CONTROL_LETTERS[expected] ?? '');
 }
 
 export const MIN_TAX_ID_MATCH_CONFIDENCE = 0.85;

@@ -171,7 +171,7 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 
 		const MONTH_LABELS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 		const trendData = {
-			xLabels: trendRows.map(r => MONTH_LABELS[(Number.parseInt(r.month.split('-')[1], 10) - 1)] ?? r.month),
+			xLabels: trendRows.map(r => MONTH_LABELS[(Number.parseInt(r.month.split('-')[1] ?? '0', 10) - 1)] ?? r.month),
 			series: [
 				{ key: 'revisado',    labelKey: 'inv.review.revisado',    values: trendRows.map(r => Number(r.revisado))    },
 				{ key: 'por_revisar', labelKey: 'inv.review.por_revisar', values: trendRows.map(r => Number(r.por_revisar)) },

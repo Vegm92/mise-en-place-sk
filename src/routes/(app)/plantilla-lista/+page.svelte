@@ -68,7 +68,7 @@
       label: t(c.labelKey),
       color: c.color,
       values: ITEMS.filter(i => i.category === c.key)
-        .reduce((acc, i) => acc.map((v, idx) => v + i.trend[idx]), [0, 0, 0, 0, 0, 0]),
+        .reduce((acc, i) => acc.map((v, idx) => v + (i.trend[idx] ?? 0)), [0, 0, 0, 0, 0, 0]),
     }))
   );
 
