@@ -45,7 +45,8 @@ vi.mock('$lib/server/db', async () => {
 	// in that case, but this factory still runs at import time, and
 	// `new Proxy(null, ...)` throws, failing the whole file at collection
 	// instead of skipping it. Hand back an inert stand-in: nothing reads it.
-	if (!testDb) return { db: {}, forTenant };
+	const runAsSystem = (fn: () => Promise<unknown>) => fn();
+	if (!testDb) return { db: {}, forTenant, runAsSystem };
 	const db = new Proxy(testDb as object, {
 		get(target, prop, receiver) {
 			if (prop === 'transaction') {
@@ -61,7 +62,7 @@ vi.mock('$lib/server/db', async () => {
 			return Reflect.get(target, prop, receiver);
 		},
 	});
-	return { db, forTenant };
+	return { db, forTenant, runAsSystem };
 });
 
 import { testSql, closeDb, hasDbEnv } from './helpers/test-db';
