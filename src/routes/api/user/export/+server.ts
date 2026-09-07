@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { db } from '$lib/server/db';
+import { db, runAsSystem } from '$lib/server/db';
 import { userRestaurants } from '$lib/server/schema';
 import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import { exportableEntries } from '$lib/server/tenant-data-map';
@@ -15,10 +15,10 @@ export const GET: RequestHandler = async ({ locals }) => {
 		throw error(429, 'Too many requests — please wait a moment before trying again');
 	}
 
-	const memberships = await db
+	const memberships = await runAsSystem(() => db
 		.select({ restaurantId: userRestaurants.restaurantId, role: userRestaurants.role })
 		.from(userRestaurants)
-		.where(eq(userRestaurants.userId, user.id));
+		.where(eq(userRestaurants.userId, user.id)));
 
 	const restaurantIds = memberships.map(m => m.restaurantId);
 	const entries = exportableEntries();

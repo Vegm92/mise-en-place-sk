@@ -540,6 +540,13 @@
       "when": 1788606260804,
       "tag": "0076_brainy_living_mummy",
       "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1788725944000,
+      "tag": "0078_rls_tenant_isolation_gap",
+      "breakpoints": true
     }
   ]
 }
