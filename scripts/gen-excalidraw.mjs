@@ -28,31 +28,31 @@ const MARGIN = 60;
 const CENTER_X = 1100;
 const LINE_HEIGHT = 1.25;
 
-let seq = 0;
-const nextSeq = () => ++seq;
-
-function base(id, type, extra) {
-	const n = nextSeq();
-	return {
-		id,
-		type,
-		angle: 0,
-		backgroundColor: 'transparent',
-		fillStyle: 'solid',
-		strokeWidth: 2,
-		roughness: 1,
-		opacity: 100,
-		groupIds: [],
-		frameId: null,
-		seed: 1000 + n,
-		version: 1,
-		versionNonce: 5000 + n,
-		isDeleted: false,
-		boundElements: [],
-		updated: 1,
-		link: null,
-		locked: false,
-		...extra,
+function makeBase() {
+	let seq = 0;
+	return function base(id, type, extra) {
+		const n = ++seq;
+		return {
+			id,
+			type,
+			angle: 0,
+			backgroundColor: 'transparent',
+			fillStyle: 'solid',
+			strokeWidth: 2,
+			roughness: 1,
+			opacity: 100,
+			groupIds: [],
+			frameId: null,
+			seed: 1000 + n,
+			version: 1,
+			versionNonce: 5000 + n,
+			isDeleted: false,
+			boundElements: [],
+			updated: 1,
+			link: null,
+			locked: false,
+			...extra,
+		};
 	};
 }
 
@@ -108,6 +108,7 @@ function anchors(from, to) {
 }
 
 export function buildExcalidraw(spec) {
+	const base = makeBase();
 	const fontSize = spec.fontSize ?? 16;
 	const edgeFontSize = spec.edgeFontSize ?? 12;
 	const placed = layout(spec.nodes, fontSize);
@@ -345,7 +346,6 @@ const DIAGRAMS = [
 function main() {
 	mkdirSync(OUT_DIR, { recursive: true });
 	for (const [name, spec] of DIAGRAMS) {
-		seq = 0;
 		const doc = buildExcalidraw(spec);
 		const file = path.join(OUT_DIR, `${name}.excalidraw`);
 		writeFileSync(file, `${JSON.stringify(doc, null, 2)}\n`);
@@ -353,4 +353,6 @@ function main() {
 	}
 }
 
-main();
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+	main();
+}
