@@ -547,6 +547,13 @@
       "when": 1788817859907,
       "tag": "0077_spooky_madelyne_pryor",
       "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1788817859908,
+      "tag": "0078_rls_tenant_isolation_gap",
+      "breakpoints": true
     }
   ]
 }
