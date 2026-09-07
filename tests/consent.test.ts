@@ -9,7 +9,7 @@ import { testSql, closeDb, hasDbEnv } from './helpers/test-db';
 import { recordConsent, hasConsent, POLICY_VERSION } from '../src/lib/server/consent';
 
 describe.skipIf(!hasDbEnv)('recordConsent / hasConsent', () => {
-	const userId = `test-vitest-consent-${randomUUID()}`;
+	const userId = randomUUID();
 
 	afterAll(async () => {
 		await testSql`DELETE FROM user_consents WHERE user_id = ${userId}`;

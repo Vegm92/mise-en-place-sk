@@ -20,6 +20,7 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { getTableColumns } from 'drizzle-orm';
 
 vi.mock('../src/lib/server/db', async () => {
@@ -36,7 +37,7 @@ import { saveReviewedInvoice } from '../src/lib/server/invoice-save';
 import { invoiceLineItems } from '../src/lib/server/schema';
 
 let rid = '';
-const USER_ID = 'user-481';
+const USER_ID = randomUUID();
 const SUPPLIER = '__inv_edit_sup__';
 const DESC = 'Aceite Oliva 6x1L';
 const SKU = 'SKU-481-AOV';
@@ -106,7 +107,7 @@ async function createInvoice(tag: string, total: string): Promise<number> {
 	const out = await saveReviewedInvoice(
 		null,
 		lineForm({ invoice_number: `INV-481-${tag}`, low_confidence_ack: 'true' }, total),
-		rid
+		rid, USER_ID
 	);
 	expect(out.type).toBe('saved');
 	return (out as { invoiceId: number }).invoiceId;

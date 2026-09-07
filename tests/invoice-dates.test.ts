@@ -11,6 +11,7 @@
  *
  * The DB-backed half skips without DATABASE_URL, like the other DB suites.
  */
+import { randomUUID } from 'node:crypto';
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 
 vi.mock('../src/lib/server/db', async () => {
@@ -70,6 +71,7 @@ describe('toMonthKey', () => {
 });
 
 let rid = '';
+const UID = randomUUID();
 
 function fakeItem(): BatchItem {
 	return fakeBatchItem({
@@ -110,7 +112,7 @@ afterAll(async () => {
 
 describe.skipIf(!hasDbEnv)('invoice date write boundary', () => {
 	it('rejects a non-ISO invoice_date and writes nothing', async () => {
-		const outcome = await saveReviewedInvoice(fakeItem(), form({ invoiceNumber: 'DATE-BAD-1', invoiceDate: '05/01/2026' }), rid);
+		const outcome = await saveReviewedInvoice(fakeItem(), form({ invoiceNumber: 'DATE-BAD-1', invoiceDate: '05/01/2026' }), rid, UID);
 		expect(outcome).toEqual({ type: 'invalidDate', field: 'invoice_date' });
 
 		const rows = await testSql`SELECT id FROM invoices WHERE restaurant_id = ${rid} AND invoice_number = 'DATE-BAD-1'`;
@@ -121,7 +123,7 @@ describe.skipIf(!hasDbEnv)('invoice date write boundary', () => {
 		const outcome = await saveReviewedInvoice(
 			fakeItem(),
 			form({ invoiceNumber: 'DATE-BAD-2', invoiceDate: '2026-01-05', dueDate: '2026-1-5' }),
-			rid
+			rid, UID
 		);
 		expect(outcome).toEqual({ type: 'invalidDate', field: 'due_date' });
 
@@ -133,7 +135,7 @@ describe.skipIf(!hasDbEnv)('invoice date write boundary', () => {
 		const outcome = await saveReviewedInvoice(
 			fakeItem(),
 			form({ invoiceNumber: 'DATE-OK-1', invoiceDate: '2026-01-05', dueDate: '2026-02-04' }),
-			rid
+			rid, UID
 		);
 		expect(outcome.type).toBe('saved');
 
@@ -152,8 +154,8 @@ describe.skipIf(!hasDbEnv)('invoice date write boundary', () => {
 	});
 
 	it('orders by calendar date, not by string', async () => {
-		await saveReviewedInvoice(fakeItem(), form({ invoiceNumber: 'DATE-OK-2', invoiceDate: '2026-12-01' }), rid);
-		await saveReviewedInvoice(fakeItem(), form({ invoiceNumber: 'DATE-OK-3', invoiceDate: '2027-01-05' }), rid);
+		await saveReviewedInvoice(fakeItem(), form({ invoiceNumber: 'DATE-OK-2', invoiceDate: '2026-12-01' }), rid, UID);
+		await saveReviewedInvoice(fakeItem(), form({ invoiceNumber: 'DATE-OK-3', invoiceDate: '2027-01-05' }), rid, UID);
 
 		const rows = await testSql<{ invoice_number: string }[]>`
 			SELECT invoice_number FROM invoices

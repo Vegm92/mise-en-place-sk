@@ -15,6 +15,7 @@
  * DB-backed; the db singleton is swapped for the test client. Skipped without
  * DATABASE_URL.
  */
+import { randomUUID } from 'node:crypto';
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 
 vi.mock('../src/lib/server/db', async () => {
@@ -29,6 +30,7 @@ import type { BatchItem } from '../src/lib/server/batch';
 import { fakeBatchItem } from './helpers/batch-item';
 
 let rid = '';
+const UID = randomUUID();
 
 function mismatchFakeItem(extractedData: Record<string, unknown> | null): BatchItem {
 	return fakeBatchItem({
@@ -85,7 +87,7 @@ async function saveInvoice(
 	extractedData: Record<string, unknown> | null,
 	formOpts: MismatchFormOpts,
 ): Promise<number> {
-	const out = await saveReviewedInvoice(mismatchFakeItem(extractedData), mismatchForm(formOpts), rid);
+	const out = await saveReviewedInvoice(mismatchFakeItem(extractedData), mismatchForm(formOpts), rid, UID);
 	expect(out.type).toBe('saved');
 	if (out.type !== 'saved') throw new Error('unreachable — asserted above');
 	return out.invoiceId;

@@ -15,6 +15,7 @@
  * DB-backed; the db singleton is swapped for the test client. Skipped without
  * DATABASE_URL.
  */
+import { randomUUID } from 'node:crypto';
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 
 vi.mock('../src/lib/server/db', async () => {
@@ -43,6 +44,7 @@ import type { BatchItem } from '../src/lib/server/batch';
 import { fakeBatchItem } from './helpers/batch-item';
 
 let rid = '';
+const UID = randomUUID();
 let ridOther = '';
 
 const fakeItem = (documentType: 'factura' | 'albaran' | null): BatchItem =>
@@ -78,7 +80,7 @@ async function saveInvoice(opts: {
 	supplier: string;
 	lineDescription?: string;
 }): Promise<number> {
-	const result = await saveReviewedInvoice(fakeItem(opts.documentType), form(opts), rid);
+	const result = await saveReviewedInvoice(fakeItem(opts.documentType), form(opts), rid, UID);
 	expect(result.type).toBe('saved');
 	if (result.type !== 'saved') throw new Error('save failed');
 	return result.invoiceId;

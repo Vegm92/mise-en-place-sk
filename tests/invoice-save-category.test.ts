@@ -7,6 +7,7 @@
  * DB-backed; the db singleton is swapped for the test client (ssl:'require'
  * in db.ts does not speak to local Postgres). Skipped without DATABASE_URL.
  */
+import { randomUUID } from 'node:crypto';
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 
 vi.mock('../src/lib/server/db', async () => {
@@ -24,6 +25,7 @@ import { UNCATEGORIZED_CATEGORY } from '../src/lib/constants';
 import { createCategory, listCategories, setCategoryHidden } from '../src/lib/server/categories';
 
 let rid = '';
+const UID = randomUUID();
 
 function form(supplier: string, lines: Array<{ desc: string; unit: string; price: string }> = []): FormData {
 	const fd = new FormData();
@@ -62,7 +64,7 @@ async function savedCategoryFor(
 	supplierName: string,
 	lines: Array<{ desc: string; unit: string; price: string }>,
 ): Promise<string | null> {
-	const out = await saveReviewedInvoice(item, form(supplierName, lines), rid);
+	const out = await saveReviewedInvoice(item, form(supplierName, lines), rid, UID);
 	expect(out.type).toBe('saved');
 	if (out.type !== 'saved') return null;
 	return categoryFor(out.invoiceId);
@@ -101,7 +103,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → supplier category (issue #38
 		const out = await saveReviewedInvoice(item, form(supplierName, [
 			{ desc: 'Aceite de Oliva Virgen Extra', unit: 'L', price: '10' },
 			{ desc: 'Tomate Triturado', unit: 'kg', price: '5' },
-		]), rid);
+		]), rid, UID);
 		expect(out.type).toBe('saved');
 		if (out.type !== 'saved') return;
 
@@ -123,7 +125,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → supplier category (issue #38
 
 		const out = await saveReviewedInvoice(item, form(correctedName, [
 			{ desc: 'Barra de Pan', unit: 'ud', price: '1' },
-		]), rid);
+		]), rid, UID);
 		expect(out.type).toBe('saved');
 		if (out.type !== 'saved') return;
 
@@ -140,7 +142,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → supplier category (issue #38
 
 		const out = await saveReviewedInvoice(item, form('García Bebidas, S.L.', [
 			{ desc: 'Refresco de Cola', unit: 'ud', price: '1' },
-		]), rid);
+		]), rid, UID);
 		expect(out.type).toBe('saved');
 		if (out.type !== 'saved') return;
 
@@ -157,7 +159,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → supplier category (issue #38
 
 		const out = await saveReviewedInvoice(item, form('Distribuciones Ruiz S.A.', [
 			{ desc: 'Agua Mineral', unit: 'botella', price: '1' },
-		]), rid);
+		]), rid, UID);
 		expect(out.type).toBe('saved');
 		if (out.type !== 'saved') return;
 
@@ -175,7 +177,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → supplier category (issue #38
 
 		const out = await saveReviewedInvoice(item, form(supplierName, [
 			{ desc: 'Material de oficina variado', unit: 'ud', price: '1' },
-		]), rid);
+		]), rid, UID);
 		expect(out.type).toBe('saved');
 		if (out.type !== 'saved') return;
 
@@ -192,7 +194,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → supplier category (issue #38
 		});
 		const firstOut = await saveReviewedInvoice(first, form(supplierName, [
 			{ desc: 'Agua Mineral', unit: 'botella', price: '1' },
-		]), rid);
+		]), rid, UID);
 		expect(firstOut.type).toBe('saved');
 		if (firstOut.type !== 'saved') return;
 		expect(await categoryFor(firstOut.invoiceId)).toBe('Bebidas');
@@ -211,7 +213,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → supplier category (issue #38
 		});
 		const secondOut = await saveReviewedInvoice(second, form(supplierName, [
 			{ desc: 'Guisantes Congelados', unit: 'kg', price: '3' },
-		]), rid);
+		]), rid, UID);
 		expect(secondOut.type).toBe('saved');
 		if (secondOut.type !== 'saved') return;
 

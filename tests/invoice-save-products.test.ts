@@ -6,6 +6,7 @@
  * DB-backed; the db singleton is swapped for the test client (ssl:'require'
  * in db.ts does not speak to local Postgres). Skipped without DATABASE_URL.
  */
+import { randomUUID } from 'node:crypto';
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 
 const { sendEmailMock } = vi.hoisted(() => ({ sendEmailMock: vi.fn().mockResolvedValue(undefined) }));
@@ -29,6 +30,7 @@ import { saveReviewedInvoice } from '../src/lib/server/invoice-save';
 import { actions } from '../src/routes/(app)/invoice/[id]/+page.server';
 
 let rid = '';
+const UID = randomUUID();
 
 function form(supplier: string, lines: Array<{ desc: string; unit: string; price: string }>): FormData {
 	const fd = new FormData();
@@ -64,7 +66,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → product linking (issue #298)
 		const out = await saveReviewedInvoice(null, form('__inv_prod_sup__', [
 			{ desc: 'Tomate Pera', unit: 'kg', price: '2.00' },
 			{ desc: 'Cebolla', unit: 'kg', price: '1.00' },
-		]), rid);
+		]), rid, UID);
 		expect(out.type).toBe('saved');
 		if (out.type !== 'saved') return;
 
@@ -81,7 +83,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → product linking (issue #298)
 		const out = await saveReviewedInvoice(null, form('__inv_prod_sup3__', [
 			{ desc: 'Leche entera 6x1L', unit: 'caja', price: '4.50' },
 			{ desc: 'Sal fina', unit: 'kg', price: '0.80' },
-		]), rid);
+		]), rid, UID);
 		expect(out.type).toBe('saved');
 		if (out.type !== 'saved') return;
 
@@ -116,7 +118,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → product linking (issue #298)
 
 		const out = await saveReviewedInvoice(null, form('__inv_prod_tagged__', [
 			{ desc: 'Tomate rama IV', unit: 'kg', price: '2.20' },
-		]), rid);
+		]), rid, UID);
 		expect(out.type).toBe('saved');
 		if (out.type !== 'saved') return;
 
@@ -134,7 +136,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → product linking (issue #298)
 		const out = await saveReviewedInvoice(null, form('__inv_prod_relink__', [
 			{ desc: 'Pimiento verde', unit: 'kg', price: '1.90' },
 			{ desc: 'Calabacín', unit: 'kg', price: '1.40' },
-		]), rid);
+		]), rid, UID);
 		expect(out.type).toBe('saved');
 		if (out.type !== 'saved') return;
 
@@ -163,10 +165,10 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → product linking (issue #298)
 		// First invoice establishes "Tomate pera"; second uses a near-duplicate.
 		await saveReviewedInvoice(null, form('__inv_prod_sup2__', [
 			{ desc: 'Merluza fresca', unit: 'kg', price: '9.00' },
-		]), rid);
+		]), rid, UID);
 		const out = await saveReviewedInvoice(null, form('__inv_prod_sup2__', [
 			{ desc: 'Merluza fresca grande', unit: 'kg', price: '11.00' },
-		]), rid);
+		]), rid, UID);
 		expect(out.type).toBe('saved');
 		if (out.type !== 'saved') return;
 
@@ -212,7 +214,7 @@ function claimEvent(invoiceId: number, formData: FormData, restaurantId = rid) {
 	return {
 		params: { id: String(invoiceId) },
 		request: { formData: async () => formData },
-		locals: { restaurantId, user: { id: 'test-user' }, locale: 'es' },
+		locals: { restaurantId, user: { id: randomUUID() }, locale: 'es' },
 	} as never;
 }
 
