@@ -427,18 +427,50 @@ the derivation and the next four failure points.
 
 ## 10. Diagrams
 
-Mermaid sources paste into Excalidraw via **Insert → Mermaid to Excalidraw** and stay hand-editable.
+Each diagram ships in up to three forms. The **`.mmd`** file is the editable original — it also pastes
+into Excalidraw via **Insert → Mermaid to Excalidraw**. The **`.svg`** is a render of that source,
+committed only so this report is readable on GitHub without a checkout; never hand-edit it. The
+**`.excalidraw`** file (D1, D2, D5) is emitted by the generator and is the one to open on a canvas.
+
 All five `.mmd` files parse under `@mermaid-js/mermaid-cli`; all three `.excalidraw` files `JSON.parse`,
 have unique ids, resolvable `startBinding`/`endBinding`, resolvable text `containerId` listed in the
 container's `boundElements`, and no node overlapping another node's bounding box.
 
-| File | What it proves |
-|---|---|
-| [`diagrams/runtime-current.mmd`](diagrams/runtime-current.mmd) · [`.excalidraw`](diagrams/runtime-current.excalidraw) | The deployed shape is one web replica, one worker replica, one Postgres that also hosts the queue — and five of eleven outbound hops have no timeout, no retry and no breaker. |
-| [`diagrams/data-model.mmd`](diagrams/data-model.mmd) · [`.excalidraw`](diagrams/data-model.excalidraw) | `restaurant_id` is the tenant key on 34 tables, nine foreign keys are unindexed, and the membership table that decides tenancy has neither an FK to `users` nor an RLS policy. |
-| [`diagrams/extraction-flow.mmd`](diagrams/extraction-flow.mmd) | The model call enforces a response schema, per-field confidence reaches the review UI, the 0.85 gate blocks the save, and the write is one transaction at `invoice-save.ts:1026` — which logs no audit row. |
-| [`diagrams/job-lifecycle.mmd`](diagrams/job-lifecycle.mmd) | Every `batch_items` transition is a guarded conditional `UPDATE`; retries are fixed-delay, not exponential; and a dead-letter row for any queue other than `extract-invoice` has no automatic exit. |
-| [`diagrams/target-state.mmd`](diagrams/target-state.mmd) · [`.excalidraw`](diagrams/target-state.excalidraw) | Nothing is proposed without a threshold, and the measured baselines show every threshold is far away — except the RLS and FK-index gaps, which are correctness, not capacity. |
+Regenerate after editing any `.mmd`:
+
+```bash
+for f in docs/diagrams/*.mmd; do
+  npx -y @mermaid-js/mermaid-cli -i "$f" -o "${f%.mmd}.svg" -b white
+done
+```
+
+| Diagram | What it proves | Sources |
+|---|---|---|
+| **D1 runtime-current** | The deployed shape is one web replica, one worker replica, one Postgres that also hosts the queue — and five of eleven outbound hops have no timeout, no retry and no breaker. | [`.mmd`](diagrams/runtime-current.mmd) · [`.svg`](diagrams/runtime-current.svg) · [`.excalidraw`](diagrams/runtime-current.excalidraw) |
+| **D2 data-model** | `restaurant_id` is the tenant key on 34 tables, nine foreign keys are unindexed, and the membership table that decides tenancy has neither an FK to `users` nor an RLS policy. | [`.mmd`](diagrams/data-model.mmd) · [`.svg`](diagrams/data-model.svg) · [`.excalidraw`](diagrams/data-model.excalidraw) |
+| **D3 extraction-flow** | The model call enforces a response schema, per-field confidence reaches the review UI, the 0.85 gate blocks the save, and the write is one transaction at `invoice-save.ts:1026` — which logs no audit row. | [`.mmd`](diagrams/extraction-flow.mmd) · [`.svg`](diagrams/extraction-flow.svg) |
+| **D4 job-lifecycle** | Every `batch_items` transition is a guarded conditional `UPDATE`; retries are fixed-delay, not exponential; and a dead-letter row for any queue other than `extract-invoice` has no automatic exit. | [`.mmd`](diagrams/job-lifecycle.mmd) · [`.svg`](diagrams/job-lifecycle.svg) |
+| **D5 target-state** | Nothing is proposed without a threshold, and the measured baselines show every threshold is far away — except the RLS and FK-index gaps, which are correctness, not capacity. | [`.mmd`](diagrams/target-state.mmd) · [`.svg`](diagrams/target-state.svg) · [`.excalidraw`](diagrams/target-state.excalidraw) |
+
+### D1 — runtime-current
+
+![D1 runtime-current](diagrams/runtime-current.svg)
+
+### D2 — data-model
+
+![D2 data-model](diagrams/data-model.svg)
+
+### D3 — extraction-flow
+
+![D3 extraction-flow](diagrams/extraction-flow.svg)
+
+### D4 — job-lifecycle
+
+![D4 job-lifecycle](diagrams/job-lifecycle.svg)
+
+### D5 — target-state
+
+![D5 target-state](diagrams/target-state.svg)
 
 Generator: [`scripts/gen-excalidraw.mjs`](../scripts/gen-excalidraw.mjs) — declarative `{nodes, edges}`
 specs in, `.excalidraw` files out. Re-run with `node scripts/gen-excalidraw.mjs`.
