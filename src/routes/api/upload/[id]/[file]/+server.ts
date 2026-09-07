@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import path from 'path';
-import { getItem } from '$lib/server/batch';
+import { getItem, isUuid } from '$lib/server/batch';
 import { getStorage } from '$lib/server/storage';
 import { contentDispositionHeader } from '$lib/server/content-disposition';
 import type { RequestHandler } from './$types';
@@ -14,6 +14,7 @@ const MIME: Record<string, string> = {
 
 export const GET: RequestHandler = async ({ params, locals }) => {
 	if (!locals.user) throw error(401, 'Unauthorized');
+	if (!isUuid(params.id)) throw error(400, 'Invalid item ID');
 
 	const item = await getItem(params.id);
 	if (!item || item.restaurantId !== locals.restaurantId) throw error(404, 'Item not found');
