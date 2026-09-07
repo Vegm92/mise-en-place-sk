@@ -1,9 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('$lib/server/batch', () => ({
+	isUuid: vi.fn((id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)),
 	getItem: vi.fn(async (id: string) => {
-		if (id === 'item-1') {
-			return { id: 'item-1', restaurantId: 'r1', displayName: 'factura.pdf', fileKey: 'uploads/factura.pdf' };
+		if (id === '123e4567-e89b-12d3-a456-426614174000') {
+			return { id, restaurantId: 'r1', displayName: 'factura.pdf', fileKey: 'uploads/factura.pdf' };
 		}
 		return null;
 	}),
@@ -22,16 +23,28 @@ type RouteEvent = Parameters<typeof GET>[0];
 describe('GET /api/upload/[id]/[file] path traversal guard', () => {
 	it('throws 401 Unauthorized if locals.user is missing', async () => {
 		const event = {
-			params: { id: 'item-1', file: 'factura.pdf' },
+			params: { id: '123e4567-e89b-12d3-a456-426614174000', file: 'factura.pdf' },
 			locals: { user: null },
 		} as unknown as RouteEvent;
 
 		await expect(GET(event)).rejects.toMatchObject({ status: 401 });
 	});
 
+	it('throws 400 Bad Request if params.id is not a valid UUID', async () => {
+		const event = {
+			params: { id: 'invalid-uuid-format', file: 'factura.pdf' },
+			locals: {
+				user: { id: 'u1' },
+				restaurantId: 'r1',
+			},
+		} as unknown as RouteEvent;
+
+		await expect(GET(event)).rejects.toMatchObject({ status: 400 });
+	});
+
 	it('throws 403 if params.file contains path traversal sequences', async () => {
 		const event = {
-			params: { id: 'item-1', file: '../etc/passwd' },
+			params: { id: '123e4567-e89b-12d3-a456-426614174000', file: '../etc/passwd' },
 			locals: {
 				user: { id: 'u1' },
 				restaurantId: 'r1',
@@ -43,7 +56,7 @@ describe('GET /api/upload/[id]/[file] path traversal guard', () => {
 
 	it('serves file response for valid matching file parameter', async () => {
 		const event = {
-			params: { id: 'item-1', file: 'factura.pdf' },
+			params: { id: '123e4567-e89b-12d3-a456-426614174000', file: 'factura.pdf' },
 			locals: {
 				user: { id: 'u1' },
 				restaurantId: 'r1',
