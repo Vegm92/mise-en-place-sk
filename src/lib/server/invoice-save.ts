@@ -1,6 +1,6 @@
 import { computeInvoiceContentHash } from './dedup';
 import { db, forTenant } from './db';
-import { invoices, invoiceLineItems, extractionCorrections, settings, suppliers, restaurants } from './schema';
+import { invoices, invoiceLineItems, invoiceAuditLog, extractionCorrections, settings, suppliers, restaurants } from './schema';
 import { eq, and, isNull, inArray, notInArray } from 'drizzle-orm';
 import { normalizePhoneNumber } from '$lib/phone';
 import { normalizeTaxId, taxIdDecidesIdentity } from '$lib/tax-id';
@@ -897,7 +897,8 @@ export async function saveReviewedInvoice(
 	item: BatchItem | null,
 	formData: FormData,
 	rid: string,
-	onSaved?: (tx: BatchDb) => Promise<void>,
+	userId: string,
+	onSaved?: (tx: BatchDb, invoiceId: number) => Promise<void>,
 ): Promise<SaveOutcome> {
 	const idemKeyRaw = formData.get('idempotency_key');
 	const idemKey = isValidKey(idemKeyRaw) ? idemKeyRaw : null;
@@ -1072,7 +1073,11 @@ export async function saveReviewedInvoice(
 
 		await insertEnrichedLines(tx, { invoiceId: invoiceId!, rid, supplierId, supplierName }, enrichedLines, savedItems, unitConversionAlerts);
 
-		if (onSaved) await onSaved(tx);
+		await tx.insert(invoiceAuditLog).values({
+			restaurantId: rid, invoiceId: invoiceId!, action: 'create', userId, sourceFile: primaryFile,
+		});
+
+		if (onSaved) await onSaved(tx, invoiceId!);
 	});
 
 	if (isReplay) return { type: 'replay' };

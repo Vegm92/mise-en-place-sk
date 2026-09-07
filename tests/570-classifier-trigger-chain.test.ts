@@ -16,6 +16,7 @@
  * DB-backed; the db singleton is swapped for the test client (ssl:'require'
  * in db.ts does not speak to local Postgres). Skipped without DATABASE_URL.
  */
+import { randomUUID } from 'node:crypto';
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 
 vi.mock('../src/lib/server/db', async () => {
@@ -86,6 +87,7 @@ async function productCategoryOf(productId: number): Promise<string | null> {
 }
 
 let rid = '';
+const UID = randomUUID();
 
 beforeAll(async () => {
 	if (!hasDbEnv) return;
@@ -113,7 +115,7 @@ describe.skipIf(!hasDbEnv)('issue #570 — new-invoice classifier trigger chain'
 
 		const out = await saveReviewedInvoice(item, form(supplierName, [
 			{ desc: 'Naranja de zumo 570', unit: 'kg', price: '1.50' },
-		]), rid);
+		]), rid, UID);
 		expect(out.type).toBe('saved');
 		if (out.type !== 'saved') return;
 
@@ -153,7 +155,7 @@ describe.skipIf(!hasDbEnv)('issue #570 — new-invoice classifier trigger chain'
 
 		const first = await saveReviewedInvoice(item, form(supplierName, [
 			{ desc: 'Limón de mesa 570', unit: 'kg', price: '1.20' },
-		]), rid);
+		]), rid, UID);
 		expect(first.type).toBe('saved');
 		expect(enqueueCategorizeMock).toHaveBeenCalledTimes(1);
 		expect(enqueueNormalizeMock).toHaveBeenCalledTimes(1);
@@ -166,7 +168,7 @@ describe.skipIf(!hasDbEnv)('issue #570 — new-invoice classifier trigger chain'
 		// re-trigger classification.
 		const second = await saveReviewedInvoice(item, form(supplierName, [
 			{ desc: 'Limón de mesa 570', unit: 'kg', price: '1.30' },
-		]), rid);
+		]), rid, UID);
 		expect(second.type).toBe('saved');
 
 		expect(enqueueCategorizeMock).not.toHaveBeenCalled();
@@ -182,7 +184,7 @@ describe.skipIf(!hasDbEnv)('issue #570 — new-invoice classifier trigger chain'
 
 		const out = await saveReviewedInvoice(item, form(supplierName, [
 			{ desc: 'Artículo variado 570', unit: 'ud', price: '2.00' },
-		]), rid);
+		]), rid, UID);
 		expect(out.type).toBe('saved');
 		if (out.type !== 'saved') return;
 

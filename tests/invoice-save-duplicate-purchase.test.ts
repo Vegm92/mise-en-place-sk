@@ -22,6 +22,7 @@
  * DB-backed; the db singleton is swapped for the test client. Skipped without
  * DATABASE_URL.
  */
+import { randomUUID } from 'node:crypto';
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 
 vi.mock('../src/lib/server/db', async () => {
@@ -39,6 +40,7 @@ import type { BatchItem } from '../src/lib/server/batch';
 import { fakeBatchItem } from './helpers/batch-item';
 
 let rid = '';
+const UID = randomUUID();
 
 const fakeItem = (documentType: 'factura' | 'albaran' | null): BatchItem =>
 	fakeBatchItem({ restaurantId: rid, extractedData: { document_type: documentType, confidence: 1 } });
@@ -108,7 +110,7 @@ async function saveOrThrow(
 	documentType: 'factura' | 'albaran',
 	opts: Parameters<typeof form>[0],
 ): Promise<number> {
-	const result = await saveReviewedInvoice(fakeItem(documentType), form(opts), rid);
+	const result = await saveReviewedInvoice(fakeItem(documentType), form(opts), rid, UID);
 	expect(result.type).toBe('saved');
 	if (result.type !== 'saved') throw new Error('save failed');
 	return result.invoiceId;
@@ -133,7 +135,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → possible duplicate / related
 		const albaran = await saveReviewedInvoice(
 			fakeItem('albaran'),
 			form({ invoiceNumber: 'ALB-2024-001', invoiceDate: '2024-01-01', totalAmount: '250.00', supplier }),
-			rid,
+			rid, UID
 		);
 		expect(albaran.type).toBe('saved');
 		if (albaran.type !== 'saved') return;
@@ -141,7 +143,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → possible duplicate / related
 		const factura = await saveReviewedInvoice(
 			fakeItem('factura'),
 			form({ invoiceNumber: 'FAC-2024-099', invoiceDate: '2024-01-12', totalAmount: '255.00', supplier }),
-			rid,
+			rid, UID
 		);
 		expect(factura.type).toBe('saved');
 		if (factura.type !== 'saved') return;
@@ -166,7 +168,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → possible duplicate / related
 				invoiceNumber: 'ALB-2024-005', invoiceDate: '2024-01-15', totalAmount: '90.00', supplier,
 				lineDescription: 'Tomates frescos',
 			}),
-			rid,
+			rid, UID
 		);
 		expect(albaran.type).toBe('saved');
 		if (albaran.type !== 'saved') return;
@@ -177,7 +179,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → possible duplicate / related
 				invoiceNumber: 'FAC-2024-105', invoiceDate: '2024-01-18', totalAmount: '92.00', supplier,
 				lineDescription: 'Servicio de transporte',
 			}),
-			rid,
+			rid, UID
 		);
 		expect(factura.type).toBe('saved');
 		if (factura.type !== 'saved') return;
@@ -197,7 +199,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → possible duplicate / related
 		const albaran = await saveReviewedInvoice(
 			fakeItem('albaran'),
 			form({ invoiceNumber: 'ALB-2024-040', invoiceDate: '2024-07-01', totalAmount: '100.00', supplier }),
-			rid,
+			rid, UID
 		);
 		expect(albaran.type).toBe('saved');
 		if (albaran.type !== 'saved') return;
@@ -205,7 +207,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → possible duplicate / related
 		const firstFactura = await saveReviewedInvoice(
 			fakeItem('factura'),
 			form({ invoiceNumber: 'FAC-2024-300', invoiceDate: '2024-07-05', totalAmount: '100.00', supplier }),
-			rid,
+			rid, UID
 		);
 		expect(firstFactura.type).toBe('saved');
 		if (firstFactura.type !== 'saved') return;
@@ -216,7 +218,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → possible duplicate / related
 		const secondFactura = await saveReviewedInvoice(
 			fakeItem('factura'),
 			form({ invoiceNumber: 'FAC-2024-301', invoiceDate: '2024-07-02', totalAmount: '100.00', supplier }),
-			rid,
+			rid, UID
 		);
 		expect(secondFactura.type).toBe('saved');
 		if (secondFactura.type !== 'saved') return;
@@ -232,14 +234,14 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → possible duplicate / related
 		const albaran = await saveReviewedInvoice(
 			fakeItem('albaran'),
 			form({ invoiceNumber: 'ALB-2024-010', invoiceDate: '2024-02-01', totalAmount: '80.00', supplier }),
-			rid,
+			rid, UID
 		);
 		expect(albaran.type).toBe('saved');
 
 		const factura = await saveReviewedInvoice(
 			fakeItem('factura'),
 			form({ invoiceNumber: 'FAC-2024-110', invoiceDate: '2024-02-05', totalAmount: '500.00', supplier }),
-			rid,
+			rid, UID
 		);
 		expect(factura.type).toBe('saved');
 		if (factura.type !== 'saved') return;
@@ -253,14 +255,14 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → possible duplicate / related
 		const albaran = await saveReviewedInvoice(
 			fakeItem('albaran'),
 			form({ invoiceNumber: 'ALB-2024-020', invoiceDate: '2024-03-01', totalAmount: '120.00', supplier }),
-			rid,
+			rid, UID
 		);
 		expect(albaran.type).toBe('saved');
 
 		const factura = await saveReviewedInvoice(
 			fakeItem('factura'),
 			form({ invoiceNumber: 'FAC-2024-120', invoiceDate: '2024-05-01', totalAmount: '120.00', supplier }),
-			rid,
+			rid, UID
 		);
 		expect(factura.type).toBe('saved');
 		if (factura.type !== 'saved') return;
@@ -274,14 +276,14 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → possible duplicate / related
 		const first = await saveReviewedInvoice(
 			fakeItem('factura'),
 			form({ invoiceNumber: 'FAC-2024-200', invoiceDate: '2024-04-01', totalAmount: '90.00', supplier }),
-			rid,
+			rid, UID
 		);
 		expect(first.type).toBe('saved');
 
 		const second = await saveReviewedInvoice(
 			fakeItem('factura'),
 			form({ invoiceNumber: 'FAC-2024-201', invoiceDate: '2024-04-03', totalAmount: '91.00', supplier }),
-			rid,
+			rid, UID
 		);
 		expect(second.type).toBe('saved');
 		if (second.type !== 'saved') return;
@@ -315,14 +317,14 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → possible duplicate / related
 		const albaran = await saveReviewedInvoice(
 			fakeItem('albaran'),
 			form({ invoiceNumber: 'ALB-2024-030', invoiceDate: '2024-06-01', totalAmount: '60.00', supplier }),
-			rid,
+			rid, UID
 		);
 		expect(albaran.type).toBe('saved');
 
 		const unknown = await saveReviewedInvoice(
 			fakeItem(null),
 			form({ invoiceNumber: 'UNK-2024-030', invoiceDate: '2024-06-02', totalAmount: '60.00', supplier }),
-			rid,
+			rid, UID
 		);
 		expect(unknown.type).toBe('saved');
 		if (unknown.type !== 'saved') return;

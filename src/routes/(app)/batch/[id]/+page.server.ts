@@ -20,7 +20,7 @@ import { trackEvent } from '$lib/server/events';
 import { getStorage } from '$lib/server/storage';
 import { STORAGE_DRIVER } from '$lib/server/env';
 import { db, forTenant } from '$lib/server/db';
-import { invoices, suppliers } from '$lib/server/schema';
+import { invoices, invoiceAuditLog, suppliers } from '$lib/server/schema';
 import { eq, and, isNull, isNotNull, gte, lte, sql } from 'drizzle-orm';
 import { findSimilarInvoice, isoDateOffset, SIMILAR_INVOICE_DATE_WINDOW_DAYS } from '$lib/server/dedup';
 import { previewLineProducts, listProductOptions } from '$lib/server/products';
@@ -300,9 +300,15 @@ export const actions: Actions = {
 		if (!item) {
 			redirect(303, `/batch/${params.id}`);
 		}
+		const uid = locals.user!.id;
 
-		const outcome = await saveReviewedInvoice(item, formData, rid, async (tx) => {
+		const outcome = await saveReviewedInvoice(item, formData, rid, uid, async (tx, invoiceId) => {
 			await createBatchStore(tx).markConfirmed(item.id);
+			// tenant-check-ok: item ownership is already checked via requireOwnedBatch
+			// in resolveFormItem above; rid is locals.restaurantId, never client input.
+			await tx.insert(invoiceAuditLog).values({
+				restaurantId: rid, invoiceId, action: 'confirm', userId: uid, sourceFile: item.fileKey,
+			});
 		});
 
 		if (outcome.type === 'replay') redirect(303, `/batch/${params.id}`);
