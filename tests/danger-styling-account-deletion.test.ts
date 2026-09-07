@@ -35,11 +35,11 @@ describe('account deletion danger styling (issue #578)', () => {
   const block = extractDeleteAccountBlock(source);
 
   it('wraps the delete-account section in a red-bordered card', () => {
-    expect(block).toMatch(/border[^"']*var\(--mep-neg\)/);
+    expect(block).toMatch(/class="[^"]*border-neg/);
   });
 
   it('gives the delete-account card a red-tinted background', () => {
-    expect(block).toMatch(/background[^"']*var\(--mep-neg-soft\)/);
+    expect(block).toMatch(/class="[^"]*bg-neg-soft/);
   });
 
   it('imports the AlertTriangle warning icon from @lucide/svelte', () => {
@@ -56,6 +56,6 @@ describe('account deletion danger styling (issue #578)', () => {
   });
 
   it('keeps the delete button red via the existing --mep-neg token', () => {
-    expect(block).toMatch(/background:var\(--mep-neg\)/);
+    expect(block).toMatch(/class="btn bg-neg text-neg-fg/);
   });
 });
