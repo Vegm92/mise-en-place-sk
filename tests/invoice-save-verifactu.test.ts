@@ -8,6 +8,7 @@
  * DB-backed; the db singleton is swapped for the test client (ssl:'require'
  * in db.ts does not speak to local Postgres). Skipped without DATABASE_URL.
  */
+import { randomUUID } from 'node:crypto';
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 
 vi.mock('../src/lib/server/db', async () => {
@@ -25,6 +26,7 @@ import type { BatchItem } from '../src/lib/server/batch';
 import { fakeBatchItem } from './helpers/batch-item';
 
 let rid = '';
+const UID = randomUUID();
 
 const VALID_QR =
 	'https://www2.agenciatributaria.es/wlpl/TIKE-CONT/ValidarQR?nif=B12345678&numserie=FAC-2024-001&fecha=15-01-2024&importe=1250.00';
@@ -71,7 +73,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → VERI*FACTU QR check (issue #
 		const out = await saveReviewedInvoice(
 			item,
 			form({ invoiceNumber: 'FAC-2024-001', invoiceDate: '2024-01-15', totalAmount: '9999.00' }),
-			rid,
+			rid, UID
 		);
 		expect(out.type).toBe('saved');
 		if (out.type !== 'saved') return;
@@ -99,7 +101,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → VERI*FACTU QR check (issue #
 		const out = await saveReviewedInvoice(
 			item,
 			form({ invoiceNumber: 'FAC-2024-TAMPERED', invoiceDate: '2024-01-15', totalAmount: '1250.00' }),
-			rid,
+			rid, UID
 		);
 		expect(out.type).toBe('saved');
 		if (out.type !== 'saved') return;
@@ -127,7 +129,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → VERI*FACTU QR check (issue #
 				totalAmount: '1250.00',
 				supplier: '__inv_verifactu_sup_match__',
 			}),
-			rid,
+			rid, UID
 		);
 		expect(out.type).toBe('saved');
 		if (out.type !== 'saved') return;
@@ -149,7 +151,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → VERI*FACTU QR check (issue #
 		const out = await saveReviewedInvoice(
 			item,
 			form({ invoiceNumber: 'FAC-NOQR-001', invoiceDate: '2024-02-01', totalAmount: '50.00' }),
-			rid,
+			rid, UID
 		);
 		expect(out.type).toBe('saved');
 		if (out.type !== 'saved') return;

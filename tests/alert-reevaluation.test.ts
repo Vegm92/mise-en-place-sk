@@ -17,6 +17,7 @@
  * DB-backed; the db singleton is swapped for the test client. Skipped
  * without DATABASE_URL.
  */
+import { randomUUID } from 'node:crypto';
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { isRedirect } from '@sveltejs/kit';
 
@@ -43,7 +44,7 @@ function assertSaved(outcome: SaveOutcome): asserts outcome is Extract<SaveOutco
 }
 
 let rid = '';
-const USER_ID = 'user-831';
+const USER_ID = randomUUID();
 
 beforeAll(async () => { if (hasDbEnv) rid = (await createTestRestaurant('alert-reeval-831')).id; });
 afterAll(async () => { if (hasDbEnv) { await cleanupTestRestaurant(rid); await closeDb(); } });
@@ -139,12 +140,12 @@ async function savePriceShockPair(supplier: string, description: string, tag: st
 	await saveReviewedInvoice(
 		fakeItem(),
 		saveForm({ supplier, invoiceNumber: `${tag}-001`, invoiceDate: '2024-01-01', totalAmount: '10.00', description, unitPrice: '1.00' }),
-		rid,
+		rid, USER_ID
 	);
 	const shocked = await saveReviewedInvoice(
 		fakeItem(),
 		saveForm({ supplier, invoiceNumber: `${tag}-002`, invoiceDate: '2024-01-08', totalAmount: '20.00', description, unitPrice: '2.00' }),
-		rid,
+		rid, USER_ID
 	);
 	assertSaved(shocked);
 	return shocked.invoiceId;
@@ -155,7 +156,7 @@ async function setupBudgetWarning(supplier: string, category: string, invoiceNum
 	const baseline = await saveReviewedInvoice(
 		fakeItem(),
 		saveForm({ supplier, invoiceNumber: `${invoiceNumberPrefix}-001`, invoiceDate: todayIso, totalAmount: '5.00' }),
-		rid,
+		rid, USER_ID
 	);
 	assertSaved(baseline);
 
@@ -166,7 +167,7 @@ async function setupBudgetWarning(supplier: string, category: string, invoiceNum
 	const overBudget = await saveReviewedInvoice(
 		fakeItem(),
 		saveForm({ supplier, invoiceNumber: `${invoiceNumberPrefix}-002`, invoiceDate: todayIso, totalAmount: '90.00' }),
-		rid,
+		rid, USER_ID
 	);
 	assertSaved(overBudget);
 	return overBudget.invoiceId;
@@ -232,7 +233,7 @@ describe.skipIf(!hasDbEnv)('alert re-evaluation on correction (issue #831)', () 
 		const rearmed = await saveReviewedInvoice(
 			fakeItem(),
 			saveForm({ supplier, invoiceNumber: 'BOR-003', invoiceDate: todayIso, totalAmount: '75.00' }),
-			rid,
+			rid, USER_ID
 		);
 		assertSaved(rearmed);
 
@@ -249,7 +250,7 @@ describe.skipIf(!hasDbEnv)('alert re-evaluation on correction (issue #831)', () 
 				supplier, invoiceNumber: 'DUP-ALB-001', invoiceDate: '2024-02-01', totalAmount: '100.00',
 				description: 'Tomates frescos', documentType: 'albaran',
 			}),
-			rid,
+			rid, USER_ID
 		);
 		assertSaved(albaran);
 
@@ -259,7 +260,7 @@ describe.skipIf(!hasDbEnv)('alert re-evaluation on correction (issue #831)', () 
 				supplier, invoiceNumber: 'DUP-FAC-001', invoiceDate: '2024-02-03', totalAmount: '105.00',
 				description: 'Reparto urgente', documentType: 'factura',
 			}),
-			rid,
+			rid, USER_ID
 		);
 		assertSaved(factura);
 
@@ -279,7 +280,7 @@ describe.skipIf(!hasDbEnv)('alert re-evaluation on correction (issue #831)', () 
 		const mismatched = await saveReviewedInvoice(
 			fakeItem({ qr_url: qrUrl, confidence: 1 }),
 			saveForm({ supplier, invoiceNumber: 'QR-2024-001', invoiceDate: '2024-01-15', totalAmount: '9999.00' }),
-			rid,
+			rid, USER_ID
 		);
 		assertSaved(mismatched);
 
@@ -315,7 +316,7 @@ describe.skipIf(!hasDbEnv)('alert re-evaluation on correction (issue #831)', () 
 		const created = await saveReviewedInvoice(
 			fakeItem(),
 			saveForm({ supplier, invoiceNumber: 'SUP-001', invoiceDate: '2024-04-01', totalAmount: '10.00' }),
-			rid,
+			rid, USER_ID
 		);
 		assertSaved(created);
 

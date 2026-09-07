@@ -16,6 +16,7 @@
  *
  * DB-backed; skipped without a local Postgres (see tests/helpers/test-db.ts).
  */
+import { randomUUID } from 'node:crypto';
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 
 vi.mock('../src/lib/server/db', async () => (await import('./helpers/db-suite')).testDbModule());
@@ -25,6 +26,7 @@ import { saveReviewedInvoice } from '../src/lib/server/invoice-save';
 import { minimalInvoiceForm as form, minimalBatchItem } from './helpers/invoice-save-form';
 
 let rid = '';
+const UID = randomUUID();
 
 const batchItem = (extractedData: Record<string, unknown> | null) => minimalBatchItem(rid, extractedData);
 
@@ -60,7 +62,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → supplier contact fields (iss
 			line_items: [{ description: 'Aceite de oliva', quantity: 1, unit: 'garrafa', unit_price: 100, total_price: 100 }],
 		});
 
-		const out = await saveReviewedInvoice(item, form(supplierName, 'SAG-2026-881'), rid);
+		const out = await saveReviewedInvoice(item, form(supplierName, 'SAG-2026-881'), rid, UID);
 		expect(out.type).toBe('saved');
 
 		const row = await supplierRow(supplierName);
@@ -85,7 +87,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → supplier contact fields (iss
 			line_items: [{ description: 'Aceite de oliva', quantity: 1, unit: 'garrafa', unit_price: 100, total_price: 100 }],
 		});
 
-		const out = await saveReviewedInvoice(item, form(supplierName, 'ALB-0001'), rid);
+		const out = await saveReviewedInvoice(item, form(supplierName, 'ALB-0001'), rid, UID);
 		expect(out.type).toBe('saved');
 
 		const row = await supplierRow(supplierName);
@@ -111,7 +113,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → supplier contact fields (iss
 			supplier_phone: null,
 			line_items: [{ description: 'Aceite de oliva', quantity: 1, unit: 'garrafa', unit_price: 100, total_price: 100 }],
 		});
-		await saveReviewedInvoice(first, form(supplierName, 'INV-0001'), rid);
+		await saveReviewedInvoice(first, form(supplierName, 'INV-0001'), rid, UID);
 
 		let row = await supplierRow(supplierName);
 		expect(row!.cif).toBe('B11112222');
@@ -131,7 +133,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → supplier contact fields (iss
 			supplier_phone: null,
 			line_items: [{ description: 'Aceite de oliva', quantity: 1, unit: 'garrafa', unit_price: 100, total_price: 100 }],
 		});
-		await saveReviewedInvoice(second, form(supplierName, 'INV-0002'), rid);
+		await saveReviewedInvoice(second, form(supplierName, 'INV-0002'), rid, UID);
 
 		row = await supplierRow(supplierName);
 		expect(row!.cif).toBe('B11112222');
@@ -157,7 +159,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → supplier contact fields (iss
 			line_items: [{ description: 'Aceite de oliva', quantity: 1, unit: 'garrafa', unit_price: 100, total_price: 100 }],
 		});
 
-		const out = await saveReviewedInvoice(item, form(legalName, 'INV-RENAMED'), rid);
+		const out = await saveReviewedInvoice(item, form(legalName, 'INV-RENAMED'), rid, UID);
 		expect(out.type).toBe('saved');
 
 		const row = await supplierRow(legalName);
@@ -183,7 +185,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → supplier contact fields (iss
 		});
 
 		// User retargeted the review form to an existing, different supplier.
-		const out = await saveReviewedInvoice(item, form(otherSupplier, 'INV-RETARGET'), rid);
+		const out = await saveReviewedInvoice(item, form(otherSupplier, 'INV-RETARGET'), rid, UID);
 		expect(out.type).toBe('saved');
 
 		const row = await supplierRow(otherSupplier);
@@ -210,7 +212,7 @@ async function saveWithExtracted(supplier: string, invoiceNumber: string, extrac
 		...extracted,
 		line_items: [{ description: 'Aceite de oliva', quantity: 1, unit: 'garrafa', unit_price: 100, total_price: 100 }],
 	});
-	return saveReviewedInvoice(item, form(supplier, invoiceNumber), rid);
+	return saveReviewedInvoice(item, form(supplier, invoiceNumber), rid, UID);
 }
 
 function saveWithReceiverPhone(supplier: string, invoiceNumber: string, receiverPhone: string | null) {

@@ -14,6 +14,7 @@
  * DB-backed; the db singleton is swapped for the test client (ssl:'require'
  * in db.ts does not speak to local Postgres). Skipped without DATABASE_URL.
  */
+import { randomUUID } from 'node:crypto';
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 
 vi.mock('../src/lib/server/db', async () => {
@@ -39,6 +40,7 @@ import type { BatchItem } from '../src/lib/server/batch';
 import { fakeBatchItem } from './helpers/batch-item';
 
 let rid = '';
+const UID = randomUUID();
 
 const fakeItem = (extractedData: Record<string, unknown> | null): BatchItem =>
 	fakeBatchItem({ restaurantId: rid, extractedData });
@@ -133,7 +135,7 @@ describe.skipIf(!hasDbEnv)('extraction corrections (issue #812)', () => {
 		const fd = baseForm({ description: 'Tomate Pera' });
 		fd.set('invoice_number', 'RIGHT-1');
 
-		const out = await saveReviewedInvoice(item, fd, rid);
+		const out = await saveReviewedInvoice(item, fd, rid, UID);
 		expect(out.type).toBe('saved');
 		if (out.type !== 'saved') return;
 
@@ -165,7 +167,7 @@ describe.skipIf(!hasDbEnv)('extraction corrections (issue #812)', () => {
 		const fd = baseForm({ description: 'TOM PERA CAJA', productId: chosenId });
 		fd.set('invoice_number', 'REASSIGN-1');
 
-		const out = await saveReviewedInvoice(item, fd, rid);
+		const out = await saveReviewedInvoice(item, fd, rid, UID);
 		expect(out.type).toBe('saved');
 		if (out.type !== 'saved') return;
 
@@ -225,7 +227,7 @@ describe.skipIf(!hasDbEnv)('runPostSaveEffects isolation', () => {
 		const fd = baseForm({ description: 'Tomate Pera' });
 		fd.set('invoice_number', 'RIGHT-ISO-1');
 
-		const out = await saveReviewedInvoice(item, fd, rid);
+		const out = await saveReviewedInvoice(item, fd, rid, UID);
 		expect(out.type).toBe('saved');
 		if (out.type !== 'saved') return;
 

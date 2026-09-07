@@ -7,6 +7,7 @@
  * DB-backed; the db singleton is swapped for the test client. Skipped without
  * DATABASE_URL.
  */
+import { randomUUID } from 'node:crypto';
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 
 vi.mock('../src/lib/server/db', async () => {
@@ -24,6 +25,7 @@ import type { BatchItem } from '../src/lib/server/batch';
 import { fakeBatchItem } from './helpers/batch-item';
 
 let rid = '';
+const UID = randomUUID();
 
 const fakeItem = (extractedData: Record<string, unknown> | null): BatchItem =>
 	fakeBatchItem({ restaurantId: rid, extractedData });
@@ -59,7 +61,7 @@ afterAll(async () => {
 describe.skipIf(!hasDbEnv)('saveReviewedInvoice → document_type persistence (issue #461)', () => {
 	it("persists 'factura' when extraction classified the document as such", async () => {
 		const item = fakeItem({ document_type: 'factura', confidence: 1 });
-		const out = await saveReviewedInvoice(item, form({ invoiceNumber: 'DOC-FAC-001' }), rid);
+		const out = await saveReviewedInvoice(item, form({ invoiceNumber: 'DOC-FAC-001' }), rid, UID);
 		expect(out.type).toBe('saved');
 		if (out.type !== 'saved') return;
 
@@ -69,7 +71,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → document_type persistence (i
 
 	it("persists 'albaran' when extraction classified the document as such", async () => {
 		const item = fakeItem({ document_type: 'albaran', confidence: 1 });
-		const out = await saveReviewedInvoice(item, form({ invoiceNumber: 'DOC-ALB-001' }), rid);
+		const out = await saveReviewedInvoice(item, form({ invoiceNumber: 'DOC-ALB-001' }), rid, UID);
 		expect(out.type).toBe('saved');
 		if (out.type !== 'saved') return;
 
@@ -79,7 +81,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → document_type persistence (i
 
 	it('stores null and still saves when extraction omits document_type (older/absent data)', async () => {
 		const item = fakeItem({ confidence: 1 });
-		const out = await saveReviewedInvoice(item, form({ invoiceNumber: 'DOC-NONE-001' }), rid);
+		const out = await saveReviewedInvoice(item, form({ invoiceNumber: 'DOC-NONE-001' }), rid, UID);
 		expect(out.type).toBe('saved');
 		if (out.type !== 'saved') return;
 
@@ -89,7 +91,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → document_type persistence (i
 
 	it('coerces an unrecognised document_type value to null instead of persisting garbage', async () => {
 		const item = fakeItem({ document_type: 'nota_de_credito', confidence: 1 });
-		const out = await saveReviewedInvoice(item, form({ invoiceNumber: 'DOC-BAD-001' }), rid);
+		const out = await saveReviewedInvoice(item, form({ invoiceNumber: 'DOC-BAD-001' }), rid, UID);
 		expect(out.type).toBe('saved');
 		if (out.type !== 'saved') return;
 
@@ -98,7 +100,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → document_type persistence (i
 	});
 
 	it('is a no-op for save/dedup behaviour when there is no extraction item at all', async () => {
-		const out = await saveReviewedInvoice(null, form({ invoiceNumber: 'DOC-NULLITEM-001' }), rid);
+		const out = await saveReviewedInvoice(null, form({ invoiceNumber: 'DOC-NULLITEM-001' }), rid, UID);
 		expect(out.type).toBe('saved');
 		if (out.type !== 'saved') return;
 
