@@ -1,0 +1,54 @@
+---
+title: D5 target-state — the same system scaled, every addition carrying its trigger
+---
+%% solid #1e1e1e  exists today, cited path:line
+%% dashed #e03131 missing and its absence is a risk
+%% dashed #1971c2 proposed — the label is the metric threshold that justifies it
+%% Baselines in the trigger labels are the measured 7-day Railway production numbers
+%% recorded in docs/system-design-audit.md section 1.
+flowchart TB
+    browser["Browser / PWA<br/>package.json:56"]
+    cdn["CDN / edge cache<br/>TRIGGER: web p95 > 300 ms for 3 buckets<br/>baseline p95 30-140 ms, 7 d"]
+    web["SvelteKit web · 1 replica<br/>railway.json:10<br/>baseline CPU avg 0.0012 vCPU of 8 (0.015%)"]
+    web2["Web replica #2 and beyond<br/>TRIGGER: web CPU > 60% for 15 min<br/>AND UPSTASH_REDIS_REST_* set<br/>DEPLOYMENT.md:350"]
+    cache["Read-through cache for dashboard aggregates<br/>TRIGGER: aggregate query p95 > 500 ms<br/>invalidate on invoice insert invoice-save.ts:1026"]
+    pg[("Postgres 17 primary<br/>baseline CPU avg 0.014 vCPU of 8 (0.17%), max 0.049,<br/>disk 0.25 GB, 7 d")]
+    replica[("Read replica<br/>TRIGGER: primary CPU > 60% sustained 15 min<br/>route analytics + CSV export reads only")]
+    boss["pg-boss queues<br/>queue.ts:6-16 · dead-letter wired queue.ts:26"]
+    worker["Worker · 1 replica<br/>railway.worker.json:10<br/>baseline CPU avg 0.0053 vCPU of 8 (0.066%)"]
+    worker2["Worker replica #2 and beyond<br/>TRIGGER: extract-invoice depth > 50<br/>OR queue wait p95 > 120 s<br/>EXTRACTION_STALL_WARN_MS env.ts:22"]
+    dlq["dead_letter_queue table<br/>schema.ts:642 · admin/dead-letters"]
+    dlqalert["DLQ paging rule<br/>TRIGGER: pending rows > 10 in 24 h<br/>same number monitoring.md:70-71 uses for jobs"]
+    audit["Full invoice audit trail<br/>TRIGGER: write actions covered < 100%<br/>today 3 of 6 — create and confirm unlogged"]
+    fkidx["FK indexes: batch_items.restaurant_id,<br/>upload_batches.restaurant_id, accounts.user_id,<br/>extraction_corrections.*, chat_sessions.restaurant_id<br/>TRIGGER: any seq scan on those tables<br/>at pg_stat_user_tables.seq_scan growth"]
+    rls["RLS gaps: extraction_results, supplier_aliases,<br/>categories, user_restaurants have no policy<br/>0055 covers 31 tables, tenant-data-map.ts lists 34"]
+    breaker["Storage + Gemini circuit breaker and budget<br/>TRIGGER: worker job failure rate > 1% over 15 min"]
+    corr["Correlation id on every log line and Sentry event<br/>TRIGGER: any incident needing a web-to-worker trace<br/>no request id exists in src today"]
+
+    browser -.->|proposed| cdn
+    cdn -.->|origin fetch| web
+    browser -->|"measured 33,874 req / 7 d, 0 x 5xx"| web
+    web -.->|horizontal scale| web2
+    web -.->|aggregate reads| cache
+    web -->|"pool max 20 db.ts:11"| pg
+    pg -.->|streaming replication| replica
+    cache -.-> pg
+    pg --- boss
+    boss -->|"batchSize 3 worker.ts:79"| worker
+    worker -.->|"needs the Redis semaphore rate-limiter.ts:33"| worker2
+    worker -->|"recordDeadLetter dead-letter.ts:148"| dlq
+    dlq -.->|page on growth| dlqalert
+    worker -.->|"log create and confirm"| audit
+    web -.-> audit
+    pg -.-> fkidx
+    pg -.-> rls
+    worker -.-> breaker
+    web -.-> corr
+    worker -.-> corr
+
+    classDef exists stroke:#1e1e1e,stroke-width:2px,fill:#ffffff,color:#1e1e1e;
+    classDef missing stroke:#e03131,stroke-width:2px,stroke-dasharray:6 4,fill:#ffffff,color:#e03131;
+    classDef proposed stroke:#1971c2,stroke-width:2px,stroke-dasharray:6 4,fill:#ffffff,color:#1971c2;
+    class browser,web,pg,boss,worker,dlq exists;
+    class rls missing;
+    class cdn,web2,cache,replica,worker2,dlqalert,audit,fkidx,breaker,corr proposed;
