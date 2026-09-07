@@ -1,0 +1,69 @@
+---
+title: D3 extraction-flow — upload to persisted invoice
+---
+%% Solid arrows: paths that exist in the repo, cited path:line.
+%% Notes prefixed MISSING mark the red dashed class of the convention —
+%% sequenceDiagram carries no per-arrow styling, so absence is written into a note.
+sequenceDiagram
+    autonumber
+    actor U as User (browser)
+    participant W as SvelteKit web
+    participant S as Storage driver
+    participant DB as Postgres
+    participant Q as pg-boss
+    participant K as Worker
+    participant G as Gemini
+    participant R as Review UI
+
+    U->>W: POST / ?upload (multipart)
+    Note over W: quota check remainingMonthlyQuota<br/>routes/(app)/+page.server.ts:96
+    W->>S: saveUploadedFiles, magic-byte + size validation<br/>+page.server.ts:109 · upload-formats.ts:13 20 MB/file
+    Note over W,S: MISSING no timeout, no retry on the storage write
+    W->>DB: createBatch → upload_batches + batch_items status pending<br/>batch.ts:127
+    W->>Q: enqueueBatchExtraction → enqueueExtraction<br/>+page.server.ts:119 · queue.ts:62<br/>retryLimit 2, retryDelay 30 s, expireInSeconds 600, singletonKey = itemId
+    W-->>U: 303 /batch/{batchId} (+page.server.ts:129)
+
+    Q->>K: job batch, batchSize 3 (worker.ts:79-88)
+    K->>DB: markExtracting, guarded transition queued|extracting<br/>batch.ts:306
+    K->>DB: claimExtractionAllowance: location lock, subscription,<br/>quota, monthly claim — extraction-worker.ts:74-107
+    alt allowance refused
+        K->>DB: markFailed extract.err.quotaExceeded<br/>extraction-worker.ts:102
+    end
+    K->>S: read file to tmp when STORAGE_DRIVER != local<br/>extraction-worker.ts:314
+    K->>K: acquireExtractionSlot, Redis ZSET or in-process<br/>rate-limiter.ts:223 · cap MAX_CONCURRENT_EXTRACTIONS 3
+    K->>G: generateContent, responseSchema enforced JSON<br/>llm-provider.ts:51-54 · extract.ts:605
+    Note over K,G: timeout 120 s extract.ts:638-645 (GEMINI_TIMEOUT_MS env.ts:17)<br/>3 retries, 1-4-8 s backoff, only status 429/503 extract.ts:526
+
+    alt model error or timeout
+        G--xK: 429 / 503 / abort
+        K->>K: classifyExtractionError extraction-worker.ts:55
+        K->>DB: recordDeadLetter for non-degradation classes<br/>extraction-worker.ts:129 · dead-letter.ts:148
+        K->>DB: markFailed <errorClass> extraction-worker.ts:138
+        Note over K: degradation classes rateLimited/unavailable/timeout<br/>retry via pg-boss instead extraction-worker.ts:117
+    else structured JSON returned
+        G-->>K: JSON per INVOICE_RESPONSE_SCHEMA
+        K->>K: parseJsonResponse + isExtractedInvoice shape guard<br/>extract.ts:618 · llm-json.ts
+        K->>K: sanitizeExtractedInvoice, length caps + IBAN check<br/>extract.ts:426
+        Note over K: per-field confidence arrives as field_confidences<br/>extract.ts:86-98 (prompt) · extract.ts:226 (type)
+        K->>K: detectTotalMismatch over lines + tax bands<br/>extraction-worker.ts:390
+        K->>DB: markDone, extracted_data jsonb on batch_items<br/>extraction-worker.ts:413 · batch.ts:314
+        K->>DB: recordExtractionResult, corpus copy with field_confidences<br/>extraction-worker.ts:153 · extraction-corpus.ts:102
+    end
+
+    U->>R: open /batch/{id}
+    R->>U: render fields + per-field confidence badges
+    Note over R: HUMAN REVIEW GATE<br/>isLowConfidenceBlocked: any of supplier_name, invoice_number,<br/>invoice_date, due_date, total_amount below 0.85, or document<br/>confidence below 0.85 — invoice-save.ts:637-646
+    U->>W: POST ?/save with idempotency_key<br/>batch/[id]/+page.svelte:1060
+
+    alt low confidence and low_confidence_ack not set
+        W-->>U: SaveOutcome lowConfidenceBlocked — invoice-save.ts:923
+    else acknowledged or all fields >= 0.85
+        W->>DB: claimRequest(idempotency_key) inside the transaction<br/>invoice-save.ts:997 · idempotency.ts:41
+        W->>DB: findContentHashDuplicate → contentDuplicate<br/>invoice-save.ts:1002
+        W->>DB: PERSIST — tx.insert(invoices) invoice-save.ts:1026-1061
+        W->>DB: insertEnrichedLines → tx.insert(invoice_line_items)<br/>invoice-save.ts:1073 · invoice-save.ts:220
+        W->>DB: extraction_corrections rows for edited fields<br/>invoice-save.ts:200
+        W->>DB: markConfirmed on the batch item<br/>batch/[id]/+page.server.ts:305 · batch.ts:336
+        Note over W,DB: MISSING no invoice_audit_log row is written on create or confirm<br/>(only edit, claim, soft_delete write one)
+        W-->>U: 303 to the invoice
+    end

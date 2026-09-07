@@ -1,0 +1,41 @@
+---
+title: D1 runtime-current — what actually runs today
+---
+%% Stroke convention: solid #1e1e1e = exists and cited · dashed #e03131 = missing and risky
+%% Every claim is cited in docs/system-design-audit.md
+flowchart TB
+    browser["Browser / installed PWA<br/>vite-plugin-pwa · package.json:56"]
+    cdn["CDN / edge cache<br/>NOT IN REPO"]
+    web["SvelteKit web service, adapter-node<br/>numReplicas 1 · railway.json:10<br/>CMD node build · Dockerfile:49"]
+    auth["Auth.js · JWT sessions, maxAge 30 d<br/>auth.ts:26 · guard hooks.server.ts:274"]
+    redis["Upstash Redis, optional<br/>rate-limiter.ts:18<br/>absent = in-process fallback rate-limiter.ts:33"]
+    pg[("Postgres 17, Railway<br/>db.ts:26 · pool max 20 db.ts:11<br/>statement_timeout 15000 ms db.ts:10")]
+    boss["pg-boss queues in the pgboss schema<br/>queue.ts:6-16 · 5 queues + 5 dead-letter"]
+    worker["Worker service, node build/worker.js<br/>railway.worker.json:10 · numReplicas 1<br/>restartPolicyType ALWAYS"]
+    gemini["Google Gemini<br/>llm-provider.ts:32 · model env.ts:16"]
+    bucket["Railway bucket, S3 API<br/>storage.ts:48 · STORAGE_DRIVER env.ts:8"]
+    sentry["Sentry<br/>hooks.server.ts:40 · worker.ts:37"]
+    stripe["Stripe webhook<br/>routes/api/stripe-webhook/+server.ts:6"]
+    wa["WhatsApp Cloud API webhook + Baileys transport<br/>routes/api/whatsapp/webhook/+server.ts:41 · worker.ts:138"]
+
+    browser -.->|"no CDN hop exists — MISSING"| cdn
+    cdn -.->|"MISSING"| web
+    browser -->|"HTTPS · 300 req/min per user hooks.server.ts:33<br/>no client-side timeout — MISSING"| web
+    web --> auth
+    web -->|"no timeout, no retry — MISSING<br/>rate-limiter.ts:94"| redis
+    web -->|"statement_timeout 15 s db.ts:10<br/>no retry, no circuit breaker — MISSING"| pg
+    web -->|"errors only, no correlation id — MISSING<br/>hooks.server.ts:53"| sentry
+    web -->|"enqueue: retryLimit 2, retryDelay 30 s,<br/>expireInSeconds 600, singletonKey = itemId<br/>queue.ts:62"| boss
+    pg --- boss
+    boss -->|"batchSize = MAX_CONCURRENT_EXTRACTIONS 3<br/>worker.ts:79-88"| worker
+    worker -->|"timeout 120 s extract.ts:584<br/>3 retries, 1-4-8 s backoff, 429/503 only extract.ts:526"| gemini
+    worker -->|"no timeout, no retry, no breaker — MISSING<br/>extraction-worker.ts:314"| bucket
+    worker -->|"same pool config db.ts:26<br/>no retry — MISSING"| pg
+    worker -->|"errors only worker.ts:37"| sentry
+    stripe -->|"HMAC verified + idempotency_keys claim<br/>billing.ts:680"| web
+    wa -->|"HMAC sha256 webhook/+server.ts:23<br/>handler is fire-and-forget, no retry — MISSING<br/>webhook/+server.ts:58"| web
+
+    classDef exists stroke:#1e1e1e,stroke-width:2px,fill:#ffffff,color:#1e1e1e;
+    classDef missing stroke:#e03131,stroke-width:2px,stroke-dasharray:6 4,fill:#ffffff,color:#e03131;
+    class browser,web,auth,redis,pg,boss,worker,gemini,bucket,sentry,stripe,wa exists;
+    class cdn missing;
