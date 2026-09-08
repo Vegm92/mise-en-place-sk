@@ -34,6 +34,18 @@ function lockedFromRow(row: AllowanceRow): boolean {
 	return isRankLocked(row.rank ?? 0, TIERS[effectiveTier(sub)].maxLocations);
 }
 
+export interface UserMembership {
+	restaurantId: string;
+	role: string;
+}
+
+export async function userMemberships(userId: string): Promise<UserMembership[]> {
+	return runAsSystem(() => db
+		.select({ restaurantId: userRestaurants.restaurantId, role: userRestaurants.role })
+		.from(userRestaurants)
+		.where(eq(userRestaurants.userId, userId)));
+}
+
 export async function memberLocations(userId: string): Promise<MemberLocation[]> {
 	const rows = await runAsSystem(() => db.select({
 		restaurantId: userRestaurants.restaurantId,
