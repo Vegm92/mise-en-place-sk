@@ -12,6 +12,7 @@ import {
 	tryAcquireExtraction,
 	releaseExtraction,
 	acquireExtractionSlot,
+	ExtractionSlotUnavailableError,
 } from '../src/lib/server/rate-limiter';
 
 afterEach(() => {
@@ -150,29 +151,34 @@ describe('acquireExtractionSlot — bounded async semaphore (in-memory fallback)
 	});
 });
 
-describe('acquireExtractionSlot — in-memory waiter timeout (issue #501)', () => {
-	it('resolves a queued acquire after the deadline when the slot holder never releases, and warns', async () => {
+describe('acquireExtractionSlot — in-memory waiter timeout (issues #501, #998)', () => {
+	it('rejects a queued acquire after the deadline instead of handing out a slot, and warns', async () => {
 		vi.useFakeTimers();
 		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => { });
 		try {
 			const held = await acquireExtractionSlot(1);
 
-			let resolved = false;
-			const waiterPromise = acquireExtractionSlot(1).then((slot) => {
-				resolved = true;
-				return slot;
-			});
+			let settled = false;
+			const waiterPromise = acquireExtractionSlot(1);
+			// Attach before advancing the clock, or the rejection lands with no handler.
+			const rejected = expect(
+				waiterPromise.finally(() => { settled = true; }),
+			).rejects.toBeInstanceOf(ExtractionSlotUnavailableError);
 
 			await vi.advanceTimersByTimeAsync(5 * 60_000 - 1);
-			expect(resolved).toBe(false);
+			expect(settled).toBe(false);
 
 			await vi.advanceTimersByTimeAsync(1);
-			const waiterSlot = await waiterPromise;
-			expect(resolved).toBe(true);
+			await rejected;
+			expect(settled).toBe(true);
 			expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Timed out waiting'));
 
-			await waiterSlot.release();
+			// The cap still holds: the timed-out waiter took nothing with it.
+			expect(tryAcquireExtraction(1)).toBe(false);
+
 			await held.release();
+			expect(tryAcquireExtraction(1)).toBe(true);
+			releaseExtraction();
 		} finally {
 			warnSpy.mockRestore();
 		}
@@ -208,30 +214,26 @@ describe('acquireExtractionSlot — in-memory waiter timeout (issue #501)', () =
 		}
 	});
 
-	it('a timed-out waiter later reached by a handoff does not double-grant or leak a slot', async () => {
+	it('a timed-out waiter is off the queue — a later release goes to the holder, not to a ghost', async () => {
 		vi.useFakeTimers();
 		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => { });
 		try {
 			const held = await acquireExtractionSlot(1);
 
-			let waiterResolved = false;
-			const waiterPromise = acquireExtractionSlot(1).then((slot) => {
-				waiterResolved = true;
-				return slot;
-			});
+			const rejected = expect(acquireExtractionSlot(1))
+				.rejects.toBeInstanceOf(ExtractionSlotUnavailableError);
 
 			await vi.advanceTimersByTimeAsync(5 * 60_000);
-			const timedOutSlot = await waiterPromise;
-			expect(waiterResolved).toBe(true);
+			await rejected;
 
+			// Releasing must free the single slot outright rather than hand it to the
+			// waiter that already gave up — otherwise capacity leaks away one job at a time.
 			await held.release();
+			expect(tryAcquireExtraction(1)).toBe(true);
+			releaseExtraction();
 
 			const next = await acquireExtractionSlot(1);
 			expect(tryAcquireExtraction(1)).toBe(false);
-
-			await timedOutSlot.release();
-			expect(tryAcquireExtraction(1)).toBe(false);
-
 			await next.release();
 			expect(tryAcquireExtraction(1)).toBe(true);
 			releaseExtraction();

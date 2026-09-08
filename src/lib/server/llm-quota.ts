@@ -241,6 +241,7 @@ export async function recordLlmUsage(
 			outputTokens: usage.outputTokens,
 			estimatedCostUsd: cost.toFixed(8),
 			callerContext: callerContext ?? null,
+			durationMs: usage.durationMs ?? null,
 		});
 	} catch (err) {
 		console.error('[llm-quota] failed to record usage (non-fatal):', err);

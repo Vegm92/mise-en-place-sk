@@ -53,6 +53,10 @@ Owner-email gated. Provides:
 | Concern | Check |
 |---|---|
 | Extractions pending | `batch_items` status counts; `extract-invoice` queue |
+| Route latency | `metric_samples` where `name = 'route.latency_ms'`, `label` = the SvelteKit route id. Bucketed per 60 s flush in the web process (`src/lib/server/metrics.ts`) — count/sum/min/max, no exact percentiles |
+| `extract-invoice` depth over time | `metric_samples` where `name = 'queue.depth'` (`label` `extract-invoice`, and `extract-invoice:pgboss` for the job table) plus `queue.oldest_seconds`. Sampled every 5 min by `scheduled-metric-sample` |
+| Extraction end-to-end latency | `batch_items.extracted_at - queued_at` on the row; `extractionStats()` reports p50/p95 over it. Covers failures too, unlike the extraction_results join it replaced |
+| Gemini call latency | `llm_usage_log.duration_ms`, written by `recordLlmUsage` for every caller (the provider times its own call) |
 | Worker up? | `worker_heartbeats.last_seen_at` — stale > 2 min means down or wedged, whatever the queue depth says |
 | Extractions stalled | `batch_items` in `queued`/`extracting` with `queued_at` older than 15 min; the web process reaps these to `failed` / `extract.err.stalled` on the next batch read |
 | Invoice save correctness | duplicate `contentHash` hits (should be ~0); idempotency claims expired |
@@ -69,6 +73,36 @@ Owner-email gated. Provides:
 - Ops alerts: Sentry errors, dead-letter growth, WhatsApp account events of
   severity RED/YELLOW, failed per-tenant scheduled jobs (`/admin/health` warns
   above 0, errors above 10 in 24 h).
+- **Dead-letter growth.** `scheduled-dead-letter-alert` (`5 * * * *` UTC,
+  `runDeadLetterAlertJob` in `src/lib/server/alerts.ts`) counts *pending* rows
+  last seen in the trailing 24 h and captures a Sentry event when it crosses a
+  threshold. Two thresholds:
+
+  | Rule | Threshold | Sentry level · fingerprint |
+  |---|---|---|
+  | Any queue | **> 10** distinct pending rows / 24 h | `warning` · `dead-letter-threshold` |
+  | `account-cleanup` | **> 0** | `error` · `dead-letter-zeroTolerance` |
+
+  The 10 is the same figure used for failed scheduled jobs above, deliberately —
+  one number for ops to remember. It is a count of *distinct* failures, not
+  retries: rows collapse on `(queue, source_id, error_class, status)` with an
+  `occurrences` counter (`dead-letter.ts`), so a repeating failure is one row.
+  `account-cleanup` gets its own rule because it is the GDPR deletion job: one
+  dead-lettered row means a user who asked to be forgotten has not been, and
+  nothing else in the system is counting down on that.
+
+  Set a Sentry alert rule on each fingerprint. The stable fingerprints mean a
+  queue that stays over the line updates one issue rather than opening one an
+  hour.
+- **Replaying a dead letter.** `/admin/dead-letters` offers Replay for
+  `extract-invoice`, `normalize-product`, `categorize-product` and
+  `whatsapp-notify`. `whatsapp-inbound` and `account-cleanup` show *No replay*
+  with the reason on hover: the stored payload is redacted before it is written
+  (`redactPayload` — emails masked, strings cut at 512 chars, arrays capped at
+  25 items), so replaying either would run a job with quietly different data.
+  For those two, re-run the work from its own tooling. The two product queues
+  re-read the product name from `products` rather than trusting the redacted
+  copy in the payload.
 - **Worker down.** The heartbeat exists (`worker_heartbeats`, stale after
   `WORKER_HEARTBEAT_STALE_MS`, default 2 min) and `workerLiveness()` renders it
   on `/admin/health` and `/api/health`. The push half lives in the **web**

@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/sveltekit';
-import { and, count, desc, eq, inArray, lt, or, sql } from 'drizzle-orm';
+import { and, count, desc, eq, gte, inArray, lt, or, sql } from 'drizzle-orm';
 import { db, forTenant, runAsSystem, runWithTenantContext } from './db';
 import { deadLetterQueue, restaurants } from './schema';
 
@@ -356,6 +356,31 @@ export async function deadLetterQueueBreakdown(): Promise<Array<{ queue: string;
 
 export async function pendingDeadLetterCount(): Promise<number> {
 	return countDeadLetters({ status: 'pending' });
+}
+
+export interface DeadLetterGrowth {
+	windowHours: number;
+	pending: number;
+	byQueue: Array<{ queue: string; pending: number }>;
+}
+
+export async function deadLetterGrowth(windowHours = 24): Promise<DeadLetterGrowth> {
+	const since = new Date(Date.now() - windowHours * 60 * 60 * 1000);
+	// tenant-scope-ok: platform-wide ops counter, same gate as deadLetterQueueBreakdown.
+	const rows = await db
+		.select({
+			queue: deadLetterQueue.queue,
+			pending: sql<number>`count(*)::int`,
+		})
+		.from(deadLetterQueue)
+		.where(and(eq(deadLetterQueue.status, 'pending'), gte(deadLetterQueue.lastSeenAt, since)))
+		.groupBy(deadLetterQueue.queue)
+		.orderBy(desc(sql`count(*)`));
+	return {
+		windowHours,
+		pending: rows.reduce((sum, r) => sum + Number(r.pending), 0),
+		byQueue: rows.map((r) => ({ queue: r.queue, pending: Number(r.pending) })),
+	};
 }
 
 export type DeadLetterEntry = Omit<DeadLetterRow, 'restaurantName'>;

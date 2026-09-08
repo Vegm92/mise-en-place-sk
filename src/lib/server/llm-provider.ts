@@ -8,6 +8,7 @@ export interface LLMUsage {
 	inputTokens: number;
 	outputTokens: number;
 	model: string;
+	durationMs?: number;
 }
 
 export interface LLMResponse {
@@ -38,7 +39,7 @@ export function createGeminiProvider() {
 			signal?: AbortSignal,
 			systemInstruction?: string,
 			responseSchema?: Schema,
-		) {
+		): Promise<LLMResponse> {
 			const contents = (typeof content === 'string' ? content : [{ role: 'user', parts: content }]) as Parameters<typeof ai.models.generateContent>[0]['contents'];
 			const config: {
 				abortSignal?: AbortSignal;
@@ -52,6 +53,7 @@ export function createGeminiProvider() {
 				config.responseMimeType = 'application/json';
 				config.responseSchema = responseSchema;
 			}
+			const startedAt = Date.now();
 			const response = await ai.models.generateContent({
 				model,
 				contents,
@@ -63,6 +65,7 @@ export function createGeminiProvider() {
 					inputTokens:  response.usageMetadata?.promptTokenCount     ?? 0,
 					outputTokens: response.usageMetadata?.candidatesTokenCount ?? 0,
 					model,
+					durationMs: Date.now() - startedAt,
 				},
 			};
 		},
