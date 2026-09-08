@@ -35,6 +35,7 @@
 		"lint:unscoped-query": "node scripts/lint-invariants.mjs unscoped-tenant-query",
 		"lint:action-authz": "node scripts/lint-invariants.mjs action-authz",
 		"lint:form-get-cast": "node scripts/lint-invariants.mjs form-get-cast",
+		"lint:json-body-schema": "node scripts/lint-invariants.mjs json-body-schema",
 		"lint:inline-styles": "node scripts/lint-invariants.mjs inline-token-style",
 		"lint:no-comments": "node scripts/check-no-comments.mjs",
 		"lint:i18n": "node scripts/check-i18n-strings.mjs",

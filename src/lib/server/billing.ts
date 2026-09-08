@@ -326,12 +326,19 @@ export async function applyTierSettings(restaurantId: string, tier: PlanTier): P
 	]);
 }
 
+export async function hasFeature(
+	feature: keyof TierConfig['features'],
+	source: EntitlementSource,
+): Promise<boolean> {
+	const entitlements = await entitlementsFrom(source);
+	return entitlements?.features[feature] === true;
+}
+
 export async function requireFeature(
 	feature: keyof TierConfig['features'],
 	source: EntitlementSource,
 ): Promise<void> {
-	const entitlements = await entitlementsFrom(source);
-	if (!entitlements?.features[feature]) throw error(403, `This feature requires a higher plan tier`);
+	if (!(await hasFeature(feature, source))) throw error(403, `This feature requires a higher plan tier`);
 }
 
 export function isAccessAllowed(status: SubscriptionStatus, trialEndsAt: Date | null): boolean {

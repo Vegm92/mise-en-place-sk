@@ -14,6 +14,7 @@ import {
 } from './helpers/test-db';
 import { resolveShareToken } from '../src/lib/server/digest-share';
 import { isoWeek } from '../src/lib/server/weekly-digest';
+import { expectApiError } from './helpers/api-error';
 
 const describeDb = hasDbEnv ? describe : describe.skip;
 
@@ -37,7 +38,7 @@ describeDb('/api/alert-share POST (issue #329)', () => {
 
 	it('rejects an unauthenticated/tenant-less request', async () => {
 		const { POST } = await import('../src/routes/(app)/api/alert-share/+server');
-		await expect(POST(event(null))).rejects.toMatchObject({ status: 401 });
+		await expectApiError(await POST(event(null)), 401);
 	});
 
 	it('creates a token for the current week and resolves it to this tenant', async () => {

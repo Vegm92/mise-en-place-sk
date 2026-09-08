@@ -80,6 +80,9 @@ jobs:
       - name: Lint — no new form.get()/formData.get() `as` casts (issue #844)
         run: pnpm lint:form-get-cast
 
+      - name: Lint — JSON endpoint bodies parse through a schema (issue #1006)
+        run: pnpm lint:json-body-schema
+
       - name: Lint — inline var(--mep-*) styles stay under the ratchet (issue #845)
         run: pnpm lint:inline-styles
 

@@ -1,5 +1,8 @@
-import { json, error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
+import * as v from 'valibot';
 import type { RequestHandler } from './$types';
+import { apiError } from '$lib/server/api-response';
+import { parseJson } from '$lib/server/public-form-action';
 import * as Sentry from '@sentry/sveltekit';
 import { db, runAsSystem } from '$lib/server/db';
 import { userRestaurants, subscriptions, invoices, batchItems, users } from '$lib/server/schema';
@@ -27,30 +30,36 @@ async function collectTenantFileKeys(restaurantIds: string[]): Promise<string[]>
 	return [...keys];
 }
 
+const DeleteBody = v.object({
+	password: v.optional(v.string()),
+	confirm: v.optional(v.string()),
+});
+
 export const POST: RequestHandler = async ({ locals, request, cookies }) => {
 	const user = locals.user;
-	if (!user) throw error(401, 'Unauthorized');
+	if (!user) return apiError(401, 'Unauthorized');
 
 	if (!(await rateLimitScoped({ scope: 'user', name: 'account-delete', max: 3 }, { userId: user.id }))) {
-		throw error(429, 'Too many requests — please wait a moment before trying again');
+		return apiError(429, 'Too many requests — please wait a moment before trying again');
 	}
 
-	const body = await request.json().catch(() => ({}));
+	const parsed = await parseJson(DeleteBody, request);
+	const body: v.InferOutput<typeof DeleteBody> = parsed.success ? parsed.output : {};
 
 	const [userRow] = await db
 		.select({ passwordHash: users.passwordHash })
 		.from(users)
 		.where(eq(users.id, user.id))
 		.limit(1);
-	if (!userRow) throw error(401, 'Unauthorized');
+	if (!userRow) return apiError(401, 'Unauthorized');
 
 	if (userRow.passwordHash) {
-		const password = typeof body?.password === 'string' ? body.password : '';
-		if (!password) throw error(400, 'Missing password confirmation. Send { "password": "…" }');
+		const password = body.password ?? '';
+		if (!password) return apiError(400, 'Missing password confirmation. Send { "password": "…" }');
 		const reauthed = await verifyCredentials(user.email, password);
-		if (!reauthed) throw error(401, 'Incorrect password');
-	} else if (body?.confirm !== 'DELETE_MY_ACCOUNT') {
-		throw error(400, 'Missing confirmation. Send { "confirm": "DELETE_MY_ACCOUNT" }');
+		if (!reauthed) return apiError(401, 'Incorrect password');
+	} else if (body.confirm !== 'DELETE_MY_ACCOUNT') {
+		return apiError(400, 'Missing confirmation. Send { "confirm": "DELETE_MY_ACCOUNT" }');
 	}
 
 	const memberships = await userMemberships(user.id);

@@ -43,6 +43,7 @@ import { POST } from '../src/routes/(app)/api/chat/+server';
 import {
 	testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
+import { expectApiError } from './helpers/api-error';
 
 let rid = '';
 
@@ -131,7 +132,7 @@ describe.skipIf(!hasDbEnv)('#426 — POST /api/chat routes through the LLM provi
 	it('a seam error still yields a 503 without ever hitting recordLlmUsage', async () => {
 		generateMock.mockRejectedValue(new Error('upstream boom'));
 
-		await expect(POST(chatEvent('This will fail'))).rejects.toMatchObject({ status: 503 });
+		await expectApiError(await POST(chatEvent('This will fail')), 503);
 
 		const rows = await testSql`SELECT id FROM llm_usage_log WHERE restaurant_id = ${rid}`;
 		expect(rows).toHaveLength(0);
@@ -257,7 +258,7 @@ describe.skipIf(!hasDbEnv)('#440 — chat rate limit is tenant-scoped, not user-
 	it('a shared budget exhausted by one staff member 429s the next, on paid Gemini capacity that would otherwise be multiplied per seat', async () => {
 		rateLimitMock.mockResolvedValueOnce(false);
 
-		await expect(POST(chatEvent('One too many', 'staff-a'))).rejects.toMatchObject({ status: 429 });
+		await expectApiError(await POST(chatEvent('One too many', 'staff-a')), 429);
 		expect(generateMock).not.toHaveBeenCalled();
 	});
 });
