@@ -219,7 +219,7 @@
     {#if form?.error}
       <p class="body text-neg" style="font-size:12px;padding:0 16px 12px;">{form.error}</p>
     {/if}
-    <form method="post" action="?/createAlias" class="flex flex-col gap-2" style="padding:12px 16px;border-top:1px solid var(--mep-border,#eee);">
+    <form method="post" action="?/createAlias" class="flex flex-col gap-2 px-4 py-3 border-t border-divider">
       <label class="label text-fg-3" for="alias-add-text">{t('prod.detail.aliasAddTitle')}</label>
       <p class="body text-fg-3" style="font-size:12px;margin:-4px 0 2px;">{t('prod.detail.aliasAddHint')}</p>
       <div style="display:flex;gap:6px;">

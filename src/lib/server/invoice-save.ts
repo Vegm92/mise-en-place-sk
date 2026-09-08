@@ -587,10 +587,6 @@ export async function linkProductsToInvoice(
 					},
 				});
 			} else if (r.status === 'pending' && r.suggestion && !reassigned) {
-				// Below FUZZY_AUTO_MERGE_THRESHOLD (issue #814 / ADR-009 addendum): the
-				// line already got its own product — nothing merged yet — and this
-				// notification is the only path to actually merging it, via
-				// candidateProductId (`mergeIntoProduct` on confirm).
 				const productSuggestionVars = { description: desc, candidateName: r.suggestion.candidateName };
 				suggestions.push({
 					notificationType: 'product_suggestion',

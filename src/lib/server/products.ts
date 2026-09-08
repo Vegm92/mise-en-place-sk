@@ -545,13 +545,6 @@ export async function annotateLineItems(
 
 export const FUZZY_THRESHOLD = 0.42;
 
-/**
- * Above this score a fuzzy match auto-merges (ADR-009's "act and tell").
- * Below it but above FUZZY_THRESHOLD, the match is confident enough to
- * suggest but not to bet the invoice's analytics on — it creates its own
- * product and waits for `mergeIntoProduct`/`product_suggestion` confirmation
- * instead (ADR-009 addendum, issue #814).
- */
 export const FUZZY_AUTO_MERGE_THRESHOLD = 0.65;
 
 export interface ResolvedLine {
@@ -1165,12 +1158,6 @@ export type ManualAliasResult =
 	| { ok: true; productId: number }
 	| { ok: false; reason: 'invalid' | 'product_not_found' };
 
-/**
- * Manual alias configurator (issue #814): point a raw description straight
- * at a product, independent of the exact/fuzzy/LLM matching tiers. Upserts
- * on (restaurantId, rawKey) — reusing the create form to edit an alias that
- * already exists just repoints it.
- */
 export async function createManualAlias(
 	database: Database,
 	restaurantId: string,
