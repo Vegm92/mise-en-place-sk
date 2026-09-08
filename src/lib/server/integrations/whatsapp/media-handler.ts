@@ -32,6 +32,7 @@ export async function handleMediaUpload(
 	ref: WhatsAppMediaRef,
 	ctx: WhatsAppMessageContext,
 	committed: CommitFlag,
+	requestId?: string,
 ): Promise<void> {
 	if (ref.file_length && ref.file_length > MAX_FILE_BYTES) {
 		await ctx.sendText(from, REJECT_REPLY.tooLarge);
@@ -80,7 +81,7 @@ export async function handleMediaUpload(
 		getBatchItems,
 		markQueued,
 		enqueue: enqueueExtraction,
-	});
+	}, requestId);
 	committed.value = true;
 
 	await ctx.sendText(from, '📄 Factura recibida.\nEstoy leyéndola, te aviso en un momento.');

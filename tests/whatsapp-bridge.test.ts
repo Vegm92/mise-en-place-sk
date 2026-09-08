@@ -151,7 +151,7 @@ describe('WhatsApp → batch bridge', () => {
 		downloadMock.mockResolvedValue({ buffer: JPEG, extension: 'jpg' });
 		queueRouting();
 
-		await handleWhatsAppMessage({ from: '+34600', id: 'm1', type: 'image', image: { id: 'media-1' } });
+		await handleWhatsAppMessage({ from: '+34600', id: 'm1', type: 'image', image: { id: 'media-1' } }, 'req-wa-1');
 
 		expect(createBatchMock).toHaveBeenCalledWith(
 			'rest-1',
@@ -160,7 +160,7 @@ describe('WhatsApp → batch bridge', () => {
 		);
 		expect(enqueueBatchMock).toHaveBeenCalledWith('item-1', 'rest-1', expect.objectContaining({
 			enqueue: enqueueExtractionMock,
-		}));
+		}), 'req-wa-1');
 		// The ack only says the invoice arrived — the summary with the extracted
 		// data comes back from the worker once extraction finishes.
 		expect(sendMock).toHaveBeenCalledTimes(1);
