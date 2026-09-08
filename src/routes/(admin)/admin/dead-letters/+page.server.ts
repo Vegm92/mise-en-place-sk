@@ -103,7 +103,7 @@ export const actions: Actions = {
 		const requeued = await markQueued(entry.sourceId);
 		if (!requeued) return fail(409, { error: 'itemNotRequeueable' });
 
-		const enqueued = await enqueueExtraction(entry.sourceId, entry.restaurantId);
+		const enqueued = await enqueueExtraction(entry.sourceId, entry.restaurantId, locals.requestId);
 		if (!enqueued) return fail(500, { error: 'enqueueFailed' });
 
 		await setDeadLetterStatus(id, 'replayed', locals.user?.email ?? null);

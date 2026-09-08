@@ -248,7 +248,7 @@ describe.skipIf(!hasDbEnv)('POST /api/user/delete (issue #492)', () => {
 		expect(userStillPresentWhenEnqueued).toBe(false);
 
 		expect(enqueueAccountCleanupMock).toHaveBeenCalledTimes(1);
-		expect(enqueueAccountCleanupMock).toHaveBeenCalledWith(userId, rid, [subId], [fileKey]);
+		expect(enqueueAccountCleanupMock).toHaveBeenCalledWith(userId, rid, [subId], [fileKey], undefined);
 	});
 
 	it('does not enqueue cleanup when there is nothing to clean up (no subscription, no files)', async () => {
