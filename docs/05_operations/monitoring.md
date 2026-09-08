@@ -59,6 +59,7 @@ Owner-email gated. Provides:
 | Gemini call latency | `llm_usage_log.duration_ms`, written by `recordLlmUsage` for every caller (the provider times its own call) |
 | Worker up? | `worker_heartbeats.last_seen_at` — stale > 2 min means down or wedged, whatever the queue depth says |
 | Extractions stalled | `batch_items` in `queued`/`extracting` with `queued_at` older than 15 min; the web process reaps these to `failed` / `extract.err.stalled` on the next batch read |
+| Review backlog | `batch_items` still in `done` — nothing reaps or reminds about them, so this is the only signal that an extracted document was paid for and never looked at. `reviewBacklog()` (`src/lib/server/pipeline-stats.ts`) reports the count, the tenants, the oldest age and how much is past 168 h; surfaced as the *Review backlog* check on `/admin/health` |
 | Invoice save correctness | duplicate `contentHash` hits (should be ~0); idempotency claims expired |
 | LLM usage vs quota | `llm_usage_log` / `monthly_usage` (chat and digest write to `llm_usage_log` via `recordLlmUsage` — `caller_context` `chat` / `weekly-digest`, per `docs/04_engineering/llm_usage_metering.md`; the per-tenant cost cap, `checkExtractionQuota`, still runs only on the extraction path, so chat/digest spend is recorded but not enforced) |
 | Webhook throughput | `idempotency_keys` grouped by `scope` |
@@ -70,6 +71,12 @@ Owner-email gated. Provides:
 
 - In-app alert types (price shock ≥15%, low stock <3 days, budget 80%/100%)
   are user-facing features, not ops alerts.
+- **Review backlog** (`/admin/health` → *Review backlog*, issue #1011). Warn
+  when the oldest unreviewed `done` item passes **72 h**, error past **168 h**.
+  Not a Sentry alert: a tenant who stops reviewing is a churn signal, not an
+  incident, and the operator sees it on the same page as the rest. Nothing
+  auto-expires a `done` item — silently discarding a document the user paid to
+  extract would be worse than leaving it waiting.
 - Ops alerts: Sentry errors, dead-letter growth, WhatsApp account events of
   severity RED/YELLOW, failed per-tenant scheduled jobs (`/admin/health` warns
   above 0, errors above 10 in 24 h).
