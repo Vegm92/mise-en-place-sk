@@ -9,19 +9,17 @@
  * DATABASE_URL.
  */
 import { randomUUID } from 'node:crypto';
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('../src/lib/server/db', () => import('./helpers/mock-db'));
 
-import {
-	testSql, closeDb,
-	createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
-} from './helpers/test-db';
+import { testSql, hasDbEnv } from './helpers/test-db';
+import { useTestRestaurant } from './helpers/test-restaurant';
 import { saveReviewedInvoice, type SaveOutcome } from '../src/lib/server/invoice-save';
 import { invoiceAuditLog } from '../src/lib/server/schema';
 import { minimalInvoiceForm, minimalBatchItem } from './helpers/invoice-save-form';
 
-let rid = '';
+const restaurant = useTestRestaurant('audit-log');
 const uid = randomUUID();
 
 function assertSaved(out: SaveOutcome): asserts out is Extract<SaveOutcome, { type: 'saved' }> {
@@ -36,29 +34,17 @@ async function auditRowsFor(invoiceId: number) {
 	`;
 }
 
-beforeAll(async () => {
-	if (!hasDbEnv) return;
-	const r = await createTestRestaurant('audit-log');
-	rid = r.id;
-});
-
-afterAll(async () => {
-	if (!hasDbEnv) return;
-	await cleanupTestRestaurant(rid);
-	await closeDb();
-});
-
 describe.skipIf(!hasDbEnv)('saveReviewedInvoice → invoice_audit_log (issue #993)', () => {
 	it('writes a create row carrying restaurantId, invoiceId, userId and sourceFile', async () => {
-		const item = minimalBatchItem(rid, null);
-		const out = await saveReviewedInvoice(item, minimalInvoiceForm('__inv_audit_sup__', 'AUDIT-001'), rid, uid);
+		const item = minimalBatchItem(restaurant.id, null);
+		const out = await saveReviewedInvoice(item, minimalInvoiceForm('__inv_audit_sup__', 'AUDIT-001'), restaurant.id, uid);
 		assertSaved(out);
 
 		const rows = await auditRowsFor(out.invoiceId);
 		expect(rows).toHaveLength(1);
 		expect(rows[0]).toMatchObject({
 			action: 'create',
-			restaurant_id: rid,
+			restaurant_id: restaurant.id,
 			invoice_id: out.invoiceId,
 			user_id: uid,
 			source_file: item.fileKey,
@@ -66,12 +52,12 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → invoice_audit_log (issue #99
 	});
 
 	it('writes exactly two rows — create and confirm — for a single batch save, and never collapses to one', async () => {
-		const item = minimalBatchItem(rid, null);
+		const item = minimalBatchItem(restaurant.id, null);
 		const out = await saveReviewedInvoice(
-			item, minimalInvoiceForm('__inv_audit_sup__', 'AUDIT-002'), rid, uid,
+			item, minimalInvoiceForm('__inv_audit_sup__', 'AUDIT-002'), restaurant.id, uid,
 			async (tx, invoiceId) => {
 				await tx.insert(invoiceAuditLog).values({
-					restaurantId: rid, invoiceId, action: 'confirm', userId: uid, sourceFile: item.fileKey,
+					restaurantId: restaurant.id, invoiceId, action: 'confirm', userId: uid, sourceFile: item.fileKey,
 				});
 			},
 		);
@@ -82,7 +68,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → invoice_audit_log (issue #99
 		expect(rows.map((r) => r.action)).toEqual(['confirm', 'create']);
 		for (const row of rows) {
 			expect(row).toMatchObject({
-				restaurant_id: rid,
+				restaurant_id: restaurant.id,
 				invoice_id: out.invoiceId,
 				user_id: uid,
 				source_file: item.fileKey,

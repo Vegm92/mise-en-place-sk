@@ -390,6 +390,13 @@ describe.skipIf(!canRun)('account export/delete membership lookups (#994 regress
 		SELECT restaurant_id, role FROM user_restaurants WHERE user_id = ${MULTI_LOCATION_USER_ID}
 	`;
 
+	/** Both "the fix" cases below end the same way: every membership visible
+	 *  regardless of which tenant (if any) is active. */
+	async function expectBothMembershipsVisible() {
+		const rows = await membershipQuery();
+		expect(rows.map((r) => r.restaurant_id).sort()).toEqual([ridA, ridB].sort());
+	}
+
 	it('pins the bug: under plain per-request tenant context (one of the user\'s two restaurants active), the unwrapped query loses the other membership', async () => {
 		await resetGucs(runtimeSql!);
 		await runtimeSql!`SELECT set_config('app.restaurant_id', ${ridA}, false)`;
@@ -401,16 +408,14 @@ describe.skipIf(!canRun)('account export/delete membership lookups (#994 regress
 	it('pins the fix: under app.admin (what api/user/export and api/user/delete now use via runAsSystem), the same query sees every membership regardless of the active tenant', async () => {
 		await runtimeSql!`SELECT set_config('app.restaurant_id', ${ridA}, false)`;
 		await runtimeSql!`SELECT set_config('app.admin', 'true', false)`;
-		const rows = await membershipQuery();
-		expect(rows.map((r) => r.restaurant_id).sort()).toEqual([ridA, ridB].sort());
+		await expectBothMembershipsVisible();
 		await resetGucs(runtimeSql!);
 	});
 
 	it('the fix holds even with no active restaurant at all (no active_restaurant cookie / pre-tenant-selection)', async () => {
 		await resetGucs(runtimeSql!);
 		await runtimeSql!`SELECT set_config('app.admin', 'true', false)`;
-		const rows = await membershipQuery();
-		expect(rows.map((r) => r.restaurant_id).sort()).toEqual([ridA, ridB].sort());
+		await expectBothMembershipsVisible();
 		await resetGucs(runtimeSql!);
 	});
 });
