@@ -27,7 +27,7 @@ export function nextAccessibleIndex(
 	features: Partial<Record<TourFeatureKey, boolean>>,
 ): number {
 	for (let i = fromIndex; i < pages.length; i++) {
-		if (tourPageAccessible(pages[i].path, features)) return i;
+		if (tourPageAccessible(pages[i]!.path, features)) return i;
 	}
 	return -1;
 }

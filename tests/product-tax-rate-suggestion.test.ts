@@ -22,7 +22,7 @@ async function makeProduct(name: string): Promise<number> {
 		VALUES (${rid}, ${name}, ${normalizeProductKey(name)})
 		RETURNING id
 	`;
-	return row.id;
+	return row!.id;
 }
 
 async function confirmAlias(productId: number, rawText: string): Promise<void> {
@@ -96,11 +96,11 @@ describe.skipIf(!hasDbEnv)('previewLineProducts — suggestedTaxRate (issue #919
 		}
 
 		const matches = await previewLineProducts(testDb, rid, null, [{ description }]);
-		expect(matches[0].productId).toBe(expectMatch ? productId : null);
+		expect(matches[0]!.productId).toBe(expectMatch ? productId : null);
 		if (expectedRate === null) {
-			expect(matches[0].suggestedTaxRate).toBeNull();
+			expect(matches[0]!.suggestedTaxRate).toBeNull();
 		} else {
-			expect(matches[0].suggestedTaxRate).toBeCloseTo(expectedRate, 5);
+			expect(matches[0]!.suggestedTaxRate).toBeCloseTo(expectedRate, 5);
 		}
 	});
 });

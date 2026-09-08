@@ -218,19 +218,19 @@ describe('buildCohorts', () => {
 	it('groups by first paying month, newest cohort first', () => {
 		const rows = buildCohorts(cohortOf, paying, '2026-04', [3]);
 		expect(rows.map(r => r.month)).toEqual(['2026-02', '2026-01']);
-		expect(rows[1].customers).toBe(2);
-		expect(rows[1].startMrrCents).toBe(5800);
+		expect(rows[1]!.customers).toBe(2);
+		expect(rows[1]!.startMrrCents).toBe(5800);
 	});
 
 	it('reports customer and revenue retention at the offset', () => {
 		const [jan] = buildCohorts(cohortOf, paying, '2026-04', [3]).filter(r => r.month === '2026-01');
-		expect(jan.retention[0]).toEqual({ offset: 3, rate: 0.5, customers: 1 });
-		expect(jan.revenueRetention[0].rate).toBeCloseTo(5900 / 5800, 6);
+		expect(jan!.retention[0]).toEqual({ offset: 3, rate: 0.5, customers: 1 });
+		expect(jan!.revenueRetention[0]!.rate).toBeCloseTo(5900 / 5800, 6);
 	});
 
 	it('leaves offsets that have not happened yet unknown', () => {
 		const [feb] = buildCohorts(cohortOf, paying, '2026-04', [3]).filter(r => r.month === '2026-02');
-		expect(feb.retention[0]).toEqual({ offset: 3, rate: null, customers: null });
-		expect(feb.revenueRetention[0].rate).toBeNull();
+		expect(feb!.retention[0]).toEqual({ offset: 3, rate: null, customers: null });
+		expect(feb!.revenueRetention[0]!.rate).toBeNull();
 	});
 });

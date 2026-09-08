@@ -32,7 +32,7 @@ async function insertHistoryInvoice(supplierId: number, date: string, descriptio
 		VALUES (${rid}, ${supplierId}, ${date}, 'pending') RETURNING id`;
 	await testSql`
 		INSERT INTO invoice_line_items (invoice_id, restaurant_id, description, quantity, unit, unit_price)
-		VALUES (${inv.id}, ${rid}, ${description}, 1, 'kg', ${unitPrice})`;
+		VALUES (${inv!.id}, ${rid}, ${description}, 1, 'kg', ${unitPrice})`;
 }
 
 beforeAll(async () => {
@@ -46,20 +46,20 @@ beforeAll(async () => {
 	// Three prior purchases of "Tomate pera": 2.00, 2.05, and one noisy outlier
 	// at 3.00 (e.g. a smaller delivered batch at a one-off higher price).
 	// Median of [2.00, 2.05, 3.00] is 2.05.
-	await insertHistoryInvoice(sup.id, '2026-07-01', 'Tomate pera', 2.00);
-	await insertHistoryInvoice(sup.id, '2026-07-08', 'Tomate pera', 3.00);
-	await insertHistoryInvoice(sup.id, '2026-07-15', 'Tomate pera', 2.05);
+	await insertHistoryInvoice(sup!.id, '2026-07-01', 'Tomate pera', 2.00);
+	await insertHistoryInvoice(sup!.id, '2026-07-08', 'Tomate pera', 3.00);
+	await insertHistoryInvoice(sup!.id, '2026-07-15', 'Tomate pera', 2.05);
 
 	// A separate ingredient with a genuine, sustained price jump: three
 	// purchases all around 1.00, so a new purchase at 1.50 (+50%) is real.
-	await insertHistoryInvoice(sup.id, '2026-07-01', 'Aceite de girasol', 1.00);
-	await insertHistoryInvoice(sup.id, '2026-07-08', 'Aceite de girasol', 0.98);
-	await insertHistoryInvoice(sup.id, '2026-07-15', 'Aceite de girasol', 1.02);
+	await insertHistoryInvoice(sup!.id, '2026-07-01', 'Aceite de girasol', 1.00);
+	await insertHistoryInvoice(sup!.id, '2026-07-08', 'Aceite de girasol', 0.98);
+	await insertHistoryInvoice(sup!.id, '2026-07-15', 'Aceite de girasol', 1.02);
 
 	const [newInv] = await testSql`
 		INSERT INTO invoices (restaurant_id, supplier_id, invoice_date, status)
-		VALUES (${rid}, ${sup.id}, '2026-07-22', 'pending') RETURNING id`;
-	newInvoiceId = newInv.id;
+		VALUES (${rid}, ${sup!.id}, '2026-07-22', 'pending') RETURNING id`;
+	newInvoiceId = newInv!.id;
 });
 
 afterAll(async () => {
@@ -79,7 +79,7 @@ describe.skipIf(!hasDbEnv)('runPriceShock — median history window (issue #308)
 	it('still fires on a real, sustained price change', async () => {
 		const alerts = await runPriceShock(newInvoiceId, SUPPLIER, [item('Aceite de girasol', 1.50)], rid);
 		expect(alerts).toHaveLength(1);
-		expect(alerts[0].payload.oldPrice).toBeCloseTo(1.00, 2);
-		expect(alerts[0].payload.newPrice).toBe(1.50);
+		expect(alerts[0]!.payload.oldPrice).toBeCloseTo(1.00, 2);
+		expect(alerts[0]!.payload.newPrice).toBe(1.50);
 	});
 });

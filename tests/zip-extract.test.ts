@@ -35,7 +35,7 @@ describe('extractZip — unpacking a ZIP upload (issue #824)', () => {
 
 		expect(result.errors).toEqual([]);
 		expect(result.files).toHaveLength(1);
-		expect(result.files[0].name).toBe('factura.pdf');
+		expect(result.files[0]!.name).toBe('factura.pdf');
 	});
 
 	it('rejects a corrupt archive without throwing', async () => {
@@ -56,7 +56,7 @@ describe('extractZip — unpacking a ZIP upload (issue #824)', () => {
 
 		expect(result.errors).toEqual([{ name: 'huge.pdf', reason: 'tooLarge' }]);
 		expect(result.files).toHaveLength(1);
-		expect(result.files[0].name).toBe('ok.pdf');
+		expect(result.files[0]!.name).toBe('ok.pdf');
 	}, 20_000);
 
 	it('stops unpacking once the entry count exceeds the batch limit', async () => {

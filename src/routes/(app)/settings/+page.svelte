@@ -99,7 +99,7 @@
   let mobileSection = $state<string | null>(null);
   let query = $state('');
 
-  const sectionOf = (id: string) => sections.find((s) => s.id === id) ?? sections[0];
+  const sectionOf = (id: string) => sections.find((s) => s.id === id) ?? sections[0]!;
 
   const alertTypes = $derived(data.alertGroups.flatMap((g) => g.types));
   const savedPrefs = $derived(data.alertPreferences as Record<string, boolean>);
@@ -231,7 +231,7 @@
               <input id="{idp}-profile-name" name="name" type="text" maxlength="80" required
                 form="{idp}-form-cuenta" bind:value={profileName} class="input set-input" />
               {#if (saveName.fields.name.issues() ?? []).length > 0}
-                <p class="set-msg set-msg-err">{t((saveName.fields.name.issues() ?? [])[0].message)}</p>
+                <p class="set-msg set-msg-err">{t((saveName.fields.name.issues() ?? [])[0]!.message)}</p>
               {:else if saveName.result?.ok}
                 <p class="set-msg set-msg-ok">{t(saveName.result.ok)}</p>
               {/if}

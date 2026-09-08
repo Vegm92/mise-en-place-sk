@@ -160,7 +160,7 @@ describe('addContact', () => {
 		insertReturning.push([{ id: 2 }]);
 
 		expect(await addContact(RESTAURANT_A, '612345678', '   ')).toEqual({ ok: true });
-		expect(insertedValues[0].displayName).toBeNull();
+		expect(insertedValues[0]!.displayName).toBeNull();
 	});
 });
 

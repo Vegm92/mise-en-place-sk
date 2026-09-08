@@ -35,13 +35,13 @@ async function makeRestaurant(nameSuffix: string, parent?: string) {
 	const [row] = parent
 		? await testSql`INSERT INTO restaurants (name, slug, parent_id) VALUES (${'Loc ' + nameSuffix}, ${slug}, ${parent}) RETURNING id`
 		: await testSql`INSERT INTO restaurants (name, slug) VALUES (${'Loc ' + nameSuffix}, ${slug}) RETURNING id`;
-	return row.id as string;
+	return row!.id as string;
 }
 
 async function makeUser(nameSuffix: string) {
 	const email = `addloc-${nameSuffix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`;
 	const [row] = await testSql`INSERT INTO users (email, name) VALUES (${email}, ${'Chef ' + nameSuffix}) RETURNING id`;
-	return row.id as string;
+	return row!.id as string;
 }
 
 async function membership(userId: string, restaurantId: string, role: 'owner' | 'member') {
@@ -74,7 +74,7 @@ async function groupCount(billingRid: string) {
 async function resetGroupToSize(billingRid: string, size: number) {
 	while ((await groupCount(billingRid)) > size) {
 		const [row] = await testSql`SELECT id FROM restaurants WHERE parent_id = ${billingRid} ORDER BY created_at DESC LIMIT 1`;
-		await testSql`DELETE FROM restaurants WHERE id = ${row.id}`;
+		await testSql`DELETE FROM restaurants WHERE id = ${row!.id}`;
 	}
 	while ((await groupCount(billingRid)) < size) {
 		const childId = await makeRestaurant(`filler-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, billingRid);
@@ -197,9 +197,9 @@ describe.skipIf(!hasDbEnv)('addLocation ownership + quota scoping (issue #499)',
 		expect(succeeded).toHaveLength(1);
 		expect(limited).toHaveLength(1);
 		const rejected = limited[0];
-		if (rejected.kind === 'fail') {
-			expect(rejected.status).toBe(403);
-			expect(rejected.data.error).toBe('set.locations.err.limitReached');
+		if (rejected!.kind === 'fail') {
+			expect(rejected!.status).toBe(403);
+			expect(rejected!.data.error).toBe('set.locations.err.limitReached');
 		}
 
 		expect(await groupCount(parentId)).toBe(MAX_LOCATIONS);

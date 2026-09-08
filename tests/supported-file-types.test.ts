@@ -70,7 +70,7 @@ const SAMPLE: Record<string, number[]> = {
  * zip encoding is async.
  */
 beforeAll(async () => {
-	const zip = await buildZip([{ name: 'factura.pdf', bytes: SAMPLE['.pdf'] }]);
+	const zip = await buildZip([{ name: 'factura.pdf', bytes: SAMPLE['.pdf']! }]);
 	SAMPLE['.zip'] = [...zip];
 });
 
@@ -153,7 +153,7 @@ describe('the upload guard admits exactly the supported list', () => {
 
 	it.each(SUPPORTED_UPLOAD_EXTENSIONS)('accepts a well-formed %s file', async (ext) => {
 		const result = await saveUploadedFiles(
-			[new File([Buffer.from(SAMPLE[ext])], `factura${ext}`)],
+			[new File([Buffer.from(SAMPLE[ext]!)], `factura${ext}`)],
 			'ns'
 		);
 
@@ -169,7 +169,7 @@ describe('the upload guard admits exactly the supported list', () => {
 	});
 
 	it('agrees with the shared size cap', async () => {
-		const big = new File([Buffer.from(SAMPLE['.pdf'])], 'grande.pdf');
+		const big = new File([Buffer.from(SAMPLE['.pdf']!)], 'grande.pdf');
 		Object.defineProperty(big, 'size', { value: MAX_UPLOAD_BYTES + 1 });
 
 		const result = await saveUploadedFiles([big], 'ns');
@@ -214,7 +214,7 @@ describe('extraction can read everything the guard admits', () => {
 	};
 
 	it.each(CLASSIFIABLE_EXTENSIONS)('classifyFile handles %s', async (ext) => {
-		const classified = await classifyFile(write(`factura${ext}`, SAMPLE[ext]));
+		const classified = await classifyFile(write(`factura${ext}`, SAMPLE[ext]!));
 
 		expect(classified.type).toBeTruthy();
 	});

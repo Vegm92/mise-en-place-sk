@@ -41,7 +41,7 @@ describe('overrideFor', () => {
 
 describe('a t-shaped resolver built on overrideFor: override-or-base, in both locales', () => {
 	function tv(overrides: LandingOverrides | null, loc: 'es' | 'en', key: string): string {
-		return overrideFor(overrides, loc, key) ?? (translations[loc] as Record<string, string>)[key];
+		return (overrideFor(overrides, loc, key) ?? (translations[loc] as Record<string, string>)[key])!;
 	}
 
 	it('uses the override when present', () => {

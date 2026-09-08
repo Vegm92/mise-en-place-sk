@@ -60,7 +60,7 @@ describe('verify-email load (GET)', () => {
 
 describe('verify-email action (POST)', () => {
 	it('consumes the token, marks verified, and redirects to /login?verified=1 (no session)', async () => {
-		await expect(verifyActions.default(urlEvent({ email: 'a@b.com', token: 'tok' })))
+		await expect(verifyActions.default!(urlEvent({ email: 'a@b.com', token: 'tok' })))
 			.rejects.toSatisfy((e) => isRedirect(e) && e.location === '/login?verified=1');
 		expect(consumeVerificationTokenMock).toHaveBeenCalledWith('verify-email:a@b.com', 'tok');
 		expect(updatedRows).toEqual([{ emailVerified: expect.any(Date) }]);
@@ -68,8 +68,8 @@ describe('verify-email action (POST)', () => {
 
 	it('fails a second POST after the token is already burned', async () => {
 		consumeVerificationTokenMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
-		await expect(verifyActions.default(urlEvent({ email: 'a@b.com', token: 'tok' }))).rejects.toBeDefined();
-		const result = await verifyActions.default(urlEvent({ email: 'a@b.com', token: 'tok' }));
+		await expect(verifyActions.default!(urlEvent({ email: 'a@b.com', token: 'tok' }))).rejects.toBeDefined();
+		const result = await verifyActions.default!(urlEvent({ email: 'a@b.com', token: 'tok' }));
 		expect(result).toEqual({ ok: false });
 	});
 });
@@ -77,7 +77,7 @@ describe('verify-email action (POST)', () => {
 describe('confirm-email action (POST)', () => {
 	it('returns a handled 409 instead of a raw 500 when the address was taken meanwhile', async () => {
 		selectResult.rows = [{ id: 'other-user' }]; // email now taken
-		const result = await confirmActions.default(urlEvent(
+		const result = await confirmActions.default!(urlEvent(
 			{ email: 'a@b.com', token: 'tok' },
 			{ locals: { user: { id: 'u1' } } },
 		));

@@ -42,13 +42,13 @@ describe.skipIf(!hasDbEnv)('restaurants — basic CRUD', () => {
 		const rows = await testDb.select().from(restaurants)
 			.where(eq(restaurants.id, rid1));
 		expect(rows).toHaveLength(1);
-		expect(rows[0].name).toContain('Test Restaurant');
+		expect(rows[0]!.name).toContain('Test Restaurant');
 	});
 
 	it('slug is unique — inserting a duplicate slug fails', async () => {
 		const [r] = await testSql`SELECT slug FROM restaurants WHERE id = ${rid1}`;
 		await expect(
-			testSql`INSERT INTO restaurants (name, slug) VALUES ('dup', ${r.slug})`
+			testSql`INSERT INTO restaurants (name, slug) VALUES ('dup', ${r!.slug})`
 		).rejects.toThrow();
 	});
 });
@@ -62,7 +62,7 @@ describe.skipIf(!hasDbEnv)('suppliers — insert and scope', () => {
 			name:     'Proveedor Test Alpha',
 			category: 'Carnes y Derivados',
 		}).returning();
-		suppId1 = row.id;
+		suppId1 = row!.id;
 		expect(suppId1).toBeGreaterThan(0);
 	});
 
@@ -72,14 +72,14 @@ describe.skipIf(!hasDbEnv)('suppliers — insert and scope', () => {
 			name:     'Proveedor Test Beta',
 			category: 'Pescados y Mariscos',
 		}).returning();
-		expect(row.id).toBeGreaterThan(0);
+		expect(row!.id).toBeGreaterThan(0);
 	});
 
 	it('scoped query for rid1 returns only rid1 supplier', async () => {
 		const rows = await testDb.select().from(suppliers)
 			.where(eq(suppliers.restaurantId, rid1));
 		expect(rows).toHaveLength(1);
-		expect(rows[0].name).toBe('Proveedor Test Alpha');
+		expect(rows[0]!.name).toBe('Proveedor Test Alpha');
 	});
 
 	it('scoped query for rid2 does not leak rid1 data', async () => {
@@ -106,7 +106,7 @@ describe.skipIf(!hasDbEnv)('invoices + line items — CRUD and scoping', () => {
 			status:        'approved',
 			confidence:    0.95,
 		}).returning();
-		invId1 = row.id;
+		invId1 = row!.id;
 		expect(invId1).toBeGreaterThan(0);
 	});
 
@@ -143,7 +143,7 @@ describe.skipIf(!hasDbEnv)('invoices + line items — CRUD and scoping', () => {
 			.where(and(eq(invoices.id, invId1), eq(invoices.restaurantId, rid1)));
 		const [row] = await testDb.select({ status: invoices.status })
 			.from(invoices).where(eq(invoices.id, invId1));
-		expect(row.status).toBe('paid');
+		expect(row!.status).toBe('paid');
 	});
 
 	it('invoice query scoped to rid2 does not return rid1 invoice', async () => {
@@ -176,7 +176,7 @@ describe.skipIf(!hasDbEnv)('category_budgets — upsert', () => {
 				eq(categoryBudgets.restaurantId, rid1),
 				eq(categoryBudgets.category, 'Carnes y Derivados'),
 			));
-		expect(row.monthlyBudget).toBe('3000.00');
+		expect(row!.monthlyBudget).toBe('3000.00');
 	});
 
 	it('upsert updates the budget without inserting a duplicate', async () => {
@@ -191,7 +191,7 @@ describe.skipIf(!hasDbEnv)('category_budgets — upsert', () => {
 				eq(categoryBudgets.category, 'Carnes y Derivados'),
 			));
 		expect(rows).toHaveLength(1);
-		expect(rows[0].monthlyBudget).toBe('3500.00');
+		expect(rows[0]!.monthlyBudget).toBe('3500.00');
 	});
 
 	it('rid2 has no budgets from rid1', async () => {
@@ -212,7 +212,7 @@ describe.skipIf(!hasDbEnv)('settings — key-value store', () => {
 		});
 		const [row] = await testDb.select().from(settings)
 			.where(and(eq(settings.restaurantId, rid1), eq(settings.key, 'has_completed_onboarding')));
-		expect(row.value).toBe('false');
+		expect(row!.value).toBe('false');
 	});
 
 	it('unique constraint prevents duplicate key per restaurant', async () => {
@@ -239,7 +239,7 @@ describe.skipIf(!hasDbEnv)('system_notifications — scoping', () => {
 				eq(systemNotifications.notificationType, 'price_shock'),
 			));
 		expect(rows).toHaveLength(1);
-		expect((rows[0].payload as { pct: number }).pct).toBe(18);
+		expect((rows[0]!.payload as { pct: number }).pct).toBe(18);
 	});
 
 	it('rid2 cannot see rid1 notifications', async () => {
@@ -305,7 +305,7 @@ describe.skipIf(!hasDbEnv)('cascade delete — restaurant removal', () => {
 		rid1 = ''; // mark as cleaned
 
 		// Verify no orphaned rows remain
-		const suppRows = await testSql`SELECT id FROM suppliers WHERE id = ${s.id}`;
+		const suppRows = await testSql`SELECT id FROM suppliers WHERE id = ${s!.id}`;
 		expect(suppRows).toHaveLength(0);
 	});
 });

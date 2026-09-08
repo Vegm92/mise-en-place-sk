@@ -30,7 +30,7 @@ async function insertInvoice(sourceFile: string): Promise<number> {
 	const [row] = await testSql`
 		INSERT INTO invoices (restaurant_id, source_file) VALUES (${rid}, ${sourceFile}) RETURNING id
 	`;
-	return row.id;
+	return row!.id;
 }
 
 async function runGet(id: number) {

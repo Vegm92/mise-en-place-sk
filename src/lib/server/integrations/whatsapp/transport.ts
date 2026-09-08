@@ -1,8 +1,8 @@
 export interface WhatsAppMediaRef {
 	id: string;
-	mime_type?: string;
-	filename?: string;
-	file_length?: number;
+	mime_type?: string | undefined;
+	filename?: string | undefined;
+	file_length?: number | undefined;
 	payload?: unknown;
 }
 
