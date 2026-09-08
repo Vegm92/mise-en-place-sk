@@ -164,6 +164,12 @@ beforeAll(async () => {
 		VALUES (${ridB}, 'RLS Category B', ${CATEGORY_NAME_KEY_B}, ${CATEGORY_NAME_KEY_B})
 	`;
 	await testSql`
+		INSERT INTO users (id, email, name) VALUES
+			(${MEMBER_USER_ID_A}, ${`rls-member-a-${MEMBER_USER_ID_A}@example.com`}, 'RLS Member A'),
+			(${MEMBER_USER_ID_B}, ${`rls-member-b-${MEMBER_USER_ID_B}@example.com`}, 'RLS Member B'),
+			(${MULTI_LOCATION_USER_ID}, ${`rls-multi-${MULTI_LOCATION_USER_ID}@example.com`}, 'RLS Multi Location')
+	`;
+	await testSql`
 		INSERT INTO user_restaurants (user_id, restaurant_id, role)
 		VALUES (${MEMBER_USER_ID_A}, ${ridA}, 'owner')
 	`;
@@ -186,6 +192,9 @@ afterAll(async () => {
 	await runtimeSql?.end({ timeout: 5 });
 	if (ridA) await testSql`DELETE FROM restaurants WHERE id = ${ridA}`;
 	if (ridB) await testSql`DELETE FROM restaurants WHERE id = ${ridB}`;
+	await testSql`
+		DELETE FROM users WHERE id IN (${MEMBER_USER_ID_A}, ${MEMBER_USER_ID_B}, ${MULTI_LOCATION_USER_ID})
+	`;
 	await retryOnDeadlock(() => testSql.unsafe(`
 		DO $$
 		BEGIN
