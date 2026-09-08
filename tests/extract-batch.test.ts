@@ -85,11 +85,11 @@ describe('enqueueBatchExtraction', () => {
 		failed.extractError = 'extract.err.generic';
 		const { store, deps, enqueue } = makeDeps([failed]);
 
-		await enqueueBatchExtraction('a', 'rid-1', deps);
+		await enqueueBatchExtraction('a', 'rid-1', deps, 'req-1');
 
 		expect(store.get('a')?.status).toBe('queued');
 		expect(store.get('a')?.extractError).toBeNull();
-		expect(enqueue).toHaveBeenCalledWith('a', 'rid-1');
+		expect(enqueue).toHaveBeenCalledWith('a', 'rid-1', 'req-1');
 	});
 
 	it('does nothing when the entry item does not exist', async () => {
