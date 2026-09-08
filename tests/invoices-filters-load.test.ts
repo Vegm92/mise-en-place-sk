@@ -139,12 +139,24 @@ describe('/invoices load() — filters come from the search params', () => {
 		expect(listWhere.params).not.toContain('paid');
 	});
 
-	it('filters by supplier category on both the page and row-count queries', async () => {
+	it('filters by line-level category, falling back to the supplier tag, on both the page and row-count queries (#790)', async () => {
 		await runLoad('?category=L%C3%A1cteos');
-		const listWhere = render(state.whereArgs[0]);
-		expect(listWhere.sql).toContain('"category" =');
+		// invoiceMatchesCategory's own exists()/notExists() subqueries call db.select().where(...)
+		// through this same mocked db, so they land in state.whereArgs too — the outer list/count
+		// queries are the ones scoped by restaurant_id + deleted_at, not necessarily args[0]/args[-1].
+		const outerWheres = state.whereArgs.map(render)
+			.filter((w) => w.sql.includes('"deleted_at" is null') && w.params.includes('Lácteos'));
+		expect(outerWheres).toHaveLength(2);
+		const [listWhere, countWhere] = outerWheres;
+		// The mocked db chain isn't a real query builder, so exists()/notExists()
+		// can't inline their subquery SQL here (that's asserted for real against
+		// Postgres in tests/category-attribution.test.ts) — this only confirms the
+		// shape: a line-level EXISTS, an all-lines-unclassified fallback, and the
+		// supplier tag as the fallback's own criterion.
+		expect(listWhere.sql).toContain('exists $');
+		expect(listWhere.sql).toContain('not exists $');
+		expect(listWhere.sql).toContain('COALESCE("suppliers"."category", \'Other\') =');
 		expect(listWhere.params).toContain('Lácteos');
-		const countWhere = render(state.whereArgs[state.whereArgs.length - 1]);
 		expect(countWhere.params).toContain('Lácteos');
 	});
 
