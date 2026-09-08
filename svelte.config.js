@@ -8,7 +8,7 @@ const config = {
 		runes: ({ filename }) => (filename.split(/[/\\]/).includes('node_modules') ? undefined : true)
 	},
 	kit: {
-		experimental: { remoteFunctions: true },
+		experimental: { remoteFunctions: true, tracing: { server: true } },
 		adapter: adapter(),
 		csp: {
 			mode: 'hash',
