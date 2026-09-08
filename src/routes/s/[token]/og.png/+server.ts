@@ -4,6 +4,7 @@ import { buildPublicDigestPayload, resolveShareToken } from '$lib/server/digest-
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import { DIGEST_SHARE_VIEW_RATE_LIMIT_RPM } from '$lib/server/env';
 import { runAsSystem } from '$lib/server/db';
+import { contentDispositionHeader } from '$lib/server/content-disposition';
 
 const WIDTH = 1200;
 const HEIGHT = 630;
@@ -80,6 +81,9 @@ export const GET: RequestHandler = async ({ params, getClientAddress }) => {
 	return new Response(svg, {
 		headers: {
 			'Content-Type': 'image/svg+xml',
+			'Content-Disposition': contentDispositionHeader('inline', 'og.svg'),
+			'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'",
+			'X-Content-Type-Options': 'nosniff',
 			'Cache-Control': 'public, max-age=3600',
 			'X-Robots-Tag': 'noindex',
 		},
