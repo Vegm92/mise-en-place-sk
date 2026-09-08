@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/sveltekit';
-import { and, count, desc, eq, gte, inArray, lt, or, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, lt, or, sql } from 'drizzle-orm';
 import { db, forTenant, runAsSystem, runWithTenantContext } from './db';
 import { deadLetterQueue, restaurants } from './schema';
 
