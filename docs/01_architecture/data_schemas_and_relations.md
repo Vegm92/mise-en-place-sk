@@ -20,7 +20,7 @@ For per-feature rules see `docs/03_features/`; for change procedure see
 |---|---|---|---|
 | `restaurants` | Tenant root | `name`, `slug` (unique), `parentId` self-FK | Multi-location via `parentId` (migration 0023) |
 | `users` | Person account | `email` unique, `password_hash`, `emailVerified` | Credentials + OAuth |
-| `user_restaurants` | User↔restaurant membership | composite PK `(userId, restaurantId)`, `userId` uuid, `role` default `'owner'` | Basis of authorization; PK migration 0015. `userId` was `text` (Supabase `auth.uid()` era) until migration 0038 converted it to `uuid` — joins to `users.id` needed an explicit cast before that, and one that was missing broke `/admin/access` |
+| `user_restaurants` | User↔restaurant membership | composite PK `(userId, restaurantId)`, `userId` uuid → `users.id` `ON DELETE cascade`, `role` default `'owner'` | Basis of authorization; PK migration 0015. `userId` was `text` (Supabase `auth.uid()` era) until migration 0038 converted it to `uuid` — joins to `users.id` needed an explicit cast before that, and one that was missing broke `/admin/access`. It carried no FK to `users` at all until migration 0081 (#995), so a membership could outlive its user; the deletion route already removed memberships explicitly, so the cascade is a backstop |
 | `accounts` / `sessions` / `verification_tokens` | Auth.js adapter tables | `providerAccountId`, `sessionToken`, `expires` | JWT sessions → `sessions` mostly unused |
 | `user_consents` | Consent records | `(userId, policyVersion)` unique, `method`, `acceptedAt` | GDPR |
 
@@ -139,6 +139,17 @@ directly at write time. Source of the trend/analytics pages.
   the `mep_runtime` role, and additive to — never a replacement for —
   app-layer `forTenant().scope()`.
 - Unique constraints do double duty as the last line of idempotency defense.
+- Every foreign key that is read or cascaded through carries an index leading on
+  its own column. Migration 0081 (#996) closed the nine the system-design audit
+  found bare — `batch_items`, `upload_batches`, `extraction_corrections` (×3),
+  `chat_sessions`, `supplier_metrics`, `accounts`, `sessions`,
+  `idempotency_keys` — plus `invoices.supplier_id` and
+  `mrr_snapshots.restaurant_id`, which had one that excluded rows. Eleven others
+  are still covered only by an index leading on a different column
+  (`user_restaurants.restaurant_id`, `supplier_aliases.supplier_id`,
+  `product_aliases.{supplier_id,product_id}`, `recipe_items` ×3,
+  `invoice_line_items.product_id`, `unit_conversions.supplier_id`,
+  `system_notifications.invoice_id`) — same class, outside #996's scope.
 - Migration workflow and verification: `docs/04_engineering/database_changes.md`.
 
 ## Code notes

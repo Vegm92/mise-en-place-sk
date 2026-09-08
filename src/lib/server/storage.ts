@@ -4,7 +4,45 @@ import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } fro
 import {
 	UPLOADS_DIR, STORAGE_DRIVER,
 	AWS_ENDPOINT_URL, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_S3_BUCKET_NAME, AWS_DEFAULT_REGION, AWS_S3_URL_STYLE,
+	STORAGE_CONNECT_TIMEOUT_MS, STORAGE_TIMEOUT_MS, STORAGE_MAX_ATTEMPTS,
 } from './env.js';
+import { withTimeout, TimeoutError } from './with-timeout.js';
+
+const RETRY_BASE_MS = 500;
+
+const TRANSIENT_NAMES = new Set([
+	'TimeoutError', 'RequestTimeout', 'RequestTimeoutException', 'NetworkingError', 'AbortError',
+	'ECONNRESET', 'ECONNREFUSED', 'EPIPE', 'ETIMEDOUT', 'EAI_AGAIN', 'ENOTFOUND',
+]);
+
+export function isTransientStorageError(err: unknown): boolean {
+	if (err instanceof TimeoutError) return true;
+	const e = err as { name?: string; code?: string; $metadata?: { httpStatusCode?: number } };
+	const status = e?.$metadata?.httpStatusCode;
+	if (typeof status === 'number') return status === 429 || status >= 500;
+	return TRANSIENT_NAMES.has(e?.name ?? '') || TRANSIENT_NAMES.has(e?.code ?? '');
+}
+
+export async function withStorageRetry<T>(
+	label: string,
+	fn: (signal: AbortSignal) => Promise<T>,
+	attempts: number = STORAGE_MAX_ATTEMPTS,
+	timeoutMs: number = STORAGE_TIMEOUT_MS,
+): Promise<T> {
+	const total = Math.max(1, attempts);
+	let lastError: unknown;
+	for (let attempt = 0; attempt < total; attempt++) {
+		try {
+			return await withTimeout(label, timeoutMs, fn);
+		} catch (err) {
+			lastError = err;
+			if (!isTransientStorageError(err) || attempt === total - 1) throw err;
+			console.warn(`[storage] ${label} failed on attempt ${attempt + 1}/${total}, retrying:`, err);
+			await new Promise((resolve) => setTimeout(resolve, RETRY_BASE_MS * 2 ** attempt));
+		}
+	}
+	throw lastError;
+}
 
 class LocalDriver {
 	private base: string;
@@ -50,20 +88,29 @@ class RailwayBucketDriver {
 			region: AWS_DEFAULT_REGION,
 			forcePathStyle: AWS_S3_URL_STYLE === 'path',
 			credentials: { accessKeyId: AWS_ACCESS_KEY_ID, secretAccessKey: AWS_SECRET_ACCESS_KEY },
+			maxAttempts: 1,
+			requestHandler: {
+				connectionTimeout: STORAGE_CONNECT_TIMEOUT_MS,
+				requestTimeout: STORAGE_TIMEOUT_MS,
+			},
 		});
 	}
 
 	async save(key: string, buf: Buffer): Promise<void> {
-		await this.client.send(new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: buf }));
+		await withStorageRetry(`storage.save ${key}`, (signal) =>
+			this.client.send(new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: buf }), { abortSignal: signal }));
 	}
 
 	async read(key: string): Promise<Buffer> {
-		const { Body } = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
-		return Buffer.from(await Body!.transformToByteArray());
+		return withStorageRetry(`storage.read ${key}`, async (signal) => {
+			const { Body } = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }), { abortSignal: signal });
+			return Buffer.from(await Body!.transformToByteArray());
+		});
 	}
 
 	async delete(key: string): Promise<void> {
-		await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+		await withStorageRetry(`storage.delete ${key}`, (signal) =>
+			this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }), { abortSignal: signal }));
 	}
 }
 
