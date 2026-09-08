@@ -409,7 +409,8 @@ describe('runAnalyticsRefreshJob', () => {
 	it('calls refresh_analytics_rollups() (issue #424)', async () => {
 		const result = await runAnalyticsRefreshJob();
 
-		expect(result).toEqual({ refreshed: true });
+		expect(result.refreshed).toBe(true);
+		expect(Date.parse(result.refreshedAt)).not.toBeNaN();
 		expect(executeMock).toHaveBeenCalledOnce();
 		const query = executeMock.mock.calls[0]![0];
 		expect(String(query.queryChunks[0].value[0])).toContain('refresh_analytics_rollups()');

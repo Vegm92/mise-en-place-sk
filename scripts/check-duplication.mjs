@@ -50,31 +50,7 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-
-/**
- * Resolves `name` to an absolute path by walking PATH ourselves, once, so
- * every later execFileSync call passes an absolute path instead of a bare
- * command name (SonarCloud S4036 — a bare name re-resolves against PATH on
- * every call, which a writable/tampered PATH entry earlier in the list
- * could hijack; resolving once up front and reusing the absolute path closes
- * that window for the rest of this process).
- */
-function resolveExecutable(name) {
-	const exts = process.platform === 'win32' ? ['', '.exe', '.cmd', '.bat'] : [''];
-	for (const dir of (process.env.PATH ?? '').split(path.delimiter)) {
-		if (!dir) continue;
-		for (const ext of exts) {
-			const candidate = path.join(dir, name + ext);
-			try {
-				fs.accessSync(candidate, fs.constants.X_OK);
-				return candidate;
-			} catch {
-				continue;
-			}
-		}
-	}
-	throw new Error(`check-duplication: "${name}" not found on PATH.`);
-}
+import { resolveExecutable } from './resolve-executable.mjs';
 
 const GIT = resolveExecutable('git');
 const ROOT = execFileSync(GIT, ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
