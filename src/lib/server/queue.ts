@@ -67,6 +67,8 @@ export async function enqueueExtraction(
 	const jobId = await b.send(EXTRACTION_QUEUE, { itemId, restaurantId, requestId }, {
 		retryLimit: 2,
 		retryDelay: 30,
+		retryBackoff: true,
+		retryDelayMax: 300,
 		expireInSeconds: 600,
 		singletonKey: itemId,
 		deadLetter: EXTRACTION_DEAD_LETTER_QUEUE,
@@ -85,6 +87,8 @@ export async function enqueueNormalize(
 		priority: -10,
 		retryLimit: 1,
 		retryDelay: 60,
+		retryBackoff: true,
+		retryDelayMax: 300,
 		expireInSeconds: 900,
 		singletonKey: `${restaurantId}:${productId}`,
 		deadLetter: NORMALIZE_DEAD_LETTER_QUEUE,
@@ -103,6 +107,8 @@ export async function enqueueCategorize(
 		priority: -10,
 		retryLimit: 1,
 		retryDelay: 60,
+		retryBackoff: true,
+		retryDelayMax: 300,
 		expireInSeconds: 900,
 		singletonKey: `${restaurantId}:${productId}`,
 		deadLetter: CATEGORIZE_DEAD_LETTER_QUEUE,
@@ -119,6 +125,8 @@ export async function enqueueWhatsAppNotify(
 	const jobId = await b.send(WHATSAPP_NOTIFY_QUEUE, { itemId, restaurantId, requestId }, {
 		retryLimit: 3,
 		retryDelay: 60,
+		retryBackoff: true,
+		retryDelayMax: 600,
 		expireInSeconds: 300,
 		singletonKey: itemId,
 		deadLetter: WHATSAPP_NOTIFY_DEAD_LETTER_QUEUE,
@@ -137,6 +145,8 @@ export async function enqueueWhatsAppInbound(msg: WhatsAppInboundMessage, reques
 	const jobId = await b.send(WHATSAPP_INBOUND_QUEUE, { messageId: msg.id, msg, requestId }, {
 		retryLimit: 3,
 		retryDelay: 30,
+		retryBackoff: true,
+		retryDelayMax: 600,
 		expireInSeconds: 300,
 		singletonKey: msg.id,
 		deadLetter: WHATSAPP_INBOUND_DEAD_LETTER_QUEUE,
@@ -158,6 +168,8 @@ export async function enqueueAccountCleanup(
 		{
 			retryLimit: 5,
 			retryDelay: 60,
+			retryBackoff: true,
+			retryDelayMax: 900,
 			expireInSeconds: 3600,
 			singletonKey: userId,
 			deadLetter: ACCOUNT_CLEANUP_DEAD_LETTER_QUEUE,

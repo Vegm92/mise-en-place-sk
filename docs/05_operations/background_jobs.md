@@ -25,6 +25,25 @@ scheduled jobs. Changing async behaviour must account for this process split.
 State machine lives in `batch.ts` (pending → queued → extracting → done |
 failed → confirmed | discarded). Enqueueing is `enqueueBatchExtraction`.
 
+### Retry backoff (#1000)
+
+Every queue enqueues with `retryBackoff: true` and a `retryDelayMax` cap, so a
+retry against a degraded dependency backs off instead of re-hitting it at a
+fixed rate — a Gemini 429 is the case this exists for. pg-boss's delay is
+`min(retryDelayMax, retryDelay · (2ⁿ/2 + 2ⁿ/2 · random()))`, i.e. jittered
+between one and two times `retryDelay · 2ⁿ`:
+
+| Queue | `retryDelay` | `retryDelayMax` | Worst gap between attempts |
+|---|---|---|---|
+| `extract-invoice` | 30 s | 300 s | 300 s — under `EXTRACTION_STALL_TIMEOUT_MS` (15 min), which is wall-clock, so a retrying item is not reaped |
+| `normalize-product`, `categorize-product` | 60 s | 300 s | 300 s |
+| `whatsapp-notify`, `whatsapp-inbound` | 60 s / 30 s | 600 s | 600 s |
+| `account-cleanup` | 60 s | 900 s | 900 s |
+
+`expireInSeconds` is unchanged: pg-boss expires a job at
+`started_on + expire_seconds`, i.e. per attempt, so retry delays do not consume
+it.
+
 ## Worker liveness (#540)
 
 `src/worker.ts` upserts the single `worker_heartbeats` row on boot, every
@@ -53,7 +72,8 @@ in-flight item:
 | ≥ `EXTRACTION_STALL_TIMEOUT_MS` (15 min) | `expired` | `failStalledItems` marks it `failed` / `extract.err.stalled`, inheriting the existing failure UI |
 
 The hard timeout sits well above the worst legitimate run (pg-boss `retryLimit`
-2 × `retryDelay` 30 s, each attempt bounded by `GEMINI_TIMEOUT_MS`), so a
+2, each backed-off gap capped at `retryDelayMax` 300 s and each attempt bounded
+by `GEMINI_TIMEOUT_MS`), so a
 still-working extraction is not reaped. If it were, `markDone` finds the item no
 longer in `queued`/`extracting` and drops the result — the user retries rather
 than seeing a silent overwrite.
@@ -302,6 +322,12 @@ Not symmetrical, and worth knowing before deciding how urgent a restart is:
 **`function enqueueNormalize`**
 
 - Low-priority async LLM normalization for a freshly-created product (issue #300). Deduped per (restaurant, product) so re-saves don't pile up jobs.
+
+**`retryBackoff` / `retryDelayMax`**
+
+- On every `send` (issue #1000). The retry classes that reach pg-boss are exactly the dependency-driven ones — `extract.err.rateLimited`, `unavailable` and `timeout` are routed to a pg-boss retry rather than a dead-letter — so a Gemini 429 used to retry at a flat 30 s, the opposite of what a rate limit asks for.
+- Each queue carries a `retryDelayMax` because pg-boss's backoff is otherwise unbounded (`retryDelay · 2ⁿ`, jittered 1–2×). `extract-invoice` caps at 300 s so a retrying item stays clear of the 15-minute stall reaper, which measures wall-clock and would mark it `extract.err.stalled` mid-retry.
+- `expireInSeconds` is deliberately untouched: pg-boss expires at `started_on + expire_seconds`, per attempt, so the delays between attempts do not eat into it.
 
 ### `src/lib/server/scheduler.ts`
 

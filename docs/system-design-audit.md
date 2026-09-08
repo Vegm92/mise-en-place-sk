@@ -333,7 +333,8 @@ In order, from the repo's own numbers:
 | Multi-tenant scoping column on every tenant table | Yes | `restaurant_id` on 34 tables `tenant-data-map.ts:23-61`; `user_restaurants` added by #994 | Closed by #994 |
 | Database-enforced tenant isolation | Declared, inert | `drizzle/0055_rls_tenant_isolation.sql:6-14`; `db-role.ts:49` says cutover pending | Complete the `mep_runtime` cutover (`DEPLOYMENT.md:100`) |
 | RLS on every tenant table | Yes | `drizzle/0078_rls_tenant_isolation_gap.sql` covers `extraction_results`, `supplier_aliases`, `categories`, `user_restaurants` | Closed by #994. Still inert until the `mep_runtime` cutover (#975) |
-| Index on every foreign key | No — 9 gaps | §2.2 | Add the indexes listed in D5 |
+| Index on every foreign key | The 9 audited gaps closed; 11 others remain | `drizzle/0081_fk_covering_indexes.sql` covers the 9 from §2.2 plus `invoices.supplier_id` and `mrr_snapshots.restaurant_id`, whose only indexes excluded rows | Closed by #996. A pg_index sweep after the migration found 11 further FKs covered only by an index that leads on another column (`user_restaurants.restaurant_id`, `supplier_aliases.supplier_id`, `product_aliases.{supplier_id,product_id}`, `recipe_items.{recipe_id,child_recipe_id,product_id}`, `invoice_line_items.product_id`, `unit_conversions.supplier_id`, `system_notifications.invoice_id`) — same class, outside #996's list, unfiled |
+| Foreign key from membership to identity | Yes | `user_restaurants.user_id` → `users.id` `ON DELETE cascade`, with an orphan pre-check in the migration | Closed by #995 |
 | Ownership checked separately from role | Ownership yes, role no | membership via `memberLocations` `locations.ts:37-56`; `user_restaurants.role` is read only for notification targeting (`alerts.ts:1201`, `billing.ts:191`, `party.ts:124`, `quota-warning.ts:36`) | Decide whether `role` is authorization or metadata; today it is metadata |
 | Audit trail on invoice writes | Yes | `create` and `confirm` rows now written in the same transaction as the invoice | Closed by #993 |
 | Structured-output enforcement on the model call | Yes | `responseMimeType` + `responseSchema` `llm-provider.ts:51-54`; schema `extract.ts:304`; shape guard `extract.ts:377-389`; sanitiser `extract.ts:426` | — |
@@ -341,11 +342,13 @@ In order, from the repo's own numbers:
 | Human review gate | Yes | `isLowConfidenceBlocked` `invoice-save.ts:637-646`, enforced `:923` at threshold 0.85 | — |
 | Exact persist line | Yes | `invoice-save.ts:1026-1061` (`tx.insert(invoices)`), lines `:220` via `:1073` | — |
 | Queue with retry | Yes | pg-boss `retryLimit 2`, `retryDelay 30` `queue.ts:62-64` | — |
-| Exponential backoff | **No** | `retryDelay: 30` is a fixed delay; the only exponential backoff is in-process for Gemini `extract.ts:537` | Use pg-boss `retryBackoff: true` |
+| Exponential backoff | Yes | `retryBackoff: true` on all six queues, each with a `retryDelayMax` cap (`queue.ts`); pg-boss jitters between 1× and 2× `retryDelay · 2ⁿ` | Closed by #1000 |
 | Idempotency key on jobs | Partial | `singletonKey` on every enqueue (`queue.ts:66,83,100,115,135`) + guarded state transitions `batch.ts:255-265` | — |
 | Dead-letter queue | Yes | 5 DLQ queues `queue.ts:18-24`, drained to a table `worker.ts:158-179`, `dead-letter.ts:148` | — |
 | Poison job handling | Yes, with two stated exceptions | dedupe by `(queue, source_id, error_class, status)`; replay covers `extract-invoice`, `normalize-product`, `categorize-product`, `whatsapp-notify` (`dead-letter-replay.ts`). `whatsapp-inbound` and `account-cleanup` show *No replay* + the reason: `redactPayload` truncates their job data, so a replay would run different work | Closed by #1001 |
 | Alert on DLQ growth | Yes | `scheduled-dead-letter-alert` (`5 * * * *`): Sentry `warning` above 10 distinct pending rows / 24 h, `error` on any pending `account-cleanup` row; thresholds in `monitoring.md` | Closed by #1001 |
+| Timeout, retry and abort on the object-storage hop | Yes | `withStorageRetry` bounds every `RailwayBucketDriver` call at `STORAGE_TIMEOUT_MS` and aborts the S3 request on expiry; transient failures only, `maxAttempts: 1` on the client so the SDK's own retries do not multiply | Closed by #999 |
+| Review-queue aging visible | Yes | `reviewBacklog()` (`pipeline-stats.ts`) → the *Review backlog* check on `/admin/health`: oldest unreviewed age, and items/tenants past the 168 h budget | Closed by #1011. `done` items are still never auto-expired, deliberately |
 | Cache layer | **None** | `response-cache.ts:1` sets `private, no-store` on every routed response | See D5 trigger |
 | Cache TTL / invalidation policy | n/a | no cache | — |
 | Sentry init | Yes | `hooks.server.ts:40`, `worker.ts:37`, `hooks.client.ts:9` | — |

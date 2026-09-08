@@ -299,6 +299,13 @@ Extension, size, magic bytes, quota, rate limit, tenant access.
 
 ### `src/lib/server/storage.ts`
 
+**`function withStorageRetry`**
+
+- Every `RailwayBucketDriver` call goes through it (issue #999). Of the eleven outbound hops in the system-design audit, storage was the only one with no timeout, no retry and no circuit breaker: Gemini has a 120 s timeout and 3 retries, Postgres a 15 s statement timeout. A hung bucket read therefore ran until pg-boss's 600 s `expireInSeconds`.
+- Each attempt is bounded twice — the S3 client's own `requestTimeout`/`connectionTimeout`, and a `withTimeout` wrapper whose signal is passed to `client.send` as `abortSignal`, so an expired attempt actually cancels the request instead of leaving it in flight. The client's `maxAttempts` is pinned to **1**: with the SDK's default 3 the two retry layers would multiply to 9 attempts and the worst case would no longer be `STORAGE_MAX_ATTEMPTS × STORAGE_TIMEOUT_MS`.
+- Only transient failures retry — HTTP 5xx/429, network error names, and our own `TimeoutError`. A `NoSuchKey` or an `AccessDenied` fails on the first attempt: retrying it is three times the latency for the same answer.
+- The read at `extraction-worker.ts` sits **outside** the extraction slot (the slots are taken in `routeCompositeDocument` and around the Gemini call), so a slow bucket costs latency, not a third of the concurrency cap — #999's fourth acceptance bullet describes code that had already moved.
+
 **`method delete`**
 
 - Ignore errors — the object may already be gone.
