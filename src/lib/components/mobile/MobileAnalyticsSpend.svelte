@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { locale, t, tcat, tp } from '$lib/i18n';
+  import { locale, t, tcat, ti, tp } from '$lib/i18n';
   import { fmtEurCompact, fmtMonthShort } from '$lib/formatters';
 
   import { categoryColor, seriesColor, SERIES_OTHER } from '$lib/colors';
@@ -26,6 +26,11 @@
     total: number;
     pct: number;
   }
+  interface CategoryCoverage {
+    categorized: number;
+    total: number;
+    pct: number | null;
+  }
   interface MonthlySpend {
     month: string;
     total: number;
@@ -36,6 +41,7 @@
     kpis,
     top_items,
     category_spend,
+    category_coverage,
     monthly_spend,
     has_invoices,
     invoices_outside_range,
@@ -44,6 +50,7 @@
     kpis: Kpis;
     top_items: TopItem[];
     category_spend: CategorySpend[];
+    category_coverage: CategoryCoverage;
     monthly_spend: MonthlySpend[];
     has_invoices: boolean;
     invoices_outside_range: number;
@@ -165,7 +172,10 @@
 
     <div class="card px-3.5 pt-3.5 pb-1.5">
       <div class="subtitle text-[15px] mb-0.5">{t('spend.byCategory')}</div>
-      <div class="text-[11px] text-fg-3 mb-3">{t('spend.byCategorySub')}</div>
+      <div class="text-[11px] text-fg-3 {category_coverage.pct != null ? '' : 'mb-3'}">{t('spend.byCategorySub')}</div>
+      {#if category_coverage.pct != null}
+        <div class="text-[11px] text-fg-4 mb-3">{ti('spend.categoryCoverage', { pct: category_coverage.pct })}</div>
+      {/if}
       {#if !category_spend?.length}
         <div class="flex flex-col items-center gap-1 pt-3.5 pb-5 text-center">
           <p class="body text-fg-4 text-[13px] max-w-[220px] m-0">{t('spend.assignCategories')}</p>
