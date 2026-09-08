@@ -24,6 +24,7 @@ import {
 	createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
 import { POST } from '../src/routes/(app)/api/sidebar/+server';
+import { expectApiError } from './helpers/api-error';
 
 let rid = '';
 
@@ -37,12 +38,8 @@ async function runPost(body: unknown) {
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify(body),
 	});
-	try {
-		const res = await (POST as (e: unknown) => Promise<Response>)({ request, locals: locals() });
-		return { ok: true as const, res };
-	} catch (thrown) {
-		return { ok: false as const, thrown: thrown as { status?: number; body?: { message?: string } } };
-	}
+	const res = await (POST as (e: unknown) => Promise<Response>)({ request, locals: locals() });
+	return { ok: res.ok, res };
 }
 
 async function storedValue(): Promise<string | null> {
@@ -87,14 +84,15 @@ describe.skipIf(!hasDbEnv)('POST /(app)/api/sidebar (issue #567)', () => {
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ collapsed: true }),
 		});
-		await expect(
-			(POST as (e: unknown) => Promise<Response>)({ request, locals: { restaurantId: undefined } })
-		).rejects.toMatchObject({ status: 401 });
+		await expectApiError(
+			await (POST as (e: unknown) => Promise<Response>)({ request, locals: { restaurantId: undefined } }),
+			401,
+		);
 	});
 
 	it('rejects a non-boolean collapsed value', async () => {
 		const result = await runPost({ collapsed: 'yes' });
 		expect(result.ok).toBe(false);
-		expect(result.thrown?.status).toBe(400);
+		await expectApiError(result.res, 400);
 	});
 });
