@@ -586,6 +586,24 @@ export async function linkProductsToInvoice(
 						messageVars: productSuggestionVars,
 					},
 				});
+			} else if (r.status === 'pending' && r.suggestion && !reassigned) {
+				const productSuggestionVars = { description: desc, candidateName: r.suggestion.candidateName };
+				suggestions.push({
+					notificationType: 'product_suggestion',
+					message: renderTemplate('es', 'notif.msg.productSuggestion', productSuggestionVars),
+					payload: {
+						description: desc,
+						productId: r.productId,
+						candidateName: r.suggestion.candidateName,
+						candidateProductId: r.suggestion.candidateProductId,
+						score: Math.round(r.suggestion.score * 100) / 100,
+						source: 'fuzzy_pending',
+						messageKey: 'notif.msg.productSuggestion',
+						messageVars: productSuggestionVars,
+					},
+				});
+				await enqueueCategorize(rid, productId, desc, requestId).catch((e) =>
+					console.error('[invoice-save] categorize enqueue failed (non-fatal):', e));
 			} else if (r.status === 'created' && !reassigned) {
 				await enqueueNormalize(rid, productId, desc, requestId).catch((e) =>
 					console.error('[invoice-save] normalize enqueue failed (non-fatal):', e));

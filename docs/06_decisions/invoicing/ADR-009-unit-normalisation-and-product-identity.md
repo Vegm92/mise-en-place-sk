@@ -57,7 +57,7 @@ opaque unit.
 | Tier | Mechanism | Cost | Result status |
 |---|---|---|---|
 | 1. **Alias** | `product_aliases` lookup on `normalizeProductKey(description)` | One indexed read | `exact` |
-| 2. **Fuzzy** | `pg_trgm` similarity against `products.name_key`, over the raw key **and** an abbreviation-expanded key, above `FUZZY_THRESHOLD` | One query, in-transaction | `fuzzy` — writes an alias and raises a *suggestion* alert |
+| 2. **Fuzzy** | `pg_trgm` similarity against `products.name_key`, over the raw key **and** an abbreviation-expanded key, above `FUZZY_THRESHOLD` | One query, in-transaction | `fuzzy` (≥ `FUZZY_AUTO_MERGE_THRESHOLD`) — writes an alias and raises a *suggestion* alert; `pending` (below it) — creates its own product and raises the same alert with a mergeable candidate |
 | 3. **New + async LLM** | Creates the product, enqueues `normalize-product` | Deferred, off the hot path | `created` |
 
 The escalation is the decision. Tier 1 handles every repeat purchase — which is
@@ -71,13 +71,35 @@ similarity is computed, so `TERN. S/H` and `ternera sin hueso` land close enough
 for trigram matching. Both the raw and expanded keys are scored and the better
 one wins (`GREATEST(similarity(…), similarity(…))`), so expansion can only help.
 
-### A fuzzy match is applied *and* surfaced
+### A fuzzy match is applied *and* surfaced — above a confidence floor
 
 Tier 2 writes the alias immediately **and** raises a suggestion notification
 naming the candidate. The alternative — hold the match until a human confirms —
 would leave the invoice's analytics wrong in the meantime, which is the worse
 error. Acting and telling beats waiting silently. `confirmProductAlias` /
 `rejectProductAlias` / `mergeIntoProduct` let the user correct it afterwards.
+
+**Addendum (2026-09-08, issue #814):** that argument assumed every tier-2
+match was worth betting on. Beta feedback showed the opposite for the lower
+end of the trigram range: near `FUZZY_THRESHOLD` (0.42), pairs like `"Tomate
+pera"` / `"Tomatito pera"` are similar enough to suggest but not similar
+enough to merge without asking — and the "worse error" argument runs
+backwards there, because acting *wrong* now costs a manual unmerge later, on
+top of the confirmation the user would have done anyway. Tier 2 therefore
+splits at `FUZZY_AUTO_MERGE_THRESHOLD` (0.65, `products.ts`):
+
+- **score ≥ 0.65** — unchanged: writes the alias immediately, raises the
+  suggestion. The original argument holds at this end of the range.
+- **`FUZZY_THRESHOLD` ≤ score < 0.65** — creates its own product (same as a
+  tier-3 miss) and raises the *same* `product_suggestion` notification, but
+  now carrying `candidateProductId`. Nothing is merged until the user (or a
+  `mergeIntoProduct` call from the notification) says so. `resolveOne` /
+  `previewOne` report this as `status: 'pending'`, not `'fuzzy'`.
+
+The threshold is a judgment call, not a measured cutover — it exists to keep
+the two tests in `product-catalog.test.ts` (`"Tomate pera roja"` at 0.71 stays
+tier-2-confident; `"Tomatito pera"` at 0.625 does not) honest about which side
+of the line they're meant to be on.
 
 ### The LLM tier is a job, not a call
 
