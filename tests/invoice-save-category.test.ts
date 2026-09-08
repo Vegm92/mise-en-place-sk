@@ -8,45 +8,22 @@
  * in db.ts does not speak to local Postgres). Skipped without DATABASE_URL.
  */
 import { randomUUID } from 'node:crypto';
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('../src/lib/server/db', async () => {
-	const { testDb } = await import('./helpers/test-db');
-	const { forTenant } = await import('../src/lib/server/tenant');
-	return { db: testDb, forTenant };
-});
+vi.mock('../src/lib/server/db', async () => (await import('./helpers/db-suite')).testDbModule());
 
-import {
-	testDb, testSql, closeDb,
-	createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
-} from './helpers/test-db';
+import { testDb, testSql, hasDbEnv } from './helpers/test-db';
+import { useTestRestaurant } from './helpers/test-restaurant';
 import { saveReviewedInvoice } from '../src/lib/server/invoice-save';
 import { UNCATEGORIZED_CATEGORY } from '../src/lib/constants';
 import { createCategory, listCategories, setCategoryHidden } from '../src/lib/server/categories';
+import { extractedItem, lineItemInvoiceForm } from './helpers/invoice-save-form';
 
-let rid = '';
+const restaurant = useTestRestaurant('inv-cat-384');
 const UID = randomUUID();
 
 function form(supplier: string, lines: Array<{ desc: string; unit: string; price: string }> = []): FormData {
-	const fd = new FormData();
-	fd.append('supplier_name', supplier);
-	fd.append('invoice_number', `INV-${Math.random().toString(36).slice(2, 8)}`);
-	fd.append('invoice_date', '2026-07-20');
-	fd.append('total_amount', '100');
-	fd.append('low_confidence_ack', 'true');
-	for (const l of lines) {
-		fd.append('line_descriptions', l.desc);
-		fd.append('line_quantities', '1');
-		fd.append('line_units', l.unit);
-		fd.append('line_unit_prices', l.price);
-		fd.append('line_total_prices', l.price);
-		fd.append('line_tax_rates', '');
-	}
-	return fd;
-}
-
-function extractedItem(data: Record<string, unknown>) {
-	return { extractedData: data } as unknown as Parameters<typeof saveReviewedInvoice>[0];
+	return lineItemInvoiceForm(supplier, lines);
 }
 
 function proposedItem(supplierName: string, category: string, confidence = 0.9) {
@@ -64,7 +41,7 @@ async function savedCategoryFor(
 	supplierName: string,
 	lines: Array<{ desc: string; unit: string; price: string }>,
 ): Promise<string | null> {
-	const out = await saveReviewedInvoice(item, form(supplierName, lines), rid, UID);
+	const out = await saveReviewedInvoice(item, form(supplierName, lines), restaurant.id, UID);
 	expect(out.type).toBe('saved');
 	if (out.type !== 'saved') return null;
 	return categoryFor(out.invoiceId);
@@ -78,18 +55,6 @@ async function categoryFor(invoiceId: number): Promise<string | null> {
 	return rows[0]?.category ?? null;
 }
 
-beforeAll(async () => {
-	if (!hasDbEnv) return;
-	const r = await createTestRestaurant('inv-cat-384');
-	rid = r.id;
-});
-
-afterAll(async () => {
-	if (!hasDbEnv) return;
-	await cleanupTestRestaurant(rid);
-	await closeDb();
-});
-
 describe.skipIf(!hasDbEnv)('saveReviewedInvoice → supplier category (issue #384)', () => {
 	it('categorises a brand-new high-signal supplier saved exactly as extracted', async () => {
 		const supplierName = 'Suministros Alimentarios Goya, S.L.';
@@ -100,14 +65,11 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → supplier category (issue #38
 			confidence: 0.9,
 		});
 
-		const out = await saveReviewedInvoice(item, form(supplierName, [
+		const category = await savedCategoryFor(item, supplierName, [
 			{ desc: 'Aceite de Oliva Virgen Extra', unit: 'L', price: '10' },
 			{ desc: 'Tomate Triturado', unit: 'kg', price: '5' },
-		]), rid, UID);
-		expect(out.type).toBe('saved');
-		if (out.type !== 'saved') return;
-
-		expect(await categoryFor(out.invoiceId)).toBe('Aceites y Conservas');
+		]);
+		expect(category).toBe('Aceites y Conservas');
 	});
 
 	it('still categorises when the user trivially corrects the supplier name on review (the #384 bug)', async () => {
@@ -123,13 +85,10 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → supplier category (issue #38
 			confidence: 0.9,
 		});
 
-		const out = await saveReviewedInvoice(item, form(correctedName, [
+		const category = await savedCategoryFor(item, correctedName, [
 			{ desc: 'Barra de Pan', unit: 'ud', price: '1' },
-		]), rid, UID);
-		expect(out.type).toBe('saved');
-		if (out.type !== 'saved') return;
-
-		expect(await categoryFor(out.invoiceId)).toBe('Panadería y Bollería');
+		]);
+		expect(category).toBe('Panadería y Bollería');
 	});
 
 	it('falls back to the uncategorised bucket when the user renames to a genuinely different supplier', async () => {
@@ -140,13 +99,10 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → supplier category (issue #38
 			confidence: 0.9,
 		});
 
-		const out = await saveReviewedInvoice(item, form('García Bebidas, S.L.', [
+		const category = await savedCategoryFor(item, 'García Bebidas, S.L.', [
 			{ desc: 'Refresco de Cola', unit: 'ud', price: '1' },
-		]), rid, UID);
-		expect(out.type).toBe('saved');
-		if (out.type !== 'saved') return;
-
-		expect(await categoryFor(out.invoiceId)).toBe(UNCATEGORIZED_CATEGORY);
+		]);
+		expect(category).toBe(UNCATEGORIZED_CATEGORY);
 	});
 
 	it('falls back to the uncategorised bucket when the two names differ only by an explicit, different legal form', async () => {
@@ -157,13 +113,10 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → supplier category (issue #38
 			confidence: 0.9,
 		});
 
-		const out = await saveReviewedInvoice(item, form('Distribuciones Ruiz S.A.', [
+		const category = await savedCategoryFor(item, 'Distribuciones Ruiz S.A.', [
 			{ desc: 'Agua Mineral', unit: 'botella', price: '1' },
-		]), rid, UID);
-		expect(out.type).toBe('saved');
-		if (out.type !== 'saved') return;
-
-		expect(await categoryFor(out.invoiceId)).toBe(UNCATEGORIZED_CATEGORY);
+		]);
+		expect(category).toBe(UNCATEGORIZED_CATEGORY);
 	});
 
 	it('falls back to the uncategorised bucket for a genuinely no-signal new supplier', async () => {
@@ -175,13 +128,10 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → supplier category (issue #38
 			confidence: 0.9,
 		});
 
-		const out = await saveReviewedInvoice(item, form(supplierName, [
+		const category = await savedCategoryFor(item, supplierName, [
 			{ desc: 'Material de oficina variado', unit: 'ud', price: '1' },
-		]), rid, UID);
-		expect(out.type).toBe('saved');
-		if (out.type !== 'saved') return;
-
-		expect(await categoryFor(out.invoiceId)).toBe(UNCATEGORIZED_CATEGORY);
+		]);
+		expect(category).toBe(UNCATEGORIZED_CATEGORY);
 	});
 
 	it('never overwrites an existing supplier category with a later, different guess', async () => {
@@ -192,17 +142,14 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → supplier category (issue #38
 			field_confidences: { supplier_category: 0.9 },
 			confidence: 0.9,
 		});
-		const firstOut = await saveReviewedInvoice(first, form(supplierName, [
+		expect(await savedCategoryFor(first, supplierName, [
 			{ desc: 'Agua Mineral', unit: 'botella', price: '1' },
-		]), rid, UID);
-		expect(firstOut.type).toBe('saved');
-		if (firstOut.type !== 'saved') return;
-		expect(await categoryFor(firstOut.invoiceId)).toBe('Bebidas');
+		])).toBe('Bebidas');
 
 		// A human overrides it away from the machine guess.
 		await testSql`
 			UPDATE suppliers SET category = 'Vinos y Cavas'
-			WHERE restaurant_id = ${rid} AND lower(name) = lower(${supplierName})`;
+			WHERE restaurant_id = ${restaurant.id} AND lower(name) = lower(${supplierName})`;
 
 		// A second invoice arrives with a different, even higher-confidence guess.
 		const second = extractedItem({
@@ -211,18 +158,14 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → supplier category (issue #38
 			field_confidences: { supplier_category: 0.99 },
 			confidence: 0.99,
 		});
-		const secondOut = await saveReviewedInvoice(second, form(supplierName, [
+		expect(await savedCategoryFor(second, supplierName, [
 			{ desc: 'Guisantes Congelados', unit: 'kg', price: '3' },
-		]), rid, UID);
-		expect(secondOut.type).toBe('saved');
-		if (secondOut.type !== 'saved') return;
-
-		expect(await categoryFor(secondOut.invoiceId)).toBe('Vinos y Cavas');
+		])).toBe('Vinos y Cavas');
 	});
 
 	it('accepts a custom category the restaurant created, when extraction proposes exactly its name (issue #881 part 2)', async () => {
 		const supplierName = 'Agencia de Marketing Norte';
-		await createCategory(rid, 'Marketing', testDb);
+		await createCategory(restaurant.id, 'Marketing', testDb);
 
 		const category = await savedCategoryFor(
 			proposedItem(supplierName, 'Marketing'), supplierName, [{ desc: 'Campaña redes', unit: 'ud', price: '1' }],
@@ -232,16 +175,16 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → supplier category (issue #38
 
 	it('degrades to the uncategorised bucket when extraction proposes a category this restaurant has hidden (issue #881 part 2)', async () => {
 		const supplierName = 'Frutería Escondida';
-		const rows = await listCategories(rid, {}, testDb);
+		const rows = await listCategories(restaurant.id, {}, testDb);
 		const fruit = rows.find((c) => c.name === 'Frutas y Verduras')!;
-		await setCategoryHidden(rid, fruit.id, true, testDb);
+		await setCategoryHidden(restaurant.id, fruit.id, true, testDb);
 		try {
 			const category = await savedCategoryFor(
 				proposedItem(supplierName, 'Frutas y Verduras'), supplierName, [{ desc: 'Tomate pera', unit: 'kg', price: '1' }],
 			);
 			expect(category).toBe(UNCATEGORIZED_CATEGORY);
 		} finally {
-			await setCategoryHidden(rid, fruit.id, false, testDb);
+			await setCategoryHidden(restaurant.id, fruit.id, false, testDb);
 		}
 	});
 });

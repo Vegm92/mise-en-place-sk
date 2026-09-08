@@ -16,27 +16,24 @@
  * DATABASE_URL.
  */
 import { randomUUID } from 'node:crypto';
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('../src/lib/server/db', async () => {
-	const { testDb } = await import('./helpers/test-db');
-	const { forTenant } = await import('../src/lib/server/tenant');
-	return { db: testDb, forTenant };
-});
+vi.mock('../src/lib/server/db', async () => (await import('./helpers/db-suite')).testDbModule());
 
-import { testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv } from './helpers/test-db';
-import { saveReviewedInvoice } from '../src/lib/server/invoice-save';
+import { testSql, hasDbEnv } from './helpers/test-db';
+import { useTestRestaurant } from './helpers/test-restaurant';
 import type { BatchItem } from '../src/lib/server/batch';
 import { fakeBatchItem } from './helpers/batch-item';
+import { saveInvoiceOrThrow } from './helpers/invoice-save-form';
 
-let rid = '';
+const restaurant = useTestRestaurant('inv-total-mismatch');
 const UID = randomUUID();
 
 function mismatchFakeItem(extractedData: Record<string, unknown> | null): BatchItem {
 	return fakeBatchItem({
 		extractedData,
 		displayName: 'mismatch.pdf', fileKey: 'mismatch.pdf',
-		restaurantId: rid, batchId: 'mismatch-batch-1', id: 'mismatch-item-1',
+		restaurantId: restaurant.id, batchId: 'mismatch-batch-1', id: 'mismatch-item-1',
 	});
 }
 
@@ -71,26 +68,11 @@ function mismatchForm(opts: MismatchFormOpts): FormData {
 	return fd;
 }
 
-beforeAll(async () => {
-	if (!hasDbEnv) return;
-	const r = await createTestRestaurant('inv-total-mismatch');
-	rid = r.id;
-});
-
-afterAll(async () => {
-	if (!hasDbEnv) return;
-	await cleanupTestRestaurant(rid);
-	await closeDb();
-});
-
-async function saveInvoice(
+function saveInvoice(
 	extractedData: Record<string, unknown> | null,
 	formOpts: MismatchFormOpts,
 ): Promise<number> {
-	const out = await saveReviewedInvoice(mismatchFakeItem(extractedData), mismatchForm(formOpts), rid, UID);
-	expect(out.type).toBe('saved');
-	if (out.type !== 'saved') throw new Error('unreachable — asserted above');
-	return out.invoiceId;
+	return saveInvoiceOrThrow(mismatchFakeItem(extractedData), mismatchForm(formOpts), restaurant.id, UID);
 }
 
 async function saveAndGetReviewState(

@@ -3,27 +3,14 @@
  * every enqueue site, so `dead_letter_queue.payload` and the worker's
  * `job.data` can be joined back to the web request that created the job.
  *
- * `pg-boss` itself is mocked (as in queue-whatsapp-inbound.test.ts) so this
- * pins the actual payload handed to `b.send(...)` for every queue in
- * queue.ts, not just what the wrapper function returns.
+ * `pg-boss` itself is mocked (helpers/pg-boss-mock, as in
+ * queue-whatsapp-inbound.test.ts) so this pins the actual payload handed to
+ * `b.send(...)` for every queue in queue.ts, not just what the wrapper
+ * function returns.
  */
-import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
-const { sendMock, createQueueMock, updateQueueMock, startMock } = vi.hoisted(() => ({
-	sendMock: vi.fn().mockResolvedValue('job-1'),
-	createQueueMock: vi.fn().mockResolvedValue(undefined),
-	updateQueueMock: vi.fn().mockResolvedValue(undefined),
-	startMock: vi.fn().mockResolvedValue(undefined),
-}));
-
-vi.mock('pg-boss', () => ({
-	PgBoss: vi.fn().mockImplementation(() => ({
-		start: startMock,
-		createQueue: createQueueMock,
-		updateQueue: updateQueueMock,
-		send: sendMock,
-	})),
-}));
+vi.mock('pg-boss', async () => (await import('./helpers/pg-boss-mock')).pgBossMockModule);
 
 import {
 	enqueueExtraction,
@@ -33,18 +20,9 @@ import {
 	enqueueWhatsAppInbound,
 	enqueueAccountCleanup,
 } from '../src/lib/server/queue';
+import { sendMock, setUpPgBossTestEnv } from './helpers/pg-boss-mock';
 
-const originalDatabaseUrl = process.env.DATABASE_URL;
-
-beforeEach(() => {
-	vi.clearAllMocks();
-	sendMock.mockResolvedValue('job-1');
-	process.env.DATABASE_URL = 'postgres://localhost:5432/mep_test';
-});
-
-afterAll(() => {
-	process.env.DATABASE_URL = originalDatabaseUrl;
-});
+setUpPgBossTestEnv();
 
 function payloadOf(callIndex = 0): Record<string, unknown> {
 	return sendMock.mock.calls[callIndex][1] as Record<string, unknown>;
