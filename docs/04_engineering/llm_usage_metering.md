@@ -3,36 +3,39 @@ tags: [mep, engineering]
 related: "[[CONTEXT]]"
 ---
 
-# LLM Usage Metering — issue doc for later adoption
+# LLM Usage Metering
 
-Status: **Open gap** (documented 2026-08-13). No code change made; this doc is
-the contract for whoever implements the fix.
+Status: **Recorded, not fully enforced** (chat/digest metering shipped in
+#426, closing the original 2026-08-13 gap this doc described; a cost-cap
+enforcement gap remains — see below).
 
-## The problem
+## Current state
 
-Chat (`src/routes/(app)/api/chat/+server.ts`) and the weekly digest
-(`src/lib/server/weekly-digest.ts`) instantiate `GoogleGenAI` and call
-`ai.models.generateContent` **directly**. They bypass the provider seam that
-ADR-007 establishes ("one-method provider seam plus per-tenant usage
-accounting"). As a result:
+Chat (`src/routes/(app)/api/chat/+server.ts:133`) and the weekly digest
+(`src/lib/server/weekly-digest.ts:78`) call `recordLlmUsage` after a
+successful reply, with `caller_context` `'chat'` / `'weekly-digest'`. Both
+write to `llm_usage_log`, so `estimated_cost_usd` and `/admin/revenue` now
+include this spend.
 
-- Their Gemini calls are **not written to `llm_usage_log`** → `estimated_cost_usd`
-  undercounts real spend.
+What's still open:
+
 - `checkExtractionQuota` (`tenant_llm_quotas.monthly_extractions` /
-  `monthly_cost_limit_usd`) does **not** see chat/digest usage → the cost limit
-  is not enforced on those surfaces.
-- `monthly_usage` (plan quota, `claimMonthlyExtraction`) tracks only extractions
-  — deliberately, since that is the unit the plan is sold on (ADR-036) — so a
-  Pro/Business tenant's AI spend on chat and digests per month is unbounded
-  from the app's perspective. Document-structure detection is metered in
-  `llm_usage_log` as `document-structure` but is likewise off the plan counter:
-  it is the system deciding what a file is, not a document the customer asked
-  to have processed.
-- `/admin/revenue` and any future unit-economics (`estimated_cost_usd` sums)
-  silently miss this spend; the MRR-vs-COGS picture is optimistic.
+  `monthly_cost_limit_usd`) is called only from the extraction path
+  (`src/lib/server/extraction-worker.ts:89`). Chat and digest usage is
+  **recorded but not checked against the per-tenant cost cap** — a tenant can
+  exceed `monthly_cost_limit_usd` through chat/digest alone and nothing stops
+  it, though the spend is now visible for review.
+- `monthly_usage` (plan quota, `claimMonthlyExtraction`) tracks only
+  extractions — deliberately, since that is the unit the plan is sold on
+  (ADR-036) — so chat/digest usage does not consume the plan's extraction
+  counter. Document-structure detection is metered in `llm_usage_log` as
+  `document-structure` but is likewise off the plan counter: it is the system
+  deciding what a file is, not a document the customer asked to have
+  processed.
 
-This is a **cost-accounting + quota-enforcement** gap, not a correctness bug:
-chat and digest work, they are just invisible to metering.
+This is a **cost-cap enforcement** gap, not a correctness or visibility one:
+chat and digest work and their spend is now visible in `llm_usage_log` and
+`/admin/revenue`; only the per-tenant cost limit doesn't yet stop them.
 
 ## The mechanism that already exists (reuse, do not rebuild)
 
@@ -44,60 +47,45 @@ chat and digest work, they are just invisible to metering.
 | Storage | `src/lib/server/schema/extensions.ts:121-147` | `llm_usage_log` (indexed `(restaurant_id, created_at)`), `tenant_llm_quotas` (per-tenant custom caps), `monthly_usage` (plan counter), `usage_events` (append-only trail the counter sums to) |
 | Warning email | `src/lib/server/quota-warning.ts` | `maybeSendQuotaWarning(restaurantId)` — sends one quota warning per month when `monthly_usage` crosses the plan limit (it counted saved invoices until ADR-036, so it warned late or never) |
 
-**Currently-metered paths** (how the seam is used correctly today):
+**Metered paths today** (all go through the seam and `recordLlmUsage`):
 - Extraction: `src/lib/server/extraction-worker.ts:80` calls `checkExtractionQuota`,
   `claimMonthlyExtraction`/`releaseMonthlyExtraction`, and
   `recordLlmUsage(rid, usage, 'extraction-worker')` at line 128.
 - Product matching: `src/lib/server/products.ts:642-664` calls
   `recordLlmUsage` (injectable via `deps.recordUsage`).
+- Chat: `src/routes/(app)/api/chat/+server.ts:133` calls
+  `recordLlmUsage(rid, response.usage, 'chat')` after a successful reply,
+  via `createGeminiProvider().generate()` with `systemInstruction` support
+  (added in #466).
+- Digest: `src/lib/server/weekly-digest.ts:78` calls `recordLlmUsage` with
+  `callerContext: 'weekly-digest'`, same seam.
 
-## The fix (sketch for implementation)
+Chat and digest are logging-only: neither is added to `checkExtractionQuota`
+or `claimMonthlyExtraction`. `recordLlmUsage` stays non-fatal everywhere —
+metering failure never breaks chat, digest, or extraction.
 
-1. **Chat** — replace the raw `GoogleGenAI` usage in
-   `src/routes/(app)/api/chat/+server.ts:92-107` with
-   `createLLMProvider()` + `provider.generate(...)`, then
-   `recordLlmUsage(locals.restaurantId, response.usage, 'chat')` after a
-   successful reply. Keep the existing `systemInstruction` handling — verify the
-   seam's `generate` accepts a system instruction (it currently takes only
-   `content`; a small seam extension may be needed for `config.systemInstruction`
-   and for the current object-array parts shape).
-2. **Digest** — same in `src/lib/server/weekly-digest.ts:48-49` with
-   `callerContext: 'weekly-digest'`.
-3. **Decision needed** — should chat/digest count toward
-   `tenant_llm_quotas.monthly_extractions` and the plan `monthly_usage` counter?
-   Recommendation: count toward the **cost limit** (`monthly_cost_limit_usd`)
-   and `llm_usage_log` always; decide separately whether they should consume
-   the *extraction* counter (they are a different surface — likely yes for
-   `tenant_llm_quotas.monthly_extractions`, no for the plan extraction quota).
-   Record the decision in an ADR amendment to ADR-007.
-4. Keep `recordLlmUsage` non-fatal (metering must never break chat/digest).
-5. Optionally have `maybeSendQuotaWarning`/`checkExtractionQuota` consider
-   `caller_context` so quota emails can mention what was consumed.
+## Remaining decision
 
-## Verification / acceptance criteria
-
-- After one chat reply, exactly one new row in `llm_usage_log` with
-  `caller_context='chat'` and a positive `estimated_cost_usd`.
-- After one digest generation, one row with `caller_context='weekly-digest'`.
-- Extraction behavior is unchanged (existing tests stay green):
-  `tests/whatsapp-bridge.test.ts`, extraction worker tests.
-- Metering failure never throws into the user path (chat/digest still reply
-  even if `recordLlmUsage` errors).
-- `/admin/revenue` cost lines now include chat/digest spend.
+Should chat/digest usage count toward `tenant_llm_quotas.monthly_cost_limit_usd`
+(and, separately, the plan's `monthly_usage` extraction counter)? Per
+ADR-007, this is an open product decision, not an engineering gap — the
+mechanism (`checkExtractionQuota`) already exists and would just need chat
+and digest wired into it once the call is made. Record the decision as an
+ADR-007 amendment when it's made.
 
 ## Tests to add
+
+No test asserts the chat/digest metering rows exist yet:
 
 - Chat endpoint integration test asserting the `llm_usage_log` row (uses the
   `GenerateFn`/provider mock pattern; no live Gemini).
 - Digest test asserting the same (currently only `tests/scheduler.test.ts`
   covers digest job registration).
-- A unit test that `recordLlmUsage` is idempotent-friendly (safe on failure)
-  and tenant-scoped.
 
 ## Related docs
 
-- ADR-007 (`docs/06_decisions/extraction/ADR-007-llm-provider-seam.md`) — the seam this gap
-  violates; a fix should amend it.
+- ADR-007 (`docs/06_decisions/extraction/ADR-007-llm-provider-seam.md`) — the
+  seam and the #426 closure; the enforcement decision above amends it.
 - Feature specs: `docs/03_features/chat.md`, `docs/03_features/digest.md`.
 - Monitoring: `docs/05_operations/monitoring.md` (LLM usage row).
 - Quota/billing: `docs/03_features/billing.md`, `docs/02_product/plans_and_entitlements.md`.

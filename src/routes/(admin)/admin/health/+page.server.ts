@@ -42,14 +42,14 @@ const RetryForm = v.object({
 	restaurantId: v.optional(v.pipe(v.string(), v.trim())),
 });
 
-async function retryItem(id: string, restaurantId: string): Promise<'ok' | 'notRequeueable' | 'enqueueFailed'> {
+async function retryItem(id: string, restaurantId: string, requestId?: string): Promise<'ok' | 'notRequeueable' | 'enqueueFailed'> {
 	if (!(await requeueStalled(id))) return 'notRequeueable';
-	if (!(await enqueueExtraction(id, restaurantId))) return 'enqueueFailed';
+	if (!(await enqueueExtraction(id, restaurantId, requestId))) return 'enqueueFailed';
 	return 'ok';
 }
 
 export const actions: Actions = {
-	retry: async ({ request }) => {
+	retry: async ({ request, locals }) => {
 		const formData = await request.formData();
 		const parsed = parseForm(RetryForm, formData);
 		if (!parsed.success) return fail(400, { error: 'invalidRequest' });
@@ -57,17 +57,17 @@ export const actions: Actions = {
 		const restaurantId = parsed.output.restaurantId ?? '';
 		if (!id || !restaurantId) return fail(400, { error: 'invalidRequest' });
 
-		const result = await retryItem(id, restaurantId);
+		const result = await retryItem(id, restaurantId, locals.requestId);
 		if (result === 'notRequeueable') return fail(409, { error: 'itemNotRequeueable' });
 		if (result === 'enqueueFailed') return fail(500, { error: 'enqueueFailed' });
 		return { success: true, retried: 1 };
 	},
 
-	retryAll: async () => {
+	retryAll: async ({ locals }) => {
 		const items = await stuckBatchItems(RETRY_ALL_LIMIT);
 		let retried = 0;
 		for (const item of items) {
-			if ((await retryItem(item.id, item.restaurantId)) === 'ok') retried++;
+			if ((await retryItem(item.id, item.restaurantId, locals.requestId)) === 'ok') retried++;
 		}
 		return { success: true, retried };
 	},

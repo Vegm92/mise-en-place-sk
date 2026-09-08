@@ -14,8 +14,34 @@
  * This will not agree with SonarCloud's number exactly — different clone
  * detector, and it does not cover .svelte files (jscpd's tokenizer doesn't
  * parse them the way it does .ts/.js). Treat a pass here as "very likely
- * fine", not a guarantee; treat a fail here as "go look", since it has
- * caught the real issue every time it's been used against this repo so far.
+ * fine", not a guarantee; treat a fail here as "go look".
+ *
+ * Calibration. This script used to scan src/ AND tests/ at --min-lines 5
+ * --min-tokens 30, and reported 9.9% on a PR that SonarCloud passed at 0.6%
+ * — a disagreement large enough to fail CI on a branch the real gate was
+ * happy with. Two independent causes, both measured before changing this:
+ *
+ *   - Scope. SonarCloud does not compute duplication on test files: it
+ *     classifies *.test.ts as test code, and Duplication on New Code is a
+ *     main-source metric. That is why .sonarcloud.properties says nothing
+ *     about tests/ — it does not need to. On that PR, 109 of the 119
+ *     reported duplicate lines sat in tests/, lines the gate never looks
+ *     at. Scanning tests/ here was not a stricter version of the gate, it
+ *     was a different measurement that CI then failed the build on.
+ *
+ *   - Sensitivity. SonarCloud's JS/TS detector needs ~10 lines and ~100
+ *     tokens before it calls something a clone. At 5 lines / 30 tokens
+ *     jscpd matches far smaller fragments — any two five-line object
+ *     literals sharing a key shape — so it reports clones the gate never
+ *     would. Across all of src/, Sonar's thresholds find one clone
+ *     (18 lines, 0.04%); the old settings found dozens.
+ *
+ * Both are aligned to the gate below. If this script ever fails while
+ * SonarCloud passes, re-measure both before refactoring anything.
+ *
+ * What it does NOT do, contrary to a plausible first guess: it does not
+ * blame a whole pre-existing clone on a branch that edited one line inside
+ * it. The intersection below counts only lines the branch actually added.
  *
  * Usage: node scripts/check-duplication.mjs [--base <ref>] [--threshold <pct>]
  * Defaults: --base origin/main --threshold 3
@@ -66,7 +92,7 @@ if (!BASE_PATTERN.test(BASE)) {
 }
 const THRESHOLD = Number(arg('threshold', '3'));
 const SCANNED_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.mjs']);
-const SCANNED_DIRS = ['src', 'tests'];
+const SCANNED_DIRS = ['src'];
 
 function git(args) {
 	return execFileSync(GIT, args, { cwd: ROOT, encoding: 'utf8' });
@@ -125,8 +151,8 @@ function runJscpd(outDir) {
 		// matched back against git's repo-root-relative paths. --pattern alone
 		// scans from cwd (ROOT) and keeps the full relative path.
 		'--pattern', `{${SCANNED_DIRS.join(',')}}/**/*.{${extGlob}}`,
-		'--min-lines', '5',
-		'--min-tokens', '30',
+		'--min-lines', '10',
+		'--min-tokens', '100',
 		'--format', 'typescript,javascript',
 		'--reporters', 'json',
 		'--output', outDir,

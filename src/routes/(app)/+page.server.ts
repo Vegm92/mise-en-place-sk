@@ -120,7 +120,7 @@ export const actions: Actions = {
 			getItem,
 			getBatchItems,
 			markQueued,
-			enqueue: enqueueExtraction,
+			enqueue: (id, extractionRid) => enqueueExtraction(id, extractionRid, locals.requestId),
 		});
 
 		const exts = [...new Set(saved.map(f => path.extname(f).toLowerCase()))];

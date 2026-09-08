@@ -240,7 +240,7 @@
             </label>
             <form method="POST" action="?/saveEmail" class="set-stack">
               <div class="set-inline">
-                <Mail size={14} style="color:var(--mep-fg-3);" />
+                <Mail size={14} class="text-fg-3" />
                 <span class="set-value">{data.profile.email}</span>
                 {#if data.profile.emailVerified}
                   <span class="badge badge-confirmed"><Check size={10} />{t('set.profile.emailVerified')}</span>
@@ -296,7 +296,7 @@
             <span class="set-lbl-name">{t('billing.settings.link')}</span>
             <span class="set-lbl-hint">{t('billing.settings.linkBody')}</span>
           </span>
-          <ChevronRight size={15} style="color:var(--mep-fg-3);flex-shrink:0;" />
+          <ChevronRight size={15} class="text-fg-3 shrink-0" />
         </a>
       {/if}
 
@@ -332,7 +332,7 @@
               <span class="set-lbl-hint">{t('set.business.currencyHint')}</span>
             </span>
             <div class="set-readonly">
-              <Wallet size={14} style="color:var(--mep-fg-3);" />
+              <Wallet size={14} class="text-fg-3" />
               {t('set.business.currencyValue')}
               <span class="set-spacer"></span>
               <span class="badge badge-neutral">{t('set.business.currencyFixed')}</span>
@@ -783,14 +783,14 @@
             <span class="set-lbl-name">{t('set.helpLink')}</span>
             <span class="set-lbl-hint">{t('set.helpLinkBody')}</span>
           </span>
-          <ChevronRight size={15} style="color:var(--mep-fg-3);flex-shrink:0;" />
+          <ChevronRight size={15} class="text-fg-3 shrink-0" />
         </a>
 
         <SectionCard title={t('set.faqShort')} sub={t('set.faqShortSub')} noPad>
           {#each HELP_FAQ as item (item)}
             <a href="/help" class="set-faq-link">
               <span class="set-lbl-name">{t(`help.faq.${item}.q`)}</span>
-              <ChevronRight size={14} style="color:var(--mep-fg-3);flex-shrink:0;" />
+              <ChevronRight size={14} class="text-fg-3 shrink-0" />
             </a>
           {/each}
         </SectionCard>
@@ -827,8 +827,8 @@
           </div>
           <div class="set-danger-body">
             {#if dangerOpen}
-              <div style="border:1px solid var(--mep-neg);background:var(--mep-neg-soft);border-radius:var(--mep-r-card);padding:14px;display:flex;gap:10px;align-items:flex-start;">
-                <AlertTriangle size={18} style="color:var(--mep-neg);flex-shrink:0;margin-top:2px;" />
+              <div class="border border-neg bg-neg-soft rounded-card p-3.5 flex gap-2.5 items-start">
+                <AlertTriangle size={18} class="text-neg shrink-0 mt-0.5" />
                 <div class="set-grow">
                   <p class="set-danger-lead">{t('set.deleteDesc')}</p>
                   {#if !data.profile.hasPassword}
@@ -846,8 +846,8 @@
                         type="button"
                         onclick={handleDeleteAccount}
                         disabled={deleteConfirm !== t('set.deleteConfirmWord') || deleting}
-                        class="btn"
-                        style="background:var(--mep-neg);color:var(--mep-neg-fg);border:none;opacity:{deleteConfirm !== t('set.deleteConfirmWord') || deleting ? 0.5 : 1};"
+                        class="btn bg-neg text-neg-fg border-0"
+                        style="opacity:{deleteConfirm !== t('set.deleteConfirmWord') || deleting ? 0.5 : 1};"
                       >
                         {deleting ? t('set.deletingBtn') : t('set.deleteBtn')}
                       </button>
@@ -867,8 +867,8 @@
                         type="button"
                         onclick={handleDeleteAccount}
                         disabled={deletePassword.length === 0 || deleting}
-                        class="btn"
-                        style="background:var(--mep-neg);color:var(--mep-neg-fg);border:none;opacity:{deletePassword.length === 0 || deleting ? 0.5 : 1};"
+                        class="btn bg-neg text-neg-fg border-0"
+                        style="opacity:{deletePassword.length === 0 || deleting ? 0.5 : 1};"
                       >
                         {deleting ? t('set.deletingBtn') : t('set.deleteBtn')}
                       </button>
@@ -906,7 +906,7 @@
         <span class="set-lbl-name">{t(entry.key)}</span>
         <span class="set-spacer"></span>
         <span class="badge badge-neutral">{sectionOf(entry.section).label}</span>
-        <ChevronRight size={14} style="color:var(--mep-fg-3);flex-shrink:0;" />
+        <ChevronRight size={14} class="text-fg-3 shrink-0" />
       </button>
     {:else}
       <div class="set-foot"><p class="set-lbl-hint">{t('set.searchEmpty')}</p></div>
@@ -1001,7 +1001,7 @@
                 <span class="set-mob-name">{s.label}</span>
                 <span class="set-lbl-hint">{s.sub}</span>
               </span>
-              <ChevronRight size={16} style="color:var(--mep-fg-3);flex-shrink:0;" />
+              <ChevronRight size={16} class="text-fg-3 shrink-0" />
             </button>
           {/each}
         </div>

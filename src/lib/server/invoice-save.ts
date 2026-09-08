@@ -1,6 +1,6 @@
 import { computeInvoiceContentHash } from './dedup';
 import { db, forTenant } from './db';
-import { invoices, invoiceLineItems, extractionCorrections, settings, suppliers, restaurants } from './schema';
+import { invoices, invoiceLineItems, invoiceAuditLog, extractionCorrections, settings, suppliers, restaurants } from './schema';
 import { eq, and, isNull, inArray, notInArray } from 'drizzle-orm';
 import { normalizePhoneNumber } from '$lib/phone';
 import { normalizeTaxId, taxIdDecidesIdentity } from '$lib/tax-id';
@@ -498,6 +498,7 @@ export async function linkProductsToInvoice(
 	rid: string,
 	lineInputs: Array<{ desc: string; unitVal: string | null; pack: PackInfo | null; supplierSku: string | null; productId?: number | null; formIndex?: number }>,
 	allergensByKey: Map<string, string[]> = new Map(),
+	requestId?: string,
 ): Promise<{ productByKey: Map<string, number>; productCorrections: ProductCorrection[] }> {
 	const productByKey = new Map<string, number>();
 	const productCorrections: ProductCorrection[] = [];
@@ -586,9 +587,9 @@ export async function linkProductsToInvoice(
 					},
 				});
 			} else if (r.status === 'created' && !reassigned) {
-				await enqueueNormalize(rid, productId, desc).catch((e) =>
+				await enqueueNormalize(rid, productId, desc, requestId).catch((e) =>
 					console.error('[invoice-save] normalize enqueue failed (non-fatal):', e));
-				await enqueueCategorize(rid, productId, desc).catch((e) =>
+				await enqueueCategorize(rid, productId, desc, requestId).catch((e) =>
 					console.error('[invoice-save] categorize enqueue failed (non-fatal):', e));
 			}
 		}
@@ -766,8 +767,9 @@ async function runPostSaveEffects(params: {
 	tdb: ReturnType<typeof forTenant>;
 	restaurantPhoneMismatch: ProfileMismatch | null;
 	restaurantTaxIdMismatch: ProfileMismatch | null;
+	requestId?: string;
 }): Promise<boolean> {
-	const { invoiceId, supplierId, rid, supplierName, invoiceNumber, invoiceDate, dueDate, totalAmount, documentType, purchaseOrder, confidenceRaw, lineInputs, savedItems, unitConversionAlerts, qrMismatches, extractedData, lineDescriptions, lineQuantities, lineUnits, lineUnitPrices, lineTotalPrices, proposedCategory, reviewState, tdb, restaurantPhoneMismatch, restaurantTaxIdMismatch } = params;
+	const { invoiceId, supplierId, rid, supplierName, invoiceNumber, invoiceDate, dueDate, totalAmount, documentType, purchaseOrder, confidenceRaw, lineInputs, savedItems, unitConversionAlerts, qrMismatches, extractedData, lineDescriptions, lineQuantities, lineUnits, lineUnitPrices, lineTotalPrices, proposedCategory, reviewState, tdb, restaurantPhoneMismatch, restaurantTaxIdMismatch, requestId } = params;
 
 	const { productByKey, productCorrections } = await isolated(
 		'product linking',
@@ -775,6 +777,7 @@ async function runPostSaveEffects(params: {
 		() => linkProductsToInvoice(
 			invoiceId, supplierId, rid, lineInputs,
 			extractedAllergensByKey(extractedData as ExtractedInvoice | undefined),
+			requestId,
 		),
 	);
 
@@ -898,7 +901,9 @@ export async function saveReviewedInvoice(
 	item: BatchItem | null,
 	formData: FormData,
 	rid: string,
-	onSaved?: (tx: BatchDb) => Promise<void>,
+	userId: string,
+	onSaved?: (tx: BatchDb, invoiceId: number) => Promise<void>,
+	requestId?: string,
 ): Promise<SaveOutcome> {
 	const idemKeyRaw = formData.get('idempotency_key');
 	const idemKey = isValidKey(idemKeyRaw) ? idemKeyRaw : null;
@@ -1073,7 +1078,11 @@ export async function saveReviewedInvoice(
 
 		await insertEnrichedLines(tx, { invoiceId: invoiceId!, rid, supplierId, supplierName }, enrichedLines, savedItems, unitConversionAlerts);
 
-		if (onSaved) await onSaved(tx);
+		await tx.insert(invoiceAuditLog).values({
+			restaurantId: rid, invoiceId: invoiceId!, action: 'create', userId, sourceFile: primaryFile,
+		});
+
+		if (onSaved) await onSaved(tx, invoiceId!);
 	});
 
 	if (isReplay) return { type: 'replay' };
@@ -1088,6 +1097,7 @@ export async function saveReviewedInvoice(
 		totalAmount, documentType, purchaseOrder, confidenceRaw, lineInputs, savedItems, unitConversionAlerts,
 		qrMismatches, extractedData, lineDescriptions, lineQuantities, lineUnits, lineUnitPrices,
 		lineTotalPrices, proposedCategory, reviewState, tdb, restaurantPhoneMismatch, restaurantTaxIdMismatch,
+		requestId,
 	});
 
 	return { type: 'saved', invoiceId: invoiceId!, isFirstInvoice };

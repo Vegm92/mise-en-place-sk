@@ -1,5 +1,6 @@
 import { PgBoss } from 'pg-boss';
 import { pgSslConfig } from './db-ssl';
+import type { WhatsAppInboundMessage } from './integrations/whatsapp/transport';
 
 const DATABASE_URL = process.env.DATABASE_URL ?? '';
 
@@ -7,12 +8,14 @@ export const EXTRACTION_QUEUE = 'extract-invoice';
 export const NORMALIZE_QUEUE = 'normalize-product';
 export const CATEGORIZE_QUEUE = 'categorize-product';
 export const WHATSAPP_NOTIFY_QUEUE = 'whatsapp-notify';
+export const WHATSAPP_INBOUND_QUEUE = 'whatsapp-inbound';
 export const ACCOUNT_CLEANUP_QUEUE = 'account-cleanup';
 
 export const EXTRACTION_DEAD_LETTER_QUEUE = `${EXTRACTION_QUEUE}-dead-letter`;
 export const NORMALIZE_DEAD_LETTER_QUEUE = `${NORMALIZE_QUEUE}-dead-letter`;
 export const CATEGORIZE_DEAD_LETTER_QUEUE = `${CATEGORIZE_QUEUE}-dead-letter`;
 export const WHATSAPP_NOTIFY_DEAD_LETTER_QUEUE = `${WHATSAPP_NOTIFY_QUEUE}-dead-letter`;
+export const WHATSAPP_INBOUND_DEAD_LETTER_QUEUE = `${WHATSAPP_INBOUND_QUEUE}-dead-letter`;
 export const ACCOUNT_CLEANUP_DEAD_LETTER_QUEUE = `${ACCOUNT_CLEANUP_QUEUE}-dead-letter`;
 
 export const DEAD_LETTER_QUEUES: Array<{ source: string; deadLetter: string }> = [
@@ -20,6 +23,7 @@ export const DEAD_LETTER_QUEUES: Array<{ source: string; deadLetter: string }> =
 	{ source: NORMALIZE_QUEUE, deadLetter: NORMALIZE_DEAD_LETTER_QUEUE },
 	{ source: CATEGORIZE_QUEUE, deadLetter: CATEGORIZE_DEAD_LETTER_QUEUE },
 	{ source: WHATSAPP_NOTIFY_QUEUE, deadLetter: WHATSAPP_NOTIFY_DEAD_LETTER_QUEUE },
+	{ source: WHATSAPP_INBOUND_QUEUE, deadLetter: WHATSAPP_INBOUND_DEAD_LETTER_QUEUE },
 	{ source: ACCOUNT_CLEANUP_QUEUE, deadLetter: ACCOUNT_CLEANUP_DEAD_LETTER_QUEUE },
 ];
 
@@ -57,9 +61,10 @@ async function getBoss(): Promise<PgBoss> {
 export async function enqueueExtraction(
 	itemId: string,
 	restaurantId: string,
+	requestId?: string,
 ): Promise<boolean> {
 	const b = await getBoss();
-	const jobId = await b.send(EXTRACTION_QUEUE, { itemId, restaurantId }, {
+	const jobId = await b.send(EXTRACTION_QUEUE, { itemId, restaurantId, requestId }, {
 		retryLimit: 2,
 		retryDelay: 30,
 		expireInSeconds: 600,
@@ -73,9 +78,10 @@ export async function enqueueNormalize(
 	restaurantId: string,
 	productId: number,
 	rawText: string,
+	requestId?: string,
 ): Promise<boolean> {
 	const b = await getBoss();
-	const jobId = await b.send(NORMALIZE_QUEUE, { restaurantId, productId, rawText }, {
+	const jobId = await b.send(NORMALIZE_QUEUE, { restaurantId, productId, rawText, requestId }, {
 		priority: -10,
 		retryLimit: 1,
 		retryDelay: 60,
@@ -90,9 +96,10 @@ export async function enqueueCategorize(
 	restaurantId: string,
 	productId: number,
 	canonicalName: string,
+	requestId?: string,
 ): Promise<boolean> {
 	const b = await getBoss();
-	const jobId = await b.send(CATEGORIZE_QUEUE, { restaurantId, productId, canonicalName }, {
+	const jobId = await b.send(CATEGORIZE_QUEUE, { restaurantId, productId, canonicalName, requestId }, {
 		priority: -10,
 		retryLimit: 1,
 		retryDelay: 60,
@@ -106,9 +113,10 @@ export async function enqueueCategorize(
 export async function enqueueWhatsAppNotify(
 	itemId: string,
 	restaurantId: string,
+	requestId?: string,
 ): Promise<boolean> {
 	const b = await getBoss();
-	const jobId = await b.send(WHATSAPP_NOTIFY_QUEUE, { itemId, restaurantId }, {
+	const jobId = await b.send(WHATSAPP_NOTIFY_QUEUE, { itemId, restaurantId, requestId }, {
 		retryLimit: 3,
 		retryDelay: 60,
 		expireInSeconds: 300,
@@ -118,16 +126,35 @@ export async function enqueueWhatsAppNotify(
 	return jobId !== null;
 }
 
+export interface WhatsAppInboundJobData {
+	messageId: string;
+	msg: WhatsAppInboundMessage;
+	requestId?: string;
+}
+
+export async function enqueueWhatsAppInbound(msg: WhatsAppInboundMessage, requestId?: string): Promise<boolean> {
+	const b = await getBoss();
+	const jobId = await b.send(WHATSAPP_INBOUND_QUEUE, { messageId: msg.id, msg, requestId }, {
+		retryLimit: 3,
+		retryDelay: 30,
+		expireInSeconds: 300,
+		singletonKey: msg.id,
+		deadLetter: WHATSAPP_INBOUND_DEAD_LETTER_QUEUE,
+	});
+	return jobId !== null;
+}
+
 export async function enqueueAccountCleanup(
 	userId: string,
 	restaurantId: string | null,
 	stripeSubscriptionIds: string[],
 	storageKeys: string[],
+	requestId?: string,
 ): Promise<boolean> {
 	const b = await getBoss();
 	const jobId = await b.send(
 		ACCOUNT_CLEANUP_QUEUE,
-		{ itemId: userId, restaurantId, stripeSubscriptionIds, storageKeys },
+		{ itemId: userId, restaurantId, stripeSubscriptionIds, storageKeys, requestId },
 		{
 			retryLimit: 5,
 			retryDelay: 60,

@@ -57,12 +57,14 @@ describe('budgets mobile disclosure (issue #653)', () => {
 
 	it('the projection pill can shrink and the name has min-width:0', () => {
 		const mobile = mobileBlock();
-		const nameAt = mobile.indexOf('text-overflow:ellipsis');
+		const nameAt = mobile.indexOf('text-ellipsis');
 		expect(nameAt).toBeGreaterThan(-1);
-		expect(mobile.slice(0, mobile.indexOf('bud.closeShort'))).toMatch(/min-width:0/);
+		const nameClasses = mobile.slice(mobile.lastIndexOf('<span', nameAt), nameAt);
+		expect(nameClasses).toMatch(/min-w-0/);
 		const pillAt = mobile.indexOf('bud.closeShort');
-		const pillStyle = mobile.slice(mobile.lastIndexOf('<span', pillAt), pillAt);
-		expect(pillStyle).not.toMatch(/flex-shrink:0/);
+		const pillClasses = mobile.slice(mobile.lastIndexOf('<span', pillAt), pillAt);
+		expect(pillClasses).toMatch(/min-w-0/);
+		expect(pillClasses).not.toMatch(/shrink-0/);
 	});
 
 	it('the desktop table still iterates the full rows list', () => {
