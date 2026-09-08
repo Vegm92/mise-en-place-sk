@@ -54,10 +54,16 @@ compra de la semana.
    vive aparte, no dentro de `review_state`.
 2. **La categoría es del proveedor, no del albarán.** Corregirla desde una fila
    afecta a todos los albaranes de ese proveedor — el menú lo avisa y en la
-   lámina se ve en marcha. Donde se rompe es con los proveedores que venden de
-   todo: se quedan en «Sin categoría» y en los datos de ejemplo son casi una
-   cuarta parte del gasto. Si eso molesta, la salida es clasificar por línea —el
-   producto ya tiene categoría propia— y no por albarán.
+   lámina se ve en marcha. Donde se rompía era con los proveedores que venden de
+   todo: se quedaban en «Sin categoría» aunque sus líneas tuvieran producto y
+   categoría propios. Los presupuestos, la analítica y el dashboard ya leían por
+   línea (ADR-027, `src/lib/server/category-spend.ts`); el filtro de categoría de
+   `/invoices` (`src/routes/(app)/invoices/+page.server.ts`) era el único que
+   seguía leyendo `suppliers.category` directamente — ahora usa el mismo criterio
+   por línea, con el proveedor solo como respaldo cuando el albarán no tiene
+   líneas descritas (issue #790). La lista también marca cuántos albaranes de la
+   página tienen líneas sin categorizar (KPI «Con líneas sin categorizar»), y
+   `/analytics/spend` muestra el % de gasto categorizado a nivel de línea.
 3. **El nombre «confirmado»** ya significa otra cosa en el pipeline de
    extracción (`batch_items → confirmed`, «los datos extraídos están bien»).
    El estado nuevo dice «la entrega cuadra».
@@ -95,3 +101,5 @@ como relleno de barra, no.
 | Plantilla común de listado | `src/lib/components/mep/ListPageTemplate.svelte` |
 | Categoría del proveedor | `src/routes/(app)/api/supplier-category/+server.ts` |
 | Listado en móvil | `src/lib/components/mobile/MobileInvoiceList.svelte` |
+| Criterio de categoría por línea + filtro de albarán por categoría | `src/lib/server/category-spend.ts` (`lineCategoryExpr`, `invoiceMatchesCategory`) |
+| % de gasto categorizado por línea | `src/routes/(app)/analytics/spend/+page.server.ts` (`category_coverage`) |
