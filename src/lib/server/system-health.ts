@@ -308,9 +308,10 @@ export function reviewBacklogCheck(backlog: ReviewBacklog): HealthCheck {
 	let status: HealthStatus = 'ok';
 	if (oldest !== null && oldest >= REVIEW_BACKLOG_ERROR_HOURS) status = 'error';
 	else if (oldest !== null && oldest >= REVIEW_BACKLOG_WARN_HOURS) status = 'warn';
+	const oldestLabel = formatSeconds(oldest === null ? null : oldest * 3600);
 	const detail = backlog.items === 0
 		? 'No extracted documents waiting for review'
-		: `${backlog.items} awaiting review across ${backlog.tenants} tenant(s) · oldest ${formatSeconds(oldest === null ? null : oldest * 3600)} · ` +
+		: `${backlog.items} awaiting review across ${backlog.tenants} tenant(s) · oldest ${oldestLabel} · ` +
 			`${backlog.staleItems} older than ${backlog.staleAfterHours}h in ${backlog.staleTenants} tenant(s)`;
 	return { name: 'Review backlog', status, detail };
 }
