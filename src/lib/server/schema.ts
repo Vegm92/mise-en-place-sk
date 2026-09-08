@@ -1,5 +1,5 @@
 import {
-	boolean, check, date, foreignKey, index, integer, jsonb, numeric, pgTable, primaryKey, real, serial, text, timestamp, uniqueIndex, uuid,
+	bigserial, boolean, check, date, doublePrecision, foreignKey, index, integer, jsonb, numeric, pgTable, primaryKey, real, serial, text, timestamp, uniqueIndex, uuid,
 	type AnyPgColumn
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
@@ -25,7 +25,7 @@ export const restaurants = pgTable('restaurants', {
 ]);
 
 export const userRestaurants = pgTable('user_restaurants', {
-	userId:       uuid('user_id').notNull(),
+	userId:       uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
 	restaurantId: uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
 	role:         text('role').notNull().default('owner'),
 	createdAt:    timestamp('created_at', { withTimezone: true }).defaultNow(),
@@ -127,6 +127,7 @@ export const invoices = pgTable('invoices', {
 	index('idx_invoices_rid_review_state').on(t.restaurantId, t.reviewState),
 	index('idx_invoices_rid_incidence_kind').on(t.restaurantId, t.incidenceKind).where(sql`${t.incidenceKind} IS NOT NULL`),
 	index('idx_invoices_rid_created_at').on(t.restaurantId, t.createdAt),
+	index('idx_invoices_supplier_id').on(t.supplierId),
 	check('invoices_incidence_kind_valid', sql`${t.incidenceKind} IS NULL OR ${t.incidenceKind} IN ('lectura','documento')`),
 ]);
 
@@ -238,13 +239,16 @@ export const accounts = pgTable('accounts', {
 	session_state:     text('session_state'),
 }, (t) => [
 	primaryKey({ columns: [t.provider, t.providerAccountId] }),
+	index('accounts_user_idx').on(t.userId),
 ]);
 
 export const sessions = pgTable('sessions', {
 	sessionToken: text('session_token').primaryKey(),
 	userId:       uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
 	expires:      timestamp('expires', { withTimezone: true }).notNull(),
-});
+}, (t) => [
+	index('sessions_user_idx').on(t.userId),
+]);
 
 export const verificationTokens = pgTable('verification_tokens', {
 	identifier: text('identifier').notNull(),
@@ -257,11 +261,12 @@ export const verificationTokens = pgTable('verification_tokens', {
 export const invoiceAuditLog = pgTable('invoice_audit_log', {
 	id:           serial('id').primaryKey(),
 	restaurantId: uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
-	invoiceId:    integer('invoice_id').notNull(),
+	invoiceId:    integer('invoice_id').notNull().references(() => invoices.id),
 	action:       text('action').notNull(),
-	userId:       text('user_id').notNull(),
+	userId:       uuid('user_id').notNull(),
 	reason:       text('reason'),
 	snapshot:     text('snapshot'),
+	sourceFile:   text('source_file'),
 	createdAt:    timestamp('created_at', { withTimezone: true }).defaultNow(),
 }, (t) => [
 	index('idx_invoice_audit_restaurant').on(t.restaurantId),
@@ -298,7 +303,9 @@ export const supplierMetrics = pgTable('supplier_metrics', {
 	timelinessScore:     integer('timeliness_score').notNull().default(0),
 	priceStabilityCv:    real('price_stability_cv'),
 	computedAt:          timestamp('computed_at', { withTimezone: true }).defaultNow(),
-});
+}, (t) => [
+	index('supplier_metrics_restaurant_idx').on(t.restaurantId),
+]);
 
 export const settings = pgTable('settings', {
 	restaurantId: uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
@@ -350,7 +357,11 @@ export const extractionCorrections = pgTable('extraction_corrections', {
 	lineItemIndex:  integer('line_item_index'),
 	fieldConfidence: real('field_confidence'),
 	correctedAt:    timestamp('corrected_at', { withTimezone: true }).defaultNow(),
-});
+}, (t) => [
+	index('extraction_corrections_restaurant_idx').on(t.restaurantId),
+	index('extraction_corrections_invoice_idx').on(t.invoiceId),
+	index('extraction_corrections_supplier_idx').on(t.supplierId),
+]);
 
 export const chatSessions = pgTable('chat_sessions', {
 	id:           serial('id').primaryKey(),
@@ -358,7 +369,9 @@ export const chatSessions = pgTable('chat_sessions', {
 	title:        text('title').notNull().default('Nueva conversación'),
 	createdAt:    timestamp('created_at', { withTimezone: true }).defaultNow(),
 	updatedAt:    timestamp('updated_at', { withTimezone: true }).defaultNow(),
-});
+}, (t) => [
+	index('chat_sessions_restaurant_idx').on(t.restaurantId),
+]);
 
 export const chatMessages = pgTable('chat_messages', {
 	id:           serial('id').primaryKey(),
@@ -373,6 +386,19 @@ export const chatMessages = pgTable('chat_messages', {
 	index('idx_chat_messages_session').on(t.sessionId),
 ]);
 
+export const metricSamples = pgTable('metric_samples', {
+	id:        bigserial('id', { mode: 'number' }).primaryKey(),
+	name:      text('name').notNull(),
+	label:     text('label'),
+	at:        timestamp('at', { withTimezone: true }).notNull().defaultNow(),
+	count:     integer('count').notNull().default(1),
+	sum:       doublePrecision('sum').notNull().default(0),
+	min:       doublePrecision('min'),
+	max:       doublePrecision('max'),
+}, (t) => [
+	index('metric_samples_name_at_idx').on(t.name, t.at),
+]);
+
 export const llmUsageLog = pgTable('llm_usage_log', {
 	id:               serial('id').primaryKey(),
 	restaurantId:     uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
@@ -381,6 +407,7 @@ export const llmUsageLog = pgTable('llm_usage_log', {
 	outputTokens:     integer('output_tokens').notNull().default(0),
 	estimatedCostUsd: numeric('estimated_cost_usd', { precision: 12, scale: 8 }).notNull().default('0'),
 	callerContext:    text('caller_context'),
+	durationMs:       integer('duration_ms'),
 	createdAt:        timestamp('created_at', { withTimezone: true }).defaultNow(),
 }, (t) => [
 	index('llm_usage_log_restaurant_month').on(t.restaurantId, t.createdAt),
@@ -426,6 +453,7 @@ export const idempotencyKeys = pgTable('idempotency_keys', {
 }, (t) => [
 	primaryKey({ columns: [t.scope, t.key] }),
 	index('idx_idempotency_keys_claimed').on(t.claimedAt),
+	index('idempotency_keys_restaurant_idx').on(t.restaurantId),
 ]);
 
 export const waitlist = pgTable('waitlist', {
@@ -454,7 +482,11 @@ export const uploadBatches = pgTable('upload_batches', {
 	id:           uuid('id').primaryKey().default(sql`gen_random_uuid()`),
 	restaurantId: uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
 	createdAt:    timestamp('created_at', { withTimezone: true }).defaultNow(),
-});
+}, (t) => [
+	index('upload_batches_restaurant_idx').on(t.restaurantId, t.createdAt),
+]);
+
+export type DiscardReason = 'user_rejected' | 'composite_source' | 'duplicate_number';
 
 export const batchItems = pgTable('batch_items', {
 	id:              uuid('id').primaryKey().default(sql`gen_random_uuid()`),
@@ -469,16 +501,20 @@ export const batchItems = pgTable('batch_items', {
 	extractError:    text('extract_error'),
 	extractErrorVars: jsonb('extract_error_vars').$type<Record<string, string | number>>(),
 	queuedAt:        timestamp('queued_at', { withTimezone: true }),
+	extractedAt:     timestamp('extracted_at', { withTimezone: true }),
 	source:          text('source').notNull().default('web'),
 	sourceRef:       text('source_ref'),
 	jobCode:         text('job_code'),
 	reviewStatus:    text('review_status'),
+	discardedReason: text('discarded_reason').$type<DiscardReason>(),
 	createdAt:       timestamp('created_at', { withTimezone: true }).defaultNow(),
 	updatedAt:       timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (t) => [
 	index('batch_items_batch_id_idx').on(t.batchId),
+	index('batch_items_restaurant_status_idx').on(t.restaurantId, t.status),
 	index('batch_items_updated_at_idx').on(t.updatedAt),
 	index('batch_items_queued_at_idx').on(t.queuedAt),
+	index('batch_items_extracted_at_idx').on(t.extractedAt),
 	uniqueIndex('batch_items_job_code_unique').on(t.jobCode)
 		.where(sql`${t.reviewStatus} is null or ${t.reviewStatus} = 'pending'`),
 	index('batch_items_source_ref_idx').on(t.sourceRef),
@@ -571,7 +607,7 @@ export const whatsappPairingCodes = pgTable('whatsapp_pairing_codes', {
 
 export const userConsents = pgTable('user_consents', {
 	id:            serial('id').primaryKey(),
-	userId:        text('user_id').notNull(),
+	userId:        uuid('user_id').notNull(),
 	policyVersion: text('policy_version').notNull(),
 	method:        text('method').notNull(),
 	acceptedAt:    timestamp('accepted_at', { withTimezone: true }).defaultNow(),
@@ -616,6 +652,7 @@ export const mrrSnapshots = pgTable('mrr_snapshots', {
 	uniqueIndex('mrr_snapshots_month_restaurant_unique').on(t.month, t.restaurantId),
 	index('mrr_snapshots_month_idx').on(t.month),
 	index('mrr_snapshots_paying_idx').on(t.restaurantId, t.month).where(sql`${t.mrrCents} > 0`),
+	index('mrr_snapshots_restaurant_idx').on(t.restaurantId),
 	check('mrr_snapshots_month_format', sql`${t.month} ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'`),
 ]);
 

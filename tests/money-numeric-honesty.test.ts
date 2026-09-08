@@ -52,17 +52,17 @@ describeDb('sql<number> money aggregates return real numbers, not strings (issue
 	it('control: an uncast numeric SUM comes back as a string from postgres.js', async () => {
 		const sqlRow = (await testSql`
 			SELECT COALESCE(SUM(total_amount), 0) AS total FROM invoices WHERE restaurant_id = ${restaurantId}
-		`)[0]!;
-		expect(typeof sqlRow.total).toBe('string');
-		expect(sqlRow.total).toBe('99.99');
+		`;
+		expect(typeof row!.total).toBe('string');
+		expect(row!.total).toBe('99.99');
 	});
 
 	it('fixed: the same SUM cast ::float8 comes back as a real number', async () => {
 		const float8Row = (await testSql`
 			SELECT COALESCE(SUM(total_amount), 0)::float8 AS total FROM invoices WHERE restaurant_id = ${restaurantId}
-		`)[0]!;
-		expect(typeof float8Row.total).toBe('number');
-		expect(float8Row.total).toBe(99.99);
+		`;
+		expect(typeof row!.total).toBe('number');
+		expect(row!.total).toBe(99.99);
 	});
 
 	it('supplierTotalSpendExpr() (suppliers list "total_spend") returns a real number', async () => {
@@ -71,9 +71,9 @@ describeDb('sql<number> money aggregates return real numbers, not strings (issue
 			.from(suppliers)
 			.leftJoin(invoices, eq(invoices.supplierId, suppliers.id))
 			.where(eq(suppliers.id, supplierId))
-			.groupBy(suppliers.id))[0]!;
-		expect(typeof row.total).toBe('number');
-		expect(row.total).toBe(99.99);
+			.groupBy(suppliers.id);
+		expect(typeof row!.total).toBe('number');
+		expect(row!.total).toBe(99.99);
 	});
 
 	it('lineAmountExpr() aggregate (dashboard/trend category spend) returns a real number when cast ::float8', async () => {
@@ -81,7 +81,7 @@ describeDb('sql<number> money aggregates return real numbers, not strings (issue
 			.select({ amount: sql<number>`COALESCE(SUM(${lineAmountExpr()}), 0)::float8` })
 			.from(invoiceLineItems)
 			.where(eq(invoiceLineItems.restaurantId, restaurantId));
-		expect(typeof row.amount).toBe('number');
-		expect(row.amount).toBe(99.99);
+		expect(typeof row!.amount).toBe('number');
+		expect(row!.amount).toBe(99.99);
 	});
 });

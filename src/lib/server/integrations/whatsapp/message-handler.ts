@@ -155,11 +155,12 @@ async function dispatchMessage(
 	restaurantId: string,
 	ctx: WhatsAppMessageContext,
 	committed: CommitFlag,
+	requestId?: string,
 ): Promise<void> {
 	if (msg.type === 'image' && msg.image) {
-		await handleMediaUpload(from, restaurantId, msg.image, ctx, committed);
+		await handleMediaUpload(from, restaurantId, msg.image, ctx, committed, requestId);
 	} else if (msg.type === 'document' && msg.document) {
-		await handleMediaUpload(from, restaurantId, msg.document, ctx, committed);
+		await handleMediaUpload(from, restaurantId, msg.document, ctx, committed, requestId);
 	} else if (msg.type === 'text' && msg.text) {
 		await handleTextReply(from, msg.text.body, ctx);
 	} else {
@@ -174,6 +175,7 @@ async function routeMessage(
 	msg: WhatsAppInboundMessage,
 	ctx: WhatsAppMessageContext,
 	committed: CommitFlag,
+	requestId?: string,
 ): Promise<void> {
 	const restaurantId = await resolveRestaurantId(msg.from);
 	if (!restaurantId) {
@@ -207,13 +209,14 @@ async function routeMessage(
 				return;
 			}
 		}
-		await dispatchMessage(msg, msg.from, restaurantId, ctx, committed);
+		await dispatchMessage(msg, msg.from, restaurantId, ctx, committed, requestId);
 	});
 }
 
 export async function handleInboundMessage(
 	msg: WhatsAppInboundMessage,
 	ctx: WhatsAppMessageContext,
+	requestId?: string,
 ): Promise<void> {
 	if (!(await claimMessageId(msg.id))) {
 		console.info(`[whatsapp-bot] duplicate message ${msg.id} — skipping`);
@@ -222,7 +225,7 @@ export async function handleInboundMessage(
 
 	const committed: CommitFlag = { value: false };
 	try {
-		await routeMessage(msg, ctx, committed);
+		await routeMessage(msg, ctx, committed, requestId);
 	} catch (err) {
 		if (!committed.value && msg.id) {
 			await releaseIdempotencyKey(WHATSAPP_SCOPE, msg.id)

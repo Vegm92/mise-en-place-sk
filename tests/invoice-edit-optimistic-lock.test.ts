@@ -13,6 +13,7 @@
  * DB-backed; the db singleton is swapped for the test client. Skipped
  * without DATABASE_URL.
  */
+import { randomUUID } from 'node:crypto';
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { isRedirect } from '@sveltejs/kit';
 
@@ -29,7 +30,7 @@ import {
 import { saveReviewedInvoice } from '../src/lib/server/invoice-save';
 
 let rid = '';
-const USER_ID = 'user-495';
+const USER_ID = randomUUID();
 const SUPPLIER = '__inv_lock_sup__';
 
 function lineForm(fields: Record<string, string>, total: string): FormData {
@@ -66,7 +67,7 @@ async function createInvoice(tag: string, total: string): Promise<number> {
 	const out = await saveReviewedInvoice(
 		null,
 		lineForm({ invoice_number: `INV-495-${tag}`, low_confidence_ack: 'true' }, total),
-		rid
+		rid, USER_ID
 	);
 	expect(out.type).toBe('saved');
 	return (out as { invoiceId: number }).invoiceId;

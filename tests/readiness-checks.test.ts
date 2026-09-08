@@ -122,7 +122,7 @@ describe('Extraction queue depth', () => {
 });
 
 describe('Extraction 24h', () => {
-	const base = { windowHours: 24, timed: 10, p50Seconds: 20, p95Seconds: 60 };
+	const base = { windowHours: 24, timed: 10, p50Seconds: 20, p95Seconds: 60, userRejected: 0, reviewed: 0, rejectionRate: null };
 	it('is ok above 90 % success, warns below, errors below 50 % once there is a sample', () => {
 		expect(extractionStatsCheck({ ...base, total: 20, succeeded: 19, failed: 1, successRate: 0.95 }).status).toBe('ok');
 		expect(extractionStatsCheck({ ...base, total: 20, succeeded: 16, failed: 4, successRate: 0.8 }).status).toBe('warn');

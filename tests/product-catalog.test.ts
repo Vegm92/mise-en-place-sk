@@ -12,7 +12,8 @@ import {
 	createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
 import {
-	resolveLineProducts, confirmProductAlias, rejectProductAlias, mergeIntoProduct, FUZZY_THRESHOLD,
+	resolveLineProducts, previewLineProducts, confirmProductAlias, rejectProductAlias, mergeIntoProduct,
+	FUZZY_THRESHOLD, FUZZY_AUTO_MERGE_THRESHOLD, createManualAlias, deleteProductAlias,
 	loadCatalogYoyChangeMap, listCatalogForExport,
 } from '../src/lib/server/products';
 import { sortProducts } from '../src/lib/product-filters';
@@ -141,8 +142,8 @@ describe.skipIf(!hasDbEnv)('resolveLineProducts — pack info carried onto new p
 
 		const [packProd] = await testSql`
 			SELECT units_per_pack, base_unit FROM products WHERE restaurant_id = ${rid} AND id = ${r.productId}`;
-		expect(packProd!.units_per_pack).toBe(6);
-		expect(packProd!.base_unit).toBe('L');
+		expect(prod!.units_per_pack).toBe(6);
+		expect(prod!.base_unit).toBe('L');
 	});
 
 	it('leaves units_per_pack and base_unit null when the line has no derivable pack size', async () => {
@@ -154,8 +155,8 @@ describe.skipIf(!hasDbEnv)('resolveLineProducts — pack info carried onto new p
 
 		const [nullProd] = await testSql`
 			SELECT units_per_pack, base_unit FROM products WHERE restaurant_id = ${rid} AND id = ${r.productId}`;
-		expect(nullProd!.units_per_pack).toBeNull();
-		expect(nullProd!.base_unit).toBeNull();
+		expect(prod!.units_per_pack).toBeNull();
+		expect(prod!.base_unit).toBeNull();
 	});
 });
 
@@ -227,6 +228,125 @@ describe.skipIf(!hasDbEnv)('confirmProductAlias / rejectProductAlias', () => {
 	it('returns not_found for an unknown description', async () => {
 		const res = await confirmProductAlias(testDb, rid, 'Producto que no existe xyz');
 		expect(res).toEqual({ ok: false, reason: 'not_found' });
+	});
+});
+
+describe.skipIf(!hasDbEnv)('resolveLineProducts — borderline fuzzy stays unmerged (issue #814)', () => {
+	it('below FUZZY_AUTO_MERGE_THRESHOLD: creates its own product instead of merging into the candidate', async () => {
+		const base = await resolveLineProducts(testDb, rid, supplierId, [{ description: 'Tomate pera', unit: 'kg' }]);
+		const basePid = base.get('Tomate pera')!.productId;
+
+		const resolved = await resolveLineProducts(testDb, rid, supplierId, [{ description: 'Tomatito pera', unit: 'kg' }]);
+		const r = resolved.get('Tomatito pera')!;
+		expect(r.status).toBe('pending');
+		expect(r.productId).not.toBe(basePid); // NOT merged into the existing product
+		expect(r.suggestion?.candidateName).toBe('Tomate pera');
+		expect(r.suggestion?.candidateProductId).toBe(basePid);
+		expect(r.suggestion!.score).toBeGreaterThanOrEqual(FUZZY_THRESHOLD);
+		expect(r.suggestion!.score).toBeLessThan(FUZZY_AUTO_MERGE_THRESHOLD);
+
+		const [alias] = await testSql`
+			SELECT product_id, source, original_source, confirmed_at FROM product_aliases
+			WHERE restaurant_id = ${rid} AND raw_key = 'tomatito pera'`;
+		expect(alias!.product_id).toBe(r.productId); // aliased to its own new product, not the candidate
+		expect(alias!.source).toBe('exact');
+		expect(alias!.confirmed_at).not.toBeNull();
+
+		const [_r_] = await testSql`SELECT COUNT(*)::int AS count FROM products WHERE restaurant_id = ${rid}`;
+		expect(_r_!.count).toBe(2); // two distinct products, not one merged
+	});
+
+	it('a confident match (>= FUZZY_AUTO_MERGE_THRESHOLD) still auto-merges as before', async () => {
+		const base = await resolveLineProducts(testDb, rid, supplierId, [{ description: 'Tomate pera', unit: 'kg' }]);
+		const basePid = base.get('Tomate pera')!.productId;
+
+		const resolved = await resolveLineProducts(testDb, rid, supplierId, [{ description: 'Tomate pera roja', unit: 'kg' }]);
+		const r = resolved.get('Tomate pera roja')!;
+		expect(r.status).toBe('fuzzy');
+		expect(r.productId).toBe(basePid);
+		expect(r.suggestion!.score).toBeGreaterThanOrEqual(FUZZY_AUTO_MERGE_THRESHOLD);
+	});
+});
+
+describe.skipIf(!hasDbEnv)('previewLineProducts — borderline fuzzy (issue #814)', () => {
+	it('reports status "pending" with a candidate suggestion, without writing anything', async () => {
+		const base = await resolveLineProducts(testDb, rid, supplierId, [{ description: 'Tomate pera', unit: 'kg' }]);
+		const basePid = base.get('Tomate pera')!.productId;
+
+		const preview = await previewLineProducts(testDb, rid, supplierId, [{ description: 'Tomatito pera' }]);
+		const match = preview.find((m) => m.description === 'Tomatito pera')!;
+		expect(match.status).toBe('pending');
+		expect(match.productId).toBeNull();
+		expect(match.suggestion?.candidateName).toBe('Tomate pera');
+		expect(match.suggestion?.candidateProductId).toBe(basePid);
+
+		const [alias] = await testSql`SELECT id FROM product_aliases WHERE restaurant_id = ${rid} AND raw_key = 'tomatito pera'`;
+		expect(alias).toBeUndefined(); // preview never writes
+	});
+});
+
+describe.skipIf(!hasDbEnv)('manual alias configurator (issue #814)', () => {
+	it('createManualAlias points a raw text straight at a product', async () => {
+		const created = await resolveLineProducts(testDb, rid, supplierId, [{ description: 'Salmón fresco', unit: 'kg' }]);
+		const pid = created.get('Salmón fresco')!.productId;
+
+		const result = await createManualAlias(testDb, rid, pid, 'SALM. FRC. VIVERO');
+		expect(result).toEqual({ ok: true, productId: pid });
+
+		const [alias] = await testSql`
+			SELECT product_id, source, confirmed_at FROM product_aliases
+			WHERE restaurant_id = ${rid} AND raw_key = ${'salm. frc. vivero'}`;
+		expect(alias!.product_id).toBe(pid);
+		expect(alias!.source).toBe('user');
+		expect(alias!.confirmed_at).not.toBeNull();
+	});
+
+	it('createManualAlias repoints an existing alias when the raw text is already taken', async () => {
+		const a = await resolveLineProducts(testDb, rid, supplierId, [{ description: 'Producto A 814', unit: 'kg' }]);
+		const aPid = a.get('Producto A 814')!.productId;
+		const b = await resolveLineProducts(testDb, rid, supplierId, [{ description: 'Producto B 814', unit: 'kg' }]);
+		const bPid = b.get('Producto B 814')!.productId;
+
+		await createManualAlias(testDb, rid, aPid, 'texto compartido 814');
+		const result = await createManualAlias(testDb, rid, bPid, 'texto compartido 814');
+		expect(result).toEqual({ ok: true, productId: bPid });
+
+		const [alias] = await testSql`
+			SELECT product_id FROM product_aliases WHERE restaurant_id = ${rid} AND raw_key = 'texto compartido 814'`;
+		expect(alias!.product_id).toBe(bPid);
+	});
+
+	it('createManualAlias rejects a product from another tenant', async () => {
+		const other = await createTestRestaurant('prodcat814-other');
+		try {
+			const [otherProd] = await testSql`
+				INSERT INTO products (restaurant_id, canonical_name, name_key) VALUES (${other.id}, 'Ajeno', 'ajeno') RETURNING id`;
+			const result = await createManualAlias(testDb, rid, otherProd!.id, 'texto cualquiera');
+			expect(result).toEqual({ ok: false, reason: 'product_not_found' });
+		} finally {
+			await cleanupTestRestaurant(other.id);
+		}
+	});
+
+	it('deleteProductAlias removes the row, tenant-scoped', async () => {
+		const created = await resolveLineProducts(testDb, rid, supplierId, [{ description: 'Producto a borrar 814', unit: 'kg' }]);
+		const pid = created.get('Producto a borrar 814')!.productId;
+		const [alias] = await testSql`
+			SELECT id FROM product_aliases WHERE restaurant_id = ${rid} AND product_id = ${pid}`;
+
+		const other = await createTestRestaurant('prodcat814-del-other');
+		try {
+			const wrongTenant = await deleteProductAlias(testDb, other.id, alias!.id);
+			expect(wrongTenant).toEqual({ ok: false, reason: 'not_found' });
+
+			const result = await deleteProductAlias(testDb, rid, alias!.id);
+			expect(result).toEqual({ ok: true });
+
+			const gone = await testSql`SELECT id FROM product_aliases WHERE id = ${alias!.id}`;
+			expect(gone).toHaveLength(0);
+		} finally {
+			await cleanupTestRestaurant(other.id);
+		}
 	});
 });
 

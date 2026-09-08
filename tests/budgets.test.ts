@@ -40,7 +40,7 @@ afterAll(async () => {
 
 describe.skipIf(!hasDbEnv)('categoryBudgets — upsert and delete', () => {
 	it('inserts a budget for a VALID_CATEGORY', async () => {
-		const insertCat = VALID_CATEGORIES[0]!;
+		const cat = VALID_CATEGORIES[0]!;
 		await testDb.insert(categoryBudgets)
 			.values({ restaurantId: rid1, category: insertCat, month: MONTH, monthlyBudget: '1500.00' })
 			.onConflictDoUpdate({
@@ -51,12 +51,12 @@ describe.skipIf(!hasDbEnv)('categoryBudgets — upsert and delete', () => {
 		const insertRows = await testDb.select().from(categoryBudgets)
 			.where(and(eq(categoryBudgets.restaurantId, rid1), eq(categoryBudgets.category, insertCat)));
 
-		expect(insertRows).toHaveLength(1);
-		expect(insertRows[0]!.monthlyBudget).toBe('1500.00');
+		expect(rows).toHaveLength(1);
+		expect(rows[0]!.monthlyBudget).toBe('1500.00');
 	});
 
 	it('updates an existing budget via upsert', async () => {
-		const updateCat = VALID_CATEGORIES[0]!;
+		const cat = VALID_CATEGORIES[0]!;
 		await testDb.insert(categoryBudgets)
 			.values({ restaurantId: rid1, category: updateCat, month: MONTH, monthlyBudget: '2000.00' })
 			.onConflictDoUpdate({
@@ -67,8 +67,8 @@ describe.skipIf(!hasDbEnv)('categoryBudgets — upsert and delete', () => {
 		const updateRows = await testDb.select().from(categoryBudgets)
 			.where(and(eq(categoryBudgets.restaurantId, rid1), eq(categoryBudgets.category, updateCat)));
 
-		expect(updateRows).toHaveLength(1);
-		expect(updateRows[0]!.monthlyBudget).toBe('2000.00');
+		expect(rows).toHaveLength(1);
+		expect(rows[0]!.monthlyBudget).toBe('2000.00');
 	});
 
 	it('deletes a budget row when the amount is cleared', async () => {

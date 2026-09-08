@@ -11,6 +11,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { getTableName } from 'drizzle-orm';
+import * as v from 'valibot';
 
 const {
 	rateLimitMock, logAuthEventMock, verifyCredentialsMock,
@@ -67,6 +68,7 @@ vi.mock('$lib/server/db', () => {
 });
 
 import { actions } from '../src/routes/(app)/settings/+page.server';
+import { saveNameSchema, saveNameForUser } from '../src/routes/(app)/settings/save-name';
 
 const USER = { id: 'user-1', email: 'chef@example.com', name: null, image: null };
 
@@ -96,14 +98,14 @@ beforeEach(() => {
 
 describe('saveName', () => {
 	it('writes the display name to the users table', async () => {
-		const result = await actions.saveName!(formEvent({ name: '  Chef García  ' }));
+		const { name } = v.parse(saveNameSchema, { name: '  Chef García  ' });
+		const result = await saveNameForUser(name, USER.id);
 		expect(updatedRows).toEqual([{ name: 'Chef García' }]);
-		expect(result).toEqual({ section: 'name', ok: 'set.profile.ok.name' });
+		expect(result).toEqual({ ok: 'set.profile.ok.name' });
 	});
 
-	it('rejects an empty name', async () => {
-		const result = await actions.saveName!(formEvent({ name: '   ' }));
-		expect(result).toMatchObject({ status: 422, data: { error: 'set.profile.err.nameRequired' } });
+	it('rejects an empty name', () => {
+		expect(() => v.parse(saveNameSchema, { name: '   ' })).toThrow();
 	});
 });
 
@@ -130,16 +132,16 @@ describe('saveEmail', () => {
 
 	it('rate limits repeated attempts per account', async () => {
 		rateLimitMock.mockResolvedValueOnce(false);
-		const emailRateLimitResult = await actions.saveEmail!(formEvent({ email: 'new@example.com' }));
-		expect(emailRateLimitResult).toMatchObject({ status: 429, data: { error: 'set.profile.err.rateLimited' } });
+		const result = await actions.saveEmail!(formEvent({ email: 'new@example.com' }));
+		expect(result).toMatchObject({ status: 429, data: { error: 'set.profile.err.rateLimited' } });
 		expect(rateLimitMock).toHaveBeenCalledWith('email-change:user:user-1', 5);
 		expect(sendEmailMock).not.toHaveBeenCalled();
 	});
 
 	it('rate limits repeated attempts per target address', async () => {
 		rateLimitMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
-		const emailAddrRateResult = await actions.saveEmail!(formEvent({ email: 'new@example.com' }));
-		expect(emailAddrRateResult).toMatchObject({ status: 429, data: { error: 'set.profile.err.rateLimited' } });
+		const result = await actions.saveEmail!(formEvent({ email: 'new@example.com' }));
+		expect(result).toMatchObject({ status: 429, data: { error: 'set.profile.err.rateLimited' } });
 		expect(rateLimitMock).toHaveBeenCalledWith('email-change:address:new@example.com', 5);
 		expect(sendEmailMock).not.toHaveBeenCalled();
 	});
@@ -180,8 +182,8 @@ describe('changePassword', () => {
 
 	it('rate limits repeated attempts per account', async () => {
 		rateLimitMock.mockResolvedValueOnce(false);
-		const pwRateLimitResult = await actions.changePassword!(formEvent(good));
-		expect(pwRateLimitResult).toMatchObject({ status: 429, data: { error: 'set.profile.err.rateLimited' } });
+		const result = await actions.changePassword!(formEvent(good));
+		expect(result).toMatchObject({ status: 429, data: { error: 'set.profile.err.rateLimited' } });
 		expect(rateLimitMock).toHaveBeenCalledWith('password-change:user-1', 5);
 		expect(verifyCredentialsMock).not.toHaveBeenCalled();
 	});

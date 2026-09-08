@@ -11,18 +11,13 @@
  *
  * The DB-backed half skips without DATABASE_URL, like the other DB suites.
  */
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { randomUUID } from 'node:crypto';
+import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('../src/lib/server/db', async () => {
-	const { testDb } = await import('./helpers/test-db');
-	const { forTenant } = await import('../src/lib/server/tenant');
-	return { db: testDb, forTenant };
-});
+vi.mock('../src/lib/server/db', async () => (await import('./helpers/db-suite')).testDbModule());
 
-import {
-	testSql, closeDb,
-	createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
-} from './helpers/test-db';
+import { testSql, hasDbEnv } from './helpers/test-db';
+import { useTestRestaurant } from './helpers/test-restaurant';
 import { toIsoDate, isBlankOrIsoDate, toMonthKey } from '../src/lib/server/dates';
 import { saveReviewedInvoice } from '../src/lib/server/invoice-save';
 import type { BatchItem } from '../src/lib/server/batch';
@@ -69,13 +64,14 @@ describe('toMonthKey', () => {
 	});
 });
 
-let rid = '';
+const restaurant = useTestRestaurant('inv-dates');
+const UID = randomUUID();
 
 function fakeItem(): BatchItem {
 	return fakeBatchItem({
 		id: 'item-dates-1',
 		batchId: 'batch-dates-1',
-		restaurantId: rid,
+		restaurantId: restaurant.id,
 	});
 }
 
@@ -96,24 +92,12 @@ function form(opts: { invoiceNumber: string; invoiceDate?: string; dueDate?: str
 	return fd;
 }
 
-beforeAll(async () => {
-	if (!hasDbEnv) return;
-	const r = await createTestRestaurant('inv-dates');
-	rid = r.id;
-});
-
-afterAll(async () => {
-	if (!hasDbEnv) return;
-	if (rid) await cleanupTestRestaurant(rid);
-	await closeDb();
-});
-
 describe.skipIf(!hasDbEnv)('invoice date write boundary', () => {
 	it('rejects a non-ISO invoice_date and writes nothing', async () => {
-		const outcome = await saveReviewedInvoice(fakeItem(), form({ invoiceNumber: 'DATE-BAD-1', invoiceDate: '05/01/2026' }), rid);
+		const outcome = await saveReviewedInvoice(fakeItem(), form({ invoiceNumber: 'DATE-BAD-1', invoiceDate: '05/01/2026' }), restaurant.id, UID);
 		expect(outcome).toEqual({ type: 'invalidDate', field: 'invoice_date' });
 
-		const rows = await testSql`SELECT id FROM invoices WHERE restaurant_id = ${rid} AND invoice_number = 'DATE-BAD-1'`;
+		const rows = await testSql`SELECT id FROM invoices WHERE restaurant_id = ${restaurant.id} AND invoice_number = 'DATE-BAD-1'`;
 		expect(rows).toHaveLength(0);
 	});
 
@@ -121,11 +105,11 @@ describe.skipIf(!hasDbEnv)('invoice date write boundary', () => {
 		const outcome = await saveReviewedInvoice(
 			fakeItem(),
 			form({ invoiceNumber: 'DATE-BAD-2', invoiceDate: '2026-01-05', dueDate: '2026-1-5' }),
-			rid
+			restaurant.id, UID
 		);
 		expect(outcome).toEqual({ type: 'invalidDate', field: 'due_date' });
 
-		const rows = await testSql`SELECT id FROM invoices WHERE restaurant_id = ${rid} AND invoice_number = 'DATE-BAD-2'`;
+		const rows = await testSql`SELECT id FROM invoices WHERE restaurant_id = ${restaurant.id} AND invoice_number = 'DATE-BAD-2'`;
 		expect(rows).toHaveLength(0);
 	});
 
@@ -133,7 +117,7 @@ describe.skipIf(!hasDbEnv)('invoice date write boundary', () => {
 		const outcome = await saveReviewedInvoice(
 			fakeItem(),
 			form({ invoiceNumber: 'DATE-OK-1', invoiceDate: '2026-01-05', dueDate: '2026-02-04' }),
-			rid
+			restaurant.id, UID
 		);
 		expect(outcome.type).toBe('saved');
 
@@ -145,19 +129,19 @@ describe.skipIf(!hasDbEnv)('invoice date write boundary', () => {
 
 		const [row] = await testSql`
 			SELECT invoice_date::text AS invoice_date, due_date::text AS due_date FROM invoices
-			WHERE restaurant_id = ${rid} AND invoice_number = 'DATE-OK-1'
+			WHERE restaurant_id = ${restaurant.id} AND invoice_number = 'DATE-OK-1'
 		`;
 		expect(row!.invoice_date).toBe('2026-01-05');
 		expect(row!.due_date).toBe('2026-02-04');
 	});
 
 	it('orders by calendar date, not by string', async () => {
-		await saveReviewedInvoice(fakeItem(), form({ invoiceNumber: 'DATE-OK-2', invoiceDate: '2026-12-01' }), rid);
-		await saveReviewedInvoice(fakeItem(), form({ invoiceNumber: 'DATE-OK-3', invoiceDate: '2027-01-05' }), rid);
+		await saveReviewedInvoice(fakeItem(), form({ invoiceNumber: 'DATE-OK-2', invoiceDate: '2026-12-01' }), restaurant.id, UID);
+		await saveReviewedInvoice(fakeItem(), form({ invoiceNumber: 'DATE-OK-3', invoiceDate: '2027-01-05' }), restaurant.id, UID);
 
 		const rows = await testSql<{ invoice_number: string }[]>`
 			SELECT invoice_number FROM invoices
-			WHERE restaurant_id = ${rid} AND invoice_number IN ('DATE-OK-1', 'DATE-OK-2', 'DATE-OK-3')
+			WHERE restaurant_id = ${restaurant.id} AND invoice_number IN ('DATE-OK-1', 'DATE-OK-2', 'DATE-OK-3')
 			ORDER BY invoice_date ASC
 		`;
 		expect(rows.map((r) => r.invoice_number))
@@ -166,7 +150,7 @@ describe.skipIf(!hasDbEnv)('invoice date write boundary', () => {
 
 	it('refuses a non-ISO date at the database level too', async () => {
 		await expect(
-			testSql`UPDATE invoices SET invoice_date = '2026-13-45' WHERE restaurant_id = ${rid} AND invoice_number = 'DATE-OK-1'`
+			testSql`UPDATE invoices SET invoice_date = '2026-13-45' WHERE restaurant_id = ${restaurant.id} AND invoice_number = 'DATE-OK-1'`
 		).rejects.toThrow();
 	});
 });
@@ -174,13 +158,13 @@ describe.skipIf(!hasDbEnv)('invoice date write boundary', () => {
 describe.skipIf(!hasDbEnv)('month key constraints', () => {
 	it('rejects a malformed month on category_budgets', async () => {
 		await expect(
-			testSql`INSERT INTO category_budgets (restaurant_id, category, month, monthly_budget) VALUES (${rid}, 'test', '2026-1', 100)`
+			testSql`INSERT INTO category_budgets (restaurant_id, category, month, monthly_budget) VALUES (${restaurant.id}, 'test', '2026-1', 100)`
 		).rejects.toThrow();
 	});
 
 	it('accepts a well-formed month', async () => {
-		await testSql`INSERT INTO category_budgets (restaurant_id, category, month, monthly_budget) VALUES (${rid}, 'test', '2026-01', 100)`;
-		const rows = await testSql`SELECT month FROM category_budgets WHERE restaurant_id = ${rid}`;
+		await testSql`INSERT INTO category_budgets (restaurant_id, category, month, monthly_budget) VALUES (${restaurant.id}, 'test', '2026-01', 100)`;
+		const rows = await testSql`SELECT month FROM category_budgets WHERE restaurant_id = ${restaurant.id}`;
 		expect(rows).toHaveLength(1);
 	});
 });

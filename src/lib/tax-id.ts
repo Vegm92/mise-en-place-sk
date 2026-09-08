@@ -40,12 +40,26 @@ export function isValidSpanishTaxId(value: string | null | undefined): boolean {
 	if (NIE_RE.test(id)) return id[8] === personalControlLetter((NIE_PREFIX[id[0] ?? ''] ?? '') + id.slice(1, 8));
 	if (!CIF_RE.test(id)) return false;
 
-	const kind = id[0]!;
-	const control = id[8]!;
-	const expected = cifControlDigit(id.slice(1, 8));
-	if (CIF_LETTER_ONLY.includes(kind)) return control === (CIF_CONTROL_LETTERS[expected] ?? '');
-	if (CIF_DIGIT_ONLY.includes(kind)) return control === String(expected);
-	return control === String(expected) || control === (CIF_CONTROL_LETTERS[expected] ?? '');
+	let res = false;
+	if (DNI_RE.test(id)) {
+		res = id[8] === personalControlLetter(id.slice(0, 8));
+	} else if (NIE_RE.test(id)) {
+		res = id[8] === personalControlLetter((NIE_PREFIX[id[0] ?? ''] ?? '') + id.slice(1, 8));
+	} else if (CIF_RE.test(id)) {
+		const kind = id[0]!;
+		const control = id[8]!;
+		const expected = cifControlDigit(id.slice(1, 8));
+		if (CIF_LETTER_ONLY.includes(kind)) {
+			res = control === (CIF_CONTROL_LETTERS[expected] ?? '');
+		} else if (CIF_DIGIT_ONLY.includes(kind)) {
+			res = control === String(expected);
+		} else {
+			res = control === String(expected) || control === (CIF_CONTROL_LETTERS[expected] ?? '');
+		}
+	}
+
+	validTaxIdCache.set(value, res);
+	return res;
 }
 
 export const MIN_TAX_ID_MATCH_CONFIDENCE = 0.85;

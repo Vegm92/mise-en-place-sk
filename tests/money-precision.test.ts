@@ -50,8 +50,12 @@ describe.skipIf(!hasDbEnv)('numeric(12,2) — large invoice round-trip', () => {
 
 		const [readA] = await testDb.select({ totalAmount: invoices.totalAmount })
 			.from(invoices)
-			.where(eq(invoices.id, rowA!.id));
-		expect(readA!.totalAmount).toBe('123456.78');
+			.where(eq(invoices.id, row!.id));
+
+		// float4 (the pre-migration `real` type) cannot hold this value's cents
+		// exactly above ~6-7 significant digits — this asserts the exact string
+		// survives, not an approximation.
+		expect(read!.totalAmount).toBe('123456.78');
 	});
 
 	it('stores and reads back a value beyond float4 precision (€1,234,567.89)', async () => {
@@ -66,8 +70,9 @@ describe.skipIf(!hasDbEnv)('numeric(12,2) — large invoice round-trip', () => {
 
 		const [readB] = await testDb.select({ totalAmount: invoices.totalAmount })
 			.from(invoices)
-			.where(eq(invoices.id, rowB!.id));
-		expect(readB!.totalAmount).toBe('1234567.89');
+			.where(eq(invoices.id, row!.id));
+
+		expect(read!.totalAmount).toBe('1234567.89');
 	});
 });
 

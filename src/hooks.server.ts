@@ -24,6 +24,8 @@ import { checkRateLimit } from '$lib/server/rate-limiter';
 import { currentLocale, rememberCurrentLocale } from '$lib/server/locale';
 import { requestedLocale } from '$lib/locale-url';
 import { startWorkerLivenessMonitor } from '$lib/server/worker-liveness-monitor';
+import { resolveRequestId } from '$lib/server/request-id';
+import { METRIC_ROUTE_LATENCY, observe, startMetricFlush } from '$lib/server/metrics';
 
 assertProductionEnv();
 validateAdminSeedConfig();
@@ -66,6 +68,7 @@ if (addressWarning) console.warn(addressWarning);
 cleanupStaleBatches().catch(e => { if (!isNetworkUnreachable(e)) console.error('[hooks] batch cleanup error:', e); });
 seedAdminUser().catch(e => { if (!isNetworkUnreachable(e)) console.error('[hooks] seed error:', e); });
 startWorkerLivenessMonitor();
+startMetricFlush();
 
 async function resolveMembership(event: RequestEvent, user: NonNullable<App.Locals['user']>) {
 	const activeCookie = event.cookies.get('active_restaurant');
@@ -184,10 +187,12 @@ async function applyLocalsForUser(
 	return { userApproved, accessOpen };
 }
 
-function applySentryContext(user: App.Locals['user'], restaurantId: string | null): void {
+function applySentryContext(user: App.Locals['user'], restaurantId: string | null, requestId: string): void {
 	if (user) {
 		Sentry.getCurrentScope().setUser({ id: user.id });
 	}
+
+	Sentry.getCurrentScope().setTag('requestId', requestId);
 
 	if (restaurantId) {
 		Sentry.getCurrentScope().setTag('restaurantId', restaurantId);
@@ -259,6 +264,7 @@ function applySecurityHeaders(path: string, response: Response, event: RequestEv
 	response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
 	response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
 	response.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
+	response.headers.set('X-Request-Id', event.locals.requestId);
 
 	if (event.route.id !== null) applyPrivateCacheHeaders(response.headers);
 
@@ -271,12 +277,10 @@ function applyLocale(event: RequestEvent): void {
 	if (requestedLocale(event.url)) rememberCurrentLocale(locale);
 }
 
-const appHandle: Handle = async ({ event, resolve }) => {
+const routeApp: Handle = async ({ event, resolve }) => {
 	const path = event.url.pathname;
 
-	if (isBypassPath(path)) {
-		return resolve(event);
-	}
+	event.locals.requestId = resolveRequestId(event);
 
 	applyLocale(event);
 
@@ -296,7 +300,7 @@ const appHandle: Handle = async ({ event, resolve }) => {
 
 	const { userApproved, accessOpen } = await applyLocalsForUser(event, user);
 
-	applySentryContext(user, event.locals.restaurantId);
+	applySentryContext(user, event.locals.restaurantId, event.locals.requestId);
 
 	enforceAdminRedirect(path, user);
 
@@ -315,6 +319,18 @@ const appHandle: Handle = async ({ event, resolve }) => {
 	const response = await resolveWithContext(event, path, resolveWithLocale);
 
 	return applySecurityHeaders(path, response, event);
+};
+
+const appHandle: Handle = async (input) => {
+	const { event, resolve } = input;
+	if (isBypassPath(event.url.pathname)) return resolve(event);
+
+	const startedAt = Date.now();
+	try {
+		return await routeApp(input);
+	} finally {
+		observe(METRIC_ROUTE_LATENCY, Date.now() - startedAt, event.route.id ?? '(unmatched)');
+	}
 };
 
 export const handle: Handle = sequence(Sentry.sentryHandle(), authHandle, appHandle, entitlementHandle);

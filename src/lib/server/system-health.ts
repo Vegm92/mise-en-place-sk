@@ -16,8 +16,8 @@ import { dbRoleDetail, readDbRole, type DbRoleInfo } from './db-role';
 import { describeMigrationState, migrationState, type MigrationState } from './migration-state';
 import { envGaps, type EnvGaps } from './env-report';
 import {
-	extractionQueueDepth, extractionStats, jobFailureStats, pendingAccessCount, stripeWebhookFreshness,
-	type ExtractionStats, type JobFailureStats, type QueueDepth, type StripeWebhookFreshness,
+	extractionQueueDepth, extractionStats, jobFailureStats, pendingAccessCount, reviewBacklog, stripeWebhookFreshness,
+	type ExtractionStats, type JobFailureStats, type QueueDepth, type ReviewBacklog, type StripeWebhookFreshness,
 } from './pipeline-stats';
 import { probeGemini, probeResend, probeStripe, probeWhatsAppCloud, type ProbeResult } from './external-probes';
 import { getFlag } from './app-flags';
@@ -40,6 +40,8 @@ const EXTRACTION_P95_WARN_SECONDS = 300;
 const JOB_FAILURE_WARN = 0.05;
 const JOB_FAILURE_ERROR = 0.25;
 const QUEUE_OLDEST_WARN_SECONDS = 120;
+const REVIEW_BACKLOG_WARN_HOURS = 72;
+const REVIEW_BACKLOG_ERROR_HOURS = 168;
 const STRIPE_WEBHOOK_SILENCE_WARN_DAYS = 7;
 
 export type HealthStatus = 'ok' | 'warn' | 'error';
@@ -96,6 +98,7 @@ export interface SystemHealth {
 	sentry: { configured: boolean; unresolved: number; critical: number; events24h: number };
 	queue: { stuck: number; lastExtraction: string | null; depth: QueueDepth | null };
 	extraction: ExtractionStats | null;
+	reviewBacklog: ReviewBacklog | null;
 	jobs: JobFailureStats | null;
 	scheduledJobs: ScheduledJobHealth;
 	worker: WorkerLiveness;
@@ -300,6 +303,28 @@ async function checkExtractionQueue(): Promise<{ checks: HealthCheck[]; stuck: n
 	}
 }
 
+export function reviewBacklogCheck(backlog: ReviewBacklog): HealthCheck {
+	const oldest = backlog.oldestAgeHours;
+	let status: HealthStatus = 'ok';
+	if (oldest !== null && oldest >= REVIEW_BACKLOG_ERROR_HOURS) status = 'error';
+	else if (oldest !== null && oldest >= REVIEW_BACKLOG_WARN_HOURS) status = 'warn';
+	const oldestLabel = formatSeconds(oldest === null ? null : oldest * 3600);
+	const detail = backlog.items === 0
+		? 'No extracted documents waiting for review'
+		: `${backlog.items} awaiting review across ${backlog.tenants} tenant(s) · oldest ${oldestLabel} · ` +
+			`${backlog.staleItems} older than ${backlog.staleAfterHours}h in ${backlog.staleTenants} tenant(s)`;
+	return { name: 'Review backlog', status, detail };
+}
+
+async function checkReviewBacklog(): Promise<{ checks: HealthCheck[]; backlog: ReviewBacklog | null }> {
+	try {
+		const backlog = await reviewBacklog();
+		return { backlog, checks: [reviewBacklogCheck(backlog)] };
+	} catch (e) {
+		return { backlog: null, checks: [failedCheck('Review backlog', e)] };
+	}
+}
+
 export function extractionStatsCheck(stats: ExtractionStats): HealthCheck {
 	let status: HealthStatus = 'ok';
 	if (stats.total >= EXTRACTION_MIN_SAMPLE && stats.successRate !== null) {
@@ -307,9 +332,12 @@ export function extractionStatsCheck(stats: ExtractionStats): HealthCheck {
 		else if (stats.successRate < EXTRACTION_SUCCESS_WARN) status = 'warn';
 	}
 	if (status === 'ok' && stats.p95Seconds !== null && stats.p95Seconds > EXTRACTION_P95_WARN_SECONDS) status = 'warn';
+	const rejection = stats.reviewed > 0
+		? ` · ${percent(stats.rejectionRate)} rejected (${stats.userRejected}/${stats.reviewed} reviewed)`
+		: '';
 	const detail = stats.total === 0
 		? `No extractions finished in the last ${stats.windowHours} h`
-		: `${percent(stats.successRate)} success (${stats.succeeded}/${stats.total}) · p50 ${formatSeconds(stats.p50Seconds)} · p95 ${formatSeconds(stats.p95Seconds)} (${stats.timed} timed)`;
+		: `${percent(stats.successRate)} success (${stats.succeeded}/${stats.total}) · p50 ${formatSeconds(stats.p50Seconds)} · p95 ${formatSeconds(stats.p95Seconds)} (${stats.timed} timed)${rejection}`;
 	return { name: `Extraction ${stats.windowHours}h`, status, detail };
 }
 
@@ -592,17 +620,19 @@ export async function runSystemChecks(): Promise<SystemHealth> {
 	let dbRole: DbRoleInfo | null = null;
 	let migrations: MigrationState | null = null;
 	let extraction: ExtractionStats | null = null;
+	let backlog: ReviewBacklog | null = null;
 	let jobs: JobFailureStats | null = null;
 	let stripeWebhooks: StripeWebhookFreshness | null = null;
 	let pendingAccess = 0;
 
 	if (db_.ok) {
-		const [role, mig, heartbeat, queue, stats, jobStats, deadLetter, scheduled, stripeHooks, access, wa, transport] = await Promise.all([
+		const [role, mig, heartbeat, queue, stats, review, jobStats, deadLetter, scheduled, stripeHooks, access, wa, transport] = await Promise.all([
 			checkDbRole(),
 			checkMigrations(),
 			checkWorkerHeartbeat(),
 			checkExtractionQueue(),
 			checkExtractionStats(),
+			checkReviewBacklog(),
 			checkJobs(),
 			checkDeadLetterQueue(),
 			checkScheduledJobs(),
@@ -612,7 +642,7 @@ export async function runSystemChecks(): Promise<SystemHealth> {
 			checkWhatsAppTransport(),
 		]);
 		checks.push(
-			...role.checks, ...mig.checks, ...heartbeat.checks, ...queue.checks, ...stats.checks, ...jobStats.checks,
+			...role.checks, ...mig.checks, ...heartbeat.checks, ...queue.checks, ...stats.checks, ...review.checks, ...jobStats.checks,
 			...deadLetter.checks, ...scheduled.checks, ...stripeHooks.checks, ...access.checks, ...wa.checks, ...transport,
 		);
 		dbRole = role.dbRole;
@@ -622,6 +652,7 @@ export async function runSystemChecks(): Promise<SystemHealth> {
 		lastExtraction = queue.lastExtraction;
 		depth = queue.depth;
 		extraction = stats.extraction;
+		backlog = review.backlog;
 		jobs = jobStats.jobs;
 		pendingDeadLetters = deadLetter.pending;
 		scheduledJobs = scheduled.detail;
@@ -648,6 +679,7 @@ export async function runSystemChecks(): Promise<SystemHealth> {
 		sentry: { configured: isSentryConfigured(), unresolved: sentry.unresolved, critical: sentry.critical, events24h: sentry.events24h },
 		queue: { stuck, lastExtraction, depth },
 		extraction,
+		reviewBacklog: backlog,
 		jobs,
 		scheduledJobs,
 		worker,

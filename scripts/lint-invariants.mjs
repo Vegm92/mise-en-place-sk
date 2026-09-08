@@ -24,6 +24,20 @@ const SCOPE_OK = new RegExp(`(?:${PROJECT_DIRECTIVES.join('|')}):`);
  */
 const FORM_GET_CAST_ALLOWLIST = new Set([]);
 
+/**
+ * Ratcheting allowlist for the `json-body-schema` gate below (issue #1006):
+ * the `+server.ts` files that still read `await request.json()` directly
+ * instead of parsing the body with a declared valibot schema. A hand-rolled
+ * body check is not machine-readable, so the shape drifts silently and each
+ * handler picks its own 400/422 (issue #1005). New occurrences fail the gate;
+ * an existing offender is removed from the list in the same PR that converts
+ * it (see src/lib/server/public-form-action.ts's `parseJson`, and
+ * src/routes/(app)/api/stock-levels/+server.ts for the converted shape). The
+ * webhook routes are not here because they read `request.text()` — the raw
+ * bytes are what the signature covers.
+ */
+const JSON_BODY_SCHEMA_ALLOWLIST = new Set([]);
+
 const GATES = {
 	'no-sql-raw': {
 		roots: ['src'],
@@ -50,6 +64,18 @@ const GATES = {
 			'  publicFormAction() options (src/lib/server/public-form-action.ts) or call its `parseForm()`\n' +
 			'  directly, following src/routes/signup/+page.server.ts (issue #844). To shrink the allowlist,\n' +
 			'  convert one of its files and remove that file\'s entry from FORM_GET_CAST_ALLOWLIST above.'
+	},
+	'json-body-schema': {
+		roots: ['src/routes'],
+		extensions: ['.ts'],
+		pattern: /\brequest\.json\(\)/,
+		exclude: (filePath) => path.basename(filePath) !== '+server.ts',
+		allowlist: JSON_BODY_SCHEMA_ALLOWLIST,
+		message: 'await request.json() in a +server.ts hand-validates the body — the shape is not\n' +
+			'  machine-readable, so it drifts silently and every handler invents its own status code\n' +
+			'  (issues #1005/#1006). Declare a valibot schema and parse it with parseJson(schema, request)\n' +
+			'  from src/lib/server/public-form-action.ts, then return invalidBody(parsed, status) from\n' +
+			'  src/lib/server/api-response.ts. Follow src/routes/(app)/api/stock-levels/+server.ts.'
 	}
 };
 

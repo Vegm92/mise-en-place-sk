@@ -14,34 +14,30 @@
  * DB-backed; the db singleton is swapped for the test client (ssl:'require'
  * in db.ts does not speak to local Postgres). Skipped without DATABASE_URL.
  */
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { randomUUID } from 'node:crypto';
+import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('../src/lib/server/db', async () => {
-	const { testDb } = await import('./helpers/test-db');
-	const { forTenant } = await import('../src/lib/server/tenant');
-	return { db: testDb, forTenant };
-});
+vi.mock('../src/lib/server/db', async () => (await import('./helpers/db-suite')).testDbModule());
 
 vi.mock('../src/lib/server/alerts', async () => {
 	const actual = await vi.importActual<typeof import('../src/lib/server/alerts')>('../src/lib/server/alerts');
 	return { ...actual, runBudgetCheck: vi.fn(actual.runBudgetCheck) };
 });
 
-import {
-	testSql, closeDb,
-	createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
-} from './helpers/test-db';
-import { saveReviewedInvoice, productCorrectionRows } from '../src/lib/server/invoice-save';
+import { testSql, testDb, hasDbEnv } from './helpers/test-db';
+import { useTestRestaurant } from './helpers/test-restaurant';
+import { productCorrectionRows } from '../src/lib/server/invoice-save';
 import { previewLineProducts } from '../src/lib/server/products';
 import { runBudgetCheck } from '../src/lib/server/alerts';
-import { testDb } from './helpers/test-db';
 import type { BatchItem } from '../src/lib/server/batch';
 import { fakeBatchItem } from './helpers/batch-item';
+import { saveInvoiceOrThrow } from './helpers/invoice-save-form';
 
-let rid = '';
+const restaurant = useTestRestaurant('inv-corr');
+const UID = randomUUID();
 
 const fakeItem = (extractedData: Record<string, unknown> | null): BatchItem =>
-	fakeBatchItem({ restaurantId: rid, extractedData });
+	fakeBatchItem({ restaurantId: restaurant.id, extractedData });
 
 function baseForm(opts: { description: string; productId?: number }): FormData {
 	const fd = new FormData();
@@ -60,26 +56,18 @@ function baseForm(opts: { description: string; productId?: number }): FormData {
 	return fd;
 }
 
+function saveAndGetInvoiceId(item: BatchItem, fd: FormData): Promise<number> {
+	return saveInvoiceOrThrow(item, fd, restaurant.id, UID);
+}
+
 async function correctionsFor(invoiceId: number) {
 	return testSql<Array<{ field_name: string; original_value: string | null; corrected_value: string | null; field_confidence: number | null; line_item_index: number | null }>>`
 		SELECT field_name, original_value, corrected_value, field_confidence, line_item_index
 		FROM extraction_corrections
-		WHERE restaurant_id = ${rid} AND invoice_id = ${invoiceId}
+		WHERE restaurant_id = ${restaurant.id} AND invoice_id = ${invoiceId}
 		ORDER BY field_name
 	`;
 }
-
-beforeAll(async () => {
-	if (!hasDbEnv) return;
-	const r = await createTestRestaurant('inv-corr');
-	rid = r.id;
-});
-
-afterAll(async () => {
-	if (!hasDbEnv) return;
-	await cleanupTestRestaurant(rid);
-	await closeDb();
-});
 
 describe('productCorrectionRows', () => {
 	const target = { invoiceId: 1, supplierId: 2, restaurantId: 'r' };
@@ -133,11 +121,9 @@ describe.skipIf(!hasDbEnv)('extraction corrections (issue #812)', () => {
 		const fd = baseForm({ description: 'Tomate Pera' });
 		fd.set('invoice_number', 'RIGHT-1');
 
-		const out = await saveReviewedInvoice(item, fd, rid);
-		expect(out.type).toBe('saved');
-		if (out.type !== 'saved') return;
+		const invoiceId = await saveAndGetInvoiceId(item, fd);
 
-		const rows = await correctionsFor(out.invoiceId);
+		const rows = await correctionsFor(invoiceId);
 		const byField = new Map(rows.map(r => [r.field_name, r]));
 
 		expect(byField.get('invoice_number')?.corrected_value).toBe('right-1');
@@ -149,7 +135,7 @@ describe.skipIf(!hasDbEnv)('extraction corrections (issue #812)', () => {
 	it('honours a manual product reassignment and logs it as a correction', async () => {
 		const created = await testSql<Array<{ id: number }>>`
 			INSERT INTO products (restaurant_id, canonical_name, name_key)
-			VALUES (${rid}, 'Tomate Pera Ecológico', 'tomate pera ecologico')
+			VALUES (${restaurant.id}, 'Tomate Pera Ecológico', 'tomate pera ecologico')
 			RETURNING id
 		`;
 		const chosenId = created[0]!.id;
@@ -165,23 +151,21 @@ describe.skipIf(!hasDbEnv)('extraction corrections (issue #812)', () => {
 		const fd = baseForm({ description: 'TOM PERA CAJA', productId: chosenId });
 		fd.set('invoice_number', 'REASSIGN-1');
 
-		const out = await saveReviewedInvoice(item, fd, rid);
-		expect(out.type).toBe('saved');
-		if (out.type !== 'saved') return;
+		const invoiceId = await saveAndGetInvoiceId(item, fd);
 
 		const lines = await testSql<Array<{ product_id: number }>>`
 			SELECT product_id FROM invoice_line_items
-			WHERE restaurant_id = ${rid} AND invoice_id = ${out.invoiceId}
+			WHERE restaurant_id = ${restaurant.id} AND invoice_id = ${invoiceId}
 		`;
 		expect(lines[0]!.product_id).toBe(chosenId);
 
 		const aliases = await testSql<Array<{ product_id: number; source: string }>>`
 			SELECT product_id, source FROM product_aliases
-			WHERE restaurant_id = ${rid} AND raw_key = mep_norm_key('TOM PERA CAJA')
+			WHERE restaurant_id = ${restaurant.id} AND raw_key = mep_norm_key('TOM PERA CAJA')
 		`;
 		expect(aliases[0]).toMatchObject({ product_id: chosenId, source: 'user' });
 
-		const rows = await correctionsFor(out.invoiceId);
+		const rows = await correctionsFor(invoiceId);
 		const productRow = rows.find(r => r.field_name === 'line_item.product');
 		expect(productRow?.corrected_value).toBe('tomate pera ecológico');
 		expect(productRow?.line_item_index).toBe(0);
@@ -190,10 +174,10 @@ describe.skipIf(!hasDbEnv)('extraction corrections (issue #812)', () => {
 
 	it('previews the match a line would get, without creating anything', async () => {
 		const before = await testSql<Array<{ count: number }>>`
-			SELECT count(*)::int AS count FROM products WHERE restaurant_id = ${rid}
+			SELECT count(*)::int AS count FROM products WHERE restaurant_id = ${restaurant.id}
 		`;
 
-		const matches = await previewLineProducts(testDb, rid, null, [
+		const matches = await previewLineProducts(testDb, restaurant.id, null, [
 			{ description: 'TOM PERA CAJA' },
 			{ description: 'Producto que no existe en el catálogo' },
 		]);
@@ -204,7 +188,7 @@ describe.skipIf(!hasDbEnv)('extraction corrections (issue #812)', () => {
 		expect(matches[1]!.productId).toBeNull();
 
 		const after = await testSql<Array<{ count: number }>>`
-			SELECT count(*)::int AS count FROM products WHERE restaurant_id = ${rid}
+			SELECT count(*)::int AS count FROM products WHERE restaurant_id = ${restaurant.id}
 		`;
 		expect(after[0]!.count).toBe(before[0]!.count);
 	});
@@ -225,11 +209,8 @@ describe.skipIf(!hasDbEnv)('runPostSaveEffects isolation', () => {
 		const fd = baseForm({ description: 'Tomate Pera' });
 		fd.set('invoice_number', 'RIGHT-ISO-1');
 
-		const out = await saveReviewedInvoice(item, fd, rid);
-		expect(out.type).toBe('saved');
-		if (out.type !== 'saved') return;
-
-		const rows = await correctionsFor(out.invoiceId);
+		const invoiceId = await saveAndGetInvoiceId(item, fd);
+		const rows = await correctionsFor(invoiceId);
 		expect(rows.some(r => r.field_name === 'invoice_number' && r.corrected_value === 'right-iso-1')).toBe(true);
 	});
 });

@@ -20,6 +20,9 @@ export interface ExtractionStats {
 	succeeded: number;
 	failed: number;
 	successRate: number | null;
+	userRejected: number;
+	reviewed: number;
+	rejectionRate: number | null;
 	timed: number;
 	p50Seconds: number | null;
 	p95Seconds: number | null;
@@ -32,7 +35,11 @@ export async function extractionStats(windowHours = 24): Promise<ExtractionStats
 			SELECT
 				COUNT(*) FILTER (WHERE status IN ('done', 'confirmed', 'failed'))::int AS total,
 				COUNT(*) FILTER (WHERE status IN ('done', 'confirmed'))::int AS succeeded,
-				COUNT(*) FILTER (WHERE status = 'failed')::int AS failed
+				COUNT(*) FILTER (WHERE status = 'failed')::int AS failed,
+				COUNT(*) FILTER (WHERE status = 'confirmed')::int AS confirmed,
+				COUNT(*) FILTER (
+					WHERE status = 'discarded' AND discarded_reason = 'user_rejected'
+				)::int AS user_rejected
 			FROM batch_items
 			WHERE updated_at > now() - ${window}::interval
 		`),
@@ -41,26 +48,68 @@ export async function extractionStats(windowHours = 24): Promise<ExtractionStats
 				percentile_cont(0.5) WITHIN GROUP (ORDER BY secs) AS p50,
 				percentile_cont(0.95) WITHIN GROUP (ORDER BY secs) AS p95
 			FROM (
-				SELECT EXTRACT(EPOCH FROM (er.created_at - bi.queued_at)) AS secs
-				FROM extraction_results er
-				JOIN batch_items bi ON bi.id = er.batch_item_id
-				WHERE er.run_kind = 'live'
-					AND bi.queued_at IS NOT NULL
-					AND er.created_at > now() - ${window}::interval
+				SELECT EXTRACT(EPOCH FROM (extracted_at - queued_at)) AS secs
+				FROM batch_items
+				WHERE queued_at IS NOT NULL
+					AND extracted_at IS NOT NULL
+					AND extracted_at > now() - ${window}::interval
 			) t
 			WHERE secs >= 0
 		`),
 	]);
 	const total = num(outcome.total);
+	const userRejected = num(outcome.user_rejected);
+	const reviewed = num(outcome.confirmed) + userRejected;
 	return {
 		windowHours,
 		total,
 		succeeded: num(outcome.succeeded),
 		failed: num(outcome.failed),
 		successRate: total > 0 ? num(outcome.succeeded) / total : null,
+		userRejected,
+		reviewed,
+		rejectionRate: reviewed > 0 ? userRejected / reviewed : null,
 		timed: num(latency.timed),
 		p50Seconds: maybe(latency.p50),
 		p95Seconds: maybe(latency.p95),
+	};
+}
+
+export interface ReviewBacklog {
+	items: number;
+	tenants: number;
+	oldestAt: string | null;
+	oldestAgeHours: number | null;
+	staleAfterHours: number;
+	staleItems: number;
+	staleTenants: number;
+}
+
+export async function reviewBacklog(staleAfterHours = 168): Promise<ReviewBacklog> {
+	const stale = `${staleAfterHours} hours`;
+	const row = await one(sql`
+		SELECT
+			COUNT(*)::int AS items,
+			COUNT(DISTINCT restaurant_id)::int AS tenants,
+			MIN(COALESCE(extracted_at, updated_at)) AS oldest_at,
+			COUNT(*) FILTER (
+				WHERE COALESCE(extracted_at, updated_at) < now() - ${stale}::interval
+			)::int AS stale_items,
+			COUNT(DISTINCT restaurant_id) FILTER (
+				WHERE COALESCE(extracted_at, updated_at) < now() - ${stale}::interval
+			)::int AS stale_tenants
+		FROM batch_items
+		WHERE status = 'done'
+	`);
+	const oldestAt = iso(row.oldest_at);
+	return {
+		items: num(row.items),
+		tenants: num(row.tenants),
+		oldestAt,
+		oldestAgeHours: oldestAt ? (Date.now() - new Date(oldestAt).getTime()) / 3_600_000 : null,
+		staleAfterHours,
+		staleItems: num(row.stale_items),
+		staleTenants: num(row.stale_tenants),
 	};
 }
 

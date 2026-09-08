@@ -61,7 +61,13 @@ describeDb('insertWaitlistEmail — attribution (issue #326)', () => {
 
 		const rows = await testSql`SELECT * FROM waitlist WHERE email = ${email}`;
 		expect(rows).toHaveLength(1);
-		assertFullAttribution(rows[0]!);
+		expect(rows[0]!.source).toBe('google');
+		expect(rows[0]!.campaign).toBe('spring_launch');
+		expect(rows[0]!.variant).toBe('b');
+		expect(rows[0]!.segment).toBe('chefs');
+		expect(rows[0]!.referrer).toBe('https://google.com/search');
+		expect(rows[0]!.landing_path).toBe('/waitlist');
+		expect(rows[0]!.referred_by).toBe('ABC123');
 	});
 
 	it('stores null attribution columns when no attribution is passed', async () => {

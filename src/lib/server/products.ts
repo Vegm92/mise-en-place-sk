@@ -545,10 +545,12 @@ export async function annotateLineItems(
 
 export const FUZZY_THRESHOLD = 0.42;
 
+export const FUZZY_AUTO_MERGE_THRESHOLD = 0.65;
+
 export interface ResolvedLine {
 	productId: number;
-	status: 'exact' | 'fuzzy' | 'created';
-	suggestion?: { candidateName: string; score: number };
+	status: 'exact' | 'fuzzy' | 'pending' | 'created';
+	suggestion?: { candidateName: string; candidateProductId: number; score: number };
 }
 
 interface LineInput {
@@ -654,14 +656,39 @@ async function resolveOne(
 	`);
 	if (fuzzyRows.length > 0) {
 		const candidate = fuzzyRows[0]!;
-		await insertAlias(tx, restaurantId, candidate.id, supplierId, key, raw, 'fuzzy', null, supplierSku);
+		const score = Number(candidate.score);
+		if (score >= FUZZY_AUTO_MERGE_THRESHOLD) {
+			await insertAlias(tx, restaurantId, candidate.id, supplierId, key, raw, 'fuzzy', null, supplierSku);
+			return {
+				productId: candidate.id,
+				status: 'fuzzy',
+				suggestion: { candidateName: candidate.canonical_name, candidateProductId: candidate.id, score },
+			};
+		}
+		const pendingProductId = await createOwnProduct(tx, restaurantId, raw, key, category, unit, unitsPerPack, baseUnit, supplierId, supplierSku);
 		return {
-			productId: candidate.id,
-			status: 'fuzzy',
-			suggestion: { candidateName: candidate.canonical_name, score: Number(candidate.score) },
+			productId: pendingProductId,
+			status: 'pending',
+			suggestion: { candidateName: candidate.canonical_name, candidateProductId: candidate.id, score },
 		};
 	}
 
+	const productId = await createOwnProduct(tx, restaurantId, raw, key, category, unit, unitsPerPack, baseUnit, supplierId, supplierSku);
+	return { productId, status: 'created' };
+}
+
+async function createOwnProduct(
+	tx: BatchDb,
+	restaurantId: string,
+	raw: string,
+	key: string,
+	category: string | null,
+	unit: string | null,
+	unitsPerPack: number | null,
+	baseUnit: string | null,
+	supplierId: number | null,
+	supplierSku: string | null,
+): Promise<number> {
 	const productRows = await tx.execute<{ id: number }>(sql`
 		INSERT INTO products (restaurant_id, canonical_name, name_key, category, canonical_unit, units_per_pack, base_unit)
 		VALUES (${restaurantId}, ${raw}, ${key}, ${category}, ${unit}, ${unitsPerPack}, ${baseUnit})
@@ -670,7 +697,7 @@ async function resolveOne(
 	`);
 	const productId = productRows[0]!.id;
 	await insertAlias(tx, restaurantId, productId, supplierId, key, raw, 'exact', 'now()', supplierSku);
-	return { productId, status: 'created' };
+	return productId;
 }
 
 async function insertAlias(
@@ -692,7 +719,7 @@ async function insertAlias(
 	`);
 }
 
-export type ProductMatchStatus = 'exact' | 'fuzzy' | 'new';
+export type ProductMatchStatus = 'exact' | 'fuzzy' | 'pending' | 'new';
 
 export interface ProductMatch {
 	description: string;
@@ -701,6 +728,7 @@ export interface ProductMatch {
 	status: ProductMatchStatus;
 	score: number | null;
 	suggestedTaxRate: number | null;
+	suggestion?: { candidateName: string; candidateProductId: number } | null;
 }
 
 export interface ProductMatchInput {
@@ -809,14 +837,26 @@ async function previewOne(
 		LIMIT 1
 	`);
 	if (fuzzyRows.length > 0) {
-		const previewFuzzy = fuzzyRows[0]!;
+		const candidate = fuzzyRows[0]!;
+		const score = Number(candidate.score);
+		if (score >= FUZZY_AUTO_MERGE_THRESHOLD) {
+			return {
+				description: raw,
+				productId: candidate.id,
+				productName: candidate.canonical_name,
+				status: 'fuzzy',
+				score,
+				suggestedTaxRate: null,
+			};
+		}
 		return {
 			description: raw,
-			productId: previewFuzzy.id,
-			productName: previewFuzzy.canonical_name,
-			status: 'fuzzy',
-			score: Number(previewFuzzy.score),
+			productId: null,
+			productName: raw,
+			status: 'pending',
+			score,
 			suggestedTaxRate: null,
+			suggestion: { candidateName: candidate.canonical_name, candidateProductId: candidate.id },
 		};
 	}
 
@@ -1115,6 +1155,47 @@ export async function mergeIntoProduct(
 	});
 }
 
+export type ManualAliasResult =
+	| { ok: true; productId: number }
+	| { ok: false; reason: 'invalid' | 'product_not_found' };
+
+export async function createManualAlias(
+	database: Database,
+	restaurantId: string,
+	productId: number,
+	rawText: string,
+): Promise<ManualAliasResult> {
+	const raw = (rawText ?? '').trim();
+	const key = normalizeProductKey(raw);
+	if (!raw || !key) return { ok: false, reason: 'invalid' };
+
+	const owned = await database.execute<{ id: number }>(sql`
+		SELECT id FROM products WHERE id = ${productId} AND restaurant_id = ${restaurantId} LIMIT 1
+	`);
+	if (owned.length === 0) return { ok: false, reason: 'product_not_found' };
+
+	await database.execute(sql`
+		INSERT INTO product_aliases (restaurant_id, product_id, raw_key, raw_text, source, original_source, confirmed_at)
+		VALUES (${restaurantId}, ${productId}, ${key}, ${raw}, 'user', 'user', now())
+		ON CONFLICT (restaurant_id, raw_key)
+		DO UPDATE SET product_id = ${productId}, source = 'user', confirmed_at = now()
+	`);
+	return { ok: true, productId };
+}
+
+export type DeleteAliasResult = { ok: true } | { ok: false; reason: 'not_found' };
+
+export async function deleteProductAlias(
+	database: Database,
+	restaurantId: string,
+	aliasId: number,
+): Promise<DeleteAliasResult> {
+	const rows = await database.execute<{ id: number }>(sql`
+		DELETE FROM product_aliases WHERE id = ${aliasId} AND restaurant_id = ${restaurantId} RETURNING id
+	`);
+	return rows.length > 0 ? { ok: true } : { ok: false, reason: 'not_found' };
+}
+
 export const LLM_MATCH_THRESHOLD = 0.8;
 const MAX_CANDIDATES = 50;
 
@@ -1122,6 +1203,7 @@ export interface NormalizeJobData {
 	restaurantId: string;
 	productId: number;
 	rawText: string;
+	requestId?: string;
 }
 
 export interface Candidate { id: number; name: string }
@@ -1202,7 +1284,7 @@ export async function applyExtractedAllergens(
 }
 
 export async function processNormalizeJob(data: NormalizeJobData, deps: NormalizeDeps = {}): Promise<void> {
-	const { restaurantId, productId, rawText } = data;
+	const { restaurantId, productId, rawText, requestId } = data;
 	try {
 		const provider = deps.provider ?? (GEMINI_API_KEY ? createGeminiProvider() : null);
 		if (!provider) return;
@@ -1263,7 +1345,7 @@ export async function processNormalizeJob(data: NormalizeJobData, deps: Normaliz
 			error: err,
 			restaurantId,
 			sourceId: `${restaurantId}:${productId}`,
-			payload: { restaurantId, productId, rawText },
+			payload: { restaurantId, productId, rawText, requestId },
 		});
 	}
 }
@@ -1272,6 +1354,7 @@ export interface CategorizeJobData {
 	restaurantId: string;
 	productId: number;
 	canonicalName: string;
+	requestId?: string;
 }
 
 export function buildCategorizePrompt(canonicalName: string): string {
@@ -1333,7 +1416,7 @@ export async function processCategorizeJob(
 	data: CategorizeJobData,
 	deps: CategorizeDeps = {},
 ): Promise<void> {
-	const { restaurantId, productId, canonicalName } = data;
+	const { restaurantId, productId, canonicalName, requestId } = data;
 	const database = deps.database ?? db;
 	try {
 		const pending = await database.execute<{ id: number }>(sql`
@@ -1367,7 +1450,7 @@ export async function processCategorizeJob(
 			error: err,
 			restaurantId,
 			sourceId: `${restaurantId}:${productId}`,
-			payload: { restaurantId, productId, canonicalName },
+			payload: { restaurantId, productId, canonicalName, requestId },
 		});
 	}
 }

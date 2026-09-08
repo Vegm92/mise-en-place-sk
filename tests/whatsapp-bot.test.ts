@@ -94,7 +94,10 @@ vi.mock('../src/lib/server/batch', () => ({
 	markQueued: vi.fn(),
 }));
 vi.mock('../src/lib/server/extract-batch', () => ({ enqueueBatchExtraction: vi.fn().mockResolvedValue(undefined) }));
-vi.mock('../src/lib/server/queue', () => ({ enqueueExtraction: vi.fn().mockResolvedValue(true) }));
+vi.mock('../src/lib/server/queue', async (importOriginal) => ({
+	...(await importOriginal<typeof import('../src/lib/server/queue')>()),
+	enqueueExtraction: vi.fn().mockResolvedValue(true),
+}));
 vi.mock('@sentry/sveltekit', () => ({ captureMessage: vi.fn(), captureException: vi.fn() }));
 
 import { handleWhatsAppMessage } from '../src/lib/server/whatsapp-bot';
