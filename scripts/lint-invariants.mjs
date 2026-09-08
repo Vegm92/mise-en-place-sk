@@ -4,8 +4,10 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { PROJECT_DIRECTIVES } from './lint-directives.mjs';
 import { EXPAND_CONTRACT_DIRECTIVE, destructiveStatements, hasExpandContractWaiver } from './migration-sql.mjs';
+import { resolveExecutable } from './resolve-executable.mjs';
 
-const ROOT = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
+const GIT = resolveExecutable('git');
+const ROOT = execFileSync(GIT, ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
 
 const SCOPE_OK = new RegExp(`(?:${PROJECT_DIRECTIVES.join('|')}):`);
 
@@ -520,7 +522,7 @@ function baseRef() {
 }
 
 function changedAgainst(base) {
-	const out = execFileSync('git', ['diff', '--name-only', '--diff-filter=ACMR', `${base}...HEAD`], {
+	const out = execFileSync(GIT, ['diff', '--name-only', '--diff-filter=ACMR', `${base}...HEAD`], {
 		cwd: ROOT,
 		encoding: 'utf8'
 	});
