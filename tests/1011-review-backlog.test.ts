@@ -64,14 +64,18 @@ describe.skipIf(!hasDbEnv)('reviewBacklog', () => {
 				INSERT INTO upload_batches (restaurant_id) VALUES (${restaurant.id}) RETURNING id
 			`;
 			if (!batch) throw new Error('upload_batches insert returned no row');
-			const insert = (position: number, status: string, hoursAgo: number) => testSql`
-				INSERT INTO batch_items (batch_id, restaurant_id, position, file_key, display_name, status, extracted_at, updated_at)
-				VALUES (
-					${batch.id}, ${restaurant.id}, ${position},
-					${`review-backlog-${position}.pdf`}, ${`review-backlog-${position}.pdf`}, ${status},
-					now() - ${`${hoursAgo} hours`}::interval, now() - ${`${hoursAgo} hours`}::interval
-				)
-			`;
+			const insert = (position: number, status: string, hoursAgo: number) => {
+				const fileKey = `review-backlog-${position}.pdf`;
+				const age = `${hoursAgo} hours`;
+				return testSql`
+					INSERT INTO batch_items (batch_id, restaurant_id, position, file_key, display_name, status, extracted_at, updated_at)
+					VALUES (
+						${batch.id}, ${restaurant.id}, ${position},
+						${fileKey}, ${fileKey}, ${status},
+						now() - ${age}::interval, now() - ${age}::interval
+					)
+				`;
+			};
 			await insert(1, 'done', 240);
 			await insert(2, 'done', 2);
 			await insert(3, 'confirmed', 500);
