@@ -316,12 +316,13 @@ describeDb('invoiceMatchesCategory — the invoice list filter rides the line, n
 		]);
 
 		const bareSupplier = await makeSupplier(rid, 'Sin Líneas SL', 'Vinos y Cavas');
-		[{ id: bareInvoiceId }] = await testDb.insert(invoices)
+		const [bareInvoice] = await testDb.insert(invoices)
 			.values({
 				restaurantId: rid, supplierId: bareSupplier, invoiceNumber: 'F-2',
 				invoiceDate: DAY, totalAmount: '0.00', status: 'pending',
 			})
 			.returning({ id: invoices.id });
+		bareInvoiceId = bareInvoice!.id;
 	});
 
 	afterAll(async () => {
