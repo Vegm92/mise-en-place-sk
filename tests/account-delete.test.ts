@@ -45,7 +45,8 @@ vi.mock('$lib/server/db', async () => {
 	// in that case, but this factory still runs at import time, and
 	// `new Proxy(null, ...)` throws, failing the whole file at collection
 	// instead of skipping it. Hand back an inert stand-in: nothing reads it.
-	if (!testDb) return { db: {}, forTenant };
+	const runAsSystem = <T>(fn: () => Promise<T>) => fn();
+	if (!testDb) return { db: {}, forTenant, runAsSystem };
 	const db = new Proxy(testDb as object, {
 		get(target, prop, receiver) {
 			if (prop === 'transaction') {
@@ -61,7 +62,7 @@ vi.mock('$lib/server/db', async () => {
 			return Reflect.get(target, prop, receiver);
 		},
 	});
-	return { db, forTenant };
+	return { db, forTenant, runAsSystem };
 });
 
 import { testSql, closeDb, hasDbEnv } from './helpers/test-db';
@@ -331,6 +332,35 @@ describe.skipIf(!hasDbEnv)('POST /api/user/delete (issue #492)', () => {
 		expect(await testSql`SELECT id FROM product_aliases WHERE restaurant_id = ${rid}`).toHaveLength(0);
 		expect(await testSql`SELECT id FROM upload_batches WHERE restaurant_id = ${rid}`).toHaveLength(0);
 		expect(await testSql`SELECT id FROM batch_items WHERE restaurant_id = ${rid}`).toHaveLength(0);
+	});
+
+	it('a user who solely owns two restaurants gets both subscriptions cancelled and both sets of files collected', async () => {
+		const { id: userId, email } = await makeUser('multi', 'hashed:pw');
+		const ridA = await makeRestaurant('multi-a');
+		const ridB = await makeRestaurant('multi-b');
+		await membership(userId, ridA, 'owner');
+		await membership(userId, ridB, 'owner');
+		const subA = `sub_multi_a_${Date.now()}`;
+		const subB = `sub_multi_b_${Date.now()}`;
+		await setSubscription(ridA, subA);
+		await setSubscription(ridB, subB);
+		const fileA = `invoices/multi-a-${Date.now()}.pdf`;
+		const fileB = `invoices/multi-b-${Date.now()}.pdf`;
+		await addInvoiceFile(ridA, fileA);
+		await addInvoiceFile(ridB, fileB);
+		verifyCredentialsMock.mockResolvedValue({ id: userId, email, name: null, image: null });
+
+		const result = await runDelete(userId, email, { password: 'correct-horse' });
+
+		expect(result).toMatchObject({ thrown: false, status: 200, json: { deleted: true } });
+		expect(await restaurantExists(ridA)).toBe(false);
+		expect(await restaurantExists(ridB)).toBe(false);
+
+		expect(enqueueAccountCleanupMock).toHaveBeenCalledTimes(1);
+		const [uid, , subIds, keys] = enqueueAccountCleanupMock.mock.calls[0] as [string, string | null, string[], string[]];
+		expect(uid).toBe(userId);
+		expect([...subIds].sort()).toEqual([subA, subB].sort());
+		expect([...keys].sort()).toEqual([fileA, fileB].sort());
 	});
 
 	it('rate limits deletion attempts', async () => {
