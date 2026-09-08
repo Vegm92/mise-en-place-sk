@@ -137,9 +137,9 @@ describe('detectVerifactuMismatch', () => {
 			total_amount: 1250.00,
 		});
 		expect(mismatches).toHaveLength(1);
-		expect(mismatches[0].field).toBe('numserie');
-		expect(mismatches[0].qrValue).toBe('FAC-2024-001');
-		expect(mismatches[0].aiValue).toBe('FAC-2024-999');
+		expect(mismatches[0]!.field).toBe('numserie');
+		expect(mismatches[0]!.qrValue).toBe('FAC-2024-001');
+		expect(mismatches[0]!.aiValue).toBe('FAC-2024-999');
 	});
 
 	it('detects date mismatch (QR DD-MM-AAAA vs AI YYYY-MM-DD)', () => {
@@ -149,7 +149,7 @@ describe('detectVerifactuMismatch', () => {
 			total_amount: 1250.00,
 		});
 		expect(mismatches).toHaveLength(1);
-		expect(mismatches[0].field).toBe('fecha');
+		expect(mismatches[0]!.field).toBe('fecha');
 	});
 
 	it('detects amount mismatch beyond 0.005 tolerance', () => {
@@ -159,7 +159,7 @@ describe('detectVerifactuMismatch', () => {
 			total_amount: 1251.00, // different
 		});
 		expect(mismatches).toHaveLength(1);
-		expect(mismatches[0].field).toBe('importe');
+		expect(mismatches[0]!.field).toBe('importe');
 	});
 
 	it('does not flag negligible floating-point difference (< 0.005)', () => {

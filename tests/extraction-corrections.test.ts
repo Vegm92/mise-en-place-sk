@@ -102,8 +102,8 @@ describe('productCorrectionRows', () => {
 			target,
 			[{ confidence: 0.9 }],
 		);
-		expect(rows[0].fieldConfidence).toBeNull();
-		expect(rows[0].originalValue).toBeNull();
+		expect(rows[0]!.fieldConfidence).toBeNull();
+		expect(rows[0]!.originalValue).toBeNull();
 	});
 });
 
@@ -138,7 +138,7 @@ describe.skipIf(!hasDbEnv)('extraction corrections (issue #812)', () => {
 			VALUES (${restaurant.id}, 'Tomate Pera Ecológico', 'tomate pera ecologico')
 			RETURNING id
 		`;
-		const chosenId = created[0].id;
+		const chosenId = created[0]!.id;
 
 		const item = fakeItem({
 			supplier_name: '__inv_corr_sup__',
@@ -157,7 +157,7 @@ describe.skipIf(!hasDbEnv)('extraction corrections (issue #812)', () => {
 			SELECT product_id FROM invoice_line_items
 			WHERE restaurant_id = ${restaurant.id} AND invoice_id = ${invoiceId}
 		`;
-		expect(lines[0].product_id).toBe(chosenId);
+		expect(lines[0]!.product_id).toBe(chosenId);
 
 		const aliases = await testSql<Array<{ product_id: number; source: string }>>`
 			SELECT product_id, source FROM product_aliases
@@ -182,15 +182,15 @@ describe.skipIf(!hasDbEnv)('extraction corrections (issue #812)', () => {
 			{ description: 'Producto que no existe en el catálogo' },
 		]);
 
-		expect(matches[0].status).toBe('exact');
-		expect(matches[0].productName).toBe('Tomate Pera Ecológico');
-		expect(matches[1].status).toBe('new');
-		expect(matches[1].productId).toBeNull();
+		expect(matches[0]!.status).toBe('exact');
+		expect(matches[0]!.productName).toBe('Tomate Pera Ecológico');
+		expect(matches[1]!.status).toBe('new');
+		expect(matches[1]!.productId).toBeNull();
 
 		const after = await testSql<Array<{ count: number }>>`
 			SELECT count(*)::int AS count FROM products WHERE restaurant_id = ${restaurant.id}
 		`;
-		expect(after[0].count).toBe(before[0].count);
+		expect(after[0]!.count).toBe(before[0]!.count);
 	});
 });
 

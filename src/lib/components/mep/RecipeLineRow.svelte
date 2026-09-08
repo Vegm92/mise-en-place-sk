@@ -151,7 +151,7 @@
 
       {#each shownWarnings as w}
         <span class="body text-warn flex items-center gap-1" style="font-size:11px;">
-          <AlertTriangle size={11} />{t(WARN_KEY[w])}
+          <AlertTriangle size={11} />{t(WARN_KEY[w] ?? '')}
         </span>
       {/each}
     </div>

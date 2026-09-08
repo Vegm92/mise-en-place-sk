@@ -52,7 +52,7 @@ describe('buildClaimLines', () => {
 
 	it('localizes to English', () => {
 		const lines = buildClaimLines('en', [{ description: 'Tomatoes', quantity: 5, unit: 'kg' }], []);
-		expect(lines[0].detail).toBe('Missing from the delivery note (5 kg)');
+		expect(lines[0]!.detail).toBe('Missing from the delivery note (5 kg)');
 	});
 
 	it('combines missing and mismatched lines in order', () => {

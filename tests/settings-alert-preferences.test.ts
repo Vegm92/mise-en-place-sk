@@ -102,7 +102,7 @@ beforeAll(async () => {
 	const email = `alert-prefs-${Date.now()}@example.com`;
 	const [user] = await testSql`
 		INSERT INTO users (email, name) VALUES (${email}, ${'Chef'}) RETURNING id`;
-	userId = user.id;
+	userId = user!.id;
 	await testSql`INSERT INTO user_restaurants (user_id, restaurant_id, role) VALUES (${userId}, ${rid}, 'owner')`;
 });
 
@@ -209,7 +209,7 @@ describe('alert preference labels exist in both locales (issue #577)', () => {
 
 	it.each(['es', 'en'] as const)('has every key in %s', (locale) => {
 		const table = translations[locale] as Record<string, string>;
-		const missing = keys.filter((k) => !(k in table) || table[k].trim() === '');
+		const missing = keys.filter((k) => !(k in table) || table[k]!.trim() === '');
 		expect(missing).toEqual([]);
 	});
 
@@ -344,7 +344,7 @@ describe('field visibility labels exist in both locales (issue #880)', () => {
 
 	it.each(['es', 'en'] as const)('has every key in %s', (locale) => {
 		const table = translations[locale] as Record<string, string>;
-		const missing = keys.filter((k) => !(k in table) || table[k].trim() === '');
+		const missing = keys.filter((k) => !(k in table) || table[k]!.trim() === '');
 		expect(missing).toEqual([]);
 	});
 });

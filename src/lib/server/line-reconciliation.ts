@@ -62,7 +62,7 @@ function greedyMatch(aLines: ReconLine[], bLines: ReconLine[], keyOf: (line: Rec
 	const pairs: [ReconLine, ReconLine][] = [];
 	const bKeyMap = new Map<string, number[]>();
 	for (let i = 0; i < bLines.length; i++) {
-		const key = keyOf(bLines[i]);
+		const key = keyOf(bLines[i]!);
 		if (key !== null) {
 			let list = bKeyMap.get(key);
 			if (!list) {
@@ -92,7 +92,7 @@ function greedyMatch(aLines: ReconLine[], bLines: ReconLine[], keyOf: (line: Rec
 			remainingA.push(a);
 		} else {
 			usedB.add(foundIdx);
-			pairs.push([a, bLines[foundIdx]]);
+			pairs.push([a, bLines[foundIdx]!]);
 		}
 	}
 

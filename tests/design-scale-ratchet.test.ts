@@ -34,7 +34,7 @@ type Offender = { file: string; value: string };
 function inlineDeclarations(src: string): Array<{ key: string; value: string }> {
 	const decls: Array<{ key: string; value: string }> = [];
 	for (const attr of src.matchAll(/style="([^"]*)"/g)) {
-		for (const decl of attr[1].split(';')) {
+		for (const decl of attr[1]!.split(';')) {
 			const at = decl.indexOf(':');
 			if (at < 0) continue;
 			decls.push({ key: decl.slice(0, at).trim(), value: decl.slice(at + 1).trim() });

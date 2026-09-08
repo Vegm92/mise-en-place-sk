@@ -219,6 +219,6 @@ describe.skipIf(!hasDbEnv)('Schema — unique constraints', () => {
 			  AND indexname = 'idx_system_notifications_budget_overage_exceeded'
 		`;
 		expect(rows).toHaveLength(1);
-		expect(rows[0].indexdef).toContain(`(payload ->> 'level'::text) = 'exceeded'::text`);
+		expect(rows[0]!.indexdef).toContain(`(payload ->> 'level'::text) = 'exceeded'::text`);
 	});
 });

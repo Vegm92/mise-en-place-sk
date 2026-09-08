@@ -85,7 +85,7 @@ afterAll(async () => {
 async function seedProducts() {
 	const [m] = await testSql`INSERT INTO products (restaurant_id, canonical_name, name_key) VALUES (${rid}, 'Merluza', 'merluza') RETURNING id`;
 	const [t] = await testSql`INSERT INTO products (restaurant_id, canonical_name, name_key) VALUES (${rid}, 'MERL. GRANDE', 'merl grande') RETURNING id`;
-	merluzaId = m.id; throwawayId = t.id;
+	merluzaId = m!.id; throwawayId = t!.id;
 }
 
 describe.skipIf(!hasDbEnv)('processNormalizeJob', () => {
@@ -101,7 +101,7 @@ describe.skipIf(!hasDbEnv)('processNormalizeJob', () => {
 			SELECT payload FROM system_notifications
 			WHERE restaurant_id = ${rid} AND notification_type = 'product_suggestion' AND status = 'pending'`;
 		expect(notifs).toHaveLength(1);
-		const payload = notifs[0].payload;
+		const payload = notifs[0]!.payload;
 		expect(payload.source).toBe('llm');
 		expect(payload.candidateProductId).toBe(merluzaId);
 		expect(payload.description).toBe('MERL. GRANDE');
@@ -114,7 +114,8 @@ describe.skipIf(!hasDbEnv)('processNormalizeJob', () => {
 			{ restaurantId: rid, productId: throwawayId, rawText: 'MERL. GRANDE' },
 			{ provider: fakeProvider(`{"match_id": ${merluzaId}, "confidence": ${LLM_MATCH_THRESHOLD - 0.2}}`), recordUsage: vi.fn(async () => {}) },
 		);
-		const [{ count }] = await testSql`SELECT COUNT(*)::int AS count FROM system_notifications WHERE restaurant_id = ${rid}`;
+		const [_r_] = await testSql`SELECT COUNT(*)::int AS count FROM system_notifications WHERE restaurant_id = ${rid}`;
+		const { count } = _r_!;
 		expect(count).toBe(0);
 	});
 
@@ -124,7 +125,8 @@ describe.skipIf(!hasDbEnv)('processNormalizeJob', () => {
 			{ restaurantId: rid, productId: throwawayId, rawText: 'MERL. GRANDE' },
 			{ provider: fakeProvider('{"match_id": null, "confidence": 0.9}'), recordUsage: vi.fn(async () => {}) },
 		);
-		const [{ count }] = await testSql`SELECT COUNT(*)::int AS count FROM system_notifications WHERE restaurant_id = ${rid}`;
+		const [_r_] = await testSql`SELECT COUNT(*)::int AS count FROM system_notifications WHERE restaurant_id = ${rid}`;
+		const { count } = _r_!;
 		expect(count).toBe(0);
 	});
 
@@ -133,7 +135,8 @@ describe.skipIf(!hasDbEnv)('processNormalizeJob', () => {
 		const deps = { provider: fakeProvider(`{"match_id": ${merluzaId}, "confidence": 0.95}`), recordUsage: vi.fn(async () => {}) };
 		await processNormalizeJob({ restaurantId: rid, productId: throwawayId, rawText: 'MERL. GRANDE' }, deps);
 		await processNormalizeJob({ restaurantId: rid, productId: throwawayId, rawText: 'MERL. GRANDE' }, deps);
-		const [{ count }] = await testSql`SELECT COUNT(*)::int AS count FROM system_notifications WHERE restaurant_id = ${rid}`;
+		const [_r_] = await testSql`SELECT COUNT(*)::int AS count FROM system_notifications WHERE restaurant_id = ${rid}`;
+		const { count } = _r_!;
 		expect(count).toBe(1);
 	});
 

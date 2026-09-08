@@ -29,6 +29,6 @@ describe.skipIf(!hasDbEnv)('recordConsent / hasConsent', () => {
 			WHERE user_id = ${userId} AND policy_version = ${POLICY_VERSION}
 		`;
 		expect(rows).toHaveLength(1);
-		expect(rows[0].method).toBe('oauth_signup');
+		expect(rows[0]!.method).toBe('oauth_signup');
 	});
 });

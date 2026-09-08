@@ -78,7 +78,7 @@ describe.skipIf(!hasDbEnv)('POST /(app)/api/sidebar (issue #567)', () => {
 
 		const rows = await testSql`
 			SELECT count(*)::int AS n FROM settings WHERE restaurant_id = ${rid} AND key = 'sidebar_collapsed'`;
-		expect(rows[0].n).toBe(1);
+		expect(rows[0]!.n).toBe(1);
 	});
 
 	it('rejects a request with no tenant on locals', async () => {

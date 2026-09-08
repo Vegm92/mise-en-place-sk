@@ -73,8 +73,8 @@ export async function removeContact(restaurantId: string, id: number, releasedBy
 	if (deleted.length === 0) return false;
 
 	await trackEvent('whatsapp_contact_released', restaurantId, {
-		contactId: deleted[0].id,
-		phoneNumber: deleted[0].phoneNumber,
+		contactId: deleted[0]!.id,
+		phoneNumber: deleted[0]!.phoneNumber,
 		releasedBy: releasedBy ?? null,
 		method: 'owner',
 	});

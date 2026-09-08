@@ -105,15 +105,15 @@ describe('checkUploadSize — a .zip container uses the larger batch ceiling (is
 
 describe('checkMagicBytes', () => {
 	it.each(SUPPORTED_UPLOAD_EXTENSIONS)('accepts a well-formed %s header', (ext) => {
-		expect(checkMagicBytes(new Uint8Array(SAMPLE[ext]), ext)).toBe(true);
+		expect(checkMagicBytes(new Uint8Array(SAMPLE[ext]!), ext)).toBe(true);
 	});
 
 	it('rejects JPEG bytes wearing a .pdf extension', () => {
-		expect(checkMagicBytes(new Uint8Array(SAMPLE['.jpg']), '.pdf')).toBe(false);
+		expect(checkMagicBytes(new Uint8Array(SAMPLE['.jpg']!), '.pdf')).toBe(false);
 	});
 
 	it('rejects a PNG header wearing a .jpg extension', () => {
-		expect(checkMagicBytes(new Uint8Array(SAMPLE['.png']), '.jpg')).toBe(false);
+		expect(checkMagicBytes(new Uint8Array(SAMPLE['.png']!), '.jpg')).toBe(false);
 	});
 
 	it('rejects plain text wearing an .xml extension', () => {
@@ -127,7 +127,7 @@ describe('checkMagicBytes', () => {
 
 describe('readUploadHeader', () => {
 	it('reads only the leading slice, not the whole file', async () => {
-		const file = fileWith('big.pdf', SAMPLE['.pdf']);
+		const file = fileWith('big.pdf', SAMPLE['.pdf']!);
 		const header = await readUploadHeader(file, 8);
 		expect(header).toHaveLength(8);
 		expect([...header.slice(0, 5)]).toEqual([0x25, 0x50, 0x44, 0x46, 0x2d]);
@@ -136,7 +136,7 @@ describe('readUploadHeader', () => {
 
 describe('validateUploadFile — the single client-side gate before a file is queued', () => {
 	it.each(SUPPORTED_UPLOAD_EXTENSIONS)('passes a well-formed %s file', async (ext) => {
-		const reason = await validateUploadFile(fileWith(`factura${ext}`, SAMPLE[ext]));
+		const reason = await validateUploadFile(fileWith(`factura${ext}`, SAMPLE[ext]!));
 		expect(reason).toBeNull();
 	});
 
@@ -154,14 +154,14 @@ describe('validateUploadFile — the single client-side gate before a file is qu
 	});
 
 	it('flags an oversized file before reading its magic bytes', async () => {
-		const file = fileWith('grande.pdf', SAMPLE['.pdf']);
+		const file = fileWith('grande.pdf', SAMPLE['.pdf']!);
 		Object.defineProperty(file, 'size', { value: MAX_UPLOAD_BYTES + 1 });
 		const reason = await validateUploadFile(file);
 		expect(reason).toBe('tooLarge');
 	});
 
 	it('flags content that does not match its extension (spoofed type)', async () => {
-		const file = fileWith('malware.pdf', SAMPLE['.jpg']);
+		const file = fileWith('malware.pdf', SAMPLE['.jpg']!);
 		const reason = await validateUploadFile(file);
 		expect(reason).toBe('contentMismatch');
 	});
