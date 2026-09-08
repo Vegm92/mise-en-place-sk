@@ -25,6 +25,7 @@ vi.mock('$lib/server/db', async () => {
 
 import { testSql, closeDb, hasDbEnv } from './helpers/test-db';
 import { GET } from '../src/routes/api/user/export/+server';
+import { expectApiError } from './helpers/api-error';
 
 const EXPECTED_KEYS = [
 	'exported_at', 'user', 'memberships',
@@ -124,7 +125,7 @@ describe.skipIf(!hasDbEnv)('GET /api/user/export (issue #390)', () => {
 		const { id: userId, email } = await makeUser('ratelimited');
 		rateLimitMock.mockResolvedValueOnce(false);
 
-		await expect(GET(exportEvent(userId, email))).rejects.toMatchObject({ status: 429 });
+		await expectApiError(await GET(exportEvent(userId, email)), 429);
 
 		await testSql`DELETE FROM users WHERE id = ${userId}`;
 	});
