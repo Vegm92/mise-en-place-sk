@@ -35,7 +35,7 @@ import { sendMock, setUpPgBossTestEnv } from './helpers/pg-boss-mock';
 setUpPgBossTestEnv();
 
 function optionsOf(): Record<string, unknown> {
-	return sendMock.mock.calls[0][2] as Record<string, unknown>;
+	return sendMock.mock.calls[0]![2] as Record<string, unknown>;
 }
 
 describe('every queue backs off between retries', () => {
