@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { locale, t, tcat, tp } from '$lib/i18n';
+  import { locale, t, tcat, ti, tp } from '$lib/i18n';
   import { fmtEurCompact, fmtMonthShort } from '$lib/formatters';
 
   import { categoryColor, seriesColor, SERIES_OTHER } from '$lib/colors';
@@ -26,6 +26,11 @@
     total: number;
     pct: number;
   }
+  interface CategoryCoverage {
+    categorized: number;
+    total: number;
+    pct: number | null;
+  }
   interface MonthlySpend {
     month: string;
     total: number;
@@ -36,6 +41,7 @@
     kpis,
     top_items,
     category_spend,
+    category_coverage,
     monthly_spend,
     has_invoices,
     invoices_outside_range,
@@ -44,6 +50,7 @@
     kpis: Kpis;
     top_items: TopItem[];
     category_spend: CategorySpend[];
+    category_coverage: CategoryCoverage;
     monthly_spend: MonthlySpend[];
     has_invoices: boolean;
     invoices_outside_range: number;
@@ -163,9 +170,12 @@
       {/if}
     </div>
 
-    <div class="card" style="padding: 14px 14px 6px;">
-      <div class="subtitle" style="font-size: 15px; margin-bottom: 2px;">{t('spend.byCategory')}</div>
-      <div style="font-size: 11px; color: var(--mep-fg-3); margin-bottom: 12px;">{t('spend.byCategorySub')}</div>
+    <div class="card px-3.5 pt-3.5 pb-1.5">
+      <div class="subtitle text-[15px] mb-0.5">{t('spend.byCategory')}</div>
+      <div class="text-[11px] text-fg-3 {category_coverage.pct != null ? '' : 'mb-3'}">{t('spend.byCategorySub')}</div>
+      {#if category_coverage.pct != null}
+        <div class="text-[11px] text-fg-4 mb-3">{ti('spend.categoryCoverage', { pct: category_coverage.pct })}</div>
+      {/if}
       {#if !category_spend?.length}
         <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 14px 0 20px; text-align: center;">
           <p class="body" style="color: var(--mep-fg-4); font-size: 13px; max-width: 220px; margin: 0;">{t('spend.assignCategories')}</p>

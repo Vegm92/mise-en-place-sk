@@ -52,6 +52,14 @@ export function parseForm<TSchema extends v.GenericSchema>(
 	return v.safeParse(schema, formToRecord(form));
 }
 
+export async function parseJson<TSchema extends v.GenericSchema>(
+	schema: TSchema,
+	request: Request,
+): Promise<v.SafeParseResult<TSchema>> {
+	const body: unknown = await request.json().catch(() => undefined);
+	return v.safeParse(schema, body);
+}
+
 export function rawFormField(
 	form: FormData,
 	key: string,

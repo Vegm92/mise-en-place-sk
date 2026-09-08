@@ -40,11 +40,21 @@ time (normalized units, pack-aware prices) and the catalog is user-curatable.
 
 - **Three-tier identity** (ADR-009, `products.ts:270-360`):
   1. **Alias** — exact `product_aliases` lookup on the raw key → `exact`.
-  2. **Fuzzy** — `pg_trgm similarity(name_key, key) ≥ FUZZY_THRESHOLD` (0.42);
-     writes an alias + raises `product_suggestion` (source `fuzzy`).
+  2. **Fuzzy** — `pg_trgm similarity(name_key, key) ≥ FUZZY_THRESHOLD` (0.42).
+     `≥ FUZZY_AUTO_MERGE_THRESHOLD` (0.65) → `status='fuzzy'`: writes an alias
+     immediately + raises `product_suggestion`. Below 0.65 → `status='pending'`
+     (issue #814, ADR-009 addendum): creates its own product instead of
+     merging, and raises the same `product_suggestion` carrying
+     `candidateProductId` — nothing merges until the user confirms
+     (`mergeIntoProduct`) or manually reassigns the line's product.
   3. **Create** — insert with `ON CONFLICT (rid, name_key) DO UPDATE`,
      `status='created'`; then async LLM job validates a candidate list
      (`LLM_MATCH_THRESHOLD` 0.8) and raises `product_suggestion` (source `llm`).
+- **Manual alias configurator** (`/products/[id]`, issue #814): the alias
+  table on a product's detail page is editable — add a raw-text alias
+  pointing at this product (`createManualAlias`), reassign an existing alias
+  to a different product (`mergeIntoProduct`, repoints past line items too),
+  or delete one (`deleteProductAlias`).
 - **Normalization** (`normalize.ts`): `mep_norm_key` (lower/trim),
   `expandAbbreviations` (SKU prefixes, bare codes, ~19 Spanish abbreviations),
   `canonicalizeUnit` (~45 unit groups). Static RegExp instances are compiled at module scope, and `normalizeProductKey`, `parseSupplierName`, and `canonicalizeUnit` results are cached via bounded Map memoization to optimize string processing throughput.

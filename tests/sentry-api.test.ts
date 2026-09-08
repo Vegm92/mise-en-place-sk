@@ -54,15 +54,33 @@ describe('sentry-api fetches against the configured base URL', () => {
 	});
 
 	it('uses the EU default when no override is configured', async () => {
-		const euUrl = await callListIssues('https://de.sentry.io/api/0');
-		expect(euUrl).toBe(
+		vi.doMock('../src/lib/server/env', () => ({
+			SENTRY_API_BASE_URL: 'https://de.sentry.io/api/0',
+			SENTRY_AUTH_TOKEN: 'test-token',
+			SENTRY_ORG: 'my-org',
+		}));
+		const { listUnresolvedIssues } = await import('../src/lib/server/sentry-api');
+
+		await listUnresolvedIssues(10);
+
+		const [url] = fetchMock.mock.calls[0]!;
+		expect(url).toBe(
 			'https://de.sentry.io/api/0/organizations/my-org/issues/?query=is:unresolved&sort=freq&limit=10',
 		);
 	});
 
 	it('hits the overridden region when SENTRY_API_BASE_URL is set', async () => {
-		const overrideUrl = await callListIssues('https://sentry.io/api/0');
-		expect(overrideUrl).toBe(
+		vi.doMock('../src/lib/server/env', () => ({
+			SENTRY_API_BASE_URL: 'https://sentry.io/api/0',
+			SENTRY_AUTH_TOKEN: 'test-token',
+			SENTRY_ORG: 'my-org',
+		}));
+		const { listUnresolvedIssues } = await import('../src/lib/server/sentry-api');
+
+		await listUnresolvedIssues(10);
+
+		const [url] = fetchMock.mock.calls[0]!;
+		expect(url).toBe(
 			'https://sentry.io/api/0/organizations/my-org/issues/?query=is:unresolved&sort=freq&limit=10',
 		);
 	});

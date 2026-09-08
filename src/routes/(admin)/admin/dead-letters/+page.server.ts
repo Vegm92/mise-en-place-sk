@@ -12,8 +12,7 @@ import {
 	setDeadLetterStatus,
 	type DeadLetterStatus,
 } from '$lib/server/dead-letter';
-import { markQueued } from '$lib/server/batch';
-import { EXTRACTION_QUEUE, enqueueExtraction } from '$lib/server/queue';
+import { isReplayable, nonReplayableReason, replayDeadLetter } from '$lib/server/dead-letter-replay';
 
 const PAGE_SIZE = 50;
 
@@ -51,7 +50,8 @@ export const load: PageServerLoad = async ({ url }) => {
 				firstSeenAt: new Date(e.firstSeenAt).toISOString(),
 				lastSeenAt: new Date(e.lastSeenAt).toISOString(),
 				reviewedBy: e.reviewedBy,
-				replayable: e.queue === EXTRACTION_QUEUE && !!e.sourceId && !!e.restaurantId,
+				replayable: isReplayable(e),
+				notReplayableReason: nonReplayableReason(e.queue),
 			})),
 			breakdown,
 			status,
@@ -96,15 +96,9 @@ export const actions: Actions = {
 
 		const entry = await getDeadLetter(id);
 		if (!entry) return fail(404, { error: 'notFound' });
-		if (entry.queue !== EXTRACTION_QUEUE || !entry.sourceId || !entry.restaurantId) {
-			return fail(400, { error: 'notReplayable' });
-		}
 
-		const requeued = await markQueued(entry.sourceId);
-		if (!requeued) return fail(409, { error: 'itemNotRequeueable' });
-
-		const enqueued = await enqueueExtraction(entry.sourceId, entry.restaurantId);
-		if (!enqueued) return fail(500, { error: 'enqueueFailed' });
+		const outcome = await replayDeadLetter(entry, locals.requestId);
+		if (!outcome.ok) return fail(outcome.status, { error: outcome.error });
 
 		await setDeadLetterStatus(id, 'replayed', locals.user?.email ?? null);
 		return { success: true };

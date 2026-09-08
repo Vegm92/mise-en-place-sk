@@ -141,28 +141,28 @@ that are only sound because `enforceAuth` (`hooks.server.ts:128`) and `enforceTe
 | Method | Path | Auth layer(s) | Validation | Pagination | Idempotency | Error shape |
 |---|---|---|---|---|---|---|
 | GET | `/api/health` | public; detail behind `isAdminUser` or `x-health-token` timing-safe compare (`api/health/+server.ts:27-33,123`) | none needed | n/a | n/a | `{status}` / `{error}` |
-| POST | `/api/stripe-webhook` | HMAC signature (`api/stripe-webhook/+server.ts:10`); rate-limit exempt (`hooks.server.ts:34`) | Stripe SDK constructEvent | n/a | `idempotency_keys` scope `stripe-webhook` (`billing.ts:680`) | `error(400/500)` |
+| POST | `/api/stripe-webhook` | HMAC signature (`api/stripe-webhook/+server.ts:10`); rate-limit exempt (`hooks.server.ts:34`) | Stripe SDK constructEvent | n/a | `idempotency_keys` scope `stripe-webhook` (`billing.ts:680`) | `{error}` |
 | GET/POST | `/api/whatsapp/webhook` | HMAC sha256 timing-safe (`webhook/+server.ts:13-28`); **falls open outside production when `WHATSAPP_APP_SECRET` is unset** (`:19-20`) | JSON parse only | n/a | `idempotency_keys` scope `whatsapp` (`message-handler.ts:23`) | `{error}` |
 | GET | `/api/batch-status/[id]` | `locals.user` + ownership compare `items[0].restaurantId !== locals.restaurantId` (`batch-status/[id]/+server.ts:14`) | none on `id` | none | n/a | `{error}` |
 | GET | `/api/upload/[id]/[file]` | `locals.user` + ownership (`:19`) + filename must equal `item.displayName` (`:23`) | filename equality | n/a | n/a | `error()` |
-| POST | `/api/user/delete` | `locals.user` + password re-auth or `DELETE_MY_ACCOUNT` literal (`user/delete/+server.ts:44-52`) | manual | n/a | queue `singletonKey=userId` (`queue.ts:135`) | `error()` |
-| GET | `/api/user/export` | `locals.user` (`user/export/+server.ts:12`) | n/a | none — whole tenant export | n/a | `error()` |
-| POST | `/(app)/api/active-restaurant` | `locals.user` + membership + lock check (`:22-23`) | manual `restaurantId` presence | n/a | n/a | `error()` |
-| POST | `/(app)/api/chat` | tenant + `ROUTE_POLICY {feature:'aiAssistant', access:true}` (`entitlements.ts:46`) | manual `message` check (`:86`) | n/a | none | `error()` |
-| GET/POST | `/(app)/api/notifications` | tenant (hook) + scoped rate limit 60 (`:9,25`) | `id` presence only | none | none | mixed: `error(429)` + `{error}` 422 |
-| POST | `/(app)/api/product-aliases` | tenant (`:13`) | manual, 422 on bad action (`:23-25`) | n/a | none | `{error}` 422/404 |
-| POST | `/(app)/api/sidebar` | `locals.restaurantId` (`:7`) | `typeof boolean` (`:11`) | n/a | upsert on `(rid,key)` (`schema.ts:308`) | `error()` |
-| GET/POST | `/(app)/api/stock-levels` | tenant + `{feature:'stockTracking'}` (`entitlements.ts:50`) + beta flag `stock` (`hooks.server.ts:206`) | manual, 422 (`:27-36`) | none | none | `{error}` |
-| POST | `/(app)/api/supplier-category` | tenant (`:12`) | manual, 422 (`:22-24`) | n/a | none | `{error}` |
-| GET | `/(app)/api/trend` | tenant + rate limit 60 (`:7`) | none on query | none | n/a | `error()` |
-| POST | `/(app)/api/tutorial` | `locals.restaurantId` (`:13`) | allow-list `VALID.includes(step)` (`:18`) | n/a | upsert | `error()` |
-| POST | `/(app)/api/unit-conversions` | tenant (`:8`) | manual, 422 (`:18-23`) | n/a | none | `{error}` |
-| POST | `/(app)/api/alert-share` | tenant (`:7`) + rate limit | none | n/a | one-active-per-week unique (`schema.ts:695`) | `error()` |
+| POST | `/api/user/delete` | `locals.user` + password re-auth or `DELETE_MY_ACCOUNT` literal | `DeleteBody` schema via `parseJson` | n/a | queue `singletonKey=userId` (`queue.ts:135`) | `{error}` |
+| GET | `/api/user/export` | `locals.user` (`user/export/+server.ts:12`) | n/a | none — whole-tenant GDPR export, deliberately complete | n/a | `{error}` |
+| POST | `/(app)/api/active-restaurant` | `locals.user` + membership + lock check | `SwitchBody` schema via `parseJson` | n/a | n/a | `{error}` |
+| POST | `/(app)/api/chat` | tenant + `ROUTE_POLICY {feature:'aiAssistant', access:true}` (`entitlements.ts:46`) | `ChatBody` schema via `parseJson` | n/a | none | `{error}` |
+| GET/POST | `/(app)/api/notifications` | tenant (hook) + scoped rate limit 60 | `DismissBody` schema via `parseJson` | **cap** `LIST_ROW_CAP+1` + `truncated` flag | optional `idempotency_key` | `{error}` |
+| POST | `/(app)/api/product-aliases` | tenant | `AliasBody` schema via `parseJson` | n/a | optional `idempotency_key` | `{error}` 422/404 |
+| POST | `/(app)/api/sidebar` | `locals.restaurantId` | `SidebarBody` schema via `parseJson` | n/a | upsert on `(rid,key)` (`schema.ts:308`) | `{error}` |
+| GET/POST | `/(app)/api/stock-levels` | tenant + `{feature:'stockTracking'}` (`entitlements.ts:50`) + beta flag `stock` (`hooks.server.ts:206`) | `StockLevelBody` schema via `parseJson` | **cap** `LIST_ROW_CAP+1` + `truncated` flag | optional `idempotency_key` | `{error}` |
+| POST | `/(app)/api/supplier-category` | tenant | `SupplierCategoryBody` schema via `parseJson` | n/a | optional `idempotency_key` | `{error}` |
+| GET | `/(app)/api/trend` | tenant + rate limit 60 | range/granularity allow-lists (`trend.ts:12-13`) | bounded by `MAX_BUCKETS` 400 (`trend.ts:14,40`) | n/a | `{error}` |
+| POST | `/(app)/api/tutorial` | `locals.restaurantId` | `TutorialBody` picklist schema via `parseJson` | n/a | upsert | `{error}` |
+| POST | `/(app)/api/unit-conversions` | tenant | `UnitConversionBody` schema via `parseJson` | n/a | optional `idempotency_key` | `{error}` |
+| POST | `/(app)/api/alert-share` | tenant + rate limit | no body | n/a | one-active-per-week unique (`schema.ts:695`) | `{error}` |
 | GET | `/(app)/invoice/[id]/file` | tenant + `forTenant` scoped select (`:26-30`) | integer id | n/a | n/a | `error()` |
 | GET | `/(app)/invoices/export/download` | tenant + rate limit (`:30`) | ids / supplier_id / dates validated (`:41-61`) | **cap** `EXPORT_ROW_CAP+1` (`:91`) | n/a | `error(400)` |
-| GET | `/(app)/analytics/extraction/csv` | tenant (`:23`) | none | none | n/a | — |
-| GET | `/(app)/recipes/[id]/csv` | tenant + `{feature}`/beta flag `recipes` (`hooks.server.ts:204`) | integer id (`:13`) | none | n/a | `error(404)` |
-| GET | `/(app)/reports/[type]/csv` | tenant | `isReportType` allow-list (`:16`) | none | n/a | `error(404)` |
+| GET | `/(app)/analytics/extraction/csv` | tenant (`:23`) | none | **cap** `MAX_ROWS` 5000 (`:9,40`) | n/a | — |
+| GET | `/(app)/recipes/[id]/csv` | tenant + `{feature}`/beta flag `recipes` (`hooks.server.ts:204`) | integer id (`:13`) | one recipe — bounded by the sheet | n/a | `error(404)` |
+| GET | `/(app)/reports/[type]/csv` | tenant | `isReportType` allow-list (`:16`) | one period — bounded by the report | n/a | `error(404)` |
 | GET | `/(app)/products/inventory-template` | tenant + `{feature:'inventoryTemplate'}` (`entitlements.ts:78`) | none | none | n/a | `error(429)` |
 | POST | `/cookie-consent` | public | — | n/a | n/a | — |
 | GET | `/s/[token]/og.png` | public token + rate limit 30 rpm (`:51`) | token lookup (`:60`) | n/a | n/a | `error(404)` |
@@ -170,13 +170,13 @@ that are only sound because `enforceAuth` (`hooks.server.ts:128`) and `enforceTe
 
 ### 3.2 Findings
 
-- **Pagination is offset-based and exists on 3 surfaces only**: `/(app)/invoices` (`invoices/+page.server.ts:20,44,82-83`), `/(admin)/admin/events` (`:9,30,52`), `/(admin)/admin/dead-letters` (`:18,32`). Every other list endpoint returns an unbounded or `.limit()`-capped set. Business: a tenant with a year of chat history or notifications gets the whole set in one response.
+- **Pagination is offset-based and exists on 3 surfaces only**: `/(app)/invoices` (`invoices/+page.server.ts:20,44,82-83`), `/(admin)/admin/events` (`:9,30,52`), `/(admin)/admin/dead-letters` (`:18,32`). Closed by #1007 for the two genuinely unbounded endpoints — the notification and stock-level lists now fetch `LIST_ROW_CAP + 1` and return a `truncated` flag, in the shape of the invoice export's `EXPORT_ROW_CAP`. The rest of the §3.1 list was already bounded and the audit overstated it: `/(app)/api/trend` caps at `MAX_BUCKETS` 400 (`trend.ts:14,40`), `analytics/extraction/csv` at `MAX_ROWS` 5000 (`:9,40`), and the recipe and report CSVs render one recipe and one period. `/api/user/export` stays unbounded on purpose — a GDPR export that silently truncates is worse than a slow one.
 - **No cursor pagination anywhere.** `OFFSET 50 * page` degrades as row counts grow; at 0.056 rps this is invisible today.
-- **Three incompatible error envelopes coexist**: `throw error(status, message)` (SvelteKit shape, e.g. `api/chat/+server.ts:86`), `json({error}, {status})` (e.g. `api/notifications/+server.ts:32`), and `fail(status, {error: 'i18n.key'})` for form actions (e.g. `admin/dead-letters/+page.server.ts:95`). Two of them appear in the *same* handler (`api/notifications/+server.ts:10` vs `:32`). Business: a client cannot parse errors with one code path.
-- **Idempotency is opt-in and client-supplied**: only `?/save` on the batch review (`batch/[id]/+page.svelte:1060` → `invoice-save.ts:902`), invoice edit (`invoice/[id]/edit/+page.server.ts:194`) and billing checkout (`billing/+page.server.ts:79`) send a key. No `+server.ts` POST accepts one. Business: a double-tapped stock-level or unit-conversion POST writes twice.
+- **Three incompatible error envelopes coexisted**: `throw error(status, message)` (SvelteKit shape), `json({error}, {status})`, and `fail(status, {error: 'i18n.key'})` for form actions. Closed by #1005: every `+server.ts` on the JSON surface now *returns* `apiError(status, message)` → `{ error }` (`api-response.ts`), form actions keep `fail()`, and the tenant-gate status divergence (handler `403` vs hook `409` for the same missing tenant) is settled on the hook's `409`. The one route left on SvelteKit's shape is `/api/upload/[id]/[file]`, which streams a PDF into an `<iframe>` — its failures are rendered by the browser, not parsed.
+- **Idempotency is opt-in and client-supplied**: the form surface has always sent a key (`invoice-save.ts:902`, `invoice/[id]/edit/+page.server.ts:194`, `billing/+page.server.ts:79`). Closed by #1008 for the JSON surface: the five tenant-writing endpoints accept an optional `idempotency_key`, claimed through `claimRequest` and released when the handler refuses, so a replay returns `{ok: true, replay: true}` rather than writing twice (`api-idempotency.ts`).
 - **`/api/whatsapp/webhook` processes messages fire-and-forget** (`webhook/+server.ts:57-61`): the handler returns 200 before `handleWhatsAppMessage` resolves, and errors are only logged. Business: a failed inbound invoice is silently lost — Meta sees a 200 and will not redeliver.
 - **`hooks.server.ts:34` exempts the two webhooks from the global rate limit** with no per-webhook limit substituted. Business: signature verification is the only backpressure.
-- **Validation is hand-rolled in every `+server.ts`.** `valibot` is a dependency (`package.json:98`) and is used in form actions via `parseForm` (`public-form-action.ts:48`), but no JSON endpoint uses a schema. Business: request shapes are not machine-readable and drift silently.
+- **Validation is hand-rolled in every `+server.ts`.** Closed by #1006: `parseJson(schema, request)` sits beside `parseForm` (`public-form-action.ts`) and every JSON endpoint declares a valibot schema. `pnpm lint:json-body-schema` fails a new `await request.json()` in a `+server.ts`, the way `lint:form-get-cast` does for form casts.
 
 ### 3.3 Field-name drift, contract → column
 
@@ -330,37 +330,50 @@ In order, from the repo's own numbers:
 | Protocol requirement | Present? | Evidence | Fix |
 |---|---|---|---|
 | No secret tracked in git | Yes | `git ls-files` → only `.env.example`; gitleaks full-history scan `.github/workflows/ci.yml:24-27` | — |
-| Multi-tenant scoping column on every tenant table | Mostly | `restaurant_id` on 34 tables `tenant-data-map.ts:23-61` | Add `user_restaurants` to the map |
+| Multi-tenant scoping column on every tenant table | Yes | `restaurant_id` on 34 tables `tenant-data-map.ts:23-61`; `user_restaurants` added by #994 | Closed by #994 |
 | Database-enforced tenant isolation | Declared, inert | `drizzle/0055_rls_tenant_isolation.sql:6-14`; `db-role.ts:49` says cutover pending | Complete the `mep_runtime` cutover (`DEPLOYMENT.md:100`) |
-| RLS on every tenant table | No — 3 gaps | 31 tables have `ENABLE ROW LEVEL SECURITY`; `extraction_results`, `supplier_aliases`, `categories` do not | Add policies mirroring `0055` |
-| Index on every foreign key | No — 9 gaps | §2.2 | Add the indexes listed in D5 |
+| RLS on every tenant table | Yes | `drizzle/0078_rls_tenant_isolation_gap.sql` covers `extraction_results`, `supplier_aliases`, `categories`, `user_restaurants` | Closed by #994. Still inert until the `mep_runtime` cutover (#975) |
+| Index on every foreign key | The 9 audited gaps closed; 11 others remain | `drizzle/0081_fk_covering_indexes.sql` covers the 9 from §2.2 plus `invoices.supplier_id` and `mrr_snapshots.restaurant_id`, whose only indexes excluded rows | Closed by #996. A pg_index sweep after the migration found 11 further FKs covered only by an index that leads on another column (`user_restaurants.restaurant_id`, `supplier_aliases.supplier_id`, `product_aliases.{supplier_id,product_id}`, `recipe_items.{recipe_id,child_recipe_id,product_id}`, `invoice_line_items.product_id`, `unit_conversions.supplier_id`, `system_notifications.invoice_id`) — same class, outside #996's list, unfiled |
+| Foreign key from membership to identity | Yes | `user_restaurants.user_id` → `users.id` `ON DELETE cascade`, with an orphan pre-check in the migration | Closed by #995 |
 | Ownership checked separately from role | Ownership yes, role no | membership via `memberLocations` `locations.ts:37-56`; `user_restaurants.role` is read only for notification targeting (`alerts.ts:1201`, `billing.ts:191`, `party.ts:124`, `quota-warning.ts:36`) | Decide whether `role` is authorization or metadata; today it is metadata |
-| Audit trail on invoice writes | Partial (3 of 6 actions) | writes at `invoice/[id]/edit:94`, `invoice/[id]:277,307`, `invoices:220,254`; none at `invoice-save.ts:1026` or `batch/[id]:305` | Write `create` and `confirm` rows in the same transaction |
+| Audit trail on invoice writes | Yes | `create` and `confirm` rows now written in the same transaction as the invoice | Closed by #993 |
 | Structured-output enforcement on the model call | Yes | `responseMimeType` + `responseSchema` `llm-provider.ts:51-54`; schema `extract.ts:304`; shape guard `extract.ts:377-389`; sanitiser `extract.ts:426` | — |
 | Per-field confidence | Yes, but not on the invoice | prompt `extract.ts:86-98`; persisted `extraction_results.field_confidences` `schema.ts:499`; corrections `schema.ts:351` | — |
 | Human review gate | Yes | `isLowConfidenceBlocked` `invoice-save.ts:637-646`, enforced `:923` at threshold 0.85 | — |
 | Exact persist line | Yes | `invoice-save.ts:1026-1061` (`tx.insert(invoices)`), lines `:220` via `:1073` | — |
 | Queue with retry | Yes | pg-boss `retryLimit 2`, `retryDelay 30` `queue.ts:62-64` | — |
-| Exponential backoff | **No** | `retryDelay: 30` is a fixed delay; the only exponential backoff is in-process for Gemini `extract.ts:537` | Use pg-boss `retryBackoff: true` |
+| Exponential backoff | Yes | `retryBackoff: true` on all six queues, each with a `retryDelayMax` cap (`queue.ts`); pg-boss jitters between 1× and 2× `retryDelay · 2ⁿ` | Closed by #1000 |
 | Idempotency key on jobs | Partial | `singletonKey` on every enqueue (`queue.ts:66,83,100,115,135`) + guarded state transitions `batch.ts:255-265` | — |
 | Dead-letter queue | Yes | 5 DLQ queues `queue.ts:18-24`, drained to a table `worker.ts:158-179`, `dead-letter.ts:148` | — |
-| Poison job handling | Partial | dedupe by `(queue, source_id, error_class, status)` `dead-letter.ts:180-185`; replay is **manual and extract-only** `admin/dead-letters/+page.server.ts:99` | Add replay for the other 4 queues |
-| Alert on DLQ growth | Named, unquantified | `monitoring.md:69` lists it with no number; the "> 0 / > 10 in 24 h" figure at `:70-71` is for scheduled jobs | Page at pending > 10 / 24 h |
+| Poison job handling | Yes, with two stated exceptions | dedupe by `(queue, source_id, error_class, status)`; replay covers `extract-invoice`, `normalize-product`, `categorize-product`, `whatsapp-notify` (`dead-letter-replay.ts`). `whatsapp-inbound` and `account-cleanup` show *No replay* + the reason: `redactPayload` truncates their job data, so a replay would run different work | Closed by #1001 |
+| Alert on DLQ growth | Yes | `scheduled-dead-letter-alert` (`5 * * * *`): Sentry `warning` above 10 distinct pending rows / 24 h, `error` on any pending `account-cleanup` row; thresholds in `monitoring.md` | Closed by #1001 |
+| Timeout, retry and abort on the object-storage hop | Yes | `withStorageRetry` bounds every `RailwayBucketDriver` call at `STORAGE_TIMEOUT_MS` and aborts the S3 request on expiry; transient failures only, `maxAttempts: 1` on the client so the SDK's own retries do not multiply | Closed by #999 |
+| Review-queue aging visible | Yes | `reviewBacklog()` (`pipeline-stats.ts`) → the *Review backlog* check on `/admin/health`: oldest unreviewed age, and items/tenants past the 168 h budget | Closed by #1011. `done` items are still never auto-expired, deliberately |
 | Cache layer | **None** | `response-cache.ts:1` sets `private, no-store` on every routed response | See D5 trigger |
 | Cache TTL / invalidation policy | n/a | no cache | — |
 | Sentry init | Yes | `hooks.server.ts:40`, `worker.ts:37`, `hooks.client.ts:9` | — |
 | Structured log format | **No** | unstructured `console.*`, e.g. `worker.ts:74` | Emit JSON lines |
-| Correlation ID | **No** | repo-wide grep finds none | Add a request id in `appHandle` and carry it onto the job payload |
+| Correlation ID | Yes | `resolveRequestId` in `appHandle`, echoed as `X-Request-Id`, carried onto the job payload and Sentry scope | Closed by #1002 |
 | Health endpoint | Yes | `api/health/+server.ts:117`; detail gated `:123`; wired as Railway healthcheck `railway.json:14` | — |
 | Worker healthcheck | **No** | `railway.worker.json` declares no `healthcheckPath` | Liveness is inferred from `worker_heartbeats` instead (`monitoring.md:70`) |
-| Load / throughput test | **No** | no matching file under `tests/` | — |
+| Load / throughput test | **No** | no matching file under `tests/` | Open — the ≈90 docs/hour ceiling is still computed from config, not observed |
 | CI pipeline | Yes | `.github/workflows/ci.yml`, §6 | — |
 | Forward-only migrations | Yes | 77 journal entries, no down files | — |
-| Expand/contract migration safety | **No mechanism** | pre-deploy migration `railway.json:11-13` runs against the old code | Split destructive migrations across two deploys |
+| Expand/contract migration safety | **No mechanism** | pre-deploy migration `railway.json:11-13` runs against the old code | Split destructive migrations across two deploys (#1009) |
 | Rollback path | Documented only | `docs/04_engineering/deployment.md:103-107` | — |
 | Feature flags | Yes, two systems | `hooks.server.ts:203-218`; `entitlements.ts:24` | — |
-| Scaling triggers with metric thresholds | **No** | §5.2 | Adopt D5's trigger table |
+| One error envelope on the JSON surface | Yes | `apiError()` → `{error}` returned from every `+server.ts` under `api/`; ratcheted by `tests/1005-1008-json-api-contract.test.ts` | Closed by #1005 |
+| Declared schema on every JSON request body | Yes | `parseJson(schema, request)` beside `parseForm` (`public-form-action.ts`); gate `pnpm lint:json-body-schema` | Closed by #1006 |
+| Bounded list responses | Yes | `LIST_ROW_CAP + 1` + `truncated` on the notification and stock-level lists; the other list surfaces were already capped (`MAX_BUCKETS` 400, `MAX_ROWS` 5000, `EXPORT_ROW_CAP`) | Closed by #1007. `/api/user/export` stays whole-tenant by design |
+| Idempotency key on mutating JSON endpoints | Yes | optional `idempotency_key` → `claimRequest`, released on refusal (`api-idempotency.ts`) | Closed by #1008 |
+| Scaling triggers with metric thresholds | **No** | §5.2 | Adopt D5's trigger table (#1004) |
 | Production metrics available | Yes | Railway API, §1.1 | — |
+| Per-route latency recorded | Yes | `metric_samples` `name = 'route.latency_ms'`, bucketed per 60 s flush in `appHandle` (`metrics.ts`) | Closed by #1003 |
+| Queue depth over time | Yes | `metric_samples` `name = 'queue.depth'` / `queue.oldest_seconds`, sampled every 5 min by `scheduled-metric-sample` | Closed by #1003 |
+| Extraction end-to-end latency | Yes | `batch_items.extracted_at - queued_at`, on the row; covers failed attempts, which the old `extraction_results` join did not | Closed by #1003 |
+| LLM call latency | Yes | `llm_usage_log.duration_ms`, timed in the provider so every `recordLlmUsage` caller records it | Closed by #1003 |
+| Extraction concurrency cap actually caps | Yes | the semaphore returns the job to the queue on a full cap instead of handing out a slot after 5 min (`rate-limiter.ts`) | Closed by #998 |
+| Discard reason distinguishable | Yes | `batch_items.discarded_reason`; `extractionStats` reports user rejections apart from composite splits | Closed by #1010 |
 
 ---
 

@@ -103,7 +103,7 @@ describe.skipIf(!hasDbEnv)('#425 — admin overview counts batch_items, not uplo
 		await store.markDone(a!, { supplier_name: 'Test' }, []);
 		await store.markConfirmed(a!);
 		await store.markQueued(b!);
-		await store.markDiscarded(b!);
+		await store.markDiscarded(b!, 'user_rejected');
 
 		const after = ((await load({} as never)) as { pendingExtractions: number }).pendingExtractions;
 		expect(after).toBe(baseline);

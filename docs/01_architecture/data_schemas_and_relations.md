@@ -20,7 +20,7 @@ For per-feature rules see `docs/03_features/`; for change procedure see
 |---|---|---|---|
 | `restaurants` | Tenant root | `name`, `slug` (unique), `parentId` self-FK | Multi-location via `parentId` (migration 0023) |
 | `users` | Person account | `email` unique, `password_hash`, `emailVerified` | Credentials + OAuth |
-| `user_restaurants` | User↔restaurant membership | composite PK `(userId, restaurantId)`, `userId` uuid, `role` default `'owner'` | Basis of authorization; PK migration 0015. `userId` was `text` (Supabase `auth.uid()` era) until migration 0038 converted it to `uuid` — joins to `users.id` needed an explicit cast before that, and one that was missing broke `/admin/access` |
+| `user_restaurants` | User↔restaurant membership | composite PK `(userId, restaurantId)`, `userId` uuid → `users.id` `ON DELETE cascade`, `role` default `'owner'` | Basis of authorization; PK migration 0015. `userId` was `text` (Supabase `auth.uid()` era) until migration 0038 converted it to `uuid` — joins to `users.id` needed an explicit cast before that, and one that was missing broke `/admin/access`. It carried no FK to `users` at all until migration 0081 (#995), so a membership could outlive its user; the deletion route already removed memberships explicitly, so the cascade is a backstop |
 | `accounts` / `sessions` / `verification_tokens` | Auth.js adapter tables | `providerAccountId`, `sessionToken`, `expires` | JWT sessions → `sessions` mostly unused |
 | `user_consents` | Consent records | `(userId, policyVersion)` unique, `method`, `acceptedAt` | GDPR |
 
@@ -139,6 +139,17 @@ directly at write time. Source of the trend/analytics pages.
   the `mep_runtime` role, and additive to — never a replacement for —
   app-layer `forTenant().scope()`.
 - Unique constraints do double duty as the last line of idempotency defense.
+- Every foreign key that is read or cascaded through carries an index leading on
+  its own column. Migration 0081 (#996) closed the nine the system-design audit
+  found bare — `batch_items`, `upload_batches`, `extraction_corrections` (×3),
+  `chat_sessions`, `supplier_metrics`, `accounts`, `sessions`,
+  `idempotency_keys` — plus `invoices.supplier_id` and
+  `mrr_snapshots.restaurant_id`, which had one that excluded rows. Eleven others
+  are still covered only by an index leading on a different column
+  (`user_restaurants.restaurant_id`, `supplier_aliases.supplier_id`,
+  `product_aliases.{supplier_id,product_id}`, `recipe_items` ×3,
+  `invoice_line_items.product_id`, `unit_conversions.supplier_id`,
+  `system_notifications.invoice_id`) — same class, outside #996's scope.
 - Migration workflow and verification: `docs/04_engineering/database_changes.md`.
 
 ## Code notes
@@ -185,6 +196,24 @@ directly at write time. Source of the trend/analytics pages.
 **`const batchItems.extractErrorVars`**
 
 - Interpolation values for `extractError`, when the message needs to name numbers the translation key alone cannot carry — `extract.err.quotaCompositeExceeded` has to say "contiene 17 documentos y te quedan 8". Encoding counts into the key string would put data in an i18n identifier.
+
+**`const batchItems.discardedReason`**
+
+- Which of the two meanings of `status = 'discarded'` a row carries (#1010): `user_rejected` (a human threw the extraction away), `composite_source` (the splitter retired a composite PDF's source row after producing its children), `duplicate_number` (the save came back `numberDuplicate`). Nullable, because rows written before the column existed are genuinely unknown — migration 0079 backfills only the composite case, which the `<stem>_p<n>[-<m>].pdf` child keys identify without guessing.
+- A discriminator rather than a new status, so the `status <> 'discarded'` filters that compute what is still open keep working unchanged. `markDiscarded` requires it, so a new call site cannot quietly re-create the ambiguity.
+
+**`const batchItems.extractedAt`**
+
+- When the extraction attempt settled, success or failure (#1003). With `queued_at` this makes end-to-end latency a subtraction on the row, replacing a join to `extraction_results` that only recorded successful live runs. `markQueued` clears it so a redelivery times the attempt that actually ran. Migration 0080 backfills it from `extraction_results.created_at` where a corpus row exists, keeping the historical series comparable; anything else stays NULL rather than being guessed from `updated_at`, which also moves on confirm.
+
+**`const metricSamples`**
+
+- The coarse time series behind route latency, queue depth and their thresholds (#1003). Pre-aggregated by design: producers bucket in memory and flush one row per `(name, label)` per window, because a row per request would be ~200k rows a month at production traffic to answer questions a per-minute rollup answers just as well. A gauge writes `count = 1` with `sum = min = max` = the reading.
+- Platform-wide, not tenant data: it holds route ids and queue names, never tenant rows, so it carries no `restaurant_id`, is absent from `tenant-data-map.ts`, and needs no RLS policy. `scheduled-metric-purge` reaps samples older than `METRIC_RETENTION_DAYS` (30).
+
+**`const llmUsageLog.durationMs`**
+
+- Wall-clock duration of the provider call (#1003). Tokens and cost alone cannot tell a slow model from a slow queue. Null for rows predating the column and for the XML e-invoice path, which never calls a provider.
 
 **`const restaurants`**
 

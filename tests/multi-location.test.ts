@@ -82,6 +82,7 @@ vi.mock('$lib/server/billing', async (importOriginal) => {
 
 import { getEntitlements } from '../src/lib/server/billing';
 import { POST as switchPost } from '../src/routes/(app)/api/active-restaurant/+server';
+import { expectApiError } from './helpers/api-error';
 import { actions as settingsActions } from '../src/routes/(app)/settings/+page.server';
 
 const USER = { id: 'user-1', email: 'chef@example.com' };
@@ -124,19 +125,17 @@ beforeEach(() => {
 
 describe('POST /api/active-restaurant', () => {
 	it('rejects an anonymous caller', async () => {
-		await expect(switchPost(switchEvent({ restaurantId: 'rest-2' }, null)))
-			.rejects.toMatchObject({ status: 401 });
+		await expectApiError(await switchPost(switchEvent({ restaurantId: 'rest-2' }, null)), 401);
 	});
 
 	it('requires a restaurant id', async () => {
-		await expect(switchPost(switchEvent({}))).rejects.toMatchObject({ status: 400 });
+		await expectApiError(await switchPost(switchEvent({})), 400);
 	});
 
 	it('refuses a restaurant the caller is not a member of', async () => {
 		state.memberships = [];
 		const cookies = cookieJar();
-		await expect(switchPost(switchEvent({ restaurantId: 'someone-elses' }, USER, cookies)))
-			.rejects.toMatchObject({ status: 403 });
+		await expectApiError(await switchPost(switchEvent({ restaurantId: 'someone-elses' }, USER, cookies)), 403);
 		expect(cookies.set).not.toHaveBeenCalled();
 	});
 
@@ -160,14 +159,13 @@ describe('POST /api/active-restaurant', () => {
 		state.memberships = [{ restaurantId: 'rest-2' }];
 		state.lockedIds = ['rest-2'];
 		const cookies = cookieJar();
-		await expect(switchPost(switchEvent({ restaurantId: 'rest-2' }, USER, cookies)))
-			.rejects.toMatchObject({ status: 403 });
+		await expectApiError(await switchPost(switchEvent({ restaurantId: 'rest-2' }, USER, cookies)), 403);
 		expect(cookies.set).not.toHaveBeenCalled();
 	});
 
 	it('rate limits switching', async () => {
 		rateLimitMock.mockResolvedValueOnce(false);
-		await expect(switchPost(switchEvent({ restaurantId: 'rest-2' }))).rejects.toMatchObject({ status: 429 });
+		await expectApiError(await switchPost(switchEvent({ restaurantId: 'rest-2' })), 429);
 	});
 });
 

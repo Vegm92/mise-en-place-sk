@@ -9,7 +9,19 @@
   import Trash2 from '@lucide/svelte/icons/trash-2';
 
   const { data, form }: { data: PageData; form: ActionData } = $props();
-  const { product, linkedSuppliers, aliases, priceHistory, priceByYear, categories, supplierPrices } = $derived(data);
+  const { product, linkedSuppliers, aliases, priceHistory, priceByYear, categories, supplierPrices, productOptions } = $derived(data);
+
+  let confirmDeleteAliasOpen = $state(false);
+  let deleteAliasId = $state<number | null>(null);
+  function requestDeleteAlias(id: number) {
+    deleteAliasId = id;
+    confirmDeleteAliasOpen = true;
+  }
+  function executeDeleteAlias() {
+    if (deleteAliasId == null) return;
+    (document.getElementById(`delete-alias-form-${deleteAliasId}`) as HTMLFormElement).submit();
+    deleteAliasId = null;
+  }
 
   type BlockedSupplier = { supplierId: number; supplierName: string };
   const blockedSuppliers = $derived(
@@ -163,6 +175,8 @@
             <th>{t('prod.col.suppliers')}</th>
             <th>{t('prod.detail.aliasSku')}</th>
             <th>{t('prod.detail.aliasSource')}</th>
+            <th></th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -172,11 +186,50 @@
               <td class="body text-fg-3" style="font-size:12px;">{a.supplierName ?? '—'}</td>
               <td class="body text-fg-3" style="font-size:12px;">{a.supplierSku ?? '—'}</td>
               <td class="body text-fg-3" style="font-size:12px;">{a.source}</td>
+              <td>
+                {#if a.rawText}
+                  <form method="post" action="?/reassignAlias" style="display:flex;gap:4px;">
+                    <input type="hidden" name="rawText" value={a.rawText} />
+                    <select name="targetProductId" class="input" style="padding:0 6px;height:26px;" required
+                      onchange={(e) => { const f = e.currentTarget.form; if (f && e.currentTarget.value) f.requestSubmit(); }}>
+                      <option value="" selected disabled>{t('prod.detail.aliasReassignPh')}</option>
+                      {#each productOptions as p (p.id)}
+                        <option value={p.id}>{p.name}</option>
+                      {/each}
+                    </select>
+                  </form>
+                {/if}
+              </td>
+              <td>
+                {#if a.rawText}
+                  <form id="delete-alias-form-{a.id}" method="post" action="?/deleteAlias">
+                    <input type="hidden" name="aliasId" value={a.id} />
+                    <button type="button" class="btn btn-ghost text-neg" style="height:26px;font-size:13px;"
+                      onclick={() => requestDeleteAlias(a.id)}>
+                      {t('prod.detail.aliasDelete')}
+                    </button>
+                  </form>
+                {/if}
+              </td>
             </tr>
           {/each}
         </tbody>
       </table>
     {/if}
+    {#if form?.error}
+      <p class="body text-neg" style="font-size:13px;padding:0 16px 12px;">{form.error}</p>
+    {/if}
+    <form method="post" action="?/createAlias" class="flex flex-col gap-2 px-4 py-3 border-t border-divider">
+      <label class="label text-fg-3" for="alias-add-text">{t('prod.detail.aliasAddTitle')}</label>
+      <p class="body text-fg-3" style="font-size:13px;margin:-4px 0 2px;">{t('prod.detail.aliasAddHint')}</p>
+      <div style="display:flex;gap:6px;">
+        <input id="alias-add-text" name="rawText" required placeholder={t('prod.detail.aliasAddPh')}
+          class="input" style="padding:0 8px;flex:1;" />
+        <button type="submit" class="btn btn-primary" style="font-size:13px;white-space:nowrap;">
+          {t('prod.detail.aliasAdd')}
+        </button>
+      </div>
+    </form>
   </SectionCard>
 
   <SectionCard title={t('prod.yoy.title')} noPad>
@@ -301,4 +354,12 @@
   message={t('prod.detail.deleteConfirm')}
   danger={true}
   onconfirm={executeDelete}
+/>
+
+<ConfirmDialog
+  bind:open={confirmDeleteAliasOpen}
+  message={t('prod.detail.aliasDeleteConfirm')}
+  danger={true}
+  onconfirm={executeDeleteAlias}
+  oncancel={() => { deleteAliasId = null; }}
 />

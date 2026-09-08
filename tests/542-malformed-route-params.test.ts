@@ -185,7 +185,9 @@ const ROUTES: RouteCase[] = [
 		label: 'product',
 		uses: 'sentinel',
 		run: async (id, { sentinel }) =>
-			(await productDetail()).actions.update!(buildSentinelArgs(id, sentinel)),
+			(await productDetail()).actions.update!(
+				{ params: { id }, locals: { restaurantId: RID }, request: sentinel!.request } as never,
+			),
 		validEvent: () => ({ id: '5', sentinel: sentinelRequest() }),
 	},
 	{
@@ -193,7 +195,9 @@ const ROUTES: RouteCase[] = [
 		label: 'product',
 		uses: 'sentinel',
 		run: async (id, { sentinel }) =>
-			(await productDetail()).actions.unlinkSupplier!(buildSentinelArgs(id, sentinel)),
+			(await productDetail()).actions.unlinkSupplier!(
+				{ params: { id }, locals: { restaurantId: RID }, request: sentinel!.request } as never,
+			),
 		validEvent: () => ({ id: '5', sentinel: sentinelRequest() }),
 	},
 	{
@@ -219,7 +223,9 @@ const ROUTES: RouteCase[] = [
 		label: 'supplier',
 		uses: 'sentinel',
 		run: async (id, { sentinel }) =>
-			(await supplierDetail()).actions.update!(buildSentinelArgs(id, sentinel)),
+			(await supplierDetail()).actions.update!(
+				{ params: { id }, locals: { restaurantId: RID }, request: sentinel!.request } as never,
+			),
 		validEvent: () => ({ id: '5', sentinel: sentinelRequest() }),
 	},
 	{
@@ -227,7 +233,9 @@ const ROUTES: RouteCase[] = [
 		label: 'supplier',
 		uses: 'sentinel',
 		run: async (id, { sentinel }) =>
-			(await supplierDetail()).actions.addConversion!(buildSentinelArgs(id, sentinel)),
+			(await supplierDetail()).actions.addConversion!(
+				{ params: { id }, locals: { restaurantId: RID }, request: sentinel!.request } as never,
+			),
 		validEvent: () => ({ id: '5', sentinel: sentinelRequest() }),
 	},
 	{
@@ -235,7 +243,9 @@ const ROUTES: RouteCase[] = [
 		label: 'supplier',
 		uses: 'sentinel',
 		run: async (id, { sentinel }) =>
-			(await supplierDetail()).actions.deleteConversion!(buildSentinelArgs(id, sentinel)),
+			(await supplierDetail()).actions.deleteConversion!(
+				{ params: { id }, locals: { restaurantId: RID }, request: sentinel!.request } as never,
+			),
 		validEvent: () => ({ id: '5', sentinel: sentinelRequest() }),
 	},
 	{

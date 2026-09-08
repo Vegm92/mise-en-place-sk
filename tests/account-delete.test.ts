@@ -122,7 +122,9 @@ function deleteEvent(userId: string, email: string, body: unknown, cookieDelete 
 async function runDelete(userId: string, email: string, body: unknown, cookieDelete = vi.fn()) {
 	try {
 		const res = await POST(deleteEvent(userId, email, body, cookieDelete));
-		return { thrown: false as const, status: 200, json: (await res.json()) as { deleted: boolean } };
+		const parsed = (await res.json()) as { deleted?: boolean; error?: string };
+		if (!res.ok) return { thrown: true as const, status: res.status, message: parsed.error };
+		return { thrown: false as const, status: res.status, json: parsed as { deleted: boolean } };
 	} catch (thrown) {
 		const t = thrown as { status?: number; body?: { message: string }; message?: string };
 		return { thrown: true as const, status: t.status, message: t.body?.message ?? t.message };
@@ -248,7 +250,7 @@ describe.skipIf(!hasDbEnv)('POST /api/user/delete (issue #492)', () => {
 		expect(userStillPresentWhenEnqueued).toBe(false);
 
 		expect(enqueueAccountCleanupMock).toHaveBeenCalledTimes(1);
-		expect(enqueueAccountCleanupMock).toHaveBeenCalledWith(userId, rid, [subId], [fileKey]);
+		expect(enqueueAccountCleanupMock).toHaveBeenCalledWith(userId, rid, [subId], [fileKey], undefined);
 	});
 
 	it('does not enqueue cleanup when there is nothing to clean up (no subscription, no files)', async () => {

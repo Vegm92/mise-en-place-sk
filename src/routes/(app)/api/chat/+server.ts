@@ -1,5 +1,8 @@
-import { json, error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
+import * as v from 'valibot';
 import type { RequestHandler } from './$types';
+import { apiError, invalidBody } from '$lib/server/api-response';
+import { parseJson } from '$lib/server/public-form-action';
 import { GEMINI_API_KEY, CHAT_RATE_LIMIT_RPM } from '$lib/server/env';
 import { createGeminiProvider } from '$lib/server/llm-provider';
 import { recordLlmUsage } from '$lib/server/llm-quota';
@@ -80,21 +83,26 @@ function parseActionsBlock(raw: string): { text: string; actions: ChatAction[] }
 	}
 }
 
+const MESSAGE_REQUIRED = 'message is required';
+
+const ChatBody = v.object({
+	message: v.pipe(v.string(MESSAGE_REQUIRED), v.minLength(1, MESSAGE_REQUIRED)),
+	sessionId: v.optional(v.nullable(v.pipe(v.number(), v.integer()))),
+});
+
 export const POST: RequestHandler = async ({ request, locals }) => {
-	const body = await request.json().catch(() => null);
-	if (!body?.message || typeof body.message !== 'string') {
-		throw error(400, 'message is required');
-	}
-	const message = (body.message as string).slice(0, 2000);
-	const sessionId: number | null = Number.isInteger(body.sessionId) ? body.sessionId : null;
+	const parsed = await parseJson(ChatBody, request);
+	if (!parsed.success) return invalidBody(parsed, 400, MESSAGE_REQUIRED);
+	const message = parsed.output.message.slice(0, 2000);
+	const sessionId = parsed.output.sessionId ?? null;
 	const rid = locals.restaurantId;
-	if (!rid) throw error(403, 'No active restaurant');
+	if (!rid) return apiError(409, 'No active restaurant');
 	const tdb = forTenant(rid);
 
-	if (!GEMINI_API_KEY) throw error(503, 'AI service is not configured — please contact support');
+	if (!GEMINI_API_KEY) return apiError(503, 'AI service is not configured — please contact support');
 
 	if (!await rateLimitScoped({ scope: 'tenant', name: 'chat', max: CHAT_RATE_LIMIT_RPM }, { restaurantId: rid })) {
-		throw error(429, 'Too many requests — please wait a moment before trying again');
+		return apiError(429, 'Too many requests — please wait a moment before trying again');
 	}
 
 	let resolvedSessionId = sessionId;
@@ -103,14 +111,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const [newSession] = await db.insert(chatSessions)
 			.values({ restaurantId: rid, title: titleWords })
 			.returning({ id: chatSessions.id });
-		if (!newSession) throw error(500, 'Failed to create chat session');
+		if (!newSession) return apiError(500, 'Failed to create chat session');
 		resolvedSessionId = newSession.id;
 	} else {
 		const updated = await db.update(chatSessions)
 			.set({ updatedAt: new Date() })
 			.where(tdb.scope(chatSessions.restaurantId, eq(chatSessions.id, resolvedSessionId)))
 			.returning({ id: chatSessions.id });
-		if (updated.length === 0) throw error(404, 'Chat session not found');
+		if (updated.length === 0) return apiError(404, 'Chat session not found');
 	}
 
 	await db.insert(chatMessages).values({ restaurantId: rid, sessionId: resolvedSessionId, role: 'user', text: message });
@@ -148,7 +156,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	} catch (err) {
 		console.error('[chat] Gemini error', err);
 		const status = (err as { status?: number }).status;
-		if (status === 429) throw error(429, 'AI service is rate limited — please try again in a moment');
-		throw error(503, 'AI service is temporarily unavailable — please try again shortly');
+		if (status === 429) return apiError(429, 'AI service is rate limited — please try again in a moment');
+		return apiError(503, 'AI service is temporarily unavailable — please try again shortly');
 	}
 };

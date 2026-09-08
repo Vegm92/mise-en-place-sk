@@ -119,7 +119,8 @@ describe.skipIf(!hasDbEnv)('processNormalizeJob', () => {
 			{ restaurantId: rid, productId: throwawayId, rawText: 'MERL. GRANDE' },
 			{ provider: fakeProvider(`{"match_id": ${merluzaId}, "confidence": ${LLM_MATCH_THRESHOLD - 0.2}}`), recordUsage: vi.fn(async () => {}) },
 		);
-		const count = await countSysNotifs(rid);
+		const [_r_] = await testSql`SELECT COUNT(*)::int AS count FROM system_notifications WHERE restaurant_id = ${rid}`;
+		const { count } = _r_!;
 		expect(count).toBe(0);
 	});
 
@@ -129,7 +130,8 @@ describe.skipIf(!hasDbEnv)('processNormalizeJob', () => {
 			{ restaurantId: rid, productId: throwawayId, rawText: 'MERL. GRANDE' },
 			{ provider: fakeProvider('{"match_id": null, "confidence": 0.9}'), recordUsage: vi.fn(async () => {}) },
 		);
-		const count = await countSysNotifs(rid);
+		const [_r_] = await testSql`SELECT COUNT(*)::int AS count FROM system_notifications WHERE restaurant_id = ${rid}`;
+		const { count } = _r_!;
 		expect(count).toBe(0);
 	});
 
@@ -138,7 +140,8 @@ describe.skipIf(!hasDbEnv)('processNormalizeJob', () => {
 		const deps = { provider: fakeProvider(`{"match_id": ${merluzaId}, "confidence": 0.95}`), recordUsage: vi.fn(async () => {}) };
 		await processNormalizeJob({ restaurantId: rid, productId: throwawayId, rawText: 'MERL. GRANDE' }, deps);
 		await processNormalizeJob({ restaurantId: rid, productId: throwawayId, rawText: 'MERL. GRANDE' }, deps);
-		const count = await countSysNotifs(rid);
+		const [_r_] = await testSql`SELECT COUNT(*)::int AS count FROM system_notifications WHERE restaurant_id = ${rid}`;
+		const { count } = _r_!;
 		expect(count).toBe(1);
 	});
 

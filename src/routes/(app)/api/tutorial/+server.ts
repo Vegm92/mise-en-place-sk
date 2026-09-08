@@ -1,21 +1,28 @@
-import { json, error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
+import * as v from 'valibot';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { settings } from '$lib/server/schema';
+import { apiError, invalidBody } from '$lib/server/api-response';
+import { parseJson } from '$lib/server/public-form-action';
 
-const VALID: readonly string[] = [
+const VALID = [
 	'1', '2', 'done',
 	'3', '4', '5', '6', '7', '8', '9', '10', '11',
 	'dismissed',
-];
+] as const;
+
+const TutorialBody = v.object({
+	step: v.picklist(VALID, 'Invalid step'),
+});
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-	if (!locals.restaurantId) error(401, 'Unauthorized');
+	if (!locals.restaurantId) return apiError(401, 'Unauthorized');
 
-	const body = await request.json() as { step?: string };
-	const step = body?.step;
+	const parsed = await parseJson(TutorialBody, request);
+	if (!parsed.success) return invalidBody(parsed, 400, 'Invalid step');
 
-	if (!step || !VALID.includes(step)) error(400, 'Invalid step');
+	const step = parsed.output.step;
 
 	await db
 		.insert(settings)

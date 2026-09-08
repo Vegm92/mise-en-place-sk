@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { categoryColor, seriesColor, SERIES_OTHER } from '$lib/colors';
-  import { locale, t, tcat, tp } from '$lib/i18n';
+  import { locale, t, tcat, ti, tp } from '$lib/i18n';
   import { fmtEurCompact, fmtMonthShort } from '$lib/formatters';
   import { computeDonutSlices } from '$lib/donut-math';
   import DonutChart from '$lib/components/mep/DonutChart.svelte';
@@ -64,6 +64,7 @@
     kpis={data.kpis}
     top_items={data.top_items}
     category_spend={data.category_spend}
+    category_coverage={data.category_coverage}
     monthly_spend={data.monthly_spend}
     has_invoices={data.has_invoices}
     invoices_outside_range={data.invoices_outside_range}
@@ -153,7 +154,10 @@
 
       <div class="card" style="padding:16px;">
         <div class="subtitle" style="margin-bottom:4px;">{t('spend.byCategory')}</div>
-        <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:16px;">{t('spend.byCategorySub')}</div>
+        <div class="text-[12px] text-fg-3 {data.category_coverage.pct != null ? '' : 'mb-4'}">{t('spend.byCategorySub')}</div>
+        {#if data.category_coverage.pct != null}
+          <div class="text-[12px] text-fg-4 mb-4">{ti('spend.categoryCoverage', { pct: data.category_coverage.pct })}</div>
+        {/if}
         {#if !data.category_spend.length}
           <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:24px 0;text-align:center;">
             <p class="body" style="color:var(--mep-fg-4);font-size:12px;max-width:200px;">{t('spend.assignCategories')}</p>

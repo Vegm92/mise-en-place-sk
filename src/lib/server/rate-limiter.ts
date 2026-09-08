@@ -100,6 +100,15 @@ export async function checkRateLimit(
 	return checkInMemory(key, max, windowSeconds);
 }
 
+export class ExtractionSlotUnavailableError extends Error {
+	readonly code = 'EXTRACTION_SLOT_UNAVAILABLE';
+
+	constructor(waitedMs: number, max: number) {
+		super(`No extraction slot available after ${waitedMs}ms (max ${max} concurrent)`);
+		this.name = 'ExtractionSlotUnavailableError';
+	}
+}
+
 const SLOT_MAX_WAIT_MS = 5 * 60_000;
 
 let activeExtractions = 0;
@@ -132,12 +141,12 @@ export function getExtractionSemaphoreStatus(): { active: number; waiting: numbe
 	return { active: activeExtractions, waiting: extractionWaiters.length };
 }
 
-function acquireExtractionInMemory(max: number): Promise<{ timedOut: boolean }> {
+function acquireExtractionInMemory(max: number): Promise<void> {
 	if (activeExtractions < max) {
 		activeExtractions++;
-		return Promise.resolve({ timedOut: false });
+		return Promise.resolve();
 	}
-	return new Promise((resolve) => {
+	return new Promise((resolve, reject) => {
 		const waiter: ExtractionWaiter = {
 			settled: false,
 			timer: setTimeout(() => {
@@ -147,15 +156,15 @@ function acquireExtractionInMemory(max: number): Promise<{ timedOut: boolean }> 
 				if (idx !== -1) extractionWaiters.splice(idx, 1);
 				console.warn(
 					`[rate-limiter] Timed out waiting ${SLOT_MAX_WAIT_MS}ms for an in-memory extraction slot ` +
-					`(max ${max}) — proceeding without a slot to avoid stalling the job`,
+					`(max ${max}) — returning the job to the queue`,
 				);
-				resolve({ timedOut: true });
+				reject(new ExtractionSlotUnavailableError(SLOT_MAX_WAIT_MS, max));
 			}, SLOT_MAX_WAIT_MS),
 			grant() {
 				if (waiter.settled) return;
 				waiter.settled = true;
 				clearTimeout(waiter.timer);
-				resolve({ timedOut: false });
+				resolve();
 			},
 		};
 		extractionWaiters.push(waiter);
@@ -212,9 +221,9 @@ async function acquireExtractionSlotRedis(max: number): Promise<ExtractionSlot |
 		if (Date.now() > deadline) {
 			console.warn(
 				`[rate-limiter] Timed out waiting ${SLOT_MAX_WAIT_MS}ms for an extraction slot ` +
-				`(max ${max}) — proceeding without a Redis slot to avoid stalling the job`,
+				`(max ${max}) — returning the job to the queue`,
 			);
-			return { async release() { } };
+			throw new ExtractionSlotUnavailableError(SLOT_MAX_WAIT_MS, max);
 		}
 		await sleep(SLOT_POLL_INTERVAL_MS + Math.floor(Math.random() * SLOT_POLL_INTERVAL_MS));
 	}
@@ -229,16 +238,17 @@ export async function acquireExtractionSlot(
 			const slot = await acquireExtractionSlotRedis(cap);
 			if (slot) return slot;
 		} catch (e) {
+			if (e instanceof ExtractionSlotUnavailableError) throw e;
 			console.error('[rate-limiter] Redis extraction semaphore error, falling back to in-memory:', e);
 		}
 	}
-	const { timedOut } = await acquireExtractionInMemory(cap);
+	await acquireExtractionInMemory(cap);
 	let released = false;
 	return {
 		async release() {
 			if (released) return;
 			released = true;
-			if (!timedOut) releaseExtraction();
+			releaseExtraction();
 		},
 	};
 }

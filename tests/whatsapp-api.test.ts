@@ -38,10 +38,12 @@ describe('sendWhatsAppMessage', () => {
 	it('posts to the configured Graph API version, not a hardcoded one', async () => {
 		await setupWhatsAppSend();
 
-		const [apiUrl, apiInit] = fetchMock.mock.calls[0]!;
-		expect(apiUrl).toBe('https://graph.facebook.com/v25.0/123456/messages');
-		expect(apiInit.headers.Authorization).toBe('Bearer test-token');
-		expect(JSON.parse(apiInit.body)).toEqual({
+		await sendWhatsAppMessage('34612345678', 'hola');
+
+		const [url, init] = fetchMock.mock.calls[0]!;
+		expect(url).toBe('https://graph.facebook.com/v25.0/123456/messages');
+		expect(init.headers.Authorization).toBe('Bearer test-token');
+		expect(JSON.parse(init.body)).toEqual({
 			messaging_product: 'whatsapp',
 			to: '34612345678',
 			type: 'text',
@@ -53,8 +55,8 @@ describe('sendWhatsAppMessage', () => {
 		await setupWhatsAppSend();
 
 		// v19.0 expired in 2026; anything at or below it is dead on arrival.
-		const versionUrl = String(fetchMock.mock.calls[0]![0]);
-		const version = Number(versionUrl.match(/graph\.facebook\.com\/v(\d+)\./)?.[1]);
+		const url = String(fetchMock.mock.calls[0]![0]);
+		const version = Number(url.match(/graph\.facebook\.com\/v(\d+)\./)?.[1]);
 		expect(version).toBeGreaterThan(19);
 	});
 

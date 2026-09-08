@@ -540,6 +540,41 @@
       "when": 1788606260804,
       "tag": "0076_brainy_living_mummy",
       "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1788817859907,
+      "tag": "0077_spooky_madelyne_pryor",
+      "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1788817859908,
+      "tag": "0078_rls_tenant_isolation_gap",
+      "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "7",
+      "when": 1788863152685,
+      "tag": "0079_batch_item_discard_reason",
+      "breakpoints": true
+    },
+    {
+      "idx": 80,
+      "version": "7",
+      "when": 1788864040989,
+      "tag": "0080_latency_metrics",
+      "breakpoints": true
+    },
+    {
+      "idx": 81,
+      "version": "7",
+      "when": 1788866859488,
+      "tag": "0081_fk_covering_indexes",
+      "breakpoints": true
     }
   ]
 }

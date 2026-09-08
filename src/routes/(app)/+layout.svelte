@@ -911,8 +911,8 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
     {/if}
 
     {#if data.openBatches?.length > 0 && !is('/batch')}
-      <div style="flex-shrink:0;padding:10px 20px;background:var(--mep-warn-soft);border-bottom:1px solid var(--mep-warn);display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-        <span style="flex:1;min-width:200px;font-size:13px;color:var(--mep-warn);">{tp('upload.openBatches.warning', data.openBatches.length)}</span>
+      <div class="shrink-0 px-5 py-2.5 bg-warn-soft border-b border-warn flex items-center gap-3 flex-wrap">
+        <span class="flex-1 min-w-[200px] text-[13px] text-warn">{tp('upload.openBatches.warning', data.openBatches.length)}</span>
         <a href="/batch/{data.openBatches[0]!.batchId}" class="btn btn-primary" style="height:34px;padding:0 14px;text-decoration:none;flex-shrink:0;">
           {t('upload.openBatches.resume')}
         </a>

@@ -20,7 +20,7 @@ import { trackEvent } from '$lib/server/events';
 import { getStorage } from '$lib/server/storage';
 import { STORAGE_DRIVER } from '$lib/server/env';
 import { db, forTenant } from '$lib/server/db';
-import { invoices, suppliers } from '$lib/server/schema';
+import { invoices, invoiceAuditLog, suppliers } from '$lib/server/schema';
 import { eq, and, isNull, isNotNull, gte, lte, sql } from 'drizzle-orm';
 import { findSimilarInvoice, isoDateOffset, SIMILAR_INVOICE_DATE_WINDOW_DAYS } from '$lib/server/dedup';
 import { previewLineProducts, listProductOptions } from '$lib/server/products';
@@ -278,7 +278,7 @@ export const actions: Actions = {
 			getItem,
 			getBatchItems,
 			markQueued,
-			enqueue: enqueueExtraction,
+			enqueue: (id, extractionRid) => enqueueExtraction(id, extractionRid, locals.requestId),
 		});
 		redirect(303, `/batch/${params.id}`);
 	},
@@ -289,7 +289,7 @@ export const actions: Actions = {
 			const requeued = item.status === 'queued' || item.status === 'extracting'
 				? await requeueStalled(item.id)
 				: await markQueued(item.id);
-			if (requeued) await enqueueExtraction(item.id, item.restaurantId);
+			if (requeued) await enqueueExtraction(item.id, item.restaurantId, locals.requestId);
 		}
 		redirect(303, `/batch/${params.id}`);
 	},
@@ -300,10 +300,16 @@ export const actions: Actions = {
 		if (!item) {
 			redirect(303, `/batch/${params.id}`);
 		}
+		const uid = locals.user!.id;
 
-		const outcome = await saveReviewedInvoice(item, formData, rid, async (tx) => {
+		const outcome = await saveReviewedInvoice(item, formData, rid, uid, async (tx, invoiceId) => {
 			await createBatchStore(tx).markConfirmed(item.id);
-		});
+			// tenant-check-ok: item ownership is already checked via requireOwnedBatch
+			// in resolveFormItem above; rid is locals.restaurantId, never client input.
+			await tx.insert(invoiceAuditLog).values({
+				restaurantId: rid, invoiceId, action: 'confirm', userId: uid, sourceFile: item.fileKey,
+			});
+		}, locals.requestId);
 
 		if (outcome.type === 'replay') redirect(303, `/batch/${params.id}`);
 
@@ -313,7 +319,7 @@ export const actions: Actions = {
 		if (outcome.type === 'contentDuplicate') return fail(422, { contentDuplicate: true, duplicateId: outcome.duplicateId });
 
 		if (outcome.type === 'numberDuplicate') {
-			await markDiscarded(item.id);
+			await markDiscarded(item.id, 'duplicate_number');
 			if (await isBatchSettled(params.id)) redirect(303, '/?duplicate_inv=1');
 			redirect(303, `/batch/${params.id}`);
 		}
@@ -329,7 +335,7 @@ export const actions: Actions = {
 		if (item) {
 			trackEvent('extraction_discarded', item.restaurantId, { files: [item.displayName] });
 			await getStorage().delete(item.fileKey);
-			await markDiscarded(item.id);
+			await markDiscarded(item.id, 'user_rejected');
 			await refundIfNeverExtracted(item, 'discarded');
 			if (await isBatchSettled(params.id)) await settledRedirect(params.id);
 		}
@@ -362,7 +368,7 @@ export const actions: Actions = {
 			const anyActive = items.some(i => i.status === 'queued' || i.status === 'extracting' || i.status === 'done');
 			if (anyActive) {
 				for (const id of added) {
-					if (await markQueued(id)) await enqueueExtraction(id, items[0]!.restaurantId);
+					if (await markQueued(id)) await enqueueExtraction(id, items[0]!.restaurantId, locals.requestId);
 				}
 			}
 		}

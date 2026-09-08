@@ -43,6 +43,7 @@ import { POST } from '../src/routes/(app)/api/chat/+server';
 import {
 	testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
+import { expectApiError } from './helpers/api-error';
 
 let rid = '';
 
@@ -109,12 +110,11 @@ describe.skipIf(!hasDbEnv)('#426 — POST /api/chat routes through the LLM provi
 			SELECT restaurant_id, model, input_tokens, output_tokens, caller_context
 			FROM llm_usage_log WHERE restaurant_id = ${rid}`;
 		expect(rows).toHaveLength(1);
-		const chatLog = rows[0]!;
-		expect(chatLog.restaurant_id).toBe(rid);
-		expect(chatLog.model).toBe('gemini-test');
-		expect(chatLog.input_tokens).toBe(111);
-		expect(chatLog.output_tokens).toBe(22);
-		expect(chatLog.caller_context).toBe('chat');
+		expect(rows[0]!.restaurant_id).toBe(rid);
+		expect(rows[0]!.model).toBe('gemini-test');
+		expect(rows[0]!.input_tokens).toBe(111);
+		expect(rows[0]!.output_tokens).toBe(22);
+		expect(rows[0]!.caller_context).toBe('chat');
 	});
 
 	it('parses an ACTIONS block off the seam reply exactly as before', async () => {
@@ -132,7 +132,7 @@ describe.skipIf(!hasDbEnv)('#426 — POST /api/chat routes through the LLM provi
 	it('a seam error still yields a 503 without ever hitting recordLlmUsage', async () => {
 		generateMock.mockRejectedValue(new Error('upstream boom'));
 
-		await expect(POST(chatEvent('This will fail'))).rejects.toMatchObject({ status: 503 });
+		await expectApiError(await POST(chatEvent('This will fail')), 503);
 
 		const rows = await testSql`SELECT id FROM llm_usage_log WHERE restaurant_id = ${rid}`;
 		expect(rows).toHaveLength(0);
@@ -258,7 +258,7 @@ describe.skipIf(!hasDbEnv)('#440 — chat rate limit is tenant-scoped, not user-
 	it('a shared budget exhausted by one staff member 429s the next, on paid Gemini capacity that would otherwise be multiplied per seat', async () => {
 		rateLimitMock.mockResolvedValueOnce(false);
 
-		await expect(POST(chatEvent('One too many', 'staff-a'))).rejects.toMatchObject({ status: 429 });
+		await expectApiError(await POST(chatEvent('One too many', 'staff-a')), 429);
 		expect(generateMock).not.toHaveBeenCalled();
 	});
 });
