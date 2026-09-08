@@ -63,6 +63,7 @@ describe.skipIf(!hasDbEnv)('reviewBacklog', () => {
 			const [batch] = await testSql`
 				INSERT INTO upload_batches (restaurant_id) VALUES (${restaurant.id}) RETURNING id
 			`;
+			if (!batch) throw new Error('upload_batches insert returned no row');
 			const insert = (position: number, status: string, hoursAgo: number) => testSql`
 				INSERT INTO batch_items (batch_id, restaurant_id, position, file_key, display_name, status, extracted_at, updated_at)
 				VALUES (
@@ -81,7 +82,7 @@ describe.skipIf(!hasDbEnv)('reviewBacklog', () => {
 				SELECT count(*)::int AS n FROM batch_items
 				WHERE restaurant_id = ${restaurant.id} AND status = 'done'
 			`;
-			expect(mine[0].n).toBe(2);
+			expect(mine[0]!.n).toBe(2);
 			expect(before.items).toBeGreaterThanOrEqual(2);
 			expect(before.oldestAgeHours ?? 0).toBeGreaterThanOrEqual(239);
 			expect(before.staleItems).toBeGreaterThanOrEqual(1);

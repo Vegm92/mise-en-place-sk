@@ -69,7 +69,7 @@ describe.skipIf(!hasDbEnv)('#995 — user_restaurants.user_id references users',
 				AND r.relname = 'users' AND a.attname = 'user_id'
 		`;
 		expect(rows.length, 'user_restaurants.user_id has no FK to users').toBe(1);
-		expect(rows[0].confdeltype, 'FK should be ON DELETE CASCADE').toBe('c');
+		expect(rows[0]!.confdeltype, 'FK should be ON DELETE CASCADE').toBe('c');
 	});
 
 	it('rejects a membership whose user does not exist', async () => {
@@ -90,6 +90,7 @@ describe.skipIf(!hasDbEnv)('#995 — user_restaurants.user_id references users',
 		const [user] = await testSql`
 			INSERT INTO users (email, name) VALUES (${email}, 'FK Cascade') RETURNING id
 		`;
+		if (!user) throw new Error('users insert returned no row');
 		try {
 			await testSql`
 				INSERT INTO user_restaurants (user_id, restaurant_id, role)
