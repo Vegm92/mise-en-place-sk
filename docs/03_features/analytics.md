@@ -46,6 +46,16 @@ buckets shared by the dashboard.
   `mv_category_monthly_spend`, `mv_price_snapshots`, `mv_extraction_stats`)
   refreshed by `refresh_analytics_rollups()` nightly (`10 3 * * *`). Never
   derived at read time (ADR-012).
+- **Rollup freshness** (#1004). `runAnalyticsRefreshJob` stamps
+  `app_flags.analytics_rollup_refreshed_at` (`ANALYTICS_ROLLUP_REFRESHED_FLAG`)
+  **after** the refresh returns, so a failed run leaves the previous stamp in
+  place and the age climbs. `/admin/health` reads it back as the *Rollup
+  freshness* check: warn past 26 h, error past 48 h
+  (`docs/05_operations/monitoring.md`). Before this, a failed refresh reached
+  Sentry but the analytics pages went on rendering last-good numbers with
+  nothing saying how old they were — migration
+  `0034_price_snapshots_plain_column_index.sql:6` records that
+  `refresh_analytics_rollups()` had been failing on one statement since #299.
 - **Category attribution** (ADR-027): every category breakdown groups by
   `COALESCE(products.category, suppliers.category, 'Other')` over a LEFT JOIN
   from the line to its product — one shared criterion in

@@ -301,6 +301,13 @@ Upstash Redis, Gemini, Sentry, Stripe, WhatsApp. `numReplicas: 1` on both servic
 | **DLQ growth** | `monitoring.md:69` lists "dead-letter growth" as an ops alert but attaches no number to it; the only numeric threshold on those lines, "> 0 / > 10 in 24 h" (`monitoring.md:70-71`), applies to scheduled jobs. |
 | **Index additions** | No `pg_stat_user_tables` review, no seq-scan threshold documented anywhere. |
 
+Resolved by #1004: every row above now has a threshold in
+`docs/05_operations/monitoring.md` → *Scaling triggers*, each carrying the
+measured baseline it is being compared against. MV staleness additionally
+became *observable* rather than only documented — `runAnalyticsRefreshJob`
+stamps `app_flags.analytics_rollup_refreshed_at` on success and
+`/admin/health` shows the age as *Rollup freshness*.
+
 ### 5.3 What breaks first under load
 
 In order, from the repo's own numbers:
@@ -349,8 +356,8 @@ In order, from the repo's own numbers:
 | Alert on DLQ growth | Yes | `scheduled-dead-letter-alert` (`5 * * * *`): Sentry `warning` above 10 distinct pending rows / 24 h, `error` on any pending `account-cleanup` row; thresholds in `monitoring.md` | Closed by #1001 |
 | Timeout, retry and abort on the object-storage hop | Yes | `withStorageRetry` bounds every `RailwayBucketDriver` call at `STORAGE_TIMEOUT_MS` and aborts the S3 request on expiry; transient failures only, `maxAttempts: 1` on the client so the SDK's own retries do not multiply | Closed by #999 |
 | Review-queue aging visible | Yes | `reviewBacklog()` (`pipeline-stats.ts`) → the *Review backlog* check on `/admin/health`: oldest unreviewed age, and items/tenants past the 168 h budget | Closed by #1011. `done` items are still never auto-expired, deliberately |
-| Cache layer | **None** | `response-cache.ts:1` sets `private, no-store` on every routed response | See D5 trigger |
-| Cache TTL / invalidation policy | n/a | no cache | — |
+| Cache layer | **None** | `response-cache.ts:1` sets `private, no-store` on every routed response | Trigger written down (#1004): web p95 > 300 ms for 3 buckets, and any cache added is per-tenant keyed |
+| Cache TTL / invalidation policy | Policy, no cache | no cache exists; the policy for one that does is stated with its trigger (#1004) | — |
 | Sentry init | Yes | `hooks.server.ts:40`, `worker.ts:37`, `hooks.client.ts:9` | — |
 | Structured log format | **No** | unstructured `console.*`, e.g. `worker.ts:74` | Emit JSON lines |
 | Correlation ID | Yes | `resolveRequestId` in `appHandle`, echoed as `X-Request-Id`, carried onto the job payload and Sentry scope | Closed by #1002 |
@@ -359,14 +366,14 @@ In order, from the repo's own numbers:
 | Load / throughput test | **No** | no matching file under `tests/` | Open — the ≈90 docs/hour ceiling is still computed from config, not observed |
 | CI pipeline | Yes | `.github/workflows/ci.yml`, §6 | — |
 | Forward-only migrations | Yes | 77 journal entries, no down files | — |
-| Expand/contract migration safety | **No mechanism** | pre-deploy migration `railway.json:11-13` runs against the old code | Split destructive migrations across two deploys (#1009) |
+| Expand/contract migration safety | Rule + warning gate | the two-deploy rule is written down (`docs/04_engineering/database_changes.md`) and `pnpm lint:migration-ordering` flags a destructive migration landing with the `src/` change it belongs to | Closed by #1009. Warning-only, the #845 pattern: `--strict` is the ratchet, `-- expand-contract-ok: <reason>` the waiver |
 | Rollback path | Documented only | `docs/04_engineering/deployment.md:103-107` | — |
 | Feature flags | Yes, two systems | `hooks.server.ts:203-218`; `entitlements.ts:24` | — |
 | One error envelope on the JSON surface | Yes | `apiError()` → `{error}` returned from every `+server.ts` under `api/`; ratcheted by `tests/1005-1008-json-api-contract.test.ts` | Closed by #1005 |
 | Declared schema on every JSON request body | Yes | `parseJson(schema, request)` beside `parseForm` (`public-form-action.ts`); gate `pnpm lint:json-body-schema` | Closed by #1006 |
 | Bounded list responses | Yes | `LIST_ROW_CAP + 1` + `truncated` on the notification and stock-level lists; the other list surfaces were already capped (`MAX_BUCKETS` 400, `MAX_ROWS` 5000, `EXPORT_ROW_CAP`) | Closed by #1007. `/api/user/export` stays whole-tenant by design |
 | Idempotency key on mutating JSON endpoints | Yes | optional `idempotency_key` → `claimRequest`, released on refusal (`api-idempotency.ts`) | Closed by #1008 |
-| Scaling triggers with metric thresholds | **No** | §5.2 | Adopt D5's trigger table (#1004) |
+| Scaling triggers with metric thresholds | Yes | the trigger table with a threshold per component, each carrying its measured baseline (`docs/05_operations/monitoring.md` → *Scaling triggers*) | Closed by #1004. Most cannot fire yet — they are the specification the #1003 instrumentation aims at |
 | Production metrics available | Yes | Railway API, §1.1 | — |
 | Per-route latency recorded | Yes | `metric_samples` `name = 'route.latency_ms'`, bucketed per 60 s flush in `appHandle` (`metrics.ts`) | Closed by #1003 |
 | Queue depth over time | Yes | `metric_samples` `name = 'queue.depth'` / `queue.oldest_seconds`, sampled every 5 min by `scheduled-metric-sample` | Closed by #1003 |
