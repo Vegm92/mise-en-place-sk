@@ -5,6 +5,7 @@
   import { goto } from '$app/navigation';
   import { fmt, fmtDateShort, fmtEur } from '$lib/formatters';
   import { t, ti, tiv, tp, locale } from '$lib/i18n';
+  import { UNCATEGORIZED_CATEGORY } from '$lib/constants';
   import { notificationMessage } from '$lib/notification-display';
   import { debounce } from '$lib/debounce';
   import {
@@ -245,7 +246,7 @@
       { key: 'reviewed',  label: t('inv.kpi.reviewed'),  value: stats.reviewed_count, sub: t('misc.invoices'), variant: 'pos' },
       { key: 'toReview',  label: t('inv.kpi.toReview'),  value: stats.to_review_count, sub: t('misc.invoices'), variant: stats.to_review_count > 0 ? 'warn' : 'default' },
       { key: 'issues',    label: t('inv.kpi.issues'),    value: stats.issue_count, sub: t('misc.invoices'), variant: stats.issue_count > 0 ? 'neg' : 'default' },
-      { key: 'uncategorized', label: t('inv.kpi.uncategorized'), value: stats.uncategorized_line_invoices, sub: t('misc.invoices'), variant: stats.uncategorized_line_invoices > 0 ? 'warn' : 'default' },
+      { key: 'uncategorized', label: t('inv.kpi.uncategorized'), value: stats.uncategorized_line_invoices, sub: t('misc.invoices'), variant: stats.uncategorized_line_invoices > 0 ? 'warn' : 'default', onClick: () => patchFilters({ category: UNCATEGORIZED_CATEGORY }) },
       { key: 'suppliers', label: t('inv.kpi.suppliers'), value: stats.supplier_count, sub: t('dash.kpi.active') },
     ]}
     trendTitle={t('inv.trend.title')}
