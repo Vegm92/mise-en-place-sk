@@ -61,9 +61,10 @@ async function getBoss(): Promise<PgBoss> {
 export async function enqueueExtraction(
 	itemId: string,
 	restaurantId: string,
+	requestId?: string,
 ): Promise<boolean> {
 	const b = await getBoss();
-	const jobId = await b.send(EXTRACTION_QUEUE, { itemId, restaurantId }, {
+	const jobId = await b.send(EXTRACTION_QUEUE, { itemId, restaurantId, requestId }, {
 		retryLimit: 2,
 		retryDelay: 30,
 		expireInSeconds: 600,
@@ -77,9 +78,10 @@ export async function enqueueNormalize(
 	restaurantId: string,
 	productId: number,
 	rawText: string,
+	requestId?: string,
 ): Promise<boolean> {
 	const b = await getBoss();
-	const jobId = await b.send(NORMALIZE_QUEUE, { restaurantId, productId, rawText }, {
+	const jobId = await b.send(NORMALIZE_QUEUE, { restaurantId, productId, rawText, requestId }, {
 		priority: -10,
 		retryLimit: 1,
 		retryDelay: 60,
@@ -94,9 +96,10 @@ export async function enqueueCategorize(
 	restaurantId: string,
 	productId: number,
 	canonicalName: string,
+	requestId?: string,
 ): Promise<boolean> {
 	const b = await getBoss();
-	const jobId = await b.send(CATEGORIZE_QUEUE, { restaurantId, productId, canonicalName }, {
+	const jobId = await b.send(CATEGORIZE_QUEUE, { restaurantId, productId, canonicalName, requestId }, {
 		priority: -10,
 		retryLimit: 1,
 		retryDelay: 60,
@@ -110,9 +113,10 @@ export async function enqueueCategorize(
 export async function enqueueWhatsAppNotify(
 	itemId: string,
 	restaurantId: string,
+	requestId?: string,
 ): Promise<boolean> {
 	const b = await getBoss();
-	const jobId = await b.send(WHATSAPP_NOTIFY_QUEUE, { itemId, restaurantId }, {
+	const jobId = await b.send(WHATSAPP_NOTIFY_QUEUE, { itemId, restaurantId, requestId }, {
 		retryLimit: 3,
 		retryDelay: 60,
 		expireInSeconds: 300,
@@ -125,11 +129,12 @@ export async function enqueueWhatsAppNotify(
 export interface WhatsAppInboundJobData {
 	messageId: string;
 	msg: WhatsAppInboundMessage;
+	requestId?: string;
 }
 
-export async function enqueueWhatsAppInbound(msg: WhatsAppInboundMessage): Promise<boolean> {
+export async function enqueueWhatsAppInbound(msg: WhatsAppInboundMessage, requestId?: string): Promise<boolean> {
 	const b = await getBoss();
-	const jobId = await b.send(WHATSAPP_INBOUND_QUEUE, { messageId: msg.id, msg }, {
+	const jobId = await b.send(WHATSAPP_INBOUND_QUEUE, { messageId: msg.id, msg, requestId }, {
 		retryLimit: 3,
 		retryDelay: 30,
 		expireInSeconds: 300,
@@ -144,11 +149,12 @@ export async function enqueueAccountCleanup(
 	restaurantId: string | null,
 	stripeSubscriptionIds: string[],
 	storageKeys: string[],
+	requestId?: string,
 ): Promise<boolean> {
 	const b = await getBoss();
 	const jobId = await b.send(
 		ACCOUNT_CLEANUP_QUEUE,
-		{ itemId: userId, restaurantId, stripeSubscriptionIds, storageKeys },
+		{ itemId: userId, restaurantId, stripeSubscriptionIds, storageKeys, requestId },
 		{
 			retryLimit: 5,
 			retryDelay: 60,

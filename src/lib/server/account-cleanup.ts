@@ -6,6 +6,7 @@ export interface AccountCleanupJobData {
 	restaurantId: string | null;
 	stripeSubscriptionIds: string[];
 	storageKeys: string[];
+	requestId?: string;
 }
 
 export async function processAccountCleanupJob(data: AccountCleanupJobData): Promise<void> {

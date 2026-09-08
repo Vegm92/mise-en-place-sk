@@ -5,6 +5,7 @@ import type { Locale } from '$lib/i18n-messages';
 declare global {
 	namespace App {
 		interface Locals {
+			requestId:      string;
 			user:           { id: string; email: string; name: string | null; image: string | null } | null;
 			restaurantId:   string | null;
 			lockedRestaurantIds: string[];
