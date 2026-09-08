@@ -53,7 +53,7 @@ function titleKeyOf(dir: string): string | null {
 	try {
 		const source = readFileSync(full, 'utf8');
 		const match = source.match(/(?:^|[^\w.'])title:\s*'([^']*)'/);
-		return match ? match[1] : null;
+		return match ? match[1]! : null;
 	} catch {
 		return null;
 	}

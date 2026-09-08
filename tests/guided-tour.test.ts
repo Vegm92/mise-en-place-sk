@@ -109,7 +109,7 @@ describe('the tour counts only the steps this plan can reach', () => {
 		// /chat is reachable: it renders locked (composer disabled, upgrade CTA)
 		// rather than 403ing, so the tour can safely stop there (#546).
 		expect(reachable.map((p) => p.path)).toContain('/chat');
-		expect(reachable[reachable.length - 1].path).toBe('/settings');
+		expect(reachable[reachable.length - 1]!.path).toBe('/settings');
 	});
 
 	it('tells the nudge how many steps there actually are', () => {
@@ -177,7 +177,7 @@ describe('the tour chrome is themed', () => {
 	it('takes its radii from the radius scale', () => {
 		for (const source of [COACH, tourChrome]) {
 			for (const decl of source.matchAll(/border-radius:\s*([^;"\n]+)/g)) {
-				expect(decl[1].trim()).toMatch(/^var\(--mep-r-(tag|input|card|pill)\)$/);
+				expect(decl[1]!.trim()).toMatch(/^var\(--mep-r-(tag|input|card|pill)\)$/);
 			}
 		}
 	});

@@ -90,7 +90,7 @@
       {#if form?.released}
         <p class="text-[13px] mt-2" style="color:#34d399;">{t('admin.whatsapp.releaseOk')}</p>
       {:else if form?.error && RELEASE_ERRORS[form.error]}
-        <p class="text-[13px] mt-2" style="color:#f87171;">{t(RELEASE_ERRORS[form.error])}</p>
+        <p class="text-[13px] mt-2" style="color:#f87171;">{t(RELEASE_ERRORS[form.error] ?? '')}</p>
       {/if}
     </div>
   </HudPanel>

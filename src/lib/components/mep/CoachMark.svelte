@@ -12,7 +12,7 @@
     totalSteps: number;
     onNext: () => void;
     onSkip: () => void;
-    nextLabel?: string;
+    nextLabel?: string | undefined;
   }
 
   let {

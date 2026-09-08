@@ -73,13 +73,6 @@ AGENTS.md
 # ...and the onboarding pack, which has to reach new teammates (tracked on purpose)
 !/docs/onboarding/
 !/docs/onboarding/**
-# ...and the system-design audit with its diagrams (tracked on purpose). The .mmd
-# sources are the editable originals; the .svg renders exist so the report is
-# readable on GitHub without a checkout — regenerate them with the command in
-# docs/system-design-audit.md section 10.
-!/docs/system-design-audit.md
-!/docs/diagrams/
-!/docs/diagrams/**
 # Architecture decision records live in /doc (not ignored) â€” see doc/README.md
 /mise-en-place
 

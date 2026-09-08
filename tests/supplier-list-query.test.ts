@@ -167,14 +167,14 @@ async function seedSupplier(
 		INSERT INTO suppliers (restaurant_id, name, category)
 		VALUES (${rid}, ${name}, ${category}) RETURNING id
 	`;
-	const supplierId = Number(s.id);
+	const supplierId = Number(s!.id);
 	const invoiceIds: number[] = [];
 	for (const [invoiceDate, amount] of invoiceRows) {
 		const [inv] = await testSql`
 			INSERT INTO invoices (restaurant_id, supplier_id, invoice_date, total_amount, status)
 			VALUES (${rid}, ${supplierId}, ${invoiceDate}, ${amount}, 'paid') RETURNING id
 		`;
-		invoiceIds.push(Number(inv.id));
+		invoiceIds.push(Number(inv!.id));
 	}
 	if (score !== null) {
 		await testSql`
@@ -194,7 +194,7 @@ async function linkProduct(rid: string, invoiceId: number, productName: string, 
 	`;
 	await testSql`
 		INSERT INTO invoice_line_items (restaurant_id, invoice_id, product_id, description, unit_price)
-		VALUES (${rid}, ${invoiceId}, ${Number(p.id)}, ${productName}, 10.00)
+		VALUES (${rid}, ${invoiceId}, ${Number(p!.id)}, ${productName}, 10.00)
 	`;
 }
 
@@ -215,8 +215,8 @@ beforeAll(async () => {
 		['2026-02-01', 400], ['2026-02-05', 400], ['2026-02-09', 400],
 	], 65);
 
-	await linkProduct(ridA, alfa.invoiceIds[0], 'Merluza', 'Other');
-	await linkProduct(ridA, beta.invoiceIds[0], 'Tomate', 'Frutas y Verduras');
+	await linkProduct(ridA, alfa.invoiceIds[0]!, 'Merluza', 'Other');
+	await linkProduct(ridA, beta.invoiceIds[0]!, 'Tomate', 'Frutas y Verduras');
 
 	await seedSupplier(ridB, 'Alfa Pescados Ajeno', 'Pescados y Mariscos', [
 		['2026-06-01', 99999], ['2026-06-02', 99999], ['2026-06-03', 99999],
@@ -275,7 +275,9 @@ describe.skipIf(!hasDbEnv)('suppliers load() — sorting', () => {
 		expect(hostile.sort).toBe(DEFAULT_SUPPLIER_SORT);
 		expect(names(hostile)).toEqual(names(await loadSuppliers(ridA, `sort=${DEFAULT_SUPPLIER_SORT}`)));
 
-		const [{ count }] = await testSql`SELECT COUNT(*)::int AS count FROM suppliers WHERE restaurant_id = ${ridA}`;
+		const [_r_] = await testSql`SELECT COUNT(*)::int AS count FROM suppliers WHERE restaurant_id = ${ridA}`;
+
+		const { count } = _r_!;
 		expect(Number(count)).toBe(3);
 	});
 });

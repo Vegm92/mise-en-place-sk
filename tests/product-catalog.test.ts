@@ -36,7 +36,7 @@ beforeAll(async () => {
 	rid = r.id;
 	const [sup] = await testSql`
 		INSERT INTO suppliers (restaurant_id, name) VALUES (${rid}, '__prodcat_supplier__') RETURNING id`;
-	supplierId = sup.id;
+	supplierId = sup!.id;
 });
 
 afterEach(async () => {
@@ -62,17 +62,17 @@ describe.skipIf(!hasDbEnv)('resolveLineProducts — new product', () => {
 		const [prod] = await testSql`
 			SELECT canonical_name, name_key, category, canonical_unit FROM products
 			WHERE restaurant_id = ${rid} AND id = ${r.productId}`;
-		expect(prod.name_key).toBe('tomate pera');
-		expect(prod.canonical_name).toBe('Tomate Pera');
-		expect(prod.category).toBe('Frutas y Verduras');
-		expect(prod.canonical_unit).toBe('kg');
+		expect(prod!.name_key).toBe('tomate pera');
+		expect(prod!.canonical_name).toBe('Tomate Pera');
+		expect(prod!.category).toBe('Frutas y Verduras');
+		expect(prod!.canonical_unit).toBe('kg');
 
 		const [alias] = await testSql`
 			SELECT raw_key, source, confirmed_at FROM product_aliases
 			WHERE restaurant_id = ${rid} AND product_id = ${r.productId}`;
-		expect(alias.raw_key).toBe('tomate pera');
-		expect(alias.source).toBe('exact');
-		expect(alias.confirmed_at).not.toBeNull();
+		expect(alias!.raw_key).toBe('tomate pera');
+		expect(alias!.source).toBe('exact');
+		expect(alias!.confirmed_at).not.toBeNull();
 	});
 
 	it('canonicalizes the unit spelling on the product', async () => {
@@ -81,7 +81,7 @@ describe.skipIf(!hasDbEnv)('resolveLineProducts — new product', () => {
 		]);
 		const [prod] = await testSql`
 			SELECT canonical_unit FROM products WHERE restaurant_id = ${rid} AND id = ${resolved.get('Harina de fuerza')!.productId}`;
-		expect(prod.canonical_unit).toBe('kg');
+		expect(prod!.canonical_unit).toBe('kg');
 	});
 });
 
@@ -95,7 +95,9 @@ describe.skipIf(!hasDbEnv)('resolveLineProducts — exact alias re-hit', () => {
 		expect(r.status).toBe('exact');
 		expect(r.productId).toBe(pid);
 
-		const [{ count }] = await testSql`SELECT COUNT(*)::int AS count FROM products WHERE restaurant_id = ${rid}`;
+		const [_r_] = await testSql`SELECT COUNT(*)::int AS count FROM products WHERE restaurant_id = ${rid}`;
+
+		const { count } = _r_!;
 		expect(count).toBe(1);
 	});
 });
@@ -115,15 +117,16 @@ describe.skipIf(!hasDbEnv)('resolveLineProducts — fuzzy suggestion', () => {
 		const [alias] = await testSql`
 			SELECT source, confirmed_at FROM product_aliases
 			WHERE restaurant_id = ${rid} AND raw_key = 'tomate pera roja'`;
-		expect(alias.source).toBe('fuzzy');
-		expect(alias.confirmed_at).toBeNull(); // pending confirmation
+		expect(alias!.source).toBe('fuzzy');
+		expect(alias!.confirmed_at).toBeNull(); // pending confirmation
 	});
 
 	it('creates a distinct product when nothing is similar enough', async () => {
 		await resolveLineProducts(testDb, rid, supplierId, [{ description: 'Tomate pera', unit: 'kg' }]);
 		const resolved = await resolveLineProducts(testDb, rid, supplierId, [{ description: 'Lomo de cerdo', unit: 'kg' }]);
 		expect(resolved.get('Lomo de cerdo')!.status).toBe('created');
-		const [{ count }] = await testSql`SELECT COUNT(*)::int AS count FROM products WHERE restaurant_id = ${rid}`;
+		const [_r_] = await testSql`SELECT COUNT(*)::int AS count FROM products WHERE restaurant_id = ${rid}`;
+		const { count } = _r_!;
 		expect(count).toBe(2);
 	});
 });
@@ -138,8 +141,8 @@ describe.skipIf(!hasDbEnv)('resolveLineProducts — pack info carried onto new p
 
 		const [prod] = await testSql`
 			SELECT units_per_pack, base_unit FROM products WHERE restaurant_id = ${rid} AND id = ${r.productId}`;
-		expect(prod.units_per_pack).toBe(6);
-		expect(prod.base_unit).toBe('L');
+		expect(prod!.units_per_pack).toBe(6);
+		expect(prod!.base_unit).toBe('L');
 	});
 
 	it('leaves units_per_pack and base_unit null when the line has no derivable pack size', async () => {
@@ -151,8 +154,8 @@ describe.skipIf(!hasDbEnv)('resolveLineProducts — pack info carried onto new p
 
 		const [prod] = await testSql`
 			SELECT units_per_pack, base_unit FROM products WHERE restaurant_id = ${rid} AND id = ${r.productId}`;
-		expect(prod.units_per_pack).toBeNull();
-		expect(prod.base_unit).toBeNull();
+		expect(prod!.units_per_pack).toBeNull();
+		expect(prod!.base_unit).toBeNull();
 	});
 });
 
@@ -165,7 +168,8 @@ describe.skipIf(!hasDbEnv)('resolveLineProducts — batch behavior', () => {
 		const a = resolved.get('Leche entera')!;
 		const b = resolved.get('LECHE  ENTERA')!;
 		expect(a.productId).toBe(b.productId);
-		const [{ count }] = await testSql`SELECT COUNT(*)::int AS count FROM products WHERE restaurant_id = ${rid} AND name_key = 'leche entera'`;
+		const [_r_] = await testSql`SELECT COUNT(*)::int AS count FROM products WHERE restaurant_id = ${rid} AND name_key = 'leche entera'`;
+		const { count } = _r_!;
 		expect(count).toBe(1);
 	});
 
@@ -189,8 +193,8 @@ describe.skipIf(!hasDbEnv)('confirmProductAlias / rejectProductAlias', () => {
 
 		const [alias] = await testSql`
 			SELECT source, confirmed_at FROM product_aliases WHERE restaurant_id = ${rid} AND raw_key = 'tomate pera roja'`;
-		expect(alias.source).toBe('user');
-		expect(alias.confirmed_at).not.toBeNull();
+		expect(alias!.source).toBe('user');
+		expect(alias!.confirmed_at).not.toBeNull();
 	});
 
 	it('reject splits the description into its own product and repoints line items', async () => {
@@ -204,7 +208,7 @@ describe.skipIf(!hasDbEnv)('confirmProductAlias / rejectProductAlias', () => {
 			INSERT INTO invoices (restaurant_id, status) VALUES (${rid}, 'pending') RETURNING id`;
 		const [li] = await testSql`
 			INSERT INTO invoice_line_items (invoice_id, restaurant_id, description, unit, unit_price, product_id)
-			VALUES (${inv.id}, ${rid}, 'Tomate pera roja', 'kg', 2.5, ${basePid}) RETURNING id`;
+			VALUES (${inv!.id}, ${rid}, 'Tomate pera roja', 'kg', 2.5, ${basePid}) RETURNING id`;
 
 		const res = await rejectProductAlias(testDb, rid, 'Tomate pera roja');
 		expect(res.ok).toBe(true);
@@ -213,11 +217,11 @@ describe.skipIf(!hasDbEnv)('confirmProductAlias / rejectProductAlias', () => {
 
 		const [aliasAfter] = await testSql`
 			SELECT product_id, source, confirmed_at FROM product_aliases WHERE restaurant_id = ${rid} AND raw_key = 'tomate pera roja'`;
-		expect(aliasAfter.product_id).toBe(res.productId);
-		expect(aliasAfter.confirmed_at).not.toBeNull();
+		expect(aliasAfter!.product_id).toBe(res.productId);
+		expect(aliasAfter!.confirmed_at).not.toBeNull();
 
-		const [liAfter] = await testSql`SELECT product_id FROM invoice_line_items WHERE id = ${li.id}`;
-		expect(liAfter.product_id).toBe(res.productId); // repointed to the new product
+		const [liAfter] = await testSql`SELECT product_id FROM invoice_line_items WHERE id = ${li!.id}`;
+		expect(liAfter!.product_id).toBe(res.productId); // repointed to the new product
 	});
 
 	it('returns not_found for an unknown description', async () => {
@@ -254,17 +258,17 @@ describe.skipIf(!hasDbEnv)('mergeIntoProduct (issue #300)', () => {
 		const [inv] = await testSql`INSERT INTO invoices (restaurant_id, status) VALUES (${rid}, 'pending') RETURNING id`;
 		const [li] = await testSql`
 			INSERT INTO invoice_line_items (invoice_id, restaurant_id, description, unit, unit_price, product_id)
-			VALUES (${inv.id}, ${rid}, 'Pescado blanco del norte', 'kg', 9.0, ${throwawayPid}) RETURNING id`;
+			VALUES (${inv!.id}, ${rid}, 'Pescado blanco del norte', 'kg', 9.0, ${throwawayPid}) RETURNING id`;
 
 		const res = await mergeIntoProduct(testDb, rid, 'Pescado blanco del norte', targetPid);
 		expect(res).toEqual({ ok: true, productId: targetPid });
 
 		const [alias] = await testSql`SELECT product_id, source FROM product_aliases WHERE restaurant_id = ${rid} AND raw_key = 'pescado blanco del norte'`;
-		expect(alias.product_id).toBe(targetPid);
-		expect(alias.source).toBe('user');
+		expect(alias!.product_id).toBe(targetPid);
+		expect(alias!.source).toBe('user');
 
-		const [liAfter] = await testSql`SELECT product_id FROM invoice_line_items WHERE id = ${li.id}`;
-		expect(liAfter.product_id).toBe(targetPid);
+		const [liAfter] = await testSql`SELECT product_id FROM invoice_line_items WHERE id = ${li!.id}`;
+		expect(liAfter!.product_id).toBe(targetPid);
 
 		const gone = await testSql`SELECT id FROM products WHERE id = ${throwawayPid}`;
 		expect(gone).toHaveLength(0);
@@ -295,7 +299,7 @@ describe.skipIf(!hasDbEnv)('loadCatalogYoyChangeMap — current vs previous cale
 				VALUES (${rid}, 'pending', ${`${year}-03-15`}) RETURNING id`;
 			await testSql`
 				INSERT INTO invoice_line_items (invoice_id, restaurant_id, description, unit, unit_price, normalized_unit_price, product_id)
-				VALUES (${inv.id}, ${rid}, 'x', ${unit}, ${unitPrice}, ${unitPrice}, ${productId})`;
+				VALUES (${inv!.id}, ${rid}, 'x', ${unit}, ${unitPrice}, ${unitPrice}, ${productId})`;
 		}
 
 		await seedYearlyPrice(lastYear, upPid, 8, 'L');
@@ -354,28 +358,28 @@ describe.skipIf(!hasDbEnv)('listCatalogForExport (issue #885)', () => {
 		const [inv1] = await testSql`INSERT INTO invoices (restaurant_id, status, invoice_date) VALUES (${exportRid}, 'pending', '2025-01-01') RETURNING id`;
 		await testSql`
 			INSERT INTO invoice_line_items (invoice_id, restaurant_id, description, unit, unit_price, normalized_unit_price, product_id)
-			VALUES (${inv1.id}, ${exportRid}, 'x', 'L', 8, 8, ${normProd.id})`;
+			VALUES (${inv1!.id}, ${exportRid}, 'x', 'L', 8, 8, ${normProd!.id})`;
 
 		const [inv2] = await testSql`INSERT INTO invoices (restaurant_id, status, invoice_date) VALUES (${exportRid}, 'pending', '2025-06-01') RETURNING id`;
 		await testSql`
 			INSERT INTO invoice_line_items (invoice_id, restaurant_id, description, unit, unit_price, normalized_unit_price, product_id)
-			VALUES (${inv2.id}, ${exportRid}, 'x', 'L', 10, 9.5, ${normProd.id})`;
+			VALUES (${inv2!.id}, ${exportRid}, 'x', 'L', 10, 9.5, ${normProd!.id})`;
 
 		const [inv3] = await testSql`INSERT INTO invoices (restaurant_id, status, invoice_date) VALUES (${exportRid}, 'pending', '2025-03-01') RETURNING id`;
 		await testSql`
 			INSERT INTO invoice_line_items (invoice_id, restaurant_id, description, unit, unit_price, normalized_unit_price, product_id)
-			VALUES (${inv3.id}, ${exportRid}, 'x', 'kg', 3.2, null, ${rawProd.id})`;
+			VALUES (${inv3!.id}, ${exportRid}, 'x', 'kg', 3.2, null, ${rawProd!.id})`;
 
 		const rows = await listCatalogForExport(testDb, exportRid);
 		const byId = new Map(rows.map(r => [r.id, r]));
 
-		expect(byId.get(normProd.id)).toMatchObject({
+		expect(byId.get(normProd!.id)).toMatchObject({
 			canonicalName: 'Aceite de oliva 885', category: 'Aceites y Conservas', canonicalUnit: 'L', unitPrice: 9.5,
 		}); // 2025-06-01 is the latest purchase — its normalized price wins over the earlier one
-		expect(byId.get(rawProd.id)).toMatchObject({
+		expect(byId.get(rawProd!.id)).toMatchObject({
 			canonicalName: 'Harina 885', category: 'Panadería y Bollería', canonicalUnit: 'kg', unitPrice: 3.2,
 		}); // no normalized price on file — falls back to the raw unit price
-		expect(byId.get(neverBought.id)).toMatchObject({
+		expect(byId.get(neverBought!.id)).toMatchObject({
 			canonicalName: 'Sal 885', category: null, canonicalUnit: 'kg', unitPrice: null,
 		}); // never purchased — no price to show
 	});

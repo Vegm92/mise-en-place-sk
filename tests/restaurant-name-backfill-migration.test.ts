@@ -24,7 +24,7 @@ afterAll(async () => {
 
 async function restaurantName(id: string) {
 	const [row] = await testSql`SELECT name FROM restaurants WHERE id = ${id}`;
-	return row.name as string;
+	return row!.name as string;
 }
 
 async function restaurantNameSettingsRows(id: string) {

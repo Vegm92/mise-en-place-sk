@@ -98,7 +98,7 @@ async function saveAndGetReviewState(
 	const invoiceId = await saveInvoice(extractedData, formOpts);
 	const [invoiceRow] = await testSql`
 		SELECT review_state, incidence_kind FROM invoices WHERE id = ${invoiceId}`;
-	return { reviewState: invoiceRow.review_state, incidenceKind: invoiceRow.incidence_kind };
+	return { reviewState: invoiceRow!.review_state, incidenceKind: invoiceRow!.incidence_kind };
 }
 
 async function saveAndGetRow(
@@ -107,8 +107,8 @@ async function saveAndGetRow(
 	formOpts: MismatchFormOpts,
 ): Promise<Record<string, unknown>> {
 	const invoiceId = await saveInvoice(extractedData, formOpts);
-	const [row] = await testSql`SELECT ${testSql(columns)} FROM invoices WHERE id = ${invoiceId}`;
-	return row;
+	const [_r_] = await testSql`SELECT ${testSql(columns)} FROM invoices WHERE id = ${invoiceId}`;
+	return _r_!;
 }
 
 describe.skipIf(!hasDbEnv)('saveReviewedInvoice → extraction-time total_mismatch signal (issue #808)', () => {

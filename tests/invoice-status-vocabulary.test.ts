@@ -90,16 +90,16 @@ function columnLiteralsIn(src: string, tsName: string, sqlName: string): Set<str
 
 	for (const m of src.matchAll(new RegExp(`\\b(?:eq|ne)\\(invoices\\.${tsName},\\s*'([a-z_]+)'`, 'g'))) add(m[1]);
 	for (const m of src.matchAll(new RegExp(`inArray\\(invoices\\.${tsName},\\s*\\[([^\\]]*)\\]`, 'g'))) {
-		for (const lit of m[1].matchAll(LITERAL)) add(lit[1]);
+		for (const lit of m[1]!.matchAll(LITERAL)) add(lit[1]);
 	}
 	for (const m of src.matchAll(new RegExp(`invoices\\.${tsName}\\}\\s*(?:=|<>|!=)\\s*'([a-z_]+)'`, 'g'))) add(m[1]);
 	for (const m of src.matchAll(new RegExp(`update\\(invoices\\)[\\s\\S]{0,300}?\\.set\\(\\{[\\s\\S]{0,250}?${tsName}:\\s*'([a-z_]+)'`, 'g'))) add(m[1]);
 	for (const m of src.matchAll(new RegExp(`insert\\(invoices\\)[\\s\\S]{0,700}?${tsName}:\\s*'([a-z_]+)'`, 'g'))) add(m[1]);
 
 	for (const m of src.matchAll(/`([^`]*\bfrom\s+invoices\b[^`]*)`/gi)) {
-		for (const lit of m[1].matchAll(new RegExp(`\\b${sqlName}\\s*(?:=|<>|!=)\\s*'([a-z_]+)'`, 'g'))) add(lit[1]);
-		for (const inClause of m[1].matchAll(new RegExp(`\\b${sqlName}\\s+in\\s*\\(([^)]*)\\)`, 'gi'))) {
-			for (const lit of inClause[1].matchAll(LITERAL)) add(lit[1]);
+		for (const lit of m[1]!.matchAll(new RegExp(`\\b${sqlName}\\s*(?:=|<>|!=)\\s*'([a-z_]+)'`, 'g'))) add(lit[1]);
+		for (const inClause of m[1]!.matchAll(new RegExp(`\\b${sqlName}\\s+in\\s*\\(([^)]*)\\)`, 'gi'))) {
+			for (const lit of inClause[1]!.matchAll(LITERAL)) add(lit[1]);
 		}
 	}
 
@@ -117,7 +117,7 @@ describe('the review vocabulary is what the transition module writes', () => {
 	it.each([...src.matchAll(/reviewState:\s*'([a-z_]+)'/g)].map((m) => m[1]))(
 		"writes review state '%s', which is in the vocabulary",
 		(state) => {
-			expect(isReviewState(state)).toBe(true);
+			expect(isReviewState(state!)).toBe(true);
 		}
 	);
 
@@ -176,11 +176,11 @@ describe('the UI never offers a state the query layer cannot answer', () => {
 	});
 
 	it.each(optionValues)('the %s option is a review state', (value) => {
-		expect(isReviewState(value)).toBe(true);
+		expect(isReviewState(value!)).toBe(true);
 	});
 
 	it.each(optionValues)('the %s option produces a real predicate', (value) => {
-		expect(sqlText(invoiceReviewFilter(value))).not.toBe('false');
+		expect(sqlText(invoiceReviewFilter(value!))).not.toBe('false');
 	});
 });
 
@@ -282,7 +282,7 @@ describe('the incidence-reason vocabulary is a third, closed axis (issue #935)',
 	it('is written into invoices.incidence_reasons only as vocabulary words', () => {
 		const writes = SOURCE_FILES.flatMap((file) =>
 			[...fs.readFileSync(file, 'utf8').matchAll(/incidenceReasons:\s*\[([^\]]*)\]/g)]
-				.flatMap((m) => [...m[1].matchAll(LITERAL)].map((lit) => lit[1]!))
+				.flatMap((m) => [...m[1]!.matchAll(LITERAL)].map((lit) => lit[1]!))
 				.filter((word) => !isIncidenceReason(word))
 				.map((word) => `${path.relative(ROOT, file)} → '${word}'`)
 		);

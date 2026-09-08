@@ -148,7 +148,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → possible duplicate / related
 
 		const related = await notificationsByType(factura.invoiceId, 'related_document_found');
 		expect(related).toHaveLength(1);
-		const payload = related[0].payload;
+		const payload = related[0]!.payload;
 		expect(payload.matchedInvoiceId).toBe(albaran.invoiceId);
 		expect(payload.otherDocumentType).toBe('albaran');
 
@@ -184,7 +184,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → possible duplicate / related
 
 		const notifications = await duplicateNotifications(factura.invoiceId);
 		expect(notifications).toHaveLength(1);
-		expect(notifications[0].payload.matchedInvoiceId).toBe(albaran.invoiceId);
+		expect(notifications[0]!.payload.matchedInvoiceId).toBe(albaran.invoiceId);
 
 		expect(await notificationsByType(factura.invoiceId, 'related_document_found')).toHaveLength(0);
 		expect(await linkedInvoiceId(factura.invoiceId)).toBeNull();
@@ -303,7 +303,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → possible duplicate / related
 
 		const related = await notificationsByType(facturaId, 'related_document_found');
 		expect(related).toHaveLength(1);
-		expect(related[0].payload.matchedInvoiceId).toBe(albaranId);
+		expect(related[0]!.payload.matchedInvoiceId).toBe(albaranId);
 
 		expect(await linkedInvoiceId(facturaId)).toBe(albaranId);
 		expect(await linkedInvoiceId(albaranId)).toBe(facturaId);
@@ -353,7 +353,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → line item reconciliation on 
 
 		const mismatchRows = await notificationsByType(facturaId, 'line_item_mismatch');
 		expect(mismatchRows).toHaveLength(1);
-		const payload = mismatchRows[0].payload;
+		const payload = mismatchRows[0]!.payload;
 		expect(payload.linkedInvoiceId).toBe(albaranId);
 		expect(payload.missingInInvoice).toHaveLength(1);
 		expect(payload.missingInInvoice[0].description).toBe('Servilletas');

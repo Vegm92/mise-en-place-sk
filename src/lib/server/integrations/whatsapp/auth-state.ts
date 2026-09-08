@@ -13,7 +13,7 @@ async function readRow(id: string): Promise<unknown | null> {
 		.where(eq(whatsappSession.id, id))
 		.limit(1);
 	if (!rows.length) return null;
-	return JSON.parse(JSON.stringify(rows[0].data), BufferJSON.reviver);
+	return JSON.parse(JSON.stringify(rows[0]!.data), BufferJSON.reviver);
 }
 
 async function writeRow(id: string, value: unknown): Promise<void> {

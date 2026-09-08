@@ -383,16 +383,16 @@ describe('parseFacturae322', () => {
 	it('extracts line items', () => {
 		const result = parseFacturae322(FACTURAE_322_XML);
 		expect(result.line_items).toHaveLength(2);
-		expect(result.line_items[0].description).toBe('Aceite de oliva virgen extra 5L');
-		expect(result.line_items[0].quantity).toBe(10);
-		expect(result.line_items[0].unit).toBe('L'); // UoM 04 (Litros) → L
-		expect(result.line_items[0].unit_price).toBeCloseTo(85.0, 2);
-		expect(result.line_items[0].total_price).toBeCloseTo(850.0, 2);
+		expect(result.line_items[0]!.description).toBe('Aceite de oliva virgen extra 5L');
+		expect(result.line_items[0]!.quantity).toBe(10);
+		expect(result.line_items[0]!.unit).toBe('L'); // UoM 04 (Litros) → L
+		expect(result.line_items[0]!.unit_price).toBeCloseTo(85.0, 2);
+		expect(result.line_items[0]!.total_price).toBeCloseTo(850.0, 2);
 	});
 
 	it('maps unit code 03 (Kilogramos) to kg', () => {
 		const result = parseFacturae322(FACTURAE_322_XML);
-		expect(result.line_items[1].unit).toBe('kg');
+		expect(result.line_items[1]!.unit).toBe('kg');
 	});
 
 	it('maps the container/measure codes of the official Facturae table', () => {
@@ -402,13 +402,13 @@ describe('parseFacturae322', () => {
 		];
 		for (const [code, expected] of cases) {
 			const xml = FACTURAE_322_XML.replace('<UnitOfMeasure>04</UnitOfMeasure>', `<UnitOfMeasure>${code}</UnitOfMeasure>`);
-			expect(parseFacturae322(xml).line_items[0].unit, `code ${code}`).toBe(expected);
+			expect(parseFacturae322(xml).line_items[0]!.unit, `code ${code}`).toBe(expected);
 		}
 	});
 
 	it('yields null unit for code 05 (Otros) instead of a fake unit', () => {
 		const xml = FACTURAE_322_XML.replace('<UnitOfMeasure>04</UnitOfMeasure>', '<UnitOfMeasure>05</UnitOfMeasure>');
-		expect(parseFacturae322(xml).line_items[0].unit).toBeNull();
+		expect(parseFacturae322(xml).line_items[0]!.unit).toBeNull();
 	});
 
 	it('extracts per-line tax_rate from InvoiceLine/TaxesOutputs/Tax/TaxRate (issue #919)', () => {
@@ -423,13 +423,13 @@ describe('parseFacturae322', () => {
 			</TaxesOutputs>`,
 		);
 		const result = parseFacturae322(xml);
-		expect(result.line_items[0].tax_rate).toBeCloseTo(0.10, 5);
+		expect(result.line_items[0]!.tax_rate).toBeCloseTo(0.10, 5);
 	});
 
 	it('yields null line tax_rate when the line prints no TaxesOutputs (issue #919)', () => {
 		const result = parseFacturae322(FACTURAE_322_XML);
-		expect(result.line_items[0].tax_rate).toBeNull();
-		expect(result.line_items[1].tax_rate).toBeNull();
+		expect(result.line_items[0]!.tax_rate).toBeNull();
+		expect(result.line_items[1]!.tax_rate).toBeNull();
 	});
 
 	it('sets confidence to 1.0 for all fields', () => {
@@ -597,19 +597,19 @@ describe('parseUbl21Invoice', () => {
 		const result = parseUbl21Invoice(UBL_21_XML);
 		expect(result.tax_breakdown).not.toBeNull();
 		expect(result.tax_breakdown).toHaveLength(1);
-		expect(result.tax_breakdown![0].rate).toBeCloseTo(0.21, 5);
-		expect(result.tax_breakdown![0].base).toBeCloseTo(250.00, 2);
-		expect(result.tax_breakdown![0].tax_amount).toBeCloseTo(52.50, 2);
+		expect(result.tax_breakdown![0]!.rate).toBeCloseTo(0.21, 5);
+		expect(result.tax_breakdown![0]!.base).toBeCloseTo(250.00, 2);
+		expect(result.tax_breakdown![0]!.tax_amount).toBeCloseTo(52.50, 2);
 	});
 
 	it('extracts line items', () => {
 		const result = parseUbl21Invoice(UBL_21_XML);
 		expect(result.line_items).toHaveLength(1);
-		expect(result.line_items[0].description).toBe('Rioja Alta Gran Reserva 2016');
-		expect(result.line_items[0].quantity).toBe(10);
-		expect(result.line_items[0].unit).toBe('botella'); // unitCode BTL → botella
-		expect(result.line_items[0].unit_price).toBeCloseTo(25.00, 2);
-		expect(result.line_items[0].total_price).toBeCloseTo(250.00, 2);
+		expect(result.line_items[0]!.description).toBe('Rioja Alta Gran Reserva 2016');
+		expect(result.line_items[0]!.quantity).toBe(10);
+		expect(result.line_items[0]!.unit).toBe('botella'); // unitCode BTL → botella
+		expect(result.line_items[0]!.unit_price).toBeCloseTo(25.00, 2);
+		expect(result.line_items[0]!.total_price).toBeCloseTo(250.00, 2);
 	});
 
 	it('maps UN/ECE unit codes to canonical units', () => {
@@ -619,13 +619,13 @@ describe('parseUbl21Invoice', () => {
 		];
 		for (const [code, expected] of cases) {
 			const xml = UBL_21_XML.replace('unitCode="BTL"', `unitCode="${code}"`);
-			expect(parseUbl21Invoice(xml).line_items[0].unit, `unitCode ${code}`).toBe(expected);
+			expect(parseUbl21Invoice(xml).line_items[0]!.unit, `unitCode ${code}`).toBe(expected);
 		}
 	});
 
 	it('yields null unit for an unknown unitCode instead of the raw code', () => {
 		const xml = UBL_21_XML.replace('unitCode="BTL"', 'unitCode="ZZ9"');
-		expect(parseUbl21Invoice(xml).line_items[0].unit).toBeNull();
+		expect(parseUbl21Invoice(xml).line_items[0]!.unit).toBeNull();
 	});
 
 	it('extracts per-line tax_rate from InvoiceLine/Item/ClassifiedTaxCategory/Percent (issue #919)', () => {
@@ -637,12 +637,12 @@ describe('parseUbl21Invoice', () => {
 			</cac:Item>`,
 		);
 		const result = parseUbl21Invoice(xml);
-		expect(result.line_items[0].tax_rate).toBeCloseTo(0.21, 5);
+		expect(result.line_items[0]!.tax_rate).toBeCloseTo(0.21, 5);
 	});
 
 	it('yields null line tax_rate when the line prints no ClassifiedTaxCategory (issue #919)', () => {
 		const result = parseUbl21Invoice(UBL_21_XML);
-		expect(result.line_items[0].tax_rate).toBeNull();
+		expect(result.line_items[0]!.tax_rate).toBeNull();
 	});
 
 	it('sets confidence to 1.0', () => {

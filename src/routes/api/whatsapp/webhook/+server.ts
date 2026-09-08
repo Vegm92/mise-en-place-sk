@@ -2,8 +2,10 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { WHATSAPP_VERIFY_TOKEN, WHATSAPP_APP_SECRET } from '$lib/server/env';
-import type { WhatsAppInboundMessage } from '$lib/server/whatsapp-bot';
-import { enqueueWhatsAppInbound } from '$lib/server/queue';
+import {
+	handleWhatsAppMessage,
+	type WhatsAppInboundMessage,
+} from '$lib/server/whatsapp-bot';
 import { recordAccountEvent, type AccountEventInput } from '$lib/server/whatsapp-health';
 
 const NODE_ENV = process.env.NODE_ENV ?? 'development';
@@ -52,13 +54,10 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	const { messages, accountEvents } = extractChanges(body);
 
-	try {
-		for (const msg of messages) {
-			await enqueueWhatsAppInbound(msg);
-		}
-	} catch (err) {
-		console.error('[whatsapp-webhook] failed to durably enqueue inbound message:', err);
-		return json({ error: 'enqueue failed' }, { status: 500 });
+	for (const msg of messages) {
+		handleWhatsAppMessage(msg).catch(err =>
+			console.error('[whatsapp-webhook] unhandled error:', err),
+		);
 	}
 
 	for (const evt of accountEvents) {

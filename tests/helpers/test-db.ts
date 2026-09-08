@@ -63,6 +63,7 @@ export async function createTestRestaurant(suffix: string) {
 	const [row] = await testSql`
 		INSERT INTO restaurants (name, slug) VALUES (${'Test Restaurant ' + suffix}, ${slug}) RETURNING id, slug
 	`;
+	if (!row) throw new Error('createTestRestaurant: insert returned no row');
 	await testSql`
 		INSERT INTO categories ${testSql(DEFAULT_CATEGORY_SEED.map((name, sortOrder) => ({
 			restaurant_id: row.id,

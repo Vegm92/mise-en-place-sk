@@ -97,8 +97,8 @@ describe.skipIf(!hasDbEnv)('system_notifications.payload — write/read round tr
 			.from(systemNotifications)
 			.where(and(eq(systemNotifications.restaurantId, rid), eq(systemNotifications.notificationType, 'price_shock')));
 
-		expect(row.payload).toEqual(original);
-		expect(typeof row.payload).toBe('object');
+		expect(row!.payload).toEqual(original);
+		expect(typeof row!.payload).toBe('object');
 	});
 
 	it('round-trips a null payload as null, not the string "null"', async () => {
@@ -110,7 +110,7 @@ describe.skipIf(!hasDbEnv)('system_notifications.payload — write/read round tr
 			.from(systemNotifications)
 			.where(and(eq(systemNotifications.restaurantId, rid), eq(systemNotifications.notificationType, 'file_uploaded')));
 
-		expect(row.payload).toBeNull();
+		expect(row!.payload).toBeNull();
 	});
 
 	it('fails loudly on malformed JSON rather than silently accepting it (mirrors the migration USING cast)', async () => {
