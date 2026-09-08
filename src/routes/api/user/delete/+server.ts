@@ -13,12 +13,12 @@ import { userMemberships } from '$lib/server/locations';
 async function collectTenantFileKeys(restaurantIds: string[]): Promise<string[]> {
 	if (restaurantIds.length === 0) return [];
 
-	const [invoiceFiles, batchFiles] = await Promise.all([
+	const [invoiceFiles, batchFiles] = await runAsSystem(() => Promise.all([
 		db.select({ key: invoices.sourceFile }).from(invoices)
 			.where(and(inArray(invoices.restaurantId, restaurantIds), isNotNull(invoices.sourceFile))),
 		db.select({ key: batchItems.fileKey }).from(batchItems)
 			.where(inArray(batchItems.restaurantId, restaurantIds)),
-	]);
+	]));
 
 	const keys = new Set<string>();
 	for (const row of [...invoiceFiles, ...batchFiles]) {
@@ -75,13 +75,13 @@ export const POST: RequestHandler = async ({ locals, request, cookies }) => {
 		soleOwnedIds = ownedIds.filter(id => !shared.has(id));
 
 		if (soleOwnedIds.length > 0) {
-			const liveSubs = await db
+			const liveSubs = await runAsSystem(() => db
 				.select({ stripeSubscriptionId: subscriptions.stripeSubscriptionId })
 				.from(subscriptions)
 				.where(and(
 					inArray(subscriptions.restaurantId, soleOwnedIds),
 					isNotNull(subscriptions.stripeSubscriptionId),
-				));
+				)));
 			stripeSubscriptionIds = liveSubs
 				.map(s => s.stripeSubscriptionId)
 				.filter((id): id is string => id !== null);
