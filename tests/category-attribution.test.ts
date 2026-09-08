@@ -27,17 +27,18 @@
  * Skips without DATABASE_URL, like the other DB-backed suites.
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import {
 	testDb, testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
 import { invoiceLineItems, invoices, products, suppliers } from '../src/lib/server/schema';
 import {
-	describedLine, lineAmountExpr, lineCategoryExpr, lineProductJoin,
+	describedLine, invoiceMatchesCategory, lineAmountExpr, lineCategoryExpr, lineProductJoin,
 } from '../src/lib/server/category-spend';
 import { getTrendDataByRange } from '../src/lib/server/trend';
 import { runBudgetCheck } from '../src/lib/server/alerts';
 import { categoryBudgets } from '../src/lib/server/schema';
+import { forTenant } from '../src/lib/server/db';
 import { toMonthStr } from '../src/lib/formatters';
 import { UNCATEGORIZED_CATEGORY } from '../src/lib/constants';
 
@@ -283,6 +284,62 @@ describeDb('category attribution — the shared criterion', () => {
 			     (SELECT 'Frutas y Verduras'::text AS category) AS products
 		`);
 		expect(rows[0]!.category).toBe('Frutas y Verduras');
+	});
+});
+
+describeDb('invoiceMatchesCategory — the invoice list filter rides the line, not the supplier', () => {
+	let rid: string;
+	let tdb: ReturnType<typeof forTenant>;
+	let generalistInvoiceId: number;
+	let bareInvoiceId: number;
+
+	async function invoiceIdsMatching(category: string): Promise<number[]> {
+		const rows = await testDb.select({ id: invoices.id })
+			.from(invoices)
+			.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
+			.where(and(tdb.scope(invoices.restaurantId), invoiceMatchesCategory(tdb, category)));
+		return rows.map((r) => r.id).sort((a, b) => a - b);
+	}
+
+	beforeAll(async () => {
+		({ id: rid } = await createTestRestaurant('cat-attr-invoice-filter'));
+		tdb = forTenant(rid);
+
+		const generalist = await makeSupplier(rid, 'Distribuciones Generales', UNCATEGORIZED_CATEGORY);
+		const tomate = await makeProduct(rid, 'Tomate pera', 'Frutas y Verduras');
+		const agua = await makeProduct(rid, 'Agua mineral', 'Bebidas');
+
+		generalistInvoiceId = await makeInvoice(rid, generalist, 'F-1', [
+			{ description: 'Tomate pera', productId: tomate, amount: 100 },
+			{ description: 'Agua mineral', productId: agua, amount: 50 },
+			{ description: 'Portes', productId: null, amount: 25 },
+		]);
+
+		const bareSupplier = await makeSupplier(rid, 'Sin Líneas SL', 'Vinos y Cavas');
+		[{ id: bareInvoiceId }] = await testDb.insert(invoices)
+			.values({
+				restaurantId: rid, supplierId: bareSupplier, invoiceNumber: 'F-2',
+				invoiceDate: DAY, totalAmount: '0.00', status: 'pending',
+			})
+			.returning({ id: invoices.id });
+	});
+
+	afterAll(async () => {
+		await cleanupTestRestaurant(rid);
+	});
+
+	it('matches on a line\'s own category, even though the supplier is tagged Other', async () => {
+		expect(await invoiceIdsMatching('Frutas y Verduras')).toEqual([generalistInvoiceId]);
+		expect(await invoiceIdsMatching('Bebidas')).toEqual([generalistInvoiceId]);
+	});
+
+	it('matches Other via the unclassified "Portes" line, not the supplier tag', async () => {
+		expect(await invoiceIdsMatching(UNCATEGORIZED_CATEGORY)).toContain(generalistInvoiceId);
+	});
+
+	it('falls back to the supplier tag only for an invoice with no described lines', async () => {
+		expect(await invoiceIdsMatching('Vinos y Cavas')).toEqual([bareInvoiceId]);
+		expect(await invoiceIdsMatching('Frutas y Verduras')).not.toContain(bareInvoiceId);
 	});
 });
 

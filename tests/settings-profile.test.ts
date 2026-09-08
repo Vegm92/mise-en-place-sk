@@ -11,6 +11,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { getTableName } from 'drizzle-orm';
+import * as v from 'valibot';
 
 const {
 	rateLimitMock, logAuthEventMock, verifyCredentialsMock,
@@ -67,6 +68,7 @@ vi.mock('$lib/server/db', () => {
 });
 
 import { actions } from '../src/routes/(app)/settings/+page.server';
+import { saveNameSchema, saveNameForUser } from '../src/routes/(app)/settings/save-name';
 
 const USER = { id: 'user-1', email: 'chef@example.com', name: null, image: null };
 
@@ -96,14 +98,14 @@ beforeEach(() => {
 
 describe('saveName', () => {
 	it('writes the display name to the users table', async () => {
-		const result = await actions.saveName!(formEvent({ name: '  Chef García  ' }));
+		const { name } = v.parse(saveNameSchema, { name: '  Chef García  ' });
+		const result = await saveNameForUser(name, USER.id);
 		expect(updatedRows).toEqual([{ name: 'Chef García' }]);
-		expect(result).toEqual({ section: 'name', ok: 'set.profile.ok.name' });
+		expect(result).toEqual({ ok: 'set.profile.ok.name' });
 	});
 
-	it('rejects an empty name', async () => {
-		const result = await actions.saveName!(formEvent({ name: '   ' }));
-		expect(result).toMatchObject({ status: 422, data: { error: 'set.profile.err.nameRequired' } });
+	it('rejects an empty name', () => {
+		expect(() => v.parse(saveNameSchema, { name: '   ' })).toThrow();
 	});
 });
 

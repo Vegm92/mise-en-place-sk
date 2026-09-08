@@ -60,6 +60,7 @@ vi.mock('../src/lib/server/llm-quota.js', () => quotaMocks);
 const extractMocks = vi.hoisted(() => ({
 	extractWithProvider: vi.fn(),
 	extractInvoice: vi.fn(),
+	EXTRACTION_PROMPT_VERSION: 'v4-test',
 }));
 vi.mock('../src/lib/server/extract.js', () => extractMocks);
 
