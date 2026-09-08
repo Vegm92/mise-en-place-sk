@@ -107,7 +107,7 @@ export const POST: RequestHandler = async ({ locals, request, cookies }) => {
 
 	if (stripeSubscriptionIds.length > 0 || storageKeys.length > 0) {
 		try {
-			await enqueueAccountCleanup(user.id, soleOwnedIds[0] ?? null, stripeSubscriptionIds, storageKeys);
+			await enqueueAccountCleanup(user.id, soleOwnedIds[0] ?? null, stripeSubscriptionIds, storageKeys, locals.requestId);
 		} catch (err) {
 			console.error(`[account-delete] failed to enqueue post-commit cleanup for user=${user.id}:`, err);
 			Sentry.captureException(err, { tags: { area: 'account-delete', op: 'enqueue_cleanup' } });

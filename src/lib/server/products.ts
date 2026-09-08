@@ -1118,6 +1118,7 @@ export interface NormalizeJobData {
 	restaurantId: string;
 	productId: number;
 	rawText: string;
+	requestId?: string;
 }
 
 export interface Candidate { id: number; name: string }
@@ -1198,7 +1199,7 @@ export async function applyExtractedAllergens(
 }
 
 export async function processNormalizeJob(data: NormalizeJobData, deps: NormalizeDeps = {}): Promise<void> {
-	const { restaurantId, productId, rawText } = data;
+	const { restaurantId, productId, rawText, requestId } = data;
 	try {
 		const provider = deps.provider ?? (GEMINI_API_KEY ? createGeminiProvider() : null);
 		if (!provider) return;
@@ -1259,7 +1260,7 @@ export async function processNormalizeJob(data: NormalizeJobData, deps: Normaliz
 			error: err,
 			restaurantId,
 			sourceId: `${restaurantId}:${productId}`,
-			payload: { restaurantId, productId, rawText },
+			payload: { restaurantId, productId, rawText, requestId },
 		});
 	}
 }
@@ -1268,6 +1269,7 @@ export interface CategorizeJobData {
 	restaurantId: string;
 	productId: number;
 	canonicalName: string;
+	requestId?: string;
 }
 
 export function buildCategorizePrompt(canonicalName: string): string {
@@ -1329,7 +1331,7 @@ export async function processCategorizeJob(
 	data: CategorizeJobData,
 	deps: CategorizeDeps = {},
 ): Promise<void> {
-	const { restaurantId, productId, canonicalName } = data;
+	const { restaurantId, productId, canonicalName, requestId } = data;
 	const database = deps.database ?? db;
 	try {
 		const pending = await database.execute<{ id: number }>(sql`
@@ -1363,7 +1365,7 @@ export async function processCategorizeJob(
 			error: err,
 			restaurantId,
 			sourceId: `${restaurantId}:${productId}`,
-			payload: { restaurantId, productId, canonicalName },
+			payload: { restaurantId, productId, canonicalName, requestId },
 		});
 	}
 }

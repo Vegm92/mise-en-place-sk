@@ -132,9 +132,9 @@ describe.skipIf(!hasDbEnv)('issue #570 — new-invoice classifier trigger chain'
 		expect(await productCategoryOf(productId)).toBeNull();
 
 		expect(enqueueCategorizeMock).toHaveBeenCalledTimes(1);
-		expect(enqueueCategorizeMock).toHaveBeenCalledWith(rid, productId, 'Naranja de zumo 570');
+		expect(enqueueCategorizeMock).toHaveBeenCalledWith(rid, productId, 'Naranja de zumo 570', undefined);
 		expect(enqueueNormalizeMock).toHaveBeenCalledTimes(1);
-		expect(enqueueNormalizeMock).toHaveBeenCalledWith(rid, productId, 'Naranja de zumo 570');
+		expect(enqueueNormalizeMock).toHaveBeenCalledWith(rid, productId, 'Naranja de zumo 570', undefined);
 
 		// 3. Run the job the save enqueued (with a fake LLM so no real Gemini
 		// call is made) and confirm the verdict actually lands on the product
@@ -144,6 +144,22 @@ describe.skipIf(!hasDbEnv)('issue #570 — new-invoice classifier trigger chain'
 			{ provider: fakeProvider('{"category": "Frutas y Verduras", "confidence": 0.93}') },
 		);
 		expect(await productCategoryOf(productId)).toBe('Frutas y Verduras');
+	});
+
+	it('issue #1002: carries the saving request\'s correlation id onto the classifier enqueues', async () => {
+		enqueueNormalizeMock.mockClear();
+		enqueueCategorizeMock.mockClear();
+
+		const supplierName = 'Suministros Levante 570, S.L.';
+		const item = extractedItem({ supplier_name: supplierName, confidence: 0.9 });
+
+		const out = await saveReviewedInvoice(item, form(supplierName, [
+			{ desc: 'Aceite de oliva 570', unit: 'l', price: '4.20' },
+		]), rid, undefined, 'req-save-xyz');
+		expect(out.type).toBe('saved');
+
+		expect(enqueueCategorizeMock).toHaveBeenCalledWith(rid, expect.any(Number), 'Aceite de oliva 570', 'req-save-xyz');
+		expect(enqueueNormalizeMock).toHaveBeenCalledWith(rid, expect.any(Number), 'Aceite de oliva 570', 'req-save-xyz');
 	});
 
 	it('does not re-trigger product classification for a line that matches an existing product', async () => {
