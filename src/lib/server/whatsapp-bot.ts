@@ -13,6 +13,9 @@ const metaContext: WhatsAppMessageContext = {
 	downloadMedia: (ref: WhatsAppMediaRef) => downloadWhatsAppMedia(ref.id),
 };
 
-export async function handleWhatsAppMessage(msg: WhatsAppInboundMessage): Promise<void> {
-	await handleInboundMessage(msg, metaContext);
+export async function handleWhatsAppMessage(
+	msg: WhatsAppInboundMessage,
+	requestId?: string,
+): Promise<void> {
+	await handleInboundMessage(msg, metaContext, requestId);
 }
