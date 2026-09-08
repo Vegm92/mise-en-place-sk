@@ -90,6 +90,23 @@ describe('unverified data-handling claims stay out of the copy', () => {
 	}
 });
 
+describe('retracted pain-point stats stay retracted', () => {
+	// "4–6 h" (admin time) and "+8 %" (price hikes) were asserted as fact with
+	// no source, then dropped from the pain-section stats — but "4–6 horas"
+	// survived unnoticed in a sibling compare-section string. These patterns
+	// catch any of the three copy tables reintroducing either figure, not just
+	// the one key that drifted.
+	const RETRACTED_STATS = [/4[\s–-]+6\s*h/i, /\+?\s*8\s*%/];
+
+	for (const loc of LOCALES) {
+		for (const pattern of RETRACTED_STATS) {
+			it(`${loc}: no landing copy states the retracted ${pattern.source} figure`, () => {
+				expect(allCopy(loc)).not.toMatch(pattern);
+			});
+		}
+	}
+});
+
 describe('no fabricated testimonials on the landing page', () => {
 	const TESTIMONIAL_KEYS = /^waitlist\.testimonials/;
 
