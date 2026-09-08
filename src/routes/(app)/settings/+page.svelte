@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { ActionData, PageData } from './$types';
+  import { saveName } from './settings.remote';
   import { t, ti, tp } from '$lib/i18n';
   import { formatPhoneNumber } from '$lib/phone';
   import { HELP_FAQ } from '$lib/help-content';
@@ -229,7 +230,11 @@
             <div>
               <input id="{idp}-profile-name" name="name" type="text" maxlength="80" required
                 form="{idp}-form-cuenta" bind:value={profileName} class="input set-input" />
-              {@render feedbackLine('name')}
+              {#if (saveName.fields.name.issues() ?? []).length > 0}
+                <p class="set-msg set-msg-err">{t((saveName.fields.name.issues() ?? [])[0].message)}</p>
+              {:else if saveName.result?.ok}
+                <p class="set-msg set-msg-ok">{t(saveName.result.ok)}</p>
+              {/if}
             </div>
           </div>
 
@@ -939,12 +944,12 @@
   {/if}
 {/snippet}
 
-<form method="POST" action="?/saveName" id="d-form-cuenta"></form>
+<form {...saveName} id="d-form-cuenta"></form>
 <form method="POST" action="?/renameRestaurant" id="d-form-negocio"></form>
 <form method="POST" action="?/saveFiscalIdentity" id="d-form-fiscal"></form>
 <form method="POST" action="?/saveFieldVisibility" id="d-form-campos"></form>
 <form method="POST" action="?/saveAlertPreferences" id="d-form-alertas"></form>
-<form method="POST" action="?/saveName" id="m-form-cuenta"></form>
+<form {...saveName} id="m-form-cuenta"></form>
 <form method="POST" action="?/renameRestaurant" id="m-form-negocio"></form>
 <form method="POST" action="?/saveFiscalIdentity" id="m-form-fiscal"></form>
 <form method="POST" action="?/saveFieldVisibility" id="m-form-campos"></form>
