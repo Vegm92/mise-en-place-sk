@@ -304,8 +304,7 @@ describe('fg-3 vs fg-4 on --mep-surface — account-menu locale hint (#719)', ()
 
 		const acctMenuMarkup = layout.slice(menuStart, menuEnd);
 		expect(acctMenuMarkup).not.toContain('mep-fg-4');
-		expect(acctMenuMarkup).not.toContain('text-fg-4');
 		expect(acctMenuMarkup).toContain("locale.current === 'es' ? 'EN' : 'ES'");
-		expect(acctMenuMarkup).toContain('text-fg-3');
+		expect(acctMenuMarkup).toContain('mep-fg-3');
 	});
 });

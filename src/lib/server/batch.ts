@@ -93,7 +93,7 @@ function originColumns(origin: BatchItemOrigin): { source: BatchItemSource; sour
 }
 
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-export function isUuid(v: string): boolean {
+function isUuid(v: string): boolean {
 	return UUID_RE.test(v);
 }
 

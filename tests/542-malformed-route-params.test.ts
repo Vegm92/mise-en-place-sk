@@ -115,6 +115,10 @@ async function supplierDetail() {
 	return import('../src/routes/(app)/suppliers/[id]/+page.server');
 }
 
+function buildSentinelArgs(id: string, sentinel: ReturnType<typeof sentinelRequest> | undefined) {
+	return { params: { id }, locals: { restaurantId: RID }, request: sentinel!.request } as never;
+}
+
 const ROUTES: RouteCase[] = [
 	{
 		name: '/invoice/[id] load',
