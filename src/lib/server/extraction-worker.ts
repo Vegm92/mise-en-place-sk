@@ -31,7 +31,7 @@ import { getAccessState } from './billing.js';
 import { isLocationLocked } from './locations.js';
 import { deadLetterRefFromJob, recordDeadLetter, runWithDeadLetter } from './dead-letter.js';
 import { EXTRACTION_QUEUE, enqueueExtraction, enqueueWhatsAppNotify } from './queue.js';
-import { acquireExtractionSlot } from './rate-limiter.js';
+import { acquireExtractionSlot, ExtractionSlotUnavailableError } from './rate-limiter.js';
 import { detectTotalMismatch, type TaxBand } from '$lib/tax';
 
 export interface ExtractionJobData {
@@ -45,6 +45,7 @@ const DEGRADATION_ERRORS = new Set([
 	'extract.err.rateLimited',
 	'extract.err.unavailable',
 	'extract.err.timeout',
+	'extract.err.tooMany',
 ]);
 
 async function notifyWhatsAppIfSource(item: BatchItem, restaurantId: string, requestId?: string): Promise<void> {
@@ -58,6 +59,7 @@ function classifyExtractionError(err: unknown): string {
 	const message = (err as { message?: string }).message ?? '';
 	const code = (err as { code?: string }).code;
 	const name = (err as { name?: string }).name;
+	if (err instanceof ExtractionSlotUnavailableError) return 'extract.err.tooMany';
 	if (status === 429) return 'extract.err.rateLimited';
 	if (status === 503) return 'extract.err.unavailable';
 	if (
@@ -202,7 +204,7 @@ async function inspectDocumentStructure(
 					await markQueued(segmentId);
 					return enqueueExtraction(segmentId, restaurantId, requestId);
 				},
-				discardSource: () => markDiscarded(item.id),
+				discardSource: () => markDiscarded(item.id, 'composite_source'),
 				reserve: async (count) => {
 					if (claimedMonthlySlot) {
 						await releaseMonthlyExtraction(restaurantId, item.id, 'composite-source');
