@@ -20,7 +20,7 @@ import {
 	type ExtractionStats, type JobFailureStats, type QueueDepth, type ReviewBacklog, type StripeWebhookFreshness,
 } from './pipeline-stats';
 import { probeGemini, probeResend, probeStripe, probeWhatsAppCloud, type ProbeResult } from './external-probes';
-import { getFlag } from './app-flags';
+import { ANALYTICS_ROLLUP_REFRESHED_FLAG, getFlag } from './app-flags';
 import { WHATSAPP_STATUS_FLAG } from './integrations/whatsapp/runtime';
 import {
 	GEMINI_MODEL, STORAGE_DRIVER, WHATSAPP_ACCESS_TOKEN, WHATSAPP_BOT_ENABLED, WHATSAPP_PHONE_NUMBER_ID,
@@ -40,6 +40,8 @@ const EXTRACTION_P95_WARN_SECONDS = 300;
 const JOB_FAILURE_WARN = 0.05;
 const JOB_FAILURE_ERROR = 0.25;
 const QUEUE_OLDEST_WARN_SECONDS = 120;
+const ROLLUP_STALE_WARN_HOURS = 26;
+const ROLLUP_STALE_ERROR_HOURS = 48;
 const REVIEW_BACKLOG_WARN_HOURS = 72;
 const REVIEW_BACKLOG_ERROR_HOURS = 168;
 const STRIPE_WEBHOOK_SILENCE_WARN_DAYS = 7;
@@ -99,6 +101,7 @@ export interface SystemHealth {
 	queue: { stuck: number; lastExtraction: string | null; depth: QueueDepth | null };
 	extraction: ExtractionStats | null;
 	reviewBacklog: ReviewBacklog | null;
+	rollups: RollupFreshness | null;
 	jobs: JobFailureStats | null;
 	scheduledJobs: ScheduledJobHealth;
 	worker: WorkerLiveness;
@@ -322,6 +325,53 @@ async function checkReviewBacklog(): Promise<{ checks: HealthCheck[]; backlog: R
 		return { backlog, checks: [reviewBacklogCheck(backlog)] };
 	} catch (e) {
 		return { backlog: null, checks: [failedCheck('Review backlog', e)] };
+	}
+}
+
+export interface RollupFreshness {
+	refreshedAt: string | null;
+	ageHours: number | null;
+	warnAfterHours: number;
+	errorAfterHours: number;
+}
+
+export async function rollupFreshness(now = Date.now()): Promise<RollupFreshness> {
+	const raw = await getFlag(ANALYTICS_ROLLUP_REFRESHED_FLAG);
+	const parsed = raw === null ? null : new Date(raw);
+	const at = parsed !== null && !Number.isNaN(parsed.getTime()) ? parsed : null;
+	return {
+		refreshedAt: at?.toISOString() ?? null,
+		ageHours: at === null ? null : (now - at.getTime()) / 3_600_000,
+		warnAfterHours: ROLLUP_STALE_WARN_HOURS,
+		errorAfterHours: ROLLUP_STALE_ERROR_HOURS,
+	};
+}
+
+export function rollupFreshnessCheck(freshness: RollupFreshness): HealthCheck {
+	const budget = `warn past ${freshness.warnAfterHours} h, error past ${freshness.errorAfterHours} h`;
+	if (freshness.ageHours === null) {
+		return {
+			name: 'Rollup freshness',
+			status: 'warn',
+			detail: `No successful analytics refresh on record — every run since instrumentation has failed, or none has run yet (${budget})`,
+		};
+	}
+	let status: HealthStatus = 'ok';
+	if (freshness.ageHours >= freshness.errorAfterHours) status = 'error';
+	else if (freshness.ageHours >= freshness.warnAfterHours) status = 'warn';
+	return {
+		name: 'Rollup freshness',
+		status,
+		detail: `Analytics rollups last refreshed ${formatSeconds(freshness.ageHours * 3600)} ago (${budget})`,
+	};
+}
+
+async function checkRollupFreshness(): Promise<{ checks: HealthCheck[]; rollups: RollupFreshness | null }> {
+	try {
+		const rollups = await rollupFreshness();
+		return { rollups, checks: [rollupFreshnessCheck(rollups)] };
+	} catch (e) {
+		return { rollups: null, checks: [failedCheck('Rollup freshness', e)] };
 	}
 }
 
@@ -621,18 +671,20 @@ export async function runSystemChecks(): Promise<SystemHealth> {
 	let migrations: MigrationState | null = null;
 	let extraction: ExtractionStats | null = null;
 	let backlog: ReviewBacklog | null = null;
+	let rollups: RollupFreshness | null = null;
 	let jobs: JobFailureStats | null = null;
 	let stripeWebhooks: StripeWebhookFreshness | null = null;
 	let pendingAccess = 0;
 
 	if (db_.ok) {
-		const [role, mig, heartbeat, queue, stats, review, jobStats, deadLetter, scheduled, stripeHooks, access, wa, transport] = await Promise.all([
+		const [role, mig, heartbeat, queue, stats, review, rollup, jobStats, deadLetter, scheduled, stripeHooks, access, wa, transport] = await Promise.all([
 			checkDbRole(),
 			checkMigrations(),
 			checkWorkerHeartbeat(),
 			checkExtractionQueue(),
 			checkExtractionStats(),
 			checkReviewBacklog(),
+			checkRollupFreshness(),
 			checkJobs(),
 			checkDeadLetterQueue(),
 			checkScheduledJobs(),
@@ -642,7 +694,7 @@ export async function runSystemChecks(): Promise<SystemHealth> {
 			checkWhatsAppTransport(),
 		]);
 		checks.push(
-			...role.checks, ...mig.checks, ...heartbeat.checks, ...queue.checks, ...stats.checks, ...review.checks, ...jobStats.checks,
+			...role.checks, ...mig.checks, ...heartbeat.checks, ...queue.checks, ...stats.checks, ...review.checks, ...rollup.checks, ...jobStats.checks,
 			...deadLetter.checks, ...scheduled.checks, ...stripeHooks.checks, ...access.checks, ...wa.checks, ...transport,
 		);
 		dbRole = role.dbRole;
@@ -653,6 +705,7 @@ export async function runSystemChecks(): Promise<SystemHealth> {
 		depth = queue.depth;
 		extraction = stats.extraction;
 		backlog = review.backlog;
+		rollups = rollup.rollups;
 		jobs = jobStats.jobs;
 		pendingDeadLetters = deadLetter.pending;
 		scheduledJobs = scheduled.detail;
@@ -680,6 +733,7 @@ export async function runSystemChecks(): Promise<SystemHealth> {
 		queue: { stuck, lastExtraction, depth },
 		extraction,
 		reviewBacklog: backlog,
+		rollups,
 		jobs,
 		scheduledJobs,
 		worker,

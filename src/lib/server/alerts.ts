@@ -26,6 +26,7 @@ import { METRIC_QUEUE_DEPTH, METRIC_QUEUE_OLDEST, purgeMetrics, recordGauge } fr
 import { sweepIdempotencyKeys } from './idempotency';
 import { EXTRACTION_IMPROVE_CRON, EXTRACTION_IMPROVE_QUEUE, runExtractionImproveJob } from './extraction-improve';
 import { filterEnabledAlerts, isAlertEnabled } from './alert-preferences';
+import { ANALYTICS_ROLLUP_REFRESHED_FLAG, setFlag } from './app-flags';
 import {
 	dispatchTenantJobs,
 	registerTenantFanout,
@@ -1466,9 +1467,11 @@ export async function runIdempotencySweepJob(): Promise<{ swept: number }> {
 	return result;
 }
 
-export async function runAnalyticsRefreshJob(): Promise<{ refreshed: boolean }> {
+export async function runAnalyticsRefreshJob(): Promise<{ refreshed: boolean; refreshedAt: string }> {
 	await db.execute(sql`SELECT refresh_analytics_rollups()`);
-	return { refreshed: true };
+	const refreshedAt = new Date().toISOString();
+	await setFlag(ANALYTICS_ROLLUP_REFRESHED_FLAG, refreshedAt);
+	return { refreshed: true, refreshedAt };
 }
 
 interface ScheduledJob {

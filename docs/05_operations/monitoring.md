@@ -63,7 +63,7 @@ Owner-email gated. Provides:
 | Invoice save correctness | duplicate `contentHash` hits (should be ~0); idempotency claims expired |
 | LLM usage vs quota | `llm_usage_log` / `monthly_usage` (chat and digest write to `llm_usage_log` via `recordLlmUsage` — `caller_context` `chat` / `weekly-digest`, per `docs/04_engineering/llm_usage_metering.md`; the per-tenant cost cap, `checkExtractionQuota`, still runs only on the extraction path, so chat/digest spend is recorded but not enforced) |
 | Webhook throughput | `idempotency_keys` grouped by `scope` |
-| MV freshness | last `refresh_analytics_rollups` run (nightly cron) |
+| MV freshness | `app_flags` key `analytics_rollup_refreshed_at`, stamped by `runAnalyticsRefreshJob` (`src/lib/server/alerts.ts`) on success only. Surfaced as the *Rollup freshness* check on `/admin/health`; a failed refresh leaves the stamp where it was, so the age climbs |
 | Scheduled emails actually sent | `pgboss.job` for `tenant-weekly-digest` / `tenant-overdue-reminder` / `tenant-trial-notice`: state counts and `output->>'sent'`; last dispatch in `app_flags` (`job_run:*`) |
 | Revenue | `mrr_snapshots` (15 2 * * * UTC) |
 
@@ -128,6 +128,44 @@ Owner-email gated. Provides:
   policy) are gate 3 of `docs/05_operations/go_live_checklist.md`.
 - Upstash Redis optional — when absent, in-memory rate limiting is used with a
   single-instance warning (multi-instance deploy must configure Upstash).
+
+## Scaling triggers (issue #1004)
+
+Nothing here exists yet, and none of these thresholds is close to firing. The
+measured 7-day production window (2026-09-07, Railway) is three orders of
+magnitude below the provisioned limits: 33,874 web requests (0.056 rps), 0 5xx,
+web p95 30–140 ms, web CPU avg **0.0012 vCPU of 8**, worker 0.0053, Postgres
+0.014 (max 0.049), disk 0.247 GB growing ~1.2 MB/day.
+
+The point of writing them down is that "we have no cache and one replica" is a
+defensible position only with the number that would change it next to it.
+Without that, an absence is indistinguishable from an oversight.
+
+| Component | Today | Add it when | Baseline |
+|---|---|---|---|
+| CDN / edge cache | none — `response-cache.ts` sets `private, no-store` on every routed response (`hooks.server.ts`) | web p95 > **300 ms** for 3 consecutive 60 s buckets (`metric_samples`, `route.latency_ms`) | p95 30–140 ms |
+| Web replicas | pinned to 1 (`railway.json:10`) | web CPU > **60% for 15 min** **and** `UPSTASH_REDIS_REST_*` configured — the in-memory rate limiter does not survive a second instance (`DEPLOYMENT.md:350`, `rate-limiter.ts:33-37`) | 0.0012 of 8 vCPU (0.015%) |
+| Worker replicas | pinned to 1 (`railway.worker.json:10`) | `extract-invoice` depth > **50** (`metric_samples`, `queue.depth`) **or** queue wait p95 > **120 s** (`EXTRACTION_STALL_WARN_MS`, `env.ts:26`) | depth ~0 |
+| `MAX_CONCURRENT_EXTRACTIONS` | 3 (`env.ts:22`) | Gemini p95 (`llm_usage_log.duration_ms`) stays under the 120 s timeout (`env.ts:20`) **and** slot-wait shows in the queue-wait p95 above. Raising it without both numbers is guesswork | ≈90 docs/hour ceiling; past it the 15-min stall reaper turns a burst into `extract.err.stalled`, not backpressure |
+| Read replica | none | primary CPU > **60% sustained 15 min** | 0.014 of 8 vCPU (0.17%) |
+| Aggregate cache | none | aggregate query p95 > **500 ms** — before that, add the index the plan wants instead | — |
+| Rollup staleness | nightly `10 3 * * *` (`alerts.ts`), five MVs (`drizzle/0005_analytics_rollups.sql:193-197`) | *Rollup freshness* on `/admin/health` warns past **26 h** (one missed run plus margin) and errors past **48 h** (two). Past 48 h, spend analytics is showing numbers older than the reporting period it claims to cover | daily |
+| DB pool | max 20 (`db.ts:11`) | `pg_stat_activity` for the app role sustained above **15** connections | 1 web + 1 worker process |
+| Index additions | as needed | any sequential scan on `invoices`, `invoice_line_items`, `batch_items` or `products` in `pg_stat_user_tables` — a new FK also needs its own covering index on arrival (#996, `docs/04_engineering/database_changes.md`) | — |
+
+Two caveats:
+
+- **Most of these cannot fire yet.** Route latency and queue depth land in
+  `metric_samples` (#1003); Gemini latency is in `llm_usage_log`; CPU and
+  connection counts live in Railway/Postgres and have no series in this repo.
+  The thresholds are written first *because* they are the specification the
+  instrumentation aims at — an unmeasurable threshold is a gap with a number
+  on it, which is worth more than a gap without one.
+- **The cache row is a policy, not just a threshold.** `no-store` is
+  deliberate: every routed response is tenant-scoped, and a shared cache in
+  front of it is a cross-tenant leak waiting for a `Vary` mistake. Any cache
+  added at the threshold above is per-tenant keyed and invalidated on write,
+  or it does not ship.
 
 ## Runbooks available
 

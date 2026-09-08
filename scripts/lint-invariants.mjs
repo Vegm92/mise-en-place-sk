@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { PROJECT_DIRECTIVES } from './lint-directives.mjs';
+import { EXPAND_CONTRACT_DIRECTIVE, destructiveStatements, hasExpandContractWaiver } from './migration-sql.mjs';
 
 const ROOT = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
 
@@ -492,6 +493,89 @@ function runInlineTokenStyleGate() {
 	return over.length === 0 && stale.length === 0;
 }
 
+/**
+ * Expand/contract gate (issue #1009): flags a PR that lands a destructive
+ * migration in the same diff as the `src/` change it belongs to.
+ *
+ * Both services migrate as a Railway pre-deploy step, so the schema changes
+ * before the new container serves. Ship the two halves in one deploy and the
+ * *old* code runs against the *new* schema for the length of the rollout —
+ * additive migration first, code switches, contract migration in a later
+ * deploy is the only ordering that has no such window.
+ *
+ * Warning-only by default, the same way the inline-style budget started
+ * (issue #845): the nine destructive migrations already in `drizzle/` were all
+ * safe, so failing on arrival would mostly teach people to reach for the
+ * waiver. `--strict` is the ratchet, and `-- expand-contract-ok: <reason>` in
+ * the migration header is the documented way out for a contract migration
+ * whose readers were repointed in an earlier deploy (migration 0050 is exactly
+ * that case, and says so in its own header).
+ */
+const BASE_REF_PATTERN = /^[A-Za-z0-9._/-]+$/;
+
+function baseRef() {
+	const i = process.argv.indexOf('--base');
+	const value = (i !== -1 && process.argv[i + 1]) || process.env.LINT_BASE_REF || 'origin/main';
+	return BASE_REF_PATTERN.test(value) ? value : null;
+}
+
+function changedAgainst(base) {
+	const out = execFileSync('git', ['diff', '--name-only', '--diff-filter=ACMR', `${base}...HEAD`], {
+		cwd: ROOT,
+		encoding: 'utf8'
+	});
+	return out.split('\n').map((f) => f.trim()).filter(Boolean);
+}
+
+function runMigrationExpandContractGate() {
+	const base = baseRef();
+	if (base === null) {
+		console.error('Error: --base is not a plain ref (letters, digits, "._/-" only)');
+		return false;
+	}
+
+	let changed;
+	try {
+		changed = changedAgainst(base);
+	} catch (err) {
+		console.warn(
+			`Note: migration-expand-contract could not diff against ${base} ` +
+				`(${String(err.message).split('\n')[0]}) — gate skipped. Fetch the base ref or pass --base <ref>.`
+		);
+		return true;
+	}
+
+	const migrations = changed.filter((f) => f.startsWith('drizzle/') && f.endsWith('.sql'));
+	const sourceFiles = changed.filter((f) => f.startsWith('src/'));
+	if (migrations.length === 0 || sourceFiles.length === 0) return true;
+
+	const violations = [];
+	for (const rel of migrations) {
+		const abs = path.join(ROOT, rel);
+		if (!fs.existsSync(abs)) continue;
+		const sql = fs.readFileSync(abs, 'utf8');
+		if (hasExpandContractWaiver(sql)) continue;
+		for (const s of destructiveStatements(sql)) {
+			violations.push(`${rel}:${s.line}: ${s.kind} — ${s.text}`);
+		}
+	}
+	if (violations.length === 0) return true;
+
+	const strict = process.argv.includes('--strict');
+	const report = strict ? console.error : console.warn;
+	report(
+		`${strict ? 'Error' : 'Note'}: a destructive migration lands in the same diff as ${sourceFiles.length} src/ file(s).\n` +
+			'  Migrations run pre-deploy, so this schema change hits the OLD container while it is still\n' +
+			'  serving. Split it: additive migration ships first, code switches, the contract migration\n' +
+			`  ships in a later deploy (docs/04_engineering/database_changes.md). If the readers were\n` +
+			`  already repointed in an earlier deploy, say so with \`-- ${EXPAND_CONTRACT_DIRECTIVE}: <reason>\`\n` +
+			'  in the migration header (issue #1009).'
+	);
+	for (const v of violations) report(`  ${v}`);
+	if (!strict) report('  (warning only — not failing the build; re-run with --strict to enforce)');
+	return !strict;
+}
+
 function walk(dir, extensions) {
 	const entries = fs.readdirSync(dir, { withFileTypes: true });
 	const files = [];
@@ -537,10 +621,10 @@ function runGate(name, gate) {
 	return true;
 }
 
-const requested = process.argv[2];
+const requested = process.argv[2]?.startsWith('--') ? undefined : process.argv[2];
 const names = requested
 	? [requested]
-	: [...Object.keys(GATES), 'unscoped-tenant-query', 'action-authz', 'inline-token-style'];
+	: [...Object.keys(GATES), 'unscoped-tenant-query', 'action-authz', 'inline-token-style', 'migration-expand-contract'];
 
 let ok = true;
 for (const name of names) {
@@ -554,6 +638,10 @@ for (const name of names) {
 	}
 	if (name === 'inline-token-style') {
 		if (!runInlineTokenStyleGate()) ok = false;
+		continue;
+	}
+	if (name === 'migration-expand-contract') {
+		if (!runMigrationExpandContractGate()) ok = false;
 		continue;
 	}
 	const gate = GATES[name];
