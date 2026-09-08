@@ -76,17 +76,18 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → VERI*FACTU QR check (issue #
 		expect(out.type).toBe('saved');
 		if (out.type !== 'saved') return;
 
-		const [invoiceRow] = await testSql`
-			SELECT qr_url, qr_mismatch FROM invoices WHERE id = ${out.invoiceId}`;
-		expect(invoiceRow!.qr_url).toBe(VALID_QR);
-		expect(invoiceRow!.qr_mismatch).toBe(true);
+		const invoiceRow = (await testSql`
+			SELECT qr_url, qr_mismatch FROM invoices WHERE id = ${out.invoiceId}`)[0]!;
+		expect(invoiceRow.qr_url).toBe(VALID_QR);
+		expect(invoiceRow.qr_mismatch).toBe(true);
 
 		const notifications = await testSql`
 			SELECT payload FROM system_notifications
 			WHERE restaurant_id = ${rid} AND invoice_id = ${out.invoiceId}
 				AND notification_type = 'verifactu_qr_mismatch'`;
 		expect(notifications).toHaveLength(1);
-		const payload = notifications[0]!.payload;
+		const [_notif] = notifications;
+		const payload = _notif!.payload;
 		expect(payload.mismatches).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({ field: 'importe', qrValue: '1250.00', aiValue: '9999' }),
@@ -104,16 +105,17 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → VERI*FACTU QR check (issue #
 		expect(out.type).toBe('saved');
 		if (out.type !== 'saved') return;
 
-		const [invoiceRow] = await testSql`
-			SELECT qr_mismatch FROM invoices WHERE id = ${out.invoiceId}`;
-		expect(invoiceRow!.qr_mismatch).toBe(true);
+		const invoiceRow = (await testSql`
+			SELECT qr_mismatch FROM invoices WHERE id = ${out.invoiceId}`)[0]!;
+		expect(invoiceRow.qr_mismatch).toBe(true);
 
 		const notifications = await testSql`
 			SELECT payload FROM system_notifications
 			WHERE restaurant_id = ${rid} AND invoice_id = ${out.invoiceId}
 				AND notification_type = 'verifactu_qr_mismatch'`;
 		expect(notifications).toHaveLength(1);
-		const payload = notifications[0]!.payload;
+		const [_notif] = notifications;
+		const payload = _notif!.payload;
 		expect(payload.mismatches.some((m: { field: string }) => m.field === 'numserie')).toBe(true);
 	});
 
@@ -132,10 +134,10 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → VERI*FACTU QR check (issue #
 		expect(out.type).toBe('saved');
 		if (out.type !== 'saved') return;
 
-		const [invoiceRow] = await testSql`
-			SELECT qr_url, qr_mismatch FROM invoices WHERE id = ${out.invoiceId}`;
-		expect(invoiceRow!.qr_url).toBe(VALID_QR);
-		expect(invoiceRow!.qr_mismatch).toBe(false);
+		const invoiceRow = (await testSql`
+			SELECT qr_url, qr_mismatch FROM invoices WHERE id = ${out.invoiceId}`)[0]!;
+		expect(invoiceRow.qr_url).toBe(VALID_QR);
+		expect(invoiceRow.qr_mismatch).toBe(false);
 
 		const notifications = await testSql`
 			SELECT id FROM system_notifications
@@ -154,9 +156,9 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → VERI*FACTU QR check (issue #
 		expect(out.type).toBe('saved');
 		if (out.type !== 'saved') return;
 
-		const [invoiceRow] = await testSql`
-			SELECT qr_url, qr_mismatch FROM invoices WHERE id = ${out.invoiceId}`;
-		expect(invoiceRow!.qr_url).toBeNull();
-		expect(invoiceRow!.qr_mismatch).toBe(false);
+		const invoiceRow = (await testSql`
+			SELECT qr_url, qr_mismatch FROM invoices WHERE id = ${out.invoiceId}`)[0]!;
+		expect(invoiceRow.qr_url).toBeNull();
+		expect(invoiceRow.qr_mismatch).toBe(false);
 	});
 });

@@ -50,14 +50,15 @@ describeDb('insertWaitlistEmail — attribution (issue #326)', () => {
 		expect(inserted).toBe(true);
 
 		const rows = await testSql`SELECT * FROM waitlist WHERE email = ${email}`;
+		const row = rows[0]!;
 		expect(rows).toHaveLength(1);
-		expect(rows[0]!.source).toBe('google');
-		expect(rows[0]!.campaign).toBe('spring_launch');
-		expect(rows[0]!.variant).toBe('b');
-		expect(rows[0]!.segment).toBe('chefs');
-		expect(rows[0]!.referrer).toBe('https://google.com/search');
-		expect(rows[0]!.landing_path).toBe('/waitlist');
-		expect(rows[0]!.referred_by).toBe('ABC123');
+		expect(row.source).toBe('google');
+		expect(row.campaign).toBe('spring_launch');
+		expect(row.variant).toBe('b');
+		expect(row.segment).toBe('chefs');
+		expect(row.referrer).toBe('https://google.com/search');
+		expect(row.landing_path).toBe('/waitlist');
+		expect(row.referred_by).toBe('ABC123');
 	});
 
 	it('stores null attribution columns when no attribution is passed', async () => {
@@ -66,8 +67,9 @@ describeDb('insertWaitlistEmail — attribution (issue #326)', () => {
 		expect(inserted).toBe(true);
 
 		const rows = await testSql`SELECT * FROM waitlist WHERE email = ${email}`;
-		expect(rows[0]!.source).toBeNull();
-		expect(rows[0]!.campaign).toBeNull();
+		const row = rows[0]!;
+		expect(row.source).toBeNull();
+		expect(row.campaign).toBeNull();
 	});
 
 	it('returns false for an already-registered email and does not overwrite the original attribution', async () => {
@@ -86,9 +88,10 @@ describeDb('insertWaitlistEmail — attribution (issue #326)', () => {
 		expect(secondAttempt).toBe(false);
 
 		const rows = await testSql`SELECT * FROM waitlist WHERE email = ${email}`;
+		const row = rows[0]!;
 		expect(rows).toHaveLength(1);
-		expect(rows[0]!.source).toBe('google');
-		expect(rows[0]!.campaign).toBe('spring_launch');
-		expect(rows[0]!.referred_by).toBe('ABC123');
+		expect(row.source).toBe('google');
+		expect(row.campaign).toBe('spring_launch');
+		expect(row.referred_by).toBe('ABC123');
 	});
 });
