@@ -6,65 +6,39 @@
  * DB-backed; the db singleton is swapped for the test client (ssl:'require'
  * in db.ts does not speak to local Postgres). Skipped without DATABASE_URL.
  */
-import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
+import { randomUUID } from 'node:crypto';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 const { sendEmailMock } = vi.hoisted(() => ({ sendEmailMock: vi.fn().mockResolvedValue(undefined) }));
 
-vi.mock('../src/lib/server/db', async () => {
-	const { testDb } = await import('./helpers/test-db');
-	const { forTenant } = await import('../src/lib/server/tenant');
-	return { db: testDb, forTenant };
-});
+vi.mock('../src/lib/server/db', async () => (await import('./helpers/db-suite')).testDbModule());
 
 vi.mock('../src/lib/server/email', async (importOriginal) => {
 	const actual = await importOriginal<typeof import('../src/lib/server/email')>();
 	return { ...actual, sendEmail: sendEmailMock };
 });
 
-import {
-	testSql, closeDb,
-	createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
-} from './helpers/test-db';
+import { testSql, hasDbEnv, createTestRestaurant, cleanupTestRestaurant } from './helpers/test-db';
+import { useTestRestaurant } from './helpers/test-restaurant';
 import { saveReviewedInvoice } from '../src/lib/server/invoice-save';
 import { actions } from '../src/routes/(app)/invoice/[id]/+page.server';
+import { lineItemInvoiceForm } from './helpers/invoice-save-form';
 
-let rid = '';
+const restaurant = useTestRestaurant('inv-prod');
+const UID = randomUUID();
 
+// This suite never sends low_confidence_ack — its invoices are all
+// high-confidence by construction, unlike the other invoice-save suites.
 function form(supplier: string, lines: Array<{ desc: string; unit: string; price: string }>): FormData {
-	const fd = new FormData();
-	fd.append('supplier_name', supplier);
-	fd.append('invoice_number', `INV-${Math.random().toString(36).slice(2, 8)}`);
-	fd.append('invoice_date', '2026-07-20');
-	fd.append('total_amount', '100');
-	for (const l of lines) {
-		fd.append('line_descriptions', l.desc);
-		fd.append('line_quantities', '1');
-		fd.append('line_units', l.unit);
-		fd.append('line_unit_prices', l.price);
-		fd.append('line_total_prices', l.price);
-		fd.append('line_tax_rates', '');
-	}
-	return fd;
+	return lineItemInvoiceForm(supplier, lines, { lowConfidenceAck: false });
 }
-
-beforeAll(async () => {
-	if (!hasDbEnv) return;
-	const r = await createTestRestaurant('inv-prod');
-	rid = r.id;
-});
-
-afterAll(async () => {
-	if (!hasDbEnv) return;
-	await cleanupTestRestaurant(rid);
-	await closeDb();
-});
 
 describe.skipIf(!hasDbEnv)('saveReviewedInvoice → product linking (issue #298)', () => {
 	it('stamps product_id on every saved line item and creates products', async () => {
 		const out = await saveReviewedInvoice(null, form('__inv_prod_sup__', [
 			{ desc: 'Tomate Pera', unit: 'kg', price: '2.00' },
 			{ desc: 'Cebolla', unit: 'kg', price: '1.00' },
-		]), rid);
+		]), restaurant.id, UID);
 		expect(out.type).toBe('saved');
 		if (out.type !== 'saved') return;
 
@@ -73,7 +47,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → product linking (issue #298)
 		expect(items).toHaveLength(2);
 		for (const it of items) expect(it.product_id).not.toBeNull();
 
-		const [{ count }] = await testSql`SELECT COUNT(*)::int AS count FROM products WHERE restaurant_id = ${rid}`;
+		const [{ count }] = await testSql`SELECT COUNT(*)::int AS count FROM products WHERE restaurant_id = ${restaurant.id}`;
 		expect(count).toBeGreaterThanOrEqual(2);
 	});
 
@@ -81,7 +55,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → product linking (issue #298)
 		const out = await saveReviewedInvoice(null, form('__inv_prod_sup3__', [
 			{ desc: 'Leche entera 6x1L', unit: 'caja', price: '4.50' },
 			{ desc: 'Sal fina', unit: 'kg', price: '0.80' },
-		]), rid);
+		]), restaurant.id, UID);
 		expect(out.type).toBe('saved');
 		if (out.type !== 'saved') return;
 
@@ -112,11 +86,11 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → product linking (issue #298)
 		// the categorize-product job gives it a verdict of its own.
 		await testSql`
 			INSERT INTO suppliers (restaurant_id, name, category)
-			VALUES (${rid}, '__inv_prod_tagged__', 'Bebidas')`;
+			VALUES (${restaurant.id}, '__inv_prod_tagged__', 'Bebidas')`;
 
 		const out = await saveReviewedInvoice(null, form('__inv_prod_tagged__', [
 			{ desc: 'Tomate rama IV', unit: 'kg', price: '2.20' },
-		]), rid);
+		]), restaurant.id, UID);
 		expect(out.type).toBe('saved');
 		if (out.type !== 'saved') return;
 
@@ -134,7 +108,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → product linking (issue #298)
 		const out = await saveReviewedInvoice(null, form('__inv_prod_relink__', [
 			{ desc: 'Pimiento verde', unit: 'kg', price: '1.90' },
 			{ desc: 'Calabacín', unit: 'kg', price: '1.40' },
-		]), rid);
+		]), restaurant.id, UID);
 		expect(out.type).toBe('saved');
 		if (out.type !== 'saved') return;
 
@@ -146,7 +120,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → product linking (issue #298)
 		try {
 			await actions.relinkProducts({
 				params: { id: String(out.invoiceId) },
-				locals: { restaurantId: rid },
+				locals: { restaurantId: restaurant.id },
 			} as never);
 		} catch (e) {
 			redirected = e;
@@ -163,16 +137,16 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → product linking (issue #298)
 		// First invoice establishes "Tomate pera"; second uses a near-duplicate.
 		await saveReviewedInvoice(null, form('__inv_prod_sup2__', [
 			{ desc: 'Merluza fresca', unit: 'kg', price: '9.00' },
-		]), rid);
+		]), restaurant.id, UID);
 		const out = await saveReviewedInvoice(null, form('__inv_prod_sup2__', [
 			{ desc: 'Merluza fresca grande', unit: 'kg', price: '11.00' },
-		]), rid);
+		]), restaurant.id, UID);
 		expect(out.type).toBe('saved');
 		if (out.type !== 'saved') return;
 
 		const suggestions = await testSql`
 			SELECT payload FROM system_notifications
-			WHERE restaurant_id = ${rid} AND notification_type = 'product_suggestion'`;
+			WHERE restaurant_id = ${restaurant.id} AND notification_type = 'product_suggestion'`;
 		expect(suggestions.length).toBeGreaterThanOrEqual(1);
 		const payloads = suggestions.map((s) => s.payload);
 		expect(payloads.some((p) => p.description === 'Merluza fresca grande')).toBe(true);
@@ -182,7 +156,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → product linking (issue #298)
 async function claimSupplier(email: string | null): Promise<number> {
 	const [row] = await testSql`
 		INSERT INTO suppliers (restaurant_id, name, contact_email)
-		VALUES (${rid}, ${`__claim_sup_${Math.random().toString(36).slice(2, 8)}__`}, ${email})
+		VALUES (${restaurant.id}, ${`__claim_sup_${randomUUID().slice(0, 6)}__`}, ${email})
 		RETURNING id`;
 	return row.id as number;
 }
@@ -194,7 +168,7 @@ async function claimInvoice(
 	const [row] = await testSql`
 		INSERT INTO invoices (restaurant_id, supplier_id, invoice_number, invoice_date, review_state, incidence_kind)
 		VALUES (
-			${rid}, ${supplierId}, ${`CLAIM-${Math.random().toString(36).slice(2, 8)}`}, '2026-07-20',
+			${restaurant.id}, ${supplierId}, ${`CLAIM-${randomUUID().slice(0, 6)}`}, '2026-07-20',
 			${opts.reviewState ?? 'incidencia'}, ${opts.incidenceKind === undefined ? 'documento' : opts.incidenceKind}
 		)
 		RETURNING id`;
@@ -208,11 +182,11 @@ function claimFormData(subject = 'Falta producto', body = 'Revisad el envío, po
 	return fd;
 }
 
-function claimEvent(invoiceId: number, formData: FormData, restaurantId = rid) {
+function claimEvent(invoiceId: number, formData: FormData, restaurantId = restaurant.id) {
 	return {
 		params: { id: String(invoiceId) },
 		request: { formData: async () => formData },
-		locals: { restaurantId, user: { id: 'test-user' }, locale: 'es' },
+		locals: { restaurantId, user: { id: randomUUID() }, locale: 'es' },
 	} as never;
 }
 
@@ -255,7 +229,7 @@ describe.skipIf(!hasDbEnv)('requestCorrection action (issue #887)', () => {
 
 		const rows = await testSql`
 			SELECT action, reason, snapshot FROM invoice_audit_log
-			WHERE restaurant_id = ${rid} AND invoice_id = ${invoiceId} AND action = 'claim_email_sent'`;
+			WHERE restaurant_id = ${restaurant.id} AND invoice_id = ${invoiceId} AND action = 'claim_email_sent'`;
 		expect(rows).toHaveLength(1);
 		expect(rows[0].reason).toBe('Falta caja');
 		const snapshot = JSON.parse(rows[0].snapshot);
@@ -275,7 +249,7 @@ describe.skipIf(!hasDbEnv)('requestCorrection action (issue #887)', () => {
 
 		const rows = await testSql`
 			SELECT id FROM invoice_audit_log
-			WHERE restaurant_id = ${rid} AND invoice_id = ${invoiceId} AND action = 'claim_email_sent'`;
+			WHERE restaurant_id = ${restaurant.id} AND invoice_id = ${invoiceId} AND action = 'claim_email_sent'`;
 		expect(rows).toHaveLength(1);
 	});
 

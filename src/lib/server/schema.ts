@@ -257,11 +257,12 @@ export const verificationTokens = pgTable('verification_tokens', {
 export const invoiceAuditLog = pgTable('invoice_audit_log', {
 	id:           serial('id').primaryKey(),
 	restaurantId: uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
-	invoiceId:    integer('invoice_id').notNull(),
+	invoiceId:    integer('invoice_id').notNull().references(() => invoices.id),
 	action:       text('action').notNull(),
-	userId:       text('user_id').notNull(),
+	userId:       uuid('user_id').notNull(),
 	reason:       text('reason'),
 	snapshot:     text('snapshot'),
+	sourceFile:   text('source_file'),
 	createdAt:    timestamp('created_at', { withTimezone: true }).defaultNow(),
 }, (t) => [
 	index('idx_invoice_audit_restaurant').on(t.restaurantId),
@@ -571,7 +572,7 @@ export const whatsappPairingCodes = pgTable('whatsapp_pairing_codes', {
 
 export const userConsents = pgTable('user_consents', {
 	id:            serial('id').primaryKey(),
-	userId:        text('user_id').notNull(),
+	userId:        uuid('user_id').notNull(),
 	policyVersion: text('policy_version').notNull(),
 	method:        text('method').notNull(),
 	acceptedAt:    timestamp('accepted_at', { withTimezone: true }).defaultNow(),

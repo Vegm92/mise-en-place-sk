@@ -384,24 +384,49 @@ describe('processExtractionJob — entitlement refusals never reach the provider
 describe('WhatsApp notification hand-off', () => {
 	const whatsappItem = { ...item, source: 'whatsapp', sourceRef: '34600111222' };
 
-	it('enqueues a notification once extraction succeeds', async () => {
-		batchMocks.getItem.mockResolvedValue(whatsappItem);
+	/** The shared "extraction succeeds cleanly" setup several cases below need
+	 *  before exercising what happens to the notify enqueue. */
+	function mockSuccessfulExtraction() {
 		batchMocks.markExtracting.mockResolvedValue(true);
 		extractMocks.extractWithProvider.mockResolvedValue({
 			invoice: { supplier_name: 'Acme', line_items: [] }, usage: {},
 		});
+	}
 
-		await processExtractionJob({ itemId: item.id, restaurantId: 'r1' }, undefined, { retryCount: 0, retryLimit: 2 });
+	/** The shared "extraction fails with a retryable error" setup the two
+	 *  retry-window cases below need. */
+	function mockTransientFailure() {
+		batchMocks.markExtracting.mockResolvedValue(true);
+		extractMocks.extractWithProvider.mockRejectedValue(rateLimited);
+	}
 
-		expect(queueMocks.enqueueWhatsAppNotify).toHaveBeenCalledWith(item.id, 'r1');
+	function runNotifyJob(jobOverride: Record<string, unknown> = {}, retry = { retryCount: 0, retryLimit: 2 }) {
+		return processExtractionJob({ itemId: item.id, restaurantId: 'r1', ...jobOverride }, undefined, retry);
+	}
+
+	it('enqueues a notification once extraction succeeds', async () => {
+		batchMocks.getItem.mockResolvedValue(whatsappItem);
+		mockSuccessfulExtraction();
+
+		await runNotifyJob();
+
+		expect(queueMocks.enqueueWhatsAppNotify).toHaveBeenCalledWith(item.id, 'r1', undefined);
+	});
+
+	it('issue #1002: carries the job\'s requestId onto the outbound notify enqueue, so the whole chain stays traceable', async () => {
+		batchMocks.getItem.mockResolvedValue(whatsappItem);
+		mockSuccessfulExtraction();
+
+		await runNotifyJob({ requestId: 'req-abc123' });
+
+		expect(queueMocks.enqueueWhatsAppNotify).toHaveBeenCalledWith(item.id, 'r1', 'req-abc123');
 	});
 
 	it('enqueues a notification once the failure is terminal', async () => {
 		batchMocks.getItem.mockResolvedValue(whatsappItem);
-		batchMocks.markExtracting.mockResolvedValue(true);
-		extractMocks.extractWithProvider.mockRejectedValue(rateLimited);
+		mockTransientFailure();
 
-		await processExtractionJob({ itemId: item.id, restaurantId: 'r1' }, undefined, { retryCount: 2, retryLimit: 2 });
+		await runNotifyJob({}, { retryCount: 2, retryLimit: 2 });
 
 		expect(queueMocks.enqueueWhatsAppNotify).toHaveBeenCalledTimes(1);
 	});
@@ -410,22 +435,18 @@ describe('WhatsApp notification hand-off', () => {
 		// Otherwise one bad minute at the Gemini API costs the sender three
 		// identical "no he podido leerla" messages.
 		batchMocks.getItem.mockResolvedValue(whatsappItem);
-		batchMocks.markExtracting.mockResolvedValue(true);
-		extractMocks.extractWithProvider.mockRejectedValue(rateLimited);
+		mockTransientFailure();
 
-		await processExtractionJob({ itemId: item.id, restaurantId: 'r1' }, undefined, { retryCount: 0, retryLimit: 2 });
+		await runNotifyJob();
 
 		expect(queueMocks.enqueueWhatsAppNotify).not.toHaveBeenCalled();
 	});
 
 	it('does not notify for a web upload', async () => {
 		batchMocks.getItem.mockResolvedValue({ ...item, source: 'web', sourceRef: null });
-		batchMocks.markExtracting.mockResolvedValue(true);
-		extractMocks.extractWithProvider.mockResolvedValue({
-			invoice: { supplier_name: 'Acme', line_items: [] }, usage: {},
-		});
+		mockSuccessfulExtraction();
 
-		await processExtractionJob({ itemId: item.id, restaurantId: 'r1' }, undefined, { retryCount: 0, retryLimit: 2 });
+		await runNotifyJob();
 
 		expect(queueMocks.enqueueWhatsAppNotify).not.toHaveBeenCalled();
 	});
@@ -433,15 +454,10 @@ describe('WhatsApp notification hand-off', () => {
 	it('does not fail the extraction when the enqueue itself fails', async () => {
 		// The invoice IS extracted; losing the courtesy message must not undo it.
 		batchMocks.getItem.mockResolvedValue(whatsappItem);
-		batchMocks.markExtracting.mockResolvedValue(true);
 		queueMocks.enqueueWhatsAppNotify.mockRejectedValueOnce(new Error('boss is down'));
-		extractMocks.extractWithProvider.mockResolvedValue({
-			invoice: { supplier_name: 'Acme', line_items: [] }, usage: {},
-		});
+		mockSuccessfulExtraction();
 
-		await expect(
-			processExtractionJob({ itemId: item.id, restaurantId: 'r1' }, undefined, { retryCount: 0, retryLimit: 2 }),
-		).resolves.toBe('completed');
+		await expect(runNotifyJob()).resolves.toBe('completed');
 		expect(batchMocks.markDone).toHaveBeenCalledTimes(1);
 	});
 });
@@ -628,7 +644,7 @@ describe('processExtractionJob — composite documents are separated before extr
 		segmentationMocks.isSegmentableDocument.mockReturnValue(false);
 	});
 
-	async function runRouted(structureResult: unknown, rejects = false) {
+	async function runRouted(structureResult: unknown, rejects = false, jobOverride: Partial<typeof job & { requestId: string }> = {}) {
 		if (rejects) segmentationMocks.segmentDocument.mockRejectedValue(structureResult);
 		else if (typeof structureResult === 'function') segmentationMocks.segmentDocument.mockImplementation(structureResult as (...args: unknown[]) => unknown);
 		else segmentationMocks.segmentDocument.mockResolvedValue(structureResult);
@@ -636,7 +652,7 @@ describe('processExtractionJob — composite documents are separated before extr
 			invoice: { supplier_name: 'Acme', line_items: [] },
 			usage: {},
 		});
-		await processExtractionJob(job, undefined, RETRIES_LEFT);
+		await processExtractionJob({ ...job, ...jobOverride }, undefined, RETRIES_LEFT);
 	}
 
 	const SPLIT = { action: 'split', itemIds: ['child-1', 'child-2'] };
@@ -658,7 +674,17 @@ describe('processExtractionJob — composite documents are separated before extr
 		await segmentDeps.enqueue('child-1');
 
 		expect(batchMocks.markQueued).toHaveBeenCalledWith('child-1');
-		expect(queueMocks.enqueueExtraction).toHaveBeenCalledWith('child-1', 'r1');
+		expect(queueMocks.enqueueExtraction).toHaveBeenCalledWith('child-1', 'r1', undefined);
+	});
+
+	it('issue #1002: carries the parent job\'s requestId onto each segment it fans out', async () => {
+		await runRouted(SPLIT, false, { requestId: 'req-parent-1' });
+
+		const [, segmentDeps] = segmentationMocks.segmentDocument.mock.calls[0] as unknown as
+			[unknown, { enqueue: (id: string) => Promise<unknown> }];
+		await segmentDeps.enqueue('child-2');
+
+		expect(queueMocks.enqueueExtraction).toHaveBeenCalledWith('child-2', 'r1', 'req-parent-1');
 	});
 
 	it.each([

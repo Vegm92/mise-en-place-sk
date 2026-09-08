@@ -38,6 +38,7 @@ export interface ExtractionJobData {
 	itemId?: string;
 	sessionId?: string;
 	restaurantId: string;
+	requestId?: string;
 }
 
 const DEGRADATION_ERRORS = new Set([
@@ -46,10 +47,10 @@ const DEGRADATION_ERRORS = new Set([
 	'extract.err.timeout',
 ]);
 
-async function notifyWhatsAppIfSource(item: BatchItem, restaurantId: string): Promise<void> {
+async function notifyWhatsAppIfSource(item: BatchItem, restaurantId: string, requestId?: string): Promise<void> {
 	if (item.source !== 'whatsapp') return;
-	await enqueueWhatsAppNotify(item.id, restaurantId)
-		.catch((e) => console.error('[worker] whatsapp notify enqueue failed:', e));
+	await enqueueWhatsAppNotify(item.id, restaurantId, requestId)
+		.catch((e) => console.error(`[worker] whatsapp notify enqueue failed (requestId ${requestId ?? 'none'}):`, e));
 }
 
 function classifyExtractionError(err: unknown): string {
@@ -71,23 +72,23 @@ function classifyExtractionError(err: unknown): string {
 	return 'extract.err.generic';
 }
 
-async function claimExtractionAllowance(itemId: string, restaurantId: string): Promise<boolean> {
+async function claimExtractionAllowance(itemId: string, restaurantId: string, requestId?: string): Promise<boolean> {
 	if (await isLocationLocked(restaurantId)) {
-		console.warn(`[worker] Location ${restaurantId} is outside its plan's allowance — refusing extraction`);
+		console.warn(`[worker] Location ${restaurantId} is outside its plan's allowance — refusing extraction (requestId ${requestId ?? 'none'})`);
 		await markFailed(itemId, 'extract.err.locationLocked');
 		return false;
 	}
 
 	const access = await getAccessState(restaurantId);
 	if (!access.allowed) {
-		console.warn(`[worker] Subscription inactive for tenant ${restaurantId} (${access.status}) — refusing extraction`);
+		console.warn(`[worker] Subscription inactive for tenant ${restaurantId} (${access.status}) — refusing extraction (requestId ${requestId ?? 'none'})`);
 		await markFailed(itemId, access.trialExpired ? 'extract.err.trialExpired' : 'extract.err.subscriptionInactive');
 		return false;
 	}
 
 	const quotaResult = await checkExtractionQuota(restaurantId);
 	if (!quotaResult.allowed) {
-		console.warn(`[worker] Quota exceeded for tenant ${restaurantId}: ${quotaResult.reason}`);
+		console.warn(`[worker] Quota exceeded for tenant ${restaurantId}: ${quotaResult.reason} (requestId ${requestId ?? 'none'})`);
 		await markFailed(itemId, 'extract.err.quotaExceeded');
 		return false;
 	}
@@ -97,7 +98,7 @@ async function claimExtractionAllowance(itemId: string, restaurantId: string): P
 		console.warn(`[worker] Monthly plan quota reached for tenant ${restaurantId} (limit ${claim.limit})`);
 		Sentry.captureMessage('extraction.quota_exhausted', {
 			level: 'warning',
-			tags: { restaurantId },
+			tags: { restaurantId, requestId },
 		});
 		await markFailed(itemId, 'extract.err.quotaExceeded');
 		return false;
@@ -112,19 +113,20 @@ async function reportExtractionFailure(
 	restaurantId: string,
 	payload: unknown,
 	attempt: { isFinalAttempt: boolean; claimedMonthlySlot: boolean },
+	requestId?: string,
 ): Promise<boolean> {
 	const extractError = classifyExtractionError(err);
 	const willRetry = DEGRADATION_ERRORS.has(extractError) && !attempt.isFinalAttempt;
-	console.error(`[worker] Extraction failed for item ${itemId}${willRetry ? ' (will retry)' : ''}:`, err);
+	console.error(`[worker] Extraction failed for item ${itemId}${willRetry ? ' (will retry)' : ''} (requestId ${requestId ?? 'none'}):`, err);
 	if (DEGRADATION_ERRORS.has(extractError)) {
 		Sentry.captureException(err, {
 			level: 'warning',
-			tags: { errorClass: extractError, restaurantId },
+			tags: { errorClass: extractError, restaurantId, requestId },
 		});
 	} else {
 		Sentry.captureException(new Error(`extraction_failed:${extractError}`), {
 			level: 'error',
-			tags: { itemId, errorClass: extractError, restaurantId },
+			tags: { itemId, errorClass: extractError, restaurantId, requestId },
 		});
 		await recordDeadLetter({
 			queue: EXTRACTION_QUEUE,
@@ -174,6 +176,7 @@ async function inspectDocumentStructure(
 	restaurantId: string,
 	claimedMonthlySlot: boolean,
 	generateOverride?: GenerateFn,
+	requestId?: string,
 ): Promise<SegmentationOutcome> {
 	const siblings = await getBatchItems(item.batchId);
 	const storage = getStorage();
@@ -197,7 +200,7 @@ async function inspectDocumentStructure(
 				}),
 				enqueue: async (segmentId) => {
 					await markQueued(segmentId);
-					return enqueueExtraction(segmentId, restaurantId);
+					return enqueueExtraction(segmentId, restaurantId, requestId);
 				},
 				discardSource: () => markDiscarded(item.id),
 				reserve: async (count) => {
@@ -234,17 +237,18 @@ async function routeCompositeDocument(
 	restaurantId: string,
 	claimedMonthlySlot: boolean,
 	generateOverride?: GenerateFn,
+	requestId?: string,
 ): Promise<ExtractionRoute> {
 	if (!isSegmentableDocument(item.fileKey)) return { action: 'extract' };
 
 	const slot = await acquireExtractionSlot();
 	try {
 		return asRoute(
-			await inspectDocumentStructure(item, filePath, restaurantId, claimedMonthlySlot, generateOverride),
+			await inspectDocumentStructure(item, filePath, restaurantId, claimedMonthlySlot, generateOverride, requestId),
 		);
 	} catch (err) {
 		if (DEGRADATION_ERRORS.has(classifyExtractionError(err))) throw err;
-		console.warn(`[worker] Structure detection failed for item ${item.id} — extracting it as one document:`, err);
+		console.warn(`[worker] Structure detection failed for item ${item.id} — extracting it as one document (requestId ${requestId ?? 'none'}):`, err);
 		return { action: 'extract' };
 	} finally {
 		await slot.release();
@@ -263,10 +267,10 @@ export async function processExtractionJob(
 	retryInfo?: { retryCount: number; retryLimit: number },
 ): Promise<ExtractionOutcome> {
 	const itemId = jobData.itemId ?? jobData.sessionId;
-	const { restaurantId } = jobData;
+	const { restaurantId, requestId } = jobData;
 	const isFinalAttempt = !retryInfo || retryInfo.retryCount >= retryInfo.retryLimit;
 	if (!itemId) {
-		console.warn('[worker] Job without itemId — routing to the dead-letter queue');
+		console.warn(`[worker] Job without itemId — routing to the dead-letter queue (requestId ${requestId ?? 'none'})`);
 		await recordDeadLetter({
 			queue: EXTRACTION_QUEUE,
 			errorClass: 'corrupt.missingItemId',
@@ -279,7 +283,7 @@ export async function processExtractionJob(
 
 	const item = await getItem(itemId);
 	if (!item) {
-		console.warn(`[worker] Batch item ${itemId} not found — routing to the dead-letter queue`);
+		console.warn(`[worker] Batch item ${itemId} not found — routing to the dead-letter queue (requestId ${requestId ?? 'none'})`);
 		await recordDeadLetter({
 			queue: EXTRACTION_QUEUE,
 			errorClass: 'corrupt.itemNotFound',
@@ -299,9 +303,9 @@ export async function processExtractionJob(
 
 	let claimedMonthlySlot = false;
 	if (!generateOverride) {
-		const allowed = await claimExtractionAllowance(itemId, restaurantId);
+		const allowed = await claimExtractionAllowance(itemId, restaurantId, requestId);
 		if (!allowed) {
-			await notifyWhatsAppIfSource(item, restaurantId);
+			await notifyWhatsAppIfSource(item, restaurantId, requestId);
 			return 'completed';
 		}
 		claimedMonthlySlot = true;
@@ -321,26 +325,26 @@ export async function processExtractionJob(
 	}
 
 	try {
-		const route = await routeCompositeDocument(item, filePath, restaurantId, claimedMonthlySlot, generateOverride);
+		const route = await routeCompositeDocument(item, filePath, restaurantId, claimedMonthlySlot, generateOverride, requestId);
 		if (route.action !== 'extract') {
 			if (claimedMonthlySlot) await releaseMonthlyExtraction(restaurantId, itemId, route.action);
 			if (route.action === 'review') {
 				Sentry.captureMessage('extraction.structure_unclear', {
 					level: 'warning',
-					tags: { itemId, restaurantId },
+					tags: { itemId, restaurantId, requestId },
 				});
 				await markFailed(itemId, STRUCTURE_UNCLEAR_ERROR);
-				await notifyWhatsAppIfSource(item, restaurantId);
+				await notifyWhatsAppIfSource(item, restaurantId, requestId);
 			}
 			if (route.action === 'quota') {
-				console.warn(`[worker] Item ${itemId} holds ${route.found} documents, ${route.remaining} left in plan — refusing the whole packet`);
+				console.warn(`[worker] Item ${itemId} holds ${route.found} documents, ${route.remaining} left in plan — refusing the whole packet (requestId ${requestId ?? 'none'})`);
 				Sentry.captureMessage('extraction.composite_quota_exhausted', {
 					level: 'warning',
-					tags: { itemId, restaurantId },
+					tags: { itemId, restaurantId, requestId },
 					extra: { found: route.found, remaining: route.remaining },
 				});
 				await markFailed(itemId, COMPOSITE_QUOTA_ERROR, { found: route.found, remaining: route.remaining });
-				await notifyWhatsAppIfSource(item, restaurantId);
+				await notifyWhatsAppIfSource(item, restaurantId, requestId);
 			}
 			return 'completed';
 		}
@@ -368,7 +372,7 @@ export async function processExtractionJob(
 			console.warn(`[worker] Item ${itemId}: emisor/receptor swapped, matched by ${parties.reason}`);
 			Sentry.captureMessage('extraction.parties_swapped', {
 				level: 'info',
-				tags: { itemId, restaurantId, reason: parties.reason ?? 'unknown' },
+				tags: { itemId, restaurantId, reason: parties.reason ?? 'unknown', requestId },
 			});
 		}
 
@@ -415,8 +419,8 @@ export async function processExtractionJob(
 		if (totalMismatch) {
 			console.warn(`[worker] Total mismatch detected for item ${itemId} (lines + tax vs. extracted total)`);
 		}
-		console.info(`[worker] Extraction done for item ${itemId}`);
-		await notifyWhatsAppIfSource(item, restaurantId);
+		console.info(`[worker] Extraction done for item ${itemId} (requestId ${requestId ?? 'none'})`);
+		await notifyWhatsAppIfSource(item, restaurantId, requestId);
 		return 'completed';
 	} catch (err) {
 		const failedForGood = await reportExtractionFailure(
@@ -425,8 +429,9 @@ export async function processExtractionJob(
 			restaurantId,
 			{ ...jobData, fileKey: item.fileKey, displayName: item.displayName },
 			{ isFinalAttempt, claimedMonthlySlot },
+			requestId,
 		);
-		if (failedForGood) await notifyWhatsAppIfSource(item, restaurantId);
+		if (failedForGood) await notifyWhatsAppIfSource(item, restaurantId, requestId);
 		return failedForGood ? 'completed' : 'failed';
 	} finally {
 		cleanupTmp?.();

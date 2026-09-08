@@ -34,13 +34,14 @@ import { GET, POST } from '../src/routes/api/whatsapp/webhook/+server';
 function getEvent(qs: string) {
 	return { url: new URL(`http://localhost/api/whatsapp/webhook?${qs}`) } as never;
 }
-function postEvent(body: unknown, opts: { invalidJson?: boolean; signature?: string } = {}) {
+function postEvent(body: unknown, opts: { invalidJson?: boolean; signature?: string; requestId?: string } = {}) {
 	const raw = opts.invalidJson ? '{ not valid json' : JSON.stringify(body);
 	return {
 		request: {
 			text: async () => raw,
 			headers: { get: (name: string) => (name.toLowerCase() === 'x-hub-signature-256' ? (opts.signature ?? null) : null) },
 		},
+		locals: opts.requestId ? { requestId: opts.requestId } : undefined,
 	} as never;
 }
 
@@ -89,8 +90,19 @@ describe('POST — message fan-out', () => {
 		expect(res.status).toBe(200);
 		expect(await res.json()).toEqual({ ok: true });
 		expect(enqueueMock).toHaveBeenCalledTimes(2);
-		expect(enqueueMock).toHaveBeenCalledWith(expect.objectContaining({ id: 'wamid.1', type: 'text' }));
-		expect(enqueueMock).toHaveBeenCalledWith(expect.objectContaining({ id: 'wamid.2', type: 'image' }));
+		expect(enqueueMock).toHaveBeenCalledWith(expect.objectContaining({ id: 'wamid.1', type: 'text' }), undefined);
+		expect(enqueueMock).toHaveBeenCalledWith(expect.objectContaining({ id: 'wamid.2', type: 'image' }), undefined);
+	});
+
+	it('issue #1002: forwards the request\'s correlation id from locals onto the enqueue call', async () => {
+		const res = await POST(
+			postEvent(
+				payload({ from: '+34600000005', id: 'wamid.5', type: 'text', text: { body: 'hola' } }),
+				{ requestId: 'req-webhook-1' },
+			),
+		);
+		expect(res.status).toBe(200);
+		expect(enqueueMock).toHaveBeenCalledWith(expect.objectContaining({ id: 'wamid.5' }), 'req-webhook-1');
 	});
 
 	it('returns 200 and enqueues nothing for a status-only callback (no messages)', async () => {

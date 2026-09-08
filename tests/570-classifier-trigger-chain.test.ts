@@ -16,13 +16,10 @@
  * DB-backed; the db singleton is swapped for the test client (ssl:'require'
  * in db.ts does not speak to local Postgres). Skipped without DATABASE_URL.
  */
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+import { randomUUID } from 'node:crypto';
 
-vi.mock('../src/lib/server/db', async () => {
-	const { testDb } = await import('./helpers/test-db');
-	const { forTenant } = await import('../src/lib/server/tenant');
-	return { db: testDb, forTenant };
-});
+vi.mock('../src/lib/server/db', async () => (await import('./helpers/db-suite')).testDbModule());
 
 const { enqueueNormalizeMock, enqueueCategorizeMock } = vi.hoisted(() => ({
 	enqueueNormalizeMock: vi.fn().mockResolvedValue(true),
@@ -37,9 +34,9 @@ import { saveReviewedInvoice } from '../src/lib/server/invoice-save';
 import { processCategorizeJob } from '../src/lib/server/products';
 import type { createGeminiProvider } from '../src/lib/server/llm-provider';
 import { UNCATEGORIZED_CATEGORY } from '../src/lib/constants';
-import {
-	testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
-} from './helpers/test-db';
+import { testSql, hasDbEnv } from './helpers/test-db';
+import { useTestRestaurant } from './helpers/test-restaurant';
+import { extractedItem, lineItemInvoiceForm } from './helpers/invoice-save-form';
 
 type LLMProvider = ReturnType<typeof createGeminiProvider>;
 
@@ -50,27 +47,7 @@ function fakeProvider(text: string): LLMProvider {
 	};
 }
 
-function extractedItem(data: Record<string, unknown>) {
-	return { extractedData: data } as unknown as Parameters<typeof saveReviewedInvoice>[0];
-}
-
-function form(supplier: string, lines: Array<{ desc: string; unit: string; price: string }>): FormData {
-	const fd = new FormData();
-	fd.append('supplier_name', supplier);
-	fd.append('invoice_number', `INV-${Math.random().toString(36).slice(2, 8)}`);
-	fd.append('invoice_date', '2026-07-20');
-	fd.append('total_amount', '100');
-	fd.append('low_confidence_ack', 'true');
-	for (const l of lines) {
-		fd.append('line_descriptions', l.desc);
-		fd.append('line_quantities', '1');
-		fd.append('line_units', l.unit);
-		fd.append('line_unit_prices', l.price);
-		fd.append('line_total_prices', l.price);
-		fd.append('line_tax_rates', '');
-	}
-	return fd;
-}
+const form = lineItemInvoiceForm;
 
 async function supplierCategoryFor(invoiceId: number): Promise<string | null> {
 	const rows = await testSql`
@@ -85,18 +62,8 @@ async function productCategoryOf(productId: number): Promise<string | null> {
 	return (row?.category as string | null) ?? null;
 }
 
-let rid = '';
-
-beforeAll(async () => {
-	if (!hasDbEnv) return;
-	rid = (await createTestRestaurant('570-classifier')).id;
-});
-
-afterAll(async () => {
-	if (!hasDbEnv) return;
-	await cleanupTestRestaurant(rid);
-	await closeDb();
-});
+const restaurant = useTestRestaurant('570-classifier');
+const UID = randomUUID();
 
 describe.skipIf(!hasDbEnv)('issue #570 — new-invoice classifier trigger chain', () => {
 	it('a new invoice with a new supplier and a new product triggers both classifiers, and both persist', async () => {
@@ -113,7 +80,7 @@ describe.skipIf(!hasDbEnv)('issue #570 — new-invoice classifier trigger chain'
 
 		const out = await saveReviewedInvoice(item, form(supplierName, [
 			{ desc: 'Naranja de zumo 570', unit: 'kg', price: '1.50' },
-		]), rid);
+		]), restaurant.id, UID);
 		expect(out.type).toBe('saved');
 		if (out.type !== 'saved') return;
 
@@ -130,18 +97,34 @@ describe.skipIf(!hasDbEnv)('issue #570 — new-invoice classifier trigger chain'
 		expect(await productCategoryOf(productId)).toBeNull();
 
 		expect(enqueueCategorizeMock).toHaveBeenCalledTimes(1);
-		expect(enqueueCategorizeMock).toHaveBeenCalledWith(rid, productId, 'Naranja de zumo 570');
+		expect(enqueueCategorizeMock).toHaveBeenCalledWith(restaurant.id, productId, 'Naranja de zumo 570', undefined);
 		expect(enqueueNormalizeMock).toHaveBeenCalledTimes(1);
-		expect(enqueueNormalizeMock).toHaveBeenCalledWith(rid, productId, 'Naranja de zumo 570');
+		expect(enqueueNormalizeMock).toHaveBeenCalledWith(restaurant.id, productId, 'Naranja de zumo 570', undefined);
 
 		// 3. Run the job the save enqueued (with a fake LLM so no real Gemini
 		// call is made) and confirm the verdict actually lands on the product
 		// the trigger named — closing the loop end to end.
 		await processCategorizeJob(
-			{ restaurantId: rid, productId, canonicalName: 'Naranja de zumo 570' },
+			{ restaurantId: restaurant.id, productId, canonicalName: 'Naranja de zumo 570' },
 			{ provider: fakeProvider('{"category": "Frutas y Verduras", "confidence": 0.93}') },
 		);
 		expect(await productCategoryOf(productId)).toBe('Frutas y Verduras');
+	});
+
+	it('issue #1002: carries the saving request\'s correlation id onto the classifier enqueues', async () => {
+		enqueueNormalizeMock.mockClear();
+		enqueueCategorizeMock.mockClear();
+
+		const supplierName = 'Suministros Levante 570, S.L.';
+		const item = extractedItem({ supplier_name: supplierName, confidence: 0.9 });
+
+		const out = await saveReviewedInvoice(item, form(supplierName, [
+			{ desc: 'Aceite de oliva 570', unit: 'l', price: '4.20' },
+		]), restaurant.id, UID, undefined, 'req-save-xyz');
+		expect(out.type).toBe('saved');
+
+		expect(enqueueCategorizeMock).toHaveBeenCalledWith(restaurant.id, expect.any(Number), 'Aceite de oliva 570', 'req-save-xyz');
+		expect(enqueueNormalizeMock).toHaveBeenCalledWith(restaurant.id, expect.any(Number), 'Aceite de oliva 570', 'req-save-xyz');
 	});
 
 	it('does not re-trigger product classification for a line that matches an existing product', async () => {
@@ -153,7 +136,7 @@ describe.skipIf(!hasDbEnv)('issue #570 — new-invoice classifier trigger chain'
 
 		const first = await saveReviewedInvoice(item, form(supplierName, [
 			{ desc: 'Limón de mesa 570', unit: 'kg', price: '1.20' },
-		]), rid);
+		]), restaurant.id, UID);
 		expect(first.type).toBe('saved');
 		expect(enqueueCategorizeMock).toHaveBeenCalledTimes(1);
 		expect(enqueueNormalizeMock).toHaveBeenCalledTimes(1);
@@ -166,7 +149,7 @@ describe.skipIf(!hasDbEnv)('issue #570 — new-invoice classifier trigger chain'
 		// re-trigger classification.
 		const second = await saveReviewedInvoice(item, form(supplierName, [
 			{ desc: 'Limón de mesa 570', unit: 'kg', price: '1.30' },
-		]), rid);
+		]), restaurant.id, UID);
 		expect(second.type).toBe('saved');
 
 		expect(enqueueCategorizeMock).not.toHaveBeenCalled();
@@ -182,7 +165,7 @@ describe.skipIf(!hasDbEnv)('issue #570 — new-invoice classifier trigger chain'
 
 		const out = await saveReviewedInvoice(item, form(supplierName, [
 			{ desc: 'Artículo variado 570', unit: 'ud', price: '2.00' },
-		]), rid);
+		]), restaurant.id, UID);
 		expect(out.type).toBe('saved');
 		if (out.type !== 'saved') return;
 

@@ -13,6 +13,7 @@
  * through saveReviewedInvoice, plus the direct hash-alignment and
  * hash-stability seams.
  */
+import { randomUUID } from 'node:crypto';
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import fs from 'fs';
 import os from 'os';
@@ -323,6 +324,7 @@ describe('computeFormContentHash — blank line alignment (issue #494)', () => {
 });
 
 let dupRid = '';
+const UID = randomUUID();
 
 function dupFakeItem(): BatchItem {
 	return fakeBatchItem({
@@ -397,20 +399,20 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice — blank middle row dedup (issu
 	});
 
 	it('re-submitting the same document without the hallucinated blank row is still caught as contentDuplicate', async () => {
-		const first = await saveReviewedInvoice(dupFakeItem(), dupFormWithBlankRow('INV-494-A'), dupRid);
+		const first = await saveReviewedInvoice(dupFakeItem(), dupFormWithBlankRow('INV-494-A'), dupRid, UID);
 		expect(first.type).toBe('saved');
 		if (first.type !== 'saved') return;
 
-		const second = await saveReviewedInvoice(dupFakeItem(), dupFormNoBlankRow('INV-494-A'), dupRid);
+		const second = await saveReviewedInvoice(dupFakeItem(), dupFormNoBlankRow('INV-494-A'), dupRid, UID);
 		expect(second).toEqual({ type: 'contentDuplicate', duplicateId: first.invoiceId });
 	});
 
 	it('re-submitting the exact same blank-row form is caught as contentDuplicate too', async () => {
-		const first = await saveReviewedInvoice(dupFakeItem(), dupFormWithBlankRow('INV-494-B'), dupRid);
+		const first = await saveReviewedInvoice(dupFakeItem(), dupFormWithBlankRow('INV-494-B'), dupRid, UID);
 		expect(first.type).toBe('saved');
 		if (first.type !== 'saved') return;
 
-		const second = await saveReviewedInvoice(dupFakeItem(), dupFormWithBlankRow('INV-494-B'), dupRid);
+		const second = await saveReviewedInvoice(dupFakeItem(), dupFormWithBlankRow('INV-494-B'), dupRid, UID);
 		expect(second).toEqual({ type: 'contentDuplicate', duplicateId: first.invoiceId });
 	});
 });
