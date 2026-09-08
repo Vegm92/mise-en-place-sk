@@ -18,34 +18,29 @@
  * DB-backed; the db singleton is swapped for the test client. Skipped
  * without DATABASE_URL.
  */
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { randomUUID } from 'node:crypto';
+import { describe, it, expect, vi } from 'vitest';
 import { isRedirect } from '@sveltejs/kit';
 
-vi.mock('../src/lib/server/db', async () => {
-	const { testDb } = await import('./helpers/test-db');
-	const { forTenant } = await import('../src/lib/server/tenant');
-	return { db: testDb, forTenant };
-});
+vi.mock('../src/lib/server/db', async () => (await import('./helpers/db-suite')).testDbModule());
 
-import {
-	testDb, testSql, closeDb,
-	createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
-} from './helpers/test-db';
+import { testDb, testSql, hasDbEnv } from './helpers/test-db';
+import { useTestRestaurant } from './helpers/test-restaurant';
 import { saveReviewedInvoice, computeFormContentHash, findInvalidMonetaryField } from '../src/lib/server/invoice-save';
 import { computeInvoiceContentHash } from '../src/lib/server/dedup';
 import { createBatchStore } from '../src/lib/server/batch';
 import type { BatchItem } from '../src/lib/server/batch';
 import { fakeBatchItem } from './helpers/batch-item';
 
-let rid = '';
-const USER_ID = 'user-508';
+const restaurant = useTestRestaurant('inv-amount-508');
+const USER_ID = randomUUID();
 const SUPPLIER = '__inv_amount_sup__';
 
 function fakeItem(): BatchItem {
 	return fakeBatchItem({
 		id: 'item-508',
 		batchId: 'batch-508',
-		restaurantId: rid,
+		restaurantId: restaurant.id,
 		fileKey: 'fake-508.pdf',
 		displayName: 'fake-508.pdf',
 		extractedData: { confidence: 1 },
@@ -93,7 +88,7 @@ async function runEdit(invoiceId: number, formData: FormData) {
 	const { actions } = await import('../src/routes/(app)/invoice/[id]/edit/+page.server');
 	const event = {
 		params: { id: String(invoiceId) },
-		locals: { restaurantId: rid, user: { id: USER_ID } },
+		locals: { restaurantId: restaurant.id, user: { id: USER_ID } },
 		request: { formData: async () => formData },
 	} as never;
 	return (actions.save as (e: never) => Promise<unknown>)(event).catch((e: unknown) => e);
@@ -111,23 +106,11 @@ async function runBatchSave(batchId: string, itemId: string, formData: FormData)
 	const { actions } = await import('../src/routes/(app)/batch/[id]/+page.server');
 	const event = {
 		params: { id: batchId },
-		locals: { restaurantId: rid },
+		locals: { restaurantId: restaurant.id, user: { id: USER_ID } },
 		request: { formData: async () => formData },
 	} as never;
 	return (actions.save as (e: never) => Promise<unknown>)(event).catch((e: unknown) => e);
 }
-
-beforeAll(async () => {
-	if (!hasDbEnv) return;
-	const r = await createTestRestaurant('inv-amount-508');
-	rid = r.id;
-});
-
-afterAll(async () => {
-	if (!hasDbEnv) return;
-	await cleanupTestRestaurant(rid);
-	await closeDb();
-});
 
 describe('findInvalidMonetaryField (issue #508)', () => {
 	it('flags a malformed total_amount', () => {
@@ -157,19 +140,19 @@ describe('findInvalidMonetaryField (issue #508)', () => {
 
 describe.skipIf(!hasDbEnv)('saveReviewedInvoice — malformed amounts rejected, no write (issue #508)', () => {
 	it('rejects a garbage-prefix total_amount and writes nothing', async () => {
-		const out = await saveReviewedInvoice(fakeItem(), saveForm('INV-508-A', '12abc'), rid);
+		const out = await saveReviewedInvoice(fakeItem(), saveForm('INV-508-A', '12abc'), restaurant.id, USER_ID);
 		expect(out).toEqual({ type: 'invalidAmount', field: 'total_amount' });
 		expect(await invoiceCountFor('INV-508-A')).toBe(0);
 	});
 
 	it('rejects Infinity from scientific notation and writes nothing', async () => {
-		const out = await saveReviewedInvoice(fakeItem(), saveForm('INV-508-B', '25.00', { unitPrice: '1e999' }), rid);
+		const out = await saveReviewedInvoice(fakeItem(), saveForm('INV-508-B', '25.00', { unitPrice: '1e999' }), restaurant.id, USER_ID);
 		expect(out).toEqual({ type: 'invalidAmount', field: 'line_unit_prices' });
 		expect(await invoiceCountFor('INV-508-B')).toBe(0);
 	});
 
 	it('rejects a hex literal and writes nothing', async () => {
-		const out = await saveReviewedInvoice(fakeItem(), saveForm('INV-508-C', '25.00', { totalPrice: '0x10' }), rid);
+		const out = await saveReviewedInvoice(fakeItem(), saveForm('INV-508-C', '25.00', { totalPrice: '0x10' }), restaurant.id, USER_ID);
 		expect(out).toEqual({ type: 'invalidAmount', field: 'line_total_prices' });
 		expect(await invoiceCountFor('INV-508-C')).toBe(0);
 	});
@@ -178,7 +161,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice — malformed amounts rejected, 
 		const out = await saveReviewedInvoice(
 			fakeItem(),
 			saveForm('INV-508-D', '25,50', { qty: '2', unitPrice: '12,75', totalPrice: '25,50', taxRate: '10' }),
-			rid,
+			restaurant.id, USER_ID
 		);
 		expect(out.type).toBe('saved');
 		if (out.type !== 'saved') return;
@@ -212,7 +195,7 @@ describe('computeFormContentHash / insert-path agreement for comma decimals (iss
 		const header = { supplierName: SUPPLIER, invoiceNumber: 'INV-508-HASH', invoiceDate: '2026-07-20', dueDate: null, totalAmount: '25.50' };
 		const expectedHash = computeFormContentHash(header, form);
 
-		const out = await saveReviewedInvoice(fakeItem(), form, rid);
+		const out = await saveReviewedInvoice(fakeItem(), form, restaurant.id, USER_ID);
 		expect(out.type).toBe('saved');
 		if (out.type !== 'saved') return;
 
@@ -233,12 +216,19 @@ describe('computeFormContentHash / insert-path agreement for comma decimals (iss
 	});
 });
 
+/** Saves a fresh invoice via saveReviewedInvoice, asserting the save
+ *  succeeded, and returns its id plus the row as first written — the setup
+ *  every edit-action case below needs before submitting its own edit. */
+async function createInvoiceAndBefore(invoiceNumber: string) {
+	const created = await saveReviewedInvoice(fakeItem(), saveForm(invoiceNumber, '60.00'), restaurant.id, USER_ID);
+	expect(created.type).toBe('saved');
+	if (created.type !== 'saved') throw new Error('save failed');
+	return { invoiceId: created.invoiceId, before: await invoiceRow(created.invoiceId) };
+}
+
 describe.skipIf(!hasDbEnv)('invoice edit action — malformed amounts rejected, no write (issue #508)', () => {
 	it('rejects a garbage-prefix total_amount with a validation error and makes no write', async () => {
-		const created = await saveReviewedInvoice(fakeItem(), saveForm('INV-508-EDIT-A', '60.00'), rid);
-		expect(created.type).toBe('saved');
-		if (created.type !== 'saved') return;
-		const before = await invoiceRow(created.invoiceId);
+		const { invoiceId, before } = await createInvoiceAndBefore('INV-508-EDIT-A');
 
 		const fd = new FormData();
 		fd.append('supplier_name', SUPPLIER);
@@ -248,20 +238,17 @@ describe.skipIf(!hasDbEnv)('invoice edit action — malformed amounts rejected, 
 		fd.append('version', String(before.version));
 		lineFields(fd, {});
 
-		const result = await runEdit(created.invoiceId, fd);
+		const result = await runEdit(invoiceId, fd);
 		expect(result).toMatchObject({ status: 400, data: { errorKey: 'error.invalidAmount' } });
 
-		const after = await invoiceRow(created.invoiceId);
+		const after = await invoiceRow(invoiceId);
 		expect(after.version).toBe(before.version);
 		expect(after.invoice_number).toBe(before.invoice_number);
 		expect(after.total_amount).toBe(before.total_amount);
 	});
 
 	it('persists a comma-decimal amount at its correct value on edit', async () => {
-		const created = await saveReviewedInvoice(fakeItem(), saveForm('INV-508-EDIT-B', '60.00'), rid);
-		expect(created.type).toBe('saved');
-		if (created.type !== 'saved') return;
-		const before = await invoiceRow(created.invoiceId);
+		const { invoiceId, before } = await createInvoiceAndBefore('INV-508-EDIT-B');
 
 		const fd = new FormData();
 		fd.append('supplier_name', SUPPLIER);
@@ -271,13 +258,13 @@ describe.skipIf(!hasDbEnv)('invoice edit action — malformed amounts rejected, 
 		fd.append('version', String(before.version));
 		lineFields(fd, { unitPrice: '49,95', totalPrice: '99,90' });
 
-		const result = await runEdit(created.invoiceId, fd);
+		const result = await runEdit(invoiceId, fd);
 		expect(isRedirect(result)).toBe(true);
 
-		const after = await invoiceRow(created.invoiceId);
+		const after = await invoiceRow(invoiceId);
 		expect(after.total_amount).toBe('99.90');
 
-		const lineRow = await invoiceLineRow(created.invoiceId);
+		const lineRow = await invoiceLineRow(invoiceId);
 		expect(lineRow.unit_price).toBe('49.95');
 		expect(lineRow.total_price).toBe('99.90');
 	});
@@ -286,7 +273,7 @@ describe.skipIf(!hasDbEnv)('invoice edit action — malformed amounts rejected, 
 describe.skipIf(!hasDbEnv)('batch route save action — malformed amount wiring (issue #508)', () => {
 	it('maps an invalidAmount outcome to a 400 with errorKey error.invalidAmount', async () => {
 		const store = createBatchStore(testDb);
-		const { batchId, itemIds: [itemId] } = await store.createBatch(rid, [{ key: 'ns/508.pdf', name: '508.pdf' }]);
+		const { batchId, itemIds: [itemId] } = await store.createBatch(restaurant.id, [{ key: 'ns/508.pdf', name: '508.pdf' }]);
 
 		const result = await runBatchSave(batchId, itemId, saveForm('INV-508-BATCH', '12abc'));
 		expect(result).toMatchObject({ status: 400, data: { errorKey: 'error.invalidAmount' } });

@@ -8,11 +8,24 @@
  *
  * The real drift guard is schema-derived: every table in `schema.ts` that
  * carries a `restaurantId` column (the same signal `lint-invariants.mjs`'s
- * `tenant-scope`/`unscoped-tenant-query` gates use, minus `user_restaurants`,
- * which is keyed by user rather than by restaurant and is deleted on a
- * separate axis by the delete handler) must have an entry in the map. A
- * schema table with no map entry is exactly the bug #390 describes — added
- * to `schema.ts`, forgotten in export, forgotten in delete, or both.
+ * `tenant-scope`/`unscoped-tenant-query` gates use) must have an entry in
+ * the map. A schema table with no map entry is exactly the bug #390
+ * describes — added to `schema.ts`, forgotten in export, forgotten in
+ * delete, or both.
+ *
+ * `user_restaurants` (issue #994) is the one entry here that is keyed by
+ * user first, not by restaurant, and is deleted on its own axis by the
+ * delete handler (`eq(userRestaurants.userId, ...)`, not the map's
+ * cascade/explicit machinery) — but it still carries a NOT NULL
+ * `restaurant_id` FK to `restaurants`, is exactly the table
+ * `src/lib/server/locations.ts` joins to resolve tenant membership, and is
+ * now RLS-covered (`drizzle/0078_rls_tenant_isolation_gap.sql`) the same as
+ * every other entry. `exportKey: null` keeps it out of the export payload's
+ * per-table `tables` object — the export route already surfaces membership
+ * separately as its own `memberships` field — and its `cascade-via-restaurants`
+ * deletion is inert in practice (the delete handler removes it explicitly by
+ * user id before that loop ever runs) but still accurately describes the
+ * schema's own `ON DELETE CASCADE`, which the FK-shape test below checks.
  *
  * `missingFromTenantDataMap` is exercised with a synthetic extra name (the
  * cheapest, safest way to prove the checker actually rejects a table absent
@@ -27,17 +40,13 @@ import {
 	tenantDataMap, exportableEntries, explicitDeletionEntries, rootEntry, missingFromTenantDataMap,
 } from '../src/lib/server/tenant-data-map';
 
-const RESTAURANT_KEYED_BUT_NOT_TENANT_OWNED = new Set(['user_restaurants']);
-
 function deriveTenantScopedTableNames(): string[] {
 	const names: string[] = [];
 	for (const value of Object.values(schema)) {
 		if (!isTable(value)) continue;
 		const columns = getTableColumns(value);
 		if (!('restaurantId' in columns)) continue;
-		const name = getTableName(value);
-		if (RESTAURANT_KEYED_BUT_NOT_TENANT_OWNED.has(name)) continue;
-		names.push(name);
+		names.push(getTableName(value));
 	}
 	return names;
 }

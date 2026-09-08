@@ -22,26 +22,21 @@
  * DB-backed; the db singleton is swapped for the test client. Skipped without
  * DATABASE_URL.
  */
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { randomUUID } from 'node:crypto';
+import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('../src/lib/server/db', async () => {
-	const { testDb } = await import('./helpers/test-db');
-	const { forTenant } = await import('../src/lib/server/tenant');
-	return { db: testDb, forTenant };
-});
+vi.mock('../src/lib/server/db', async () => (await import('./helpers/db-suite')).testDbModule());
 
-import {
-	testSql, closeDb,
-	createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
-} from './helpers/test-db';
+import { testSql, hasDbEnv } from './helpers/test-db';
+import { useTestRestaurant } from './helpers/test-restaurant';
 import { saveReviewedInvoice } from '../src/lib/server/invoice-save';
 import type { BatchItem } from '../src/lib/server/batch';
-import { fakeBatchItem } from './helpers/batch-item';
+import { saveInvoiceOrThrow, documentTypedItem } from './helpers/invoice-save-form';
 
-let rid = '';
+const restaurant = useTestRestaurant('inv-dupe-purchase');
+const UID = randomUUID();
 
-const fakeItem = (documentType: 'factura' | 'albaran' | null): BatchItem =>
-	fakeBatchItem({ restaurantId: rid, extractedData: { document_type: documentType, confidence: 1 } });
+const fakeItem = (documentType: 'factura' | 'albaran' | null): BatchItem => documentTypedItem(restaurant.id, documentType);
 
 interface FormLine {
 	description: string;
@@ -86,7 +81,7 @@ function form(opts: {
 async function notificationsByType(invoiceId: number, notificationType: string) {
 	return testSql`
 		SELECT payload FROM system_notifications
-		WHERE restaurant_id = ${rid} AND invoice_id = ${invoiceId}
+		WHERE restaurant_id = ${restaurant.id} AND invoice_id = ${invoiceId}
 			AND notification_type = ${notificationType}`;
 }
 
@@ -99,194 +94,105 @@ async function linkedInvoiceId(invoiceId: number): Promise<number | null> {
 	return rows[0]?.linked_invoice_id ?? null;
 }
 
+/** Asserts the two invoices link back to each other — the bidirectional
+ *  pairing check most of the linking cases below need. */
+async function expectMutuallyLinked(a: number, b: number): Promise<void> {
+	expect(await linkedInvoiceId(a)).toBe(b);
+	expect(await linkedInvoiceId(b)).toBe(a);
+}
+
 async function reviewState(invoiceId: number): Promise<{ reviewState: string; incidenceKind: string | null }> {
 	const rows = await testSql`SELECT review_state, incidence_kind FROM invoices WHERE id = ${invoiceId}`;
 	return { reviewState: rows[0]?.review_state, incidenceKind: rows[0]?.incidence_kind ?? null };
 }
 
-async function saveOrThrow(
+function saveOrThrow(
 	documentType: 'factura' | 'albaran',
 	opts: Parameters<typeof form>[0],
 ): Promise<number> {
-	const result = await saveReviewedInvoice(fakeItem(documentType), form(opts), rid);
-	expect(result.type).toBe('saved');
-	if (result.type !== 'saved') throw new Error('save failed');
-	return result.invoiceId;
+	return saveInvoiceOrThrow(fakeItem(documentType), form(opts), restaurant.id, UID);
 }
-
-beforeAll(async () => {
-	if (!hasDbEnv) return;
-	const r = await createTestRestaurant('inv-dupe-purchase');
-	rid = r.id;
-});
-
-afterAll(async () => {
-	if (!hasDbEnv) return;
-	await cleanupTestRestaurant(rid);
-	await closeDb();
-});
 
 describe.skipIf(!hasDbEnv)('saveReviewedInvoice → possible duplicate / related document linking (issues #449, #809)', () => {
 	it('links a factura to its albarán when supplier, date, amount and line items all match', async () => {
 		const supplier = '__inv_dupe_a__';
 
-		const albaran = await saveReviewedInvoice(
-			fakeItem('albaran'),
-			form({ invoiceNumber: 'ALB-2024-001', invoiceDate: '2024-01-01', totalAmount: '250.00', supplier }),
-			rid,
-		);
-		expect(albaran.type).toBe('saved');
-		if (albaran.type !== 'saved') return;
+		const albaranId = await saveOrThrow('albaran', { invoiceNumber: 'ALB-2024-001', invoiceDate: '2024-01-01', totalAmount: '250.00', supplier });
+		const facturaId = await saveOrThrow('factura', { invoiceNumber: 'FAC-2024-099', invoiceDate: '2024-01-12', totalAmount: '255.00', supplier });
 
-		const factura = await saveReviewedInvoice(
-			fakeItem('factura'),
-			form({ invoiceNumber: 'FAC-2024-099', invoiceDate: '2024-01-12', totalAmount: '255.00', supplier }),
-			rid,
-		);
-		expect(factura.type).toBe('saved');
-		if (factura.type !== 'saved') return;
-
-		const related = await notificationsByType(factura.invoiceId, 'related_document_found');
+		const related = await notificationsByType(facturaId, 'related_document_found');
 		expect(related).toHaveLength(1);
 		const payload = related[0].payload;
-		expect(payload.matchedInvoiceId).toBe(albaran.invoiceId);
+		expect(payload.matchedInvoiceId).toBe(albaranId);
 		expect(payload.otherDocumentType).toBe('albaran');
 
-		expect(await duplicateNotifications(factura.invoiceId)).toHaveLength(0);
-		expect(await linkedInvoiceId(factura.invoiceId)).toBe(albaran.invoiceId);
-		expect(await linkedInvoiceId(albaran.invoiceId)).toBe(factura.invoiceId);
+		expect(await duplicateNotifications(facturaId)).toHaveLength(0);
+		expect(await linkedInvoiceId(facturaId)).toBe(albaranId);
+		expect(await linkedInvoiceId(albaranId)).toBe(facturaId);
 	});
 
 	it('falls back to a duplicate-risk warning (no link) when line items do not overlap', async () => {
 		const supplier = '__inv_dupe_lines__';
 
-		const albaran = await saveReviewedInvoice(
-			fakeItem('albaran'),
-			form({
-				invoiceNumber: 'ALB-2024-005', invoiceDate: '2024-01-15', totalAmount: '90.00', supplier,
-				lineDescription: 'Tomates frescos',
-			}),
-			rid,
-		);
-		expect(albaran.type).toBe('saved');
-		if (albaran.type !== 'saved') return;
+		const albaranId = await saveOrThrow('albaran', {
+			invoiceNumber: 'ALB-2024-005', invoiceDate: '2024-01-15', totalAmount: '90.00', supplier,
+			lineDescription: 'Tomates frescos',
+		});
+		const facturaId = await saveOrThrow('factura', {
+			invoiceNumber: 'FAC-2024-105', invoiceDate: '2024-01-18', totalAmount: '92.00', supplier,
+			lineDescription: 'Servicio de transporte',
+		});
 
-		const factura = await saveReviewedInvoice(
-			fakeItem('factura'),
-			form({
-				invoiceNumber: 'FAC-2024-105', invoiceDate: '2024-01-18', totalAmount: '92.00', supplier,
-				lineDescription: 'Servicio de transporte',
-			}),
-			rid,
-		);
-		expect(factura.type).toBe('saved');
-		if (factura.type !== 'saved') return;
-
-		const notifications = await duplicateNotifications(factura.invoiceId);
+		const notifications = await duplicateNotifications(facturaId);
 		expect(notifications).toHaveLength(1);
-		expect(notifications[0].payload.matchedInvoiceId).toBe(albaran.invoiceId);
+		expect(notifications[0].payload.matchedInvoiceId).toBe(albaranId);
 
-		expect(await notificationsByType(factura.invoiceId, 'related_document_found')).toHaveLength(0);
-		expect(await linkedInvoiceId(factura.invoiceId)).toBeNull();
-		expect(await linkedInvoiceId(albaran.invoiceId)).toBeNull();
+		expect(await notificationsByType(facturaId, 'related_document_found')).toHaveLength(0);
+		expect(await linkedInvoiceId(facturaId)).toBeNull();
+		expect(await linkedInvoiceId(albaranId)).toBeNull();
 	});
 
 	it('re-linking to a closer match clears the previous partner back-reference', async () => {
 		const supplier = '__inv_dupe_relink__';
 
-		const albaran = await saveReviewedInvoice(
-			fakeItem('albaran'),
-			form({ invoiceNumber: 'ALB-2024-040', invoiceDate: '2024-07-01', totalAmount: '100.00', supplier }),
-			rid,
-		);
-		expect(albaran.type).toBe('saved');
-		if (albaran.type !== 'saved') return;
+		const albaranId = await saveOrThrow('albaran', { invoiceNumber: 'ALB-2024-040', invoiceDate: '2024-07-01', totalAmount: '100.00', supplier });
+		const firstFacturaId = await saveOrThrow('factura', { invoiceNumber: 'FAC-2024-300', invoiceDate: '2024-07-05', totalAmount: '100.00', supplier });
 
-		const firstFactura = await saveReviewedInvoice(
-			fakeItem('factura'),
-			form({ invoiceNumber: 'FAC-2024-300', invoiceDate: '2024-07-05', totalAmount: '100.00', supplier }),
-			rid,
-		);
-		expect(firstFactura.type).toBe('saved');
-		if (firstFactura.type !== 'saved') return;
+		expect(await linkedInvoiceId(albaranId)).toBe(firstFacturaId);
+		expect(await linkedInvoiceId(firstFacturaId)).toBe(albaranId);
 
-		expect(await linkedInvoiceId(albaran.invoiceId)).toBe(firstFactura.invoiceId);
-		expect(await linkedInvoiceId(firstFactura.invoiceId)).toBe(albaran.invoiceId);
+		const secondFacturaId = await saveOrThrow('factura', { invoiceNumber: 'FAC-2024-301', invoiceDate: '2024-07-02', totalAmount: '100.00', supplier });
 
-		const secondFactura = await saveReviewedInvoice(
-			fakeItem('factura'),
-			form({ invoiceNumber: 'FAC-2024-301', invoiceDate: '2024-07-02', totalAmount: '100.00', supplier }),
-			rid,
-		);
-		expect(secondFactura.type).toBe('saved');
-		if (secondFactura.type !== 'saved') return;
-
-		expect(await linkedInvoiceId(secondFactura.invoiceId)).toBe(albaran.invoiceId);
-		expect(await linkedInvoiceId(albaran.invoiceId)).toBe(secondFactura.invoiceId);
-		expect(await linkedInvoiceId(firstFactura.invoiceId)).toBeNull();
+		expect(await linkedInvoiceId(secondFacturaId)).toBe(albaranId);
+		expect(await linkedInvoiceId(albaranId)).toBe(secondFacturaId);
+		expect(await linkedInvoiceId(firstFacturaId)).toBeNull();
 	});
 
 	it('does not flag when the amounts are far apart', async () => {
 		const supplier = '__inv_dupe_b__';
 
-		const albaran = await saveReviewedInvoice(
-			fakeItem('albaran'),
-			form({ invoiceNumber: 'ALB-2024-010', invoiceDate: '2024-02-01', totalAmount: '80.00', supplier }),
-			rid,
-		);
-		expect(albaran.type).toBe('saved');
+		await saveOrThrow('albaran', { invoiceNumber: 'ALB-2024-010', invoiceDate: '2024-02-01', totalAmount: '80.00', supplier });
+		const facturaId = await saveOrThrow('factura', { invoiceNumber: 'FAC-2024-110', invoiceDate: '2024-02-05', totalAmount: '500.00', supplier });
 
-		const factura = await saveReviewedInvoice(
-			fakeItem('factura'),
-			form({ invoiceNumber: 'FAC-2024-110', invoiceDate: '2024-02-05', totalAmount: '500.00', supplier }),
-			rid,
-		);
-		expect(factura.type).toBe('saved');
-		if (factura.type !== 'saved') return;
-
-		expect(await duplicateNotifications(factura.invoiceId)).toHaveLength(0);
+		expect(await duplicateNotifications(facturaId)).toHaveLength(0);
 	});
 
 	it('does not flag when the dates are far apart', async () => {
 		const supplier = '__inv_dupe_c__';
 
-		const albaran = await saveReviewedInvoice(
-			fakeItem('albaran'),
-			form({ invoiceNumber: 'ALB-2024-020', invoiceDate: '2024-03-01', totalAmount: '120.00', supplier }),
-			rid,
-		);
-		expect(albaran.type).toBe('saved');
+		await saveOrThrow('albaran', { invoiceNumber: 'ALB-2024-020', invoiceDate: '2024-03-01', totalAmount: '120.00', supplier });
+		const facturaId = await saveOrThrow('factura', { invoiceNumber: 'FAC-2024-120', invoiceDate: '2024-05-01', totalAmount: '120.00', supplier });
 
-		const factura = await saveReviewedInvoice(
-			fakeItem('factura'),
-			form({ invoiceNumber: 'FAC-2024-120', invoiceDate: '2024-05-01', totalAmount: '120.00', supplier }),
-			rid,
-		);
-		expect(factura.type).toBe('saved');
-		if (factura.type !== 'saved') return;
-
-		expect(await duplicateNotifications(factura.invoiceId)).toHaveLength(0);
+		expect(await duplicateNotifications(facturaId)).toHaveLength(0);
 	});
 
 	it('does not flag two documents of the same document_type (fiscally not the ambiguous case)', async () => {
 		const supplier = '__inv_dupe_d__';
 
-		const first = await saveReviewedInvoice(
-			fakeItem('factura'),
-			form({ invoiceNumber: 'FAC-2024-200', invoiceDate: '2024-04-01', totalAmount: '90.00', supplier }),
-			rid,
-		);
-		expect(first.type).toBe('saved');
+		await saveOrThrow('factura', { invoiceNumber: 'FAC-2024-200', invoiceDate: '2024-04-01', totalAmount: '90.00', supplier });
+		const secondId = await saveOrThrow('factura', { invoiceNumber: 'FAC-2024-201', invoiceDate: '2024-04-03', totalAmount: '91.00', supplier });
 
-		const second = await saveReviewedInvoice(
-			fakeItem('factura'),
-			form({ invoiceNumber: 'FAC-2024-201', invoiceDate: '2024-04-03', totalAmount: '91.00', supplier }),
-			rid,
-		);
-		expect(second.type).toBe('saved');
-		if (second.type !== 'saved') return;
-
-		expect(await duplicateNotifications(second.invoiceId)).toHaveLength(0);
+		expect(await duplicateNotifications(secondId)).toHaveLength(0);
 	});
 
 	it('links via matching purchase_order even when date and amount fall outside the normal window', async () => {
@@ -315,14 +221,14 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → possible duplicate / related
 		const albaran = await saveReviewedInvoice(
 			fakeItem('albaran'),
 			form({ invoiceNumber: 'ALB-2024-030', invoiceDate: '2024-06-01', totalAmount: '60.00', supplier }),
-			rid,
+			restaurant.id, UID
 		);
 		expect(albaran.type).toBe('saved');
 
 		const unknown = await saveReviewedInvoice(
 			fakeItem(null),
 			form({ invoiceNumber: 'UNK-2024-030', invoiceDate: '2024-06-02', totalAmount: '60.00', supplier }),
-			rid,
+			restaurant.id, UID
 		);
 		expect(unknown.type).toBe('saved');
 		if (unknown.type !== 'saved') return;
