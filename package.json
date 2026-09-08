@@ -37,6 +37,7 @@
 		"lint:form-get-cast": "node scripts/lint-invariants.mjs form-get-cast",
 		"lint:json-body-schema": "node scripts/lint-invariants.mjs json-body-schema",
 		"lint:inline-styles": "node scripts/lint-invariants.mjs inline-token-style",
+		"lint:migration-ordering": "node scripts/lint-invariants.mjs migration-expand-contract",
 		"lint:no-comments": "node scripts/check-no-comments.mjs",
 		"lint:i18n": "node scripts/check-i18n-strings.mjs",
 		"lint:duplication": "node scripts/check-duplication.mjs",

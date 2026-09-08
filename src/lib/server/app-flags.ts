@@ -3,6 +3,7 @@ import { db } from '$lib/server/db';
 import { appFlags } from '$lib/server/schema';
 
 export const ACCESS_OPEN_FLAG = 'access_open';
+export const ANALYTICS_ROLLUP_REFRESHED_FLAG = 'analytics_rollup_refreshed_at';
 
 export async function getFlag(key: string): Promise<string | null> {
 	const [row] = await db
