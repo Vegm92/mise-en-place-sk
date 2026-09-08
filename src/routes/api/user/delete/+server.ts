@@ -8,6 +8,7 @@ import { enqueueAccountCleanup } from '$lib/server/queue';
 import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import { explicitDeletionEntries, rootEntry } from '$lib/server/tenant-data-map';
 import { and, eq, inArray, isNotNull, ne, sql } from 'drizzle-orm';
+import { userMemberships } from '$lib/server/locations';
 
 async function collectTenantFileKeys(restaurantIds: string[]): Promise<string[]> {
 	if (restaurantIds.length === 0) return [];
@@ -52,10 +53,7 @@ export const POST: RequestHandler = async ({ locals, request, cookies }) => {
 		throw error(400, 'Missing confirmation. Send { "confirm": "DELETE_MY_ACCOUNT" }');
 	}
 
-	const memberships = await runAsSystem(() => db
-		.select({ restaurantId: userRestaurants.restaurantId, role: userRestaurants.role })
-		.from(userRestaurants)
-		.where(eq(userRestaurants.userId, user.id)));
+	const memberships = await userMemberships(user.id);
 
 	const ownedIds = memberships
 		.filter(m => m.role === 'owner')
