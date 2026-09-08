@@ -48,8 +48,9 @@ tenants) an email.
 - **On-visit**: `/digest` load generates if missing and the feature is enabled
   (gated: no feature → redirect `/billing?upgrade=digest`); `dismissDigest`
   action sets `_dismissed`.
-- Digest calls Gemini **directly** — usage not recorded (same gap as chat; fix
-  contract in `docs/04_engineering/llm_usage_metering.md`).
+- Digest usage is recorded via `recordLlmUsage` (same seam as chat, #426);
+  the per-tenant cost cap is not yet applied to this surface — see
+  `docs/04_engineering/llm_usage_metering.md`.
 - **Public share** (issue #329): `/reports/[type]` (weekly, current-week only)
   `share`/`revokeShare` actions get-or-create / revoke a `digest_shares` row
   (crypto-random token, `restaurantId` + ISO `week`, `revokedAt` nullable).
