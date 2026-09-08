@@ -152,18 +152,18 @@ describe.skipIf(!hasDbEnv)('discard reason (#1010)', () => {
 	it('records who discarded the item and why', async () => {
 		const { itemIds: [rejected, split] } = await store.createBatch(rid, twoFiles());
 
-		await store.markDiscarded(rejected, 'user_rejected');
-		await store.markDiscarded(split, 'composite_source');
+		await store.markDiscarded(rejected!, 'user_rejected');
+		await store.markDiscarded(split!, 'composite_source');
 
-		expect((await store.getItem(rejected))?.discardedReason).toBe('user_rejected');
-		expect((await store.getItem(split))?.discardedReason).toBe('composite_source');
+		expect((await store.getItem(rejected!))?.discardedReason).toBe('user_rejected');
+		expect((await store.getItem(split!))?.discardedReason).toBe('composite_source');
 	});
 
 	it('leaves the open/closed filters reading both as discarded', async () => {
 		const { batchId, itemIds } = await store.createBatch(rid, twoFiles());
 
-		await store.markDiscarded(itemIds[0], 'user_rejected');
-		await store.markDiscarded(itemIds[1], 'composite_source');
+		await store.markDiscarded(itemIds[0]!, 'user_rejected');
+		await store.markDiscarded(itemIds[1]!, 'composite_source');
 
 		// The reason discriminates the meaning without splitting the status: the
 		// `status <> 'discarded'` filters that decide what is still open are
