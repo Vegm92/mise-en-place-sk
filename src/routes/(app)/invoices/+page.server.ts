@@ -3,13 +3,15 @@ import { handleLoad } from '$lib/server/load-guard';
 import type { Actions, PageServerLoad } from './$types';
 import { periodRange } from '$lib/server/period-range';
 import { db, forTenant } from '$lib/server/db';
-import { invoices, invoiceLineItems, invoiceAuditLog, suppliers, systemNotifications } from '$lib/server/schema';
+import { invoices, invoiceLineItems, invoiceAuditLog, products, suppliers, systemNotifications } from '$lib/server/schema';
 import { trackEvent } from '$lib/server/events';
 import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
 import { invoiceReviewFilter, markInvoiceReviewed, markInvoicesReviewedBulk } from '$lib/server/invoice-status';
 import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import { moneyToNullableNumber } from '$lib/server/money';
+import { invoiceMatchesCategory, lineProductJoinOn } from '$lib/server/category-spend';
+import { UNCATEGORIZED_CATEGORY } from '$lib/constants';
 import {
 	countActiveInvoiceFilters,
 	escapeLikePattern,
@@ -49,7 +51,7 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 		const reviewFilter = invoiceReviewFilter(status);
 		if (reviewFilter) conditions.push(reviewFilter);
 		if (Number.isFinite(supplierIdNum)) conditions.push(eq(invoices.supplierId, supplierIdNum));
-		if (category)           conditions.push(eq(suppliers.category, category));
+		if (category)           conditions.push(invoiceMatchesCategory(tdb, category));
 		if (effectiveDateFrom)  conditions.push(gte(invoices.invoiceDate, effectiveDateFrom));
 		if (effectiveDateTo)    conditions.push(lte(invoices.invoiceDate, effectiveDateTo));
 		if (uploadedFrom) conditions.push(gte(invoices.createdAt, new Date(`${uploadedFrom}T00:00:00`)));
@@ -61,8 +63,9 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 
 		const [invoiceRows, statsRow, trendRows, supplierCountRow, supplierRows, countRow] = await Promise.all([
 			db.select({
-				id:             invoices.id,
-				supplier_name:  suppliers.name,
+				id:               invoices.id,
+				supplier_name:    suppliers.name,
+				supplier_category: suppliers.category,
 				invoice_number: invoices.invoiceNumber,
 				invoice_date:   invoices.invoiceDate,
 				due_date:       invoices.dueDate,
@@ -134,13 +137,15 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 		const invoiceIds = invoiceRows.map(r => r.id);
 		const allLineItems = invoiceIds.length
 			? await db.select({
-				invoice_id:  invoiceLineItems.invoiceId,
-				description: invoiceLineItems.description,
-				quantity:    invoiceLineItems.quantity,
-				unit:        invoiceLineItems.unit,
-				unit_price:  invoiceLineItems.unitPrice,
-				total_price: invoiceLineItems.totalPrice,
+				invoice_id:       invoiceLineItems.invoiceId,
+				description:      invoiceLineItems.description,
+				quantity:         invoiceLineItems.quantity,
+				unit:             invoiceLineItems.unit,
+				unit_price:       invoiceLineItems.unitPrice,
+				total_price:      invoiceLineItems.totalPrice,
+				product_category: products.category,
 			}).from(invoiceLineItems)
+				.leftJoin(products, lineProductJoinOn())
 				.where(tdb.scope(invoiceLineItems.restaurantId, inArray(invoiceLineItems.invoiceId, invoiceIds)))
 			: [];
 
@@ -152,9 +157,17 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 			lineItemsByInvoice.set(li.invoice_id, arr);
 		}
 
+		const isUncategorizedLine = (li: { description: string | null; product_category: string | null }, supplierCategory: string | null) => {
+			if (!li.description) return false;
+			const effective = li.product_category ?? supplierCategory ?? UNCATEGORIZED_CATEGORY;
+			return effective === UNCATEGORIZED_CATEGORY;
+		};
+
 		const invoiceList = invoiceRows.map(inv => ({
 			...inv,
 			total_amount: moneyToNullableNumber(inv.total_amount),
+			uncategorized_line_count: (lineItemsByInvoice.get(inv.id) ?? [])
+				.filter(li => isUncategorizedLine(li, inv.supplier_category)).length,
 			line_items: (lineItemsByInvoice.get(inv.id) ?? []).map(li => ({
 				...li,
 				unit_price: moneyToNullableNumber(li.unit_price),
@@ -166,6 +179,7 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 			reviewed_count: Number(statsRow[0]?.reviewed_count ?? 0),
 			to_review_count: Number(statsRow[0]?.to_review_count ?? 0),
 			issue_count: Number(statsRow[0]?.issue_count ?? 0),
+			uncategorized_line_invoices: invoiceList.filter(inv => inv.uncategorized_line_count > 0).length,
 		};
 		const total = Number(countRow[0]?.cnt ?? 0);
 
