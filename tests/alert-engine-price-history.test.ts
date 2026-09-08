@@ -79,7 +79,8 @@ describe.skipIf(!hasDbEnv)('runPriceShock — median history window (issue #308)
 	it('still fires on a real, sustained price change', async () => {
 		const alerts = await runPriceShock(newInvoiceId, SUPPLIER, [item('Aceite de girasol', 1.50)], rid);
 		expect(alerts).toHaveLength(1);
-		expect(alerts[0]!.payload.oldPrice).toBeCloseTo(1.00, 2);
-		expect(alerts[0]!.payload.newPrice).toBe(1.50);
+		const priceAlert = alerts[0]!;
+		expect(priceAlert.payload.oldPrice).toBeCloseTo(1.00, 2);
+		expect(priceAlert.payload.newPrice).toBe(1.50);
 	});
 });

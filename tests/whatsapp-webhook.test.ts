@@ -96,7 +96,7 @@ describe('POST — message fan-out', () => {
 	it('tolerates a malformed envelope without throwing', async () => {
 		const res = await POST(postEvent({ not: 'what we expect' }));
 		expect(res.status).toBe(200);
-		expect(handleMock).not.toHaveBeenCalled();
+		expect(handleMock).toHaveBeenCalledTimes(0);
 	});
 
 	it('returns 400 on invalid JSON', async () => {

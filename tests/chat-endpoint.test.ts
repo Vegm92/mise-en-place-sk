@@ -109,11 +109,12 @@ describe.skipIf(!hasDbEnv)('#426 — POST /api/chat routes through the LLM provi
 			SELECT restaurant_id, model, input_tokens, output_tokens, caller_context
 			FROM llm_usage_log WHERE restaurant_id = ${rid}`;
 		expect(rows).toHaveLength(1);
-		expect(rows[0]!.restaurant_id).toBe(rid);
-		expect(rows[0]!.model).toBe('gemini-test');
-		expect(rows[0]!.input_tokens).toBe(111);
-		expect(rows[0]!.output_tokens).toBe(22);
-		expect(rows[0]!.caller_context).toBe('chat');
+		const chatLog = rows[0]!;
+		expect(chatLog.restaurant_id).toBe(rid);
+		expect(chatLog.model).toBe('gemini-test');
+		expect(chatLog.input_tokens).toBe(111);
+		expect(chatLog.output_tokens).toBe(22);
+		expect(chatLog.caller_context).toBe('chat');
 	});
 
 	it('parses an ACTIONS block off the seam reply exactly as before', async () => {

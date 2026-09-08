@@ -43,6 +43,16 @@ afterAll(async () => {
 	if (hasDbEnv) await closeDb();
 });
 
+function assertFullAttribution(row: Record<string, unknown>) {
+	expect(row.source).toBe('google');
+	expect(row.campaign).toBe('spring_launch');
+	expect(row.variant).toBe('b');
+	expect(row.segment).toBe('chefs');
+	expect(row.referrer).toBe('https://google.com/search');
+	expect(row.landing_path).toBe('/waitlist');
+	expect(row.referred_by).toBe('ABC123');
+}
+
 describeDb('insertWaitlistEmail — attribution (issue #326)', () => {
 	it('persists source + campaign (and the rest of the attribution) on the row', async () => {
 		const email = uniqueEmail('full');
@@ -50,15 +60,8 @@ describeDb('insertWaitlistEmail — attribution (issue #326)', () => {
 		expect(inserted).toBe(true);
 
 		const rows = await testSql`SELECT * FROM waitlist WHERE email = ${email}`;
-		const row = rows[0]!;
 		expect(rows).toHaveLength(1);
-		expect(row.source).toBe('google');
-		expect(row.campaign).toBe('spring_launch');
-		expect(row.variant).toBe('b');
-		expect(row.segment).toBe('chefs');
-		expect(row.referrer).toBe('https://google.com/search');
-		expect(row.landing_path).toBe('/waitlist');
-		expect(row.referred_by).toBe('ABC123');
+		assertFullAttribution(rows[0]!);
 	});
 
 	it('stores null attribution columns when no attribution is passed', async () => {
@@ -67,9 +70,8 @@ describeDb('insertWaitlistEmail — attribution (issue #326)', () => {
 		expect(inserted).toBe(true);
 
 		const rows = await testSql`SELECT * FROM waitlist WHERE email = ${email}`;
-		const row = rows[0]!;
-		expect(row.source).toBeNull();
-		expect(row.campaign).toBeNull();
+		expect(rows[0]!.source).toBeNull();
+		expect(rows[0]!.campaign).toBeNull();
 	});
 
 	it('returns false for an already-registered email and does not overwrite the original attribution', async () => {
@@ -88,10 +90,9 @@ describeDb('insertWaitlistEmail — attribution (issue #326)', () => {
 		expect(secondAttempt).toBe(false);
 
 		const rows = await testSql`SELECT * FROM waitlist WHERE email = ${email}`;
-		const row = rows[0]!;
 		expect(rows).toHaveLength(1);
-		expect(row.source).toBe('google');
-		expect(row.campaign).toBe('spring_launch');
-		expect(row.referred_by).toBe('ABC123');
+		expect(rows[0]!.source).toBe('google');
+		expect(rows[0]!.campaign).toBe('spring_launch');
+		expect(rows[0]!.referred_by).toBe('ABC123');
 	});
 });

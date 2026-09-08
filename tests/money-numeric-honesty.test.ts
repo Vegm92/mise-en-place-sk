@@ -32,14 +32,14 @@ describeDb('sql<number> money aggregates return real numbers, not strings (issue
 		const [supplier] = await testDb.insert(suppliers)
 			.values({ restaurantId, name: 'Proveedor Test' })
 			.returning({ id: suppliers.id });
-		supplierId = supplier.id;
+		supplierId = supplier!.id;
 
 		const [invoice] = await testDb.insert(invoices)
 			.values({ restaurantId, supplierId, invoiceNumber: 'MNH-1', invoiceDate: '2026-01-15', totalAmount: '99.99', status: 'pending' })
 			.returning({ id: invoices.id });
 
 		await testDb.insert(invoiceLineItems).values({
-			restaurantId, invoiceId: invoice.id, description: 'Artículo de prueba',
+			restaurantId, invoiceId: invoice!.id, description: 'Artículo de prueba',
 			quantity: 1, unit: 'ud', unitPrice: '99.99', totalPrice: '99.99',
 		});
 	});
@@ -50,19 +50,19 @@ describeDb('sql<number> money aggregates return real numbers, not strings (issue
 	});
 
 	it('control: an uncast numeric SUM comes back as a string from postgres.js', async () => {
-		const row = (await testSql`
+		const sqlRow = (await testSql`
 			SELECT COALESCE(SUM(total_amount), 0) AS total FROM invoices WHERE restaurant_id = ${restaurantId}
 		`)[0]!;
-		expect(typeof row.total).toBe('string');
-		expect(row.total).toBe('99.99');
+		expect(typeof sqlRow.total).toBe('string');
+		expect(sqlRow.total).toBe('99.99');
 	});
 
 	it('fixed: the same SUM cast ::float8 comes back as a real number', async () => {
-		const row = (await testSql`
+		const float8Row = (await testSql`
 			SELECT COALESCE(SUM(total_amount), 0)::float8 AS total FROM invoices WHERE restaurant_id = ${restaurantId}
 		`)[0]!;
-		expect(typeof row.total).toBe('number');
-		expect(row.total).toBe(99.99);
+		expect(typeof float8Row.total).toBe('number');
+		expect(float8Row.total).toBe(99.99);
 	});
 
 	it('supplierTotalSpendExpr() (suppliers list "total_spend") returns a real number', async () => {

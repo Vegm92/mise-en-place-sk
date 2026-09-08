@@ -56,6 +56,11 @@ describe('parseNormalizeResponse', () => {
 
 // ── Orchestration ─────────────────────────────────────────────────────────────
 
+async function countSysNotifs(restaurantId: string) {
+	const [row] = await testSql`SELECT COUNT(*)::int AS cnt FROM system_notifications WHERE restaurant_id = ${restaurantId}`;
+	return (row!.cnt as number);
+}
+
 function fakeProvider(text: string): LLMProvider {
 	return { model: 'test-model', generate: async () => ({ text, usage: { inputTokens: 10, outputTokens: 5, model: 'test-model' } }) };
 }
@@ -114,8 +119,7 @@ describe.skipIf(!hasDbEnv)('processNormalizeJob', () => {
 			{ restaurantId: rid, productId: throwawayId, rawText: 'MERL. GRANDE' },
 			{ provider: fakeProvider(`{"match_id": ${merluzaId}, "confidence": ${LLM_MATCH_THRESHOLD - 0.2}}`), recordUsage: vi.fn(async () => {}) },
 		);
-		const [_r_] = await testSql`SELECT COUNT(*)::int AS count FROM system_notifications WHERE restaurant_id = ${rid}`;
-		const { count } = _r_!;
+		const count = await countSysNotifs(rid);
 		expect(count).toBe(0);
 	});
 
@@ -125,8 +129,7 @@ describe.skipIf(!hasDbEnv)('processNormalizeJob', () => {
 			{ restaurantId: rid, productId: throwawayId, rawText: 'MERL. GRANDE' },
 			{ provider: fakeProvider('{"match_id": null, "confidence": 0.9}'), recordUsage: vi.fn(async () => {}) },
 		);
-		const [_r_] = await testSql`SELECT COUNT(*)::int AS count FROM system_notifications WHERE restaurant_id = ${rid}`;
-		const { count } = _r_!;
+		const count = await countSysNotifs(rid);
 		expect(count).toBe(0);
 	});
 
@@ -135,8 +138,7 @@ describe.skipIf(!hasDbEnv)('processNormalizeJob', () => {
 		const deps = { provider: fakeProvider(`{"match_id": ${merluzaId}, "confidence": 0.95}`), recordUsage: vi.fn(async () => {}) };
 		await processNormalizeJob({ restaurantId: rid, productId: throwawayId, rawText: 'MERL. GRANDE' }, deps);
 		await processNormalizeJob({ restaurantId: rid, productId: throwawayId, rawText: 'MERL. GRANDE' }, deps);
-		const [_r_] = await testSql`SELECT COUNT(*)::int AS count FROM system_notifications WHERE restaurant_id = ${rid}`;
-		const { count } = _r_!;
+		const count = await countSysNotifs(rid);
 		expect(count).toBe(1);
 	});
 

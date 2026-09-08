@@ -56,53 +56,36 @@ afterAll(async () => {
 	await closeDb();
 });
 
+async function assertDocumentType(invoiceId: number, expected: string | null) {
+	const [row] = await testSql`SELECT document_type FROM invoices WHERE id = ${invoiceId}`;
+	expect(row!.document_type).toBe(expected);
+}
+
+async function saveAndCheckDocType(invoiceNumber: string, extractedData: Record<string, unknown> | null, expected: string | null) {
+	const item = extractedData !== null ? fakeItem(extractedData) : null;
+	const docTypeOut = await saveReviewedInvoice(item, form({ invoiceNumber }), rid);
+	if (docTypeOut.type !== 'saved') throw new Error(docTypeOut.type);
+	await assertDocumentType(docTypeOut.invoiceId, expected);
+}
+
 describe.skipIf(!hasDbEnv)('saveReviewedInvoice → document_type persistence (issue #461)', () => {
 	it("persists 'factura' when extraction classified the document as such", async () => {
-		const item = fakeItem({ document_type: 'factura', confidence: 1 });
-		const out = await saveReviewedInvoice(item, form({ invoiceNumber: 'DOC-FAC-001' }), rid);
-		expect(out.type).toBe('saved');
-		if (out.type !== 'saved') return;
-
-		const [row] = await testSql`SELECT document_type FROM invoices WHERE id = ${out.invoiceId}`;
-		expect(row!.document_type).toBe('factura');
+		await saveAndCheckDocType('DOC-FAC-001', { document_type: 'factura', confidence: 1 }, 'factura');
 	});
 
 	it("persists 'albaran' when extraction classified the document as such", async () => {
-		const item = fakeItem({ document_type: 'albaran', confidence: 1 });
-		const out = await saveReviewedInvoice(item, form({ invoiceNumber: 'DOC-ALB-001' }), rid);
-		expect(out.type).toBe('saved');
-		if (out.type !== 'saved') return;
-
-		const [row] = await testSql`SELECT document_type FROM invoices WHERE id = ${out.invoiceId}`;
-		expect(row!.document_type).toBe('albaran');
+		await saveAndCheckDocType('DOC-ALB-001', { document_type: 'albaran', confidence: 1 }, 'albaran');
 	});
 
 	it('stores null and still saves when extraction omits document_type (older/absent data)', async () => {
-		const item = fakeItem({ confidence: 1 });
-		const out = await saveReviewedInvoice(item, form({ invoiceNumber: 'DOC-NONE-001' }), rid);
-		expect(out.type).toBe('saved');
-		if (out.type !== 'saved') return;
-
-		const [row] = await testSql`SELECT document_type FROM invoices WHERE id = ${out.invoiceId}`;
-		expect(row!.document_type).toBeNull();
+		await saveAndCheckDocType('DOC-NONE-001', { confidence: 1 }, null);
 	});
 
 	it('coerces an unrecognised document_type value to null instead of persisting garbage', async () => {
-		const item = fakeItem({ document_type: 'nota_de_credito', confidence: 1 });
-		const out = await saveReviewedInvoice(item, form({ invoiceNumber: 'DOC-BAD-001' }), rid);
-		expect(out.type).toBe('saved');
-		if (out.type !== 'saved') return;
-
-		const [row] = await testSql`SELECT document_type FROM invoices WHERE id = ${out.invoiceId}`;
-		expect(row!.document_type).toBeNull();
+		await saveAndCheckDocType('DOC-BAD-001', { document_type: 'nota_de_credito', confidence: 1 }, null);
 	});
 
 	it('is a no-op for save/dedup behaviour when there is no extraction item at all', async () => {
-		const out = await saveReviewedInvoice(null, form({ invoiceNumber: 'DOC-NULLITEM-001' }), rid);
-		expect(out.type).toBe('saved');
-		if (out.type !== 'saved') return;
-
-		const [row] = await testSql`SELECT document_type FROM invoices WHERE id = ${out.invoiceId}`;
-		expect(row!.document_type).toBeNull();
+		await saveAndCheckDocType('DOC-NULLITEM-001', null, null);
 	});
 });

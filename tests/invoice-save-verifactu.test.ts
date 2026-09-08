@@ -65,30 +65,38 @@ afterAll(async () => {
 	await closeDb();
 });
 
+async function fetchInvoiceRow(invoiceId: number) {
+	const [row] = await testSql`SELECT qr_url, qr_mismatch FROM invoices WHERE id = ${invoiceId}`;
+	return row!;
+}
+
+async function fetchNotificationPayload(restaurantId: string, invoiceId: number) {
+	const rows = await testSql`
+		SELECT payload FROM system_notifications
+		WHERE restaurant_id = ${restaurantId} AND invoice_id = ${invoiceId}
+			AND notification_type = 'verifactu_qr_mismatch'`;
+	expect(rows).toHaveLength(1);
+	return rows[0]!.payload;
+}
+
+async function doSaveVerifactu(item: BatchItem, fd: FormData) {
+	const result = await saveReviewedInvoice(item, fd, rid);
+	if (result.type !== 'saved') throw new Error(result.type);
+	return result.invoiceId;
+}
+
 describe.skipIf(!hasDbEnv)('saveReviewedInvoice → VERI*FACTU QR check (issue #392)', () => {
 	it('flags a real mismatch: submitted total diverges from the AEAT QR amount', async () => {
-		const item = fakeItem({ qr_url: VALID_QR, confidence: 1 });
-		const out = await saveReviewedInvoice(
-			item,
+		const mismatchId = await doSaveVerifactu(
+			fakeItem({ qr_url: VALID_QR, confidence: 1 }),
 			form({ invoiceNumber: 'FAC-2024-001', invoiceDate: '2024-01-15', totalAmount: '9999.00' }),
-			rid,
 		);
-		expect(out.type).toBe('saved');
-		if (out.type !== 'saved') return;
+		const mismatchRow = await fetchInvoiceRow(mismatchId);
+		expect(mismatchRow.qr_url).toBe(VALID_QR);
+		expect(mismatchRow.qr_mismatch).toBe(true);
 
-		const invoiceRow = (await testSql`
-			SELECT qr_url, qr_mismatch FROM invoices WHERE id = ${out.invoiceId}`)[0]!;
-		expect(invoiceRow.qr_url).toBe(VALID_QR);
-		expect(invoiceRow.qr_mismatch).toBe(true);
-
-		const notifications = await testSql`
-			SELECT payload FROM system_notifications
-			WHERE restaurant_id = ${rid} AND invoice_id = ${out.invoiceId}
-				AND notification_type = 'verifactu_qr_mismatch'`;
-		expect(notifications).toHaveLength(1);
-		const [_notif] = notifications;
-		const payload = _notif!.payload;
-		expect(payload.mismatches).toEqual(
+		const mismatchPayload = await fetchNotificationPayload(rid, mismatchId);
+		expect(mismatchPayload.mismatches).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({ field: 'importe', qrValue: '1250.00', aiValue: '9999' }),
 			]),
@@ -96,69 +104,45 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → VERI*FACTU QR check (issue #
 	});
 
 	it('flags a tampered invoice number against a matching QR', async () => {
-		const item = fakeItem({ qr_url: VALID_QR, confidence: 1 });
-		const out = await saveReviewedInvoice(
-			item,
+		const tamperedId = await doSaveVerifactu(
+			fakeItem({ qr_url: VALID_QR, confidence: 1 }),
 			form({ invoiceNumber: 'FAC-2024-TAMPERED', invoiceDate: '2024-01-15', totalAmount: '1250.00' }),
-			rid,
 		);
-		expect(out.type).toBe('saved');
-		if (out.type !== 'saved') return;
+		const tamperedRow = await fetchInvoiceRow(tamperedId);
+		expect(tamperedRow.qr_mismatch).toBe(true);
 
-		const invoiceRow = (await testSql`
-			SELECT qr_mismatch FROM invoices WHERE id = ${out.invoiceId}`)[0]!;
-		expect(invoiceRow.qr_mismatch).toBe(true);
-
-		const notifications = await testSql`
-			SELECT payload FROM system_notifications
-			WHERE restaurant_id = ${rid} AND invoice_id = ${out.invoiceId}
-				AND notification_type = 'verifactu_qr_mismatch'`;
-		expect(notifications).toHaveLength(1);
-		const [_notif] = notifications;
-		const payload = _notif!.payload;
-		expect(payload.mismatches.some((m: { field: string }) => m.field === 'numserie')).toBe(true);
+		const tamperedPayload = await fetchNotificationPayload(rid, tamperedId);
+		expect(tamperedPayload.mismatches.some((m: { field: string }) => m.field === 'numserie')).toBe(true);
 	});
 
 	it('does not false-positive when the QR matches the saved invoice exactly', async () => {
-		const item = fakeItem({ qr_url: VALID_QR, confidence: 1 });
-		const out = await saveReviewedInvoice(
-			item,
+		const matchId = await doSaveVerifactu(
+			fakeItem({ qr_url: VALID_QR, confidence: 1 }),
 			form({
 				invoiceNumber: 'FAC-2024-001',
 				invoiceDate: '2024-01-15',
 				totalAmount: '1250.00',
 				supplier: '__inv_verifactu_sup_match__',
 			}),
-			rid,
 		);
-		expect(out.type).toBe('saved');
-		if (out.type !== 'saved') return;
-
-		const invoiceRow = (await testSql`
-			SELECT qr_url, qr_mismatch FROM invoices WHERE id = ${out.invoiceId}`)[0]!;
-		expect(invoiceRow.qr_url).toBe(VALID_QR);
-		expect(invoiceRow.qr_mismatch).toBe(false);
+		const matchRow = await fetchInvoiceRow(matchId);
+		expect(matchRow.qr_url).toBe(VALID_QR);
+		expect(matchRow.qr_mismatch).toBe(false);
 
 		const notifications = await testSql`
 			SELECT id FROM system_notifications
-			WHERE restaurant_id = ${rid} AND invoice_id = ${out.invoiceId}
+			WHERE restaurant_id = ${rid} AND invoice_id = ${matchId}
 				AND notification_type = 'verifactu_qr_mismatch'`;
 		expect(notifications).toHaveLength(0);
 	});
 
 	it('is a no-op (no crash, no false mismatch) when extraction found no QR', async () => {
-		const item = fakeItem({ qr_url: null, confidence: 1 });
-		const out = await saveReviewedInvoice(
-			item,
+		const noQrId = await doSaveVerifactu(
+			fakeItem({ qr_url: null, confidence: 1 }),
 			form({ invoiceNumber: 'FAC-NOQR-001', invoiceDate: '2024-02-01', totalAmount: '50.00' }),
-			rid,
 		);
-		expect(out.type).toBe('saved');
-		if (out.type !== 'saved') return;
-
-		const invoiceRow = (await testSql`
-			SELECT qr_url, qr_mismatch FROM invoices WHERE id = ${out.invoiceId}`)[0]!;
-		expect(invoiceRow.qr_url).toBeNull();
-		expect(invoiceRow.qr_mismatch).toBe(false);
+		const noQrRow = await fetchInvoiceRow(noQrId);
+		expect(noQrRow.qr_url).toBeNull();
+		expect(noQrRow.qr_mismatch).toBe(false);
 	});
 });

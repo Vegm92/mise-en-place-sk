@@ -221,15 +221,15 @@ describe('resend', () => {
 
 	it('sends nothing for a non-existent account but returns the same success shape', async () => {
 		state.userRow = null;
-		const result = await actions.resend!(signupEvent(RESEND));
-		expect(result).toEqual({ success: true, email: RESEND.email, resent: true });
+		const nonExistResult = await actions.resend!(signupEvent(RESEND));
+		expect(nonExistResult).toEqual({ success: true, email: RESEND.email, resent: true });
 		expect(sendEmailMock).not.toHaveBeenCalled();
 	});
 
 	it('sends nothing for an already-verified account but returns the same success shape', async () => {
 		state.userRow = { id: 'u1', emailVerified: new Date() };
-		const result = await actions.resend!(signupEvent(RESEND));
-		expect(result).toEqual({ success: true, email: RESEND.email, resent: true });
+		const alreadyVerifiedResult = await actions.resend!(signupEvent(RESEND));
+		expect(alreadyVerifiedResult).toEqual({ success: true, email: RESEND.email, resent: true });
 		expect(sendEmailMock).not.toHaveBeenCalled();
 	});
 

@@ -18,6 +18,12 @@ vi.mock('../src/lib/server/env', () => ({
 
 const fetchMock = vi.fn();
 
+async function setupWhatsAppSend() {
+	fetchMock.mockResolvedValue({ ok: true, text: async () => '' });
+	const { sendWhatsAppMessage } = await import('../src/lib/server/whatsapp');
+	await sendWhatsAppMessage('34612345678', 'hola');
+}
+
 beforeEach(() => {
 	vi.resetModules();
 	fetchMock.mockReset();
@@ -30,15 +36,12 @@ afterEach(() => {
 
 describe('sendWhatsAppMessage', () => {
 	it('posts to the configured Graph API version, not a hardcoded one', async () => {
-		fetchMock.mockResolvedValue({ ok: true, text: async () => '' });
-		const { sendWhatsAppMessage } = await import('../src/lib/server/whatsapp');
+		await setupWhatsAppSend();
 
-		await sendWhatsAppMessage('34612345678', 'hola');
-
-		const [url, init] = fetchMock.mock.calls[0]!;
-		expect(url).toBe('https://graph.facebook.com/v25.0/123456/messages');
-		expect(init.headers.Authorization).toBe('Bearer test-token');
-		expect(JSON.parse(init.body)).toEqual({
+		const [apiUrl, apiInit] = fetchMock.mock.calls[0]!;
+		expect(apiUrl).toBe('https://graph.facebook.com/v25.0/123456/messages');
+		expect(apiInit.headers.Authorization).toBe('Bearer test-token');
+		expect(JSON.parse(apiInit.body)).toEqual({
 			messaging_product: 'whatsapp',
 			to: '34612345678',
 			type: 'text',
@@ -47,14 +50,11 @@ describe('sendWhatsAppMessage', () => {
 	});
 
 	it('never targets an expired Graph API version', async () => {
-		fetchMock.mockResolvedValue({ ok: true, text: async () => '' });
-		const { sendWhatsAppMessage } = await import('../src/lib/server/whatsapp');
-
-		await sendWhatsAppMessage('34612345678', 'hola');
+		await setupWhatsAppSend();
 
 		// v19.0 expired in 2026; anything at or below it is dead on arrival.
-		const url = String(fetchMock.mock.calls[0]![0]);
-		const version = Number(url.match(/graph\.facebook\.com\/v(\d+)\./)?.[1]);
+		const versionUrl = String(fetchMock.mock.calls[0]![0]);
+		const version = Number(versionUrl.match(/graph\.facebook\.com\/v(\d+)\./)?.[1]);
 		expect(version).toBeGreaterThan(19);
 	});
 
