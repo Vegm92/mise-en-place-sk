@@ -20,7 +20,7 @@ vi.mock('$lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock }));
 
 vi.mock('$lib/server/db', async () => {
 	const { testDb } = await import('./helpers/test-db');
-	return { db: testDb };
+	return { db: testDb, runAsSystem: (fn: () => Promise<unknown>) => fn() };
 });
 
 import { testSql, closeDb, hasDbEnv } from './helpers/test-db';

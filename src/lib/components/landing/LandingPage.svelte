@@ -241,11 +241,11 @@
 <div class="mep w-full min-h-screen bg-bg text-fg font-[inherit]" data-accent="tinta">
 
   <nav class="mep-nav flex items-center gap-3.5 px-8 py-4 border-b border-divider">
-    <div style="display:flex;align-items:center;gap:10px;">
+    <div class="flex items-center gap-2.5">
       <Logo size={20} wordmark />
     </div>
     <span class="text-[11px] font-semibold tracking-[0.12em] uppercase text-acc px-[7px] py-0.5 rounded font-mono bg-acc-soft">{t('waitlist.betaBadge')}</span>
-    <div style="flex:1;"></div>
+    <div class="flex-1"></div>
     <button onclick={toggleTheme} aria-label={t('waitlist.themeToggleLabel')} class="w-[28px] h-[28px] shrink-0 rounded-full border border-border bg-surface flex items-center justify-center cursor-pointer text-fg-2">
       {#if theme === 'dark'}<Sun size={14} />{:else}<Moon size={14} />{/if}
     </button>
@@ -253,22 +253,17 @@
       <a href={alternateHref} hreflang={alternate} lang={alternate} rel="alternate"
          onclick={rememberLocale} class="bg-transparent border-0 cursor-pointer p-0 font-[inherit] text-[inherit] font-[inherit] tracking-[inherit] no-underline text-fg-2">{locale.current === 'es' ? 'EN' : 'ES'}</a>
     </div>
-    <div class="mep-nav-signin" style="display:flex;align-items:center;gap:8px;">
-      <a href="/login" class="btn btn-secondary" style="padding:0 14px;font-size:13px;
-                                                       font-weight:600;text-decoration:none;
-                                                       white-space:nowrap;">{t('waitlist.signInLink')}</a>
-      <a href="/signup" class="btn btn-primary" style="padding:0 14px;font-size:13px;
-                                                      font-weight:600;text-decoration:none;
-                                                      white-space:nowrap;">{t('signup.submit')}</a>
+    <div class="mep-nav-signin flex items-center gap-2">
+      <a href="/login" class="btn btn-secondary px-3.5 py-0 text-[13px] font-semibold no-underline whitespace-nowrap">{t('waitlist.signInLink')}</a>
+      <a href="/signup" class="btn btn-primary px-3.5 py-0 text-[13px] font-semibold no-underline whitespace-nowrap">{t('signup.submit')}</a>
     </div>
   </nav>
 
-  <section class="mep-section mep-hero" style="padding:108px 72px 96px;text-align:center;">
-    <div class="mep-hero-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:56px;
-                align-items:center;max-width:1180px;margin:0 auto;">
+  <section class="mep-section mep-hero pt-[108px] px-[72px] pb-24 text-center">
+    <div class="mep-hero-grid grid grid-cols-2 gap-14 items-center max-w-[1180px] mx-auto">
       <div>
-        <div style="max-width:560px;margin:0 auto;">
-          <div class="mep-eyebrow" style="margin-bottom:26px;">
+        <div class="max-w-[560px] mx-auto">
+          <div class="mep-eyebrow mb-[26px]">
             {t('waitlist.eyebrow')}
           </div>
           <h1 class="m-0 text-[clamp(40px,5.6vw,59.5px)] font-semibold text-fg tracking-[-0.035em] leading-[1.08] text-balance">
@@ -279,15 +274,15 @@
           </p>
         </div>
 
-        <div style="max-width:460px;margin:40px auto 0;" id="join">
+        <div class="max-w-[460px] mx-auto mt-10" id="join">
           <EmailForm big={true} {form} copy={emailFormCopy} />
         </div>
         <div class="mep-spotbar max-w-[460px] mt-[18px] mx-auto mb-0 flex items-center gap-3.5 py-2.5 px-3.5 rounded-[10px] bg-surface border border-divider">
-          <div style="display:flex;align-items:baseline;gap:6px;">
+          <div class="flex items-baseline gap-1.5">
             <span class="text-2xl font-bold text-acc tracking-[-0.6px] leading-none font-mono">{data.spotTaken}</span>
             <span class="text-[15px] text-fg-3 font-mono">/ {SPOT_TOTAL}</span>
           </div>
-          <div style="flex:1;min-width:120px;">
+          <div class="flex-1 min-w-[120px]">
             <div class="text-xs text-fg-3 uppercase tracking-[0.06em] font-medium mb-[5px] font-mono">{t('waitlist.spotLabel')}</div>
             <div class="w-full h-[5px] rounded-[3px] bg-hover overflow-hidden">
               <div class="h-full bg-acc rounded-[3px]" style="width:{spotPct}%;"></div>
@@ -302,14 +297,14 @@
     </div>
   </section>
 
-  <section class="mep-section mep-tinted" style="padding:76px 72px;">
+  <section class="mep-section mep-tinted py-[76px] px-[72px]">
     <div class="mep-container">
-      <div class="mep-eyebrow" style="margin-bottom:14px;">{t('waitlist.painEyebrow')}</div>
+      <div class="mep-eyebrow mb-3.5">{t('waitlist.painEyebrow')}</div>
       <h2 class="mep-h2">{t('waitlist.painHead')}</h2>
-      <div class="mep-grid-3" style="margin-top:44px;">
+      <div class="mep-grid-3 mt-11">
         {#each painItems as p}
           <div class="pt-5 border-t border-border">
-            <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:14px;">
+            <div class="flex items-baseline gap-2 mb-3.5">
               <span class="text-[44px] font-bold text-fg tracking-[-0.04em] leading-none font-mono">{p.stat}</span>
               <span class="text-[11.5px] font-medium tracking-[0.08em] uppercase text-fg-3 font-mono">{p.label}</span>
             </div>
@@ -321,17 +316,17 @@
     </div>
   </section>
 
-  <section class="mep-section" style="padding:76px 72px;">
-    <div style="max-width:1000px;margin:0 auto;">
+  <section class="mep-section py-[76px] px-[72px]">
+    <div class="max-w-[1000px] mx-auto">
       <div class="text-[11px] font-semibold tracking-[0.2em] uppercase text-acc font-mono mb-3.5">{t('waitlist.compareEyebrow')}</div>
       <h2 class="m-0 max-w-[640px] text-[32px] font-semibold text-fg tracking-[-0.025em] leading-[1.15]">{t('waitlist.compareHead')}</h2>
 
-      <div class="mep-compare-grid" style="margin-top:44px;display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+      <div class="mep-compare-grid mt-11 grid grid-cols-2 gap-6">
         <div class="mep-compare-card mep-compare-card-neg rounded-card border border-neg p-7">
           <div class="text-base font-semibold text-neg tracking-[-0.01em] mb-5">{t('waitlist.compare.without.title')}</div>
-          <div style="display:flex;flex-direction:column;gap:16px;">
+          <div class="flex flex-col gap-4">
             {#each compareWithoutItems as item}
-              <div style="display:flex;gap:12px;align-items:flex-start;">
+              <div class="flex gap-3 items-start">
                 <div class="w-[22px] h-[22px] rounded-full shrink-0 bg-neg text-neg-fg flex items-center justify-center">
                   <X size={13} />
                 </div>
@@ -343,9 +338,9 @@
 
         <div class="mep-compare-card mep-compare-card-pos rounded-card border border-pos p-7">
           <div class="text-base font-semibold text-pos tracking-[-0.01em] mb-5">{t('waitlist.compare.with.title')}</div>
-          <div style="display:flex;flex-direction:column;gap:16px;">
+          <div class="flex flex-col gap-4">
             {#each compareWithItems as item}
-              <div style="display:flex;gap:12px;align-items:flex-start;">
+              <div class="flex gap-3 items-start">
                 <div class="w-[22px] h-[22px] rounded-full shrink-0 bg-pos text-pos-fg flex items-center justify-center">
                   <Check size={13} />
                 </div>
@@ -358,14 +353,14 @@
     </div>
   </section>
 
-  <section class="mep-section" style="padding:88px 72px;">
+  <section class="mep-section py-[88px] px-[72px]">
     <div class="mep-container">
-      <div class="mep-eyebrow" style="margin-bottom:14px;">{t('waitlist.howEyebrow')}</div>
-      <h2 class="mep-h2" style="margin:0 0 56px;">{t('waitlist.howHead')}</h2>
+      <div class="mep-eyebrow mb-3.5">{t('waitlist.howEyebrow')}</div>
+      <h2 class="mep-h2 m-0 mb-14">{t('waitlist.howHead')}</h2>
 
-      <div style="display:flex;flex-direction:column;gap:64px;">
+      <div class="flex flex-col gap-16">
         {#each stepItems as step, i}
-          <div class="mep-how-row" style="display:grid;grid-template-columns:360px 1fr;gap:56px;align-items:center;">
+          <div class="mep-how-row grid grid-cols-[360px_1fr] gap-14 items-center">
             <div>
               <div class="flex items-center gap-2.5 mb-4 text-xs font-semibold tracking-[0.2em] uppercase text-acc font-mono">
                 <span class="w-7 h-5 rounded bg-acc-soft flex items-center justify-center">{step.num}</span>
@@ -389,10 +384,10 @@
     </div>
   </section>
 
-  <section class="mep-section" style="padding:76px 72px;">
+  <section class="mep-section py-[76px] px-[72px]">
     <div class="mep-founder-card max-w-[860px] mx-auto flex gap-6 items-start py-8 px-9 rounded-2xl bg-surface border border-divider">
       <div class="w-[92px] h-[92px] rounded-full shrink-0 bg-acc text-acc-fg flex items-center justify-center text-[31px] font-bold font-mono tracking-[-1px] border border-border">{t('waitlist.founderInitials')}</div>
-      <div style="flex:1;">
+      <div class="flex-1">
         <div class="text-[11.5px] font-semibold tracking-[0.14em] uppercase text-acc font-mono mb-2.5">{t('waitlist.founderEyebrow')}</div>
         <p class="m-0 text-[19px] leading-[1.55] text-fg tracking-[-0.005em]">
           &ldquo;{t('waitlist.founderBody')}&rdquo;
@@ -406,13 +401,13 @@
     </div>
   </section>
 
-  <section class="mep-section mep-tinted" style="padding:76px 72px;">
-    <div style="max-width:1080px;margin:0 auto;">
-      <div class="mep-eyebrow" style="margin-bottom:14px;">{t('waitlist.pricingEyebrow')}</div>
+  <section class="mep-section mep-tinted py-[76px] px-[72px]">
+    <div class="max-w-[1080px] mx-auto">
+      <div class="mep-eyebrow mb-3.5">{t('waitlist.pricingEyebrow')}</div>
       <h2 class="mep-h2">{t('waitlist.pricingTitle')}</h2>
       <p class="mt-3.5 mx-0 mb-0 max-w-[620px] text-[15px] leading-[1.6] text-fg-2 text-pretty">{t('waitlist.pricingSub')}</p>
 
-      <div class="mep-grid-4" style="margin-top:44px;display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-items:stretch;">
+      <div class="mep-grid-4 mt-11 grid grid-cols-4 gap-3.5 items-stretch">
         <div class="card p-[20px_20px_22px] flex flex-col gap-3.5 bg-transparent border-dashed shadow-none">
           <div class="text-lg font-semibold text-fg tracking-[-0.01em]">{t('billing.tier.trial.name')}</div>
           <div>
@@ -420,38 +415,38 @@
             <div class="mt-2 text-[12.5px] text-fg-3">{t('waitlist.pricingTrialLimit')}</div>
           </div>
           <div class="text-sm text-fg-2 leading-[1.45] min-h-[34px]">{t('billing.tier.trial.tagline')}</div>
-          <a href="#join" class="btn btn-secondary" style="height:36px;justify-content:center;text-decoration:none;">{t('waitlist.form.submitShort')}</a>
+          <a href="#join" class="btn btn-secondary h-9 justify-center no-underline">{t('waitlist.form.submitShort')}</a>
         </div>
 
         {#each PAID_TIERS as tier}
           <div class="card p-[20px_20px_22px] flex flex-col gap-3.5 relative shadow-card {tier.recommended ? 'border-acc ring-1 ring-acc' : 'border-border'}">
-            <div style="display:flex;align-items:center;gap:8px;">
+            <div class="flex items-center gap-2">
               <div class="text-lg font-semibold text-fg tracking-[-0.01em]">{t(`billing.plan.${tier.id}`)}</div>
               {#if tier.recommended}
                 <span class="bg-acc text-acc-fg text-xs font-medium py-0.5 px-[7px] rounded-tag">{t('billing.recommended')}</span>
               {/if}
             </div>
             <div>
-              <div style="display:flex;align-items:baseline;gap:6px;">
+              <div class="flex items-baseline gap-1.5">
                 <span class="num text-[35px] font-semibold tracking-[-0.025em] text-fg border-b-2 border-dotted border-b-border-strong leading-[1.1]">{tier.price} €</span>
                 <span class="text-sm text-fg-3">{t('waitlist.pricingPerMonth')}</span>
               </div>
-              <div style="margin-top:8px;">
+              <div class="mt-2">
                 <span class="inline-flex items-center gap-1 text-[11.5px] font-medium tracking-[0.02em] uppercase text-fg-3 border border-dashed border-border-strong rounded px-[5px] py-px">
                   {t('billing.provisional')}
                 </span>
               </div>
             </div>
             <div class="text-sm text-fg-2 leading-[1.45] min-h-[34px]">{t(`billing.tier.${tier.id}.tagline`)}</div>
-            <a href="#join" class={tier.recommended ? 'btn btn-primary' : 'btn btn-secondary'} style="height:36px;justify-content:center;text-decoration:none;">{t('waitlist.form.submitShort')}</a>
+            <a href="#join" class="{tier.recommended ? 'btn btn-primary' : 'btn btn-secondary'} h-9 justify-center no-underline">{t('waitlist.form.submitShort')}</a>
             <div class="h-px bg-divider"></div>
-            <div style="display:flex;flex-direction:column;gap:8px;">
+            <div class="flex flex-col gap-2">
               {#each TIER_COPY[tier.id].bullets(tier.quota) as bullet}
                 <div class="flex gap-2 items-start text-sm text-fg-2">
                   <span class="mt-px shrink-0 {tier.recommended ? 'text-acc' : 'text-fg-3'}">
                     <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 10.5l3.5 3.5L16 5.5"/></svg>
                   </span>
-                  <span style="line-height:1.4;">{bullet.interpolate ? ti(bullet.key, bullet.interpolate) : t(bullet.key)}</span>
+                  <span class="leading-[1.4]">{bullet.interpolate ? ti(bullet.key, bullet.interpolate) : t(bullet.key)}</span>
                 </div>
               {/each}
             </div>
@@ -463,13 +458,13 @@
     </div>
   </section>
 
-  <section class="mep-section" style="padding:76px 72px;">
-    <div style="max-width:1000px;margin:0 auto;">
+  <section class="mep-section py-[76px] px-[72px]">
+    <div class="max-w-[1000px] mx-auto">
       <div class="text-[11px] font-semibold tracking-[0.2em] uppercase text-acc font-mono mb-3.5">{t('waitlist.foundingEyebrow')}</div>
       <h2 class="m-0 max-w-[640px] text-[32px] font-semibold text-fg tracking-[-0.025em] leading-[1.15]">{t('waitlist.foundingHead')}</h2>
       <p class="mt-3.5 mx-0 mb-0 max-w-[640px] text-base leading-[1.6] text-fg-2 text-pretty">{t('waitlist.foundingSub')}</p>
 
-      <div class="mep-grid-3" style="margin-top:44px;display:grid;grid-template-columns:repeat(3,1fr);gap:24px;">
+      <div class="mep-grid-3 mt-11 grid grid-cols-3 gap-6">
         {#each foundingItems as item, i}
           <div class="rounded-card border border-border bg-surface p-6">
             <div class="w-[30px] h-[30px] rounded-full bg-acc-soft text-acc flex items-center justify-center text-[13px] font-bold font-mono mb-4">0{i + 1}</div>
@@ -481,25 +476,24 @@
     </div>
   </section>
 
-  <section class="mep-section" style="padding:0 72px 76px;">
-    <div style="max-width:720px;margin:0 auto;">
-      <div class="mep-eyebrow" style="margin-bottom:20px;">{t('waitlist.faqEyebrow')}</div>
+  <section class="mep-section pt-0 px-[72px] pb-[76px]">
+    <div class="max-w-[720px] mx-auto">
+      <div class="mep-eyebrow mb-5">{t('waitlist.faqEyebrow')}</div>
       <div>
         {#each faqItems as row, i}
           {@const isOpen = openFaq === i}
           <div class="border-t border-divider {i === faqItems.length - 1 ? 'border-b border-divider' : ''}">
-            <h3 style="margin:0;">
+            <h3 class="m-0">
               <button type="button" onclick={() => { openFaq = isOpen ? -1 : i; }}
                 id="{faqUid}-q{i}"
                 aria-expanded={isOpen}
                 aria-controls={isOpen ? `${faqUid}-a${i}` : undefined}
-                style="width:100%;background:transparent;border:0;cursor:pointer;padding:18px 4px;
-                       display:flex;align-items:center;gap:16px;font-family:inherit;text-align:left;">
+                class="w-full bg-transparent border-0 cursor-pointer py-[18px] px-1 flex items-center gap-4 font-[inherit] text-left">
                 <span class="text-[13px] font-mono text-acc font-semibold w-[30px] shrink-0" aria-hidden="true">0{i + 1}</span>
                 <span class="flex-1 text-[17px] font-medium text-fg tracking-[-0.01em]">{row.q}</span>
-                <span class="w-6 h-6 rounded-full border border-border flex items-center justify-center text-fg-2 shrink-0"
+                <span class="w-6 h-6 rounded-full border border-border flex items-center justify-center text-fg-2 shrink-0 transition-transform duration-[180ms]"
                   aria-hidden="true"
-                  style="transform:rotate({isOpen ? '45deg' : '0'});transition:transform 180ms;">
+                  class:rotate-45={isOpen}>
                   <svg width="10" height="10" viewBox="0 0 10 10" fill="none" focusable="false">
                     <path d="M5 1v8M1 5h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
                   </svg>
@@ -519,11 +513,10 @@
     </div>
   </section>
 
-  <section class="mep-section" style="padding:0 72px 56px;">
+  <section class="mep-section pt-0 px-[72px] pb-14">
     <div class="mep-trust-bar max-w-[940px] mx-auto flex border border-divider rounded-card bg-surface overflow-hidden" role="list" aria-label={t('waitlist.trustBarLabel')}>
       {#each trustBarItems as item, i}
-        <div class="mep-trust-bar-item" role="listitem"
-          style="flex:1;display:flex;gap:12px;align-items:flex-start;padding:20px 22px;">
+        <div class="mep-trust-bar-item flex-1 flex gap-3 items-start px-[22px] py-5" role="listitem">
           <div class="w-[30px] h-[30px] rounded-full shrink-0 bg-acc-soft text-acc flex items-center justify-center">
             {#if i === 0}
               <Clock size={15} />
@@ -542,21 +535,20 @@
     </div>
   </section>
 
-  <section class="mep-section mep-tinted-top" style="padding:96px 72px;">
-    <div class="mep-close-grid" style="max-width:940px;margin:0 auto;display:grid;grid-template-columns:1fr 420px;
-                gap:64px;align-items:center;">
+  <section class="mep-section mep-tinted-top py-24 px-[72px]">
+    <div class="mep-close-grid max-w-[940px] mx-auto grid grid-cols-[1fr_420px] gap-16 items-center">
       <div>
         <h2 class="m-0 text-[clamp(31px,4vw,40px)] font-semibold text-fg tracking-[-0.025em] leading-[1.15] text-balance">{t('waitlist.closeHead')}</h2>
         <p class="mt-3.5 mx-0 mb-0 text-[17px] leading-[1.6] text-fg-2 max-w-[420px]">{t('waitlist.closeSub')}</p>
       </div>
-      <div style="display:flex;flex-direction:column;gap:16px;">
+      <div class="flex flex-col gap-4">
         <EmailForm big={true} {form} copy={emailFormCopy} />
       </div>
     </div>
   </section>
 
   <footer class="mep-footer mep-section py-7 px-[72px] border-t border-divider flex items-center justify-between gap-5">
-    <div style="display:flex;align-items:center;gap:10px;">
+    <div class="flex items-center gap-2.5">
       <Logo size={20} wordmark />
     </div>
     <nav class="mep-footer-links flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12.5px]"

@@ -1,11 +1,12 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { db } from '$lib/server/db';
+import { db, runAsSystem } from '$lib/server/db';
 import { userRestaurants } from '$lib/server/schema';
 import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import { exportableEntries } from '$lib/server/tenant-data-map';
 import { eq, and, inArray } from 'drizzle-orm';
 import { contentDispositionHeader } from '$lib/server/content-disposition';
+import { userMemberships } from '$lib/server/locations';
 
 export const GET: RequestHandler = async ({ locals }) => {
 	const user = locals.user;
@@ -15,10 +16,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 		throw error(429, 'Too many requests — please wait a moment before trying again');
 	}
 
-	const memberships = await db
-		.select({ restaurantId: userRestaurants.restaurantId, role: userRestaurants.role })
-		.from(userRestaurants)
-		.where(eq(userRestaurants.userId, user.id));
+	const memberships = await userMemberships(user.id);
 
 	const restaurantIds = memberships.map(m => m.restaurantId);
 	const entries = exportableEntries();

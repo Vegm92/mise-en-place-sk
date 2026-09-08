@@ -1,23 +1,24 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import * as Sentry from '@sentry/sveltekit';
-import { db } from '$lib/server/db';
+import { db, runAsSystem } from '$lib/server/db';
 import { userRestaurants, subscriptions, invoices, batchItems, users } from '$lib/server/schema';
 import { verifyCredentials } from '$lib/server/auth-credentials';
 import { enqueueAccountCleanup } from '$lib/server/queue';
 import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import { explicitDeletionEntries, rootEntry } from '$lib/server/tenant-data-map';
-import { and, eq, inArray, isNotNull, ne } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, ne, sql } from 'drizzle-orm';
+import { userMemberships } from '$lib/server/locations';
 
 async function collectTenantFileKeys(restaurantIds: string[]): Promise<string[]> {
 	if (restaurantIds.length === 0) return [];
 
-	const [invoiceFiles, batchFiles] = await Promise.all([
+	const [invoiceFiles, batchFiles] = await runAsSystem(() => Promise.all([
 		db.select({ key: invoices.sourceFile }).from(invoices)
 			.where(and(inArray(invoices.restaurantId, restaurantIds), isNotNull(invoices.sourceFile))),
 		db.select({ key: batchItems.fileKey }).from(batchItems)
 			.where(inArray(batchItems.restaurantId, restaurantIds)),
-	]);
+	]));
 
 	const keys = new Set<string>();
 	for (const row of [...invoiceFiles, ...batchFiles]) {
@@ -52,10 +53,7 @@ export const POST: RequestHandler = async ({ locals, request, cookies }) => {
 		throw error(400, 'Missing confirmation. Send { "confirm": "DELETE_MY_ACCOUNT" }');
 	}
 
-	const memberships = await db
-		.select({ restaurantId: userRestaurants.restaurantId, role: userRestaurants.role })
-		.from(userRestaurants)
-		.where(eq(userRestaurants.userId, user.id));
+	const memberships = await userMemberships(user.id);
 
 	const ownedIds = memberships
 		.filter(m => m.role === 'owner')
@@ -66,24 +64,24 @@ export const POST: RequestHandler = async ({ locals, request, cookies }) => {
 	let storageKeys: string[] = [];
 
 	if (ownedIds.length > 0) {
-		const otherMembers = await db
+		const otherMembers = await runAsSystem(() => db
 			.select({ restaurantId: userRestaurants.restaurantId })
 			.from(userRestaurants)
 			.where(and(
 				inArray(userRestaurants.restaurantId, ownedIds),
 				ne(userRestaurants.userId, user.id),
-			));
+			)));
 		const shared = new Set(otherMembers.map(m => m.restaurantId));
 		soleOwnedIds = ownedIds.filter(id => !shared.has(id));
 
 		if (soleOwnedIds.length > 0) {
-			const liveSubs = await db
+			const liveSubs = await runAsSystem(() => db
 				.select({ stripeSubscriptionId: subscriptions.stripeSubscriptionId })
 				.from(subscriptions)
 				.where(and(
 					inArray(subscriptions.restaurantId, soleOwnedIds),
 					isNotNull(subscriptions.stripeSubscriptionId),
-				));
+				)));
 			stripeSubscriptionIds = liveSubs
 				.map(s => s.stripeSubscriptionId)
 				.filter((id): id is string => id !== null);
@@ -93,6 +91,7 @@ export const POST: RequestHandler = async ({ locals, request, cookies }) => {
 	}
 
 	await db.transaction(async (tx) => {
+		await tx.execute(sql`SET LOCAL app.admin = 'true'`);
 		if (soleOwnedIds.length > 0) {
 			for (const entry of explicitDeletionEntries()) {
 				await tx.delete(entry.table).where(inArray(entry.scopeColumn, soleOwnedIds));
@@ -106,7 +105,7 @@ export const POST: RequestHandler = async ({ locals, request, cookies }) => {
 
 	if (stripeSubscriptionIds.length > 0 || storageKeys.length > 0) {
 		try {
-			await enqueueAccountCleanup(user.id, soleOwnedIds[0] ?? null, stripeSubscriptionIds, storageKeys);
+			await enqueueAccountCleanup(user.id, soleOwnedIds[0] ?? null, stripeSubscriptionIds, storageKeys, locals.requestId);
 		} catch (err) {
 			console.error(`[account-delete] failed to enqueue post-commit cleanup for user=${user.id}:`, err);
 			Sentry.captureException(err, { tags: { area: 'account-delete', op: 'enqueue_cleanup' } });

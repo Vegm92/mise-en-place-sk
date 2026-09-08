@@ -2,10 +2,8 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { WHATSAPP_VERIFY_TOKEN, WHATSAPP_APP_SECRET } from '$lib/server/env';
-import {
-	handleWhatsAppMessage,
-	type WhatsAppInboundMessage,
-} from '$lib/server/whatsapp-bot';
+import type { WhatsAppInboundMessage } from '$lib/server/whatsapp-bot';
+import { enqueueWhatsAppInbound } from '$lib/server/queue';
 import { recordAccountEvent, type AccountEventInput } from '$lib/server/whatsapp-health';
 
 const NODE_ENV = process.env.NODE_ENV ?? 'development';
@@ -38,7 +36,7 @@ export const GET: RequestHandler = async ({ url }) => {
 	return new Response('Forbidden', { status: 403 });
 };
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
 	const rawBody = await request.text();
 
 	if (!verifySignature(rawBody, request.headers.get('x-hub-signature-256'))) {
@@ -54,10 +52,13 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	const { messages, accountEvents } = extractChanges(body);
 
-	for (const msg of messages) {
-		handleWhatsAppMessage(msg).catch(err =>
-			console.error('[whatsapp-webhook] unhandled error:', err),
-		);
+	try {
+		for (const msg of messages) {
+			await enqueueWhatsAppInbound(msg, locals?.requestId);
+		}
+	} catch (err) {
+		console.error('[whatsapp-webhook] failed to durably enqueue inbound message:', err);
+		return json({ error: 'enqueue failed' }, { status: 500 });
 	}
 
 	for (const evt of accountEvents) {

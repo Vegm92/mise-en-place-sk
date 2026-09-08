@@ -73,26 +73,26 @@
 <div class="hidden md:block" style="height:100%;overflow:auto;">
   <div style="padding:20px 24px 24px;display:flex;flex-direction:column;gap:14px;">
 
-    <div style="display:flex;align-items:center;gap:12px;">
-      <h2 style="margin:0;font-size:20px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;">{t('spend.question')}</h2>
+    <div class="flex items-center gap-3">
+      <h2 class="m-0 text-[20px] font-semibold text-fg tracking-[-0.3px]">{t('spend.question')}</h2>
     </div>
 
     <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2" data-coach="analytics-main">
       <div class="card" style="padding:14px;">
         <div class="label" style="margin-bottom:6px;">{t('spend.totalSpend')}</div>
-        <div class="num" style="font-size:22px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;line-height:1.1;">{fmtEur(data.kpis.total_items_spend)}</div>
+        <div class="num text-[22px] font-semibold text-fg tracking-[-0.4px] leading-[1.1]">{fmtEur(data.kpis.total_items_spend)}</div>
       </div>
       <div class="card" style="padding:14px;">
         <div class="label" style="margin-bottom:6px;">{t('spend.lineItems')}</div>
-        <div class="num" style="font-size:22px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;line-height:1.1;">{data.kpis.total_line_items}</div>
+        <div class="num text-[22px] font-semibold text-fg tracking-[-0.4px] leading-[1.1]">{data.kpis.total_line_items}</div>
       </div>
       <div class="card" style="padding:14px;">
         <div class="label" style="margin-bottom:6px;">{t('spend.uniqueItems')}</div>
-        <div class="num" style="font-size:22px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;line-height:1.1;">{data.kpis.unique_items}</div>
+        <div class="num text-[22px] font-semibold text-fg tracking-[-0.4px] leading-[1.1]">{data.kpis.unique_items}</div>
       </div>
       <div class="card" style="padding:14px;">
         <div class="label" style="margin-bottom:6px;">{t('spend.avgItems')}</div>
-        <div class="num" style="font-size:22px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;line-height:1.1;">
+        <div class="num text-[22px] font-semibold text-fg tracking-[-0.4px] leading-[1.1]">
           {data.kpis.avg_invoice_items != null ? data.kpis.avg_invoice_items.toFixed(1) : '—'}
         </div>
       </div>
@@ -102,20 +102,20 @@
 
       <div class="card" style="padding:16px;">
         <div class="subtitle" style="margin-bottom:4px;">{t('spend.topItems')}</div>
-        <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:16px;">{t('spend.topItemsSub')}</div>
+        <div class="text-[12px] text-fg-3 mb-4">{t('spend.topItemsSub')}</div>
         {#if !data.top_items.length && data.has_invoices && data.invoices_outside_range > 0}
-          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:24px 0;text-align:center;">
+          <div class="flex flex-col items-center gap-1.5 py-6 text-center">
             <div style="font-size:24px;opacity:0.25;">📅</div>
-            <p class="body-strong" style="color:var(--mep-fg-3);">{t('spend.noneInRange')}</p>
-            <p class="body" style="color:var(--mep-fg-4);max-width:240px;">{tp('spend.noneInRangeHint', data.invoices_outside_range)}</p>
-            <a href="?period=all" class="body" style="color:var(--mep-acc);text-decoration:none;margin-top:4px;">{t('spend.widenRange')}</a>
+            <p class="body-strong text-fg-3">{t('spend.noneInRange')}</p>
+            <p class="body text-fg-4 max-w-[240px]">{tp('spend.noneInRangeHint', data.invoices_outside_range)}</p>
+            <a href="?period=all" class="body text-acc no-underline mt-1">{t('spend.widenRange')}</a>
           </div>
         {:else if !data.top_items.length}
-          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:24px 0;text-align:center;">
+          <div class="flex flex-col items-center gap-1.5 py-6 text-center">
             <div style="font-size:24px;opacity:0.25;">📊</div>
-            <p class="body-strong" style="color:var(--mep-fg-3);">{t('spend.noDataYet')}</p>
-            <p class="body" style="color:var(--mep-fg-4);font-size:12px;max-width:240px;">{t('spend.emptyHint')}</p>
-            <a href="/" style="font-size:12px;color:var(--mep-acc);text-decoration:none;margin-top:4px;">{t('spend.uploadFirst')}</a>
+            <p class="body-strong text-fg-3">{t('spend.noDataYet')}</p>
+            <p class="body text-fg-4 text-[12px] max-w-[240px]">{t('spend.emptyHint')}</p>
+            <a href="/" class="text-[12px] text-acc no-underline mt-1">{t('spend.uploadFirst')}</a>
           </div>
         {:else}
           <div class="flex items-center gap-6" role="group" aria-label={t('spend.donut.topItemsAria')}>
@@ -141,7 +141,7 @@
                   <span class="num body-strong shrink-0 w-20 text-right">{fmtEur(slice.value)}</span>
                 </div>
                 {#if hoveredSpendSlice === i && slice.itemCount != null}
-                  <div style="margin:-2px 0 2px 23px;font-size:11px;color:var(--mep-fg-3);">
+                  <div class="text-[11px] text-fg-3" style="margin:-2px 0 2px 23px;">
                     {slice.itemCount} {t('tbl.lines')}{slice.avgPrice != null ? ` · ${t('sup.products.avgPrice')} ${fmtEur(slice.avgPrice)}` : ''}{slice.supplierName ? ` · ${slice.supplierName}` : ''}
                   </div>
                 {/if}
@@ -153,11 +153,11 @@
 
       <div class="card" style="padding:16px;">
         <div class="subtitle" style="margin-bottom:4px;">{t('spend.byCategory')}</div>
-        <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:16px;">{t('spend.byCategorySub')}</div>
+        <div class="text-[12px] text-fg-3 mb-4">{t('spend.byCategorySub')}</div>
         {#if !data.category_spend.length}
-          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:24px 0;text-align:center;">
-            <p class="body" style="color:var(--mep-fg-4);font-size:12px;max-width:200px;">{t('spend.assignCategories')}</p>
-            <a href="/suppliers" style="font-size:12px;color:var(--mep-acc);text-decoration:none;">{t('spend.viewSuppliers')}</a>
+          <div class="flex flex-col items-center gap-1.5 py-6 text-center">
+            <p class="body text-fg-4 text-[12px] max-w-[200px]">{t('spend.assignCategories')}</p>
+            <a href="/suppliers" class="text-[12px] text-acc no-underline">{t('spend.viewSuppliers')}</a>
           </div>
         {:else}
           <div class="flex items-center gap-[18px]" role="group" aria-label={t('spend.donut.categoryAria')}>

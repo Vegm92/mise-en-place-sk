@@ -45,7 +45,7 @@ vi.mock('$lib/server/db', async () => {
 	// in that case, but this factory still runs at import time, and
 	// `new Proxy(null, ...)` throws, failing the whole file at collection
 	// instead of skipping it. Hand back an inert stand-in: nothing reads it.
-	if (!testDb) return { db: {}, forTenant };
+	if (!testDb) return { db: {}, forTenant, runAsSystem: (fn: () => unknown) => fn() };
 	const db = new Proxy(testDb as object, {
 		get(target, prop, receiver) {
 			if (prop === 'transaction') {
@@ -61,7 +61,7 @@ vi.mock('$lib/server/db', async () => {
 			return Reflect.get(target, prop, receiver);
 		},
 	});
-	return { db, forTenant };
+	return { db, forTenant, runAsSystem: (fn: () => unknown) => fn() };
 });
 
 import { testSql, closeDb, hasDbEnv } from './helpers/test-db';
@@ -98,6 +98,16 @@ async function addInvoiceFile(restaurantId: string, sourceFile: string) {
 	await testSql`INSERT INTO invoices (restaurant_id, source_file) VALUES (${restaurantId}, ${sourceFile})`;
 }
 
+async function seedOwnedRestaurant(userId: string, suffix: string) {
+	const rid = await makeRestaurant(suffix);
+	await membership(userId, rid, 'owner');
+	const subId = `sub_${suffix}_${Date.now()}`;
+	const fileKey = `invoices/${suffix}-${Date.now()}.pdf`;
+	await setSubscription(rid, subId);
+	await addInvoiceFile(rid, fileKey);
+	return { rid, subId, fileKey };
+}
+
 async function userExists(id: string) {
 	return (await testSql`SELECT id FROM users WHERE id = ${id}`).length > 0;
 }
@@ -127,6 +137,11 @@ async function runDelete(userId: string, email: string, body: unknown, cookieDel
 		const t = thrown as { status?: number; body?: { message: string }; message?: string };
 		return { thrown: true as const, status: t.status, message: t.body?.message ?? t.message };
 	}
+}
+
+async function runDeleteAsOwner(userId: string, email: string) {
+	verifyCredentialsMock.mockResolvedValue({ id: userId, email, name: null, image: null });
+	return runDelete(userId, email, { password: 'correct-horse' });
 }
 
 async function cleanupUserAndRestaurants(userId: string, restaurantIds: string[]) {
@@ -226,12 +241,7 @@ describe.skipIf(!hasDbEnv)('POST /api/user/delete (issue #492)', () => {
 
 	it('success path: all rows gone, and cleanup is enqueued strictly after the commit (real DB read inside the mock)', async () => {
 		const { id: userId, email } = await makeUser('success', 'hashed:pw');
-		const rid = await makeRestaurant('success');
-		await membership(userId, rid, 'owner');
-		const subId = `sub_success_${Date.now()}`;
-		await setSubscription(rid, subId);
-		const fileKey = `invoices/success-${Date.now()}.pdf`;
-		await addInvoiceFile(rid, fileKey);
+		const { rid, subId, fileKey } = await seedOwnedRestaurant(userId, 'success');
 		verifyCredentialsMock.mockResolvedValue({ id: userId, email, name: null, image: null });
 
 		let userStillPresentWhenEnqueued: boolean | null = null;
@@ -248,7 +258,7 @@ describe.skipIf(!hasDbEnv)('POST /api/user/delete (issue #492)', () => {
 		expect(userStillPresentWhenEnqueued).toBe(false);
 
 		expect(enqueueAccountCleanupMock).toHaveBeenCalledTimes(1);
-		expect(enqueueAccountCleanupMock).toHaveBeenCalledWith(userId, rid, [subId], [fileKey]);
+		expect(enqueueAccountCleanupMock).toHaveBeenCalledWith(userId, rid, [subId], [fileKey], undefined);
 	});
 
 	it('does not enqueue cleanup when there is nothing to clean up (no subscription, no files)', async () => {
@@ -331,6 +341,24 @@ describe.skipIf(!hasDbEnv)('POST /api/user/delete (issue #492)', () => {
 		expect(await testSql`SELECT id FROM product_aliases WHERE restaurant_id = ${rid}`).toHaveLength(0);
 		expect(await testSql`SELECT id FROM upload_batches WHERE restaurant_id = ${rid}`).toHaveLength(0);
 		expect(await testSql`SELECT id FROM batch_items WHERE restaurant_id = ${rid}`).toHaveLength(0);
+	});
+
+	it('a user who solely owns two restaurants gets both subscriptions cancelled and both sets of files collected', async () => {
+		const { id: userId, email } = await makeUser('multi', 'hashed:pw');
+		const a = await seedOwnedRestaurant(userId, 'multi-a');
+		const b = await seedOwnedRestaurant(userId, 'multi-b');
+
+		const result = await runDeleteAsOwner(userId, email);
+
+		expect(result).toMatchObject({ thrown: false, status: 200, json: { deleted: true } });
+		expect(await restaurantExists(a.rid)).toBe(false);
+		expect(await restaurantExists(b.rid)).toBe(false);
+
+		expect(enqueueAccountCleanupMock).toHaveBeenCalledTimes(1);
+		const [uid, , subIds, keys] = enqueueAccountCleanupMock.mock.calls[0] as [string, string | null, string[], string[]];
+		expect(uid).toBe(userId);
+		expect([...subIds].sort()).toEqual([a.subId, b.subId].sort());
+		expect([...keys].sort()).toEqual([a.fileKey, b.fileKey].sort());
 	});
 
 	it('rate limits deletion attempts', async () => {

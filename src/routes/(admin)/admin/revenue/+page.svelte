@@ -69,14 +69,14 @@
 <div class="hud-page px-3 md:px-6 pb-6 flex flex-col gap-2.5">
 
   {#if form && 'error' in form && typeof form.error === 'string'}
-    <div style="background:#0a0c11;border:1px solid rgba(248,113,113,0.35);border-radius:10px;padding:10px 14px;color:#f87171;font-size:13px;">{t(form.error)}</div>
+    <div class="bg-bg border border-neg/35 rounded-card px-3.5 py-2.5 text-neg text-[13px]">{t(form.error)}</div>
   {/if}
 
-  <div style="background:#0a0c11;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px 16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
-    <div style="font-size:11.5px;color:#5b6472;">
+  <div class="bg-bg border border-border rounded-card px-4 py-3 flex gap-3.5 items-center flex-wrap">
+    <div class="text-[11.5px] text-fg-3">
       {ti('admin.rev.dataState', { months: o.snapshotMonths, estimated: o.estimatedMonths })}
     </div>
-    <span style="flex:1;"></span>
+    <span class="flex-1"></span>
     <form method="POST" action="?/snapshot">
       <button type="submit" class="btn bg-fg text-bg">
         {t('admin.rev.captureNow')}
@@ -102,7 +102,7 @@
       <div class="hud-kpi">
         <span class="hud-kpi-label">{t('admin.rev.payingCustomers')}</span>
         <span class="hud-kpi-value">{o.payingCustomers}</span>
-        <span style="font:500 10px/1.3 ui-monospace, monospace;color:#5b6472;">{ti('admin.rev.trialsSub', { n: o.trialCustomers })}</span>
+        <span class="font-mono text-[10px] leading-[1.3] font-medium text-fg-3">{ti('admin.rev.trialsSub', { n: o.trialCustomers })}</span>
       </div>
       <div class="hud-kpi">
         <span class="hud-kpi-label">{t('admin.rev.arpa')}</span>
@@ -115,7 +115,7 @@
       <div class="hud-kpi">
         <span class="hud-kpi-label">{t('admin.rev.atRisk')}</span>
         <span class="hud-kpi-value" class:bad={o.atRiskMrrCents > 0}>{eur(o.atRiskMrrCents)}</span>
-        <span style="font:500 10px/1.3 ui-monospace, monospace;color:#5b6472;">{ti('admin.rev.atRiskSub', { n: o.atRiskCustomers })}</span>
+        <span class="font-mono text-[10px] leading-[1.3] font-medium text-fg-3">{ti('admin.rev.atRiskSub', { n: o.atRiskCustomers })}</span>
       </div>
     </div>
   </HudPanel>
@@ -125,14 +125,14 @@
       <div class="hud-kpi">
         <span class="hud-kpi-label">{t('admin.rev.cac')}</span>
         <span class="hud-kpi-value">{o.cacCents === null ? '—' : eur2(o.cacCents)}</span>
-        <span style="font:500 10px/1.3 ui-monospace, monospace;color:#5b6472;">
+        <span class="font-mono text-[10px] leading-[1.3] font-medium text-fg-3">
           {ti('admin.rev.cacBasis', { spend: eur(o.cacSpendCents), n: o.cacNewCustomers, from: o.cacWindowFrom, to: o.cacWindowTo })}
         </span>
       </div>
       <div class="hud-kpi">
         <span class="hud-kpi-label">{t('admin.rev.ltv')}</span>
         <span class="hud-kpi-value">{eur(o.ltvCents)}</span>
-        <span style="font:500 10px/1.3 ui-monospace, monospace;color:#5b6472;">
+        <span class="font-mono text-[10px] leading-[1.3] font-medium text-fg-3">
           {ti('admin.rev.ltvBasis', { months: months(o.lifetimeMonths), margin: o.assumptions.grossMarginPct })}
         </span>
       </div>
@@ -144,7 +144,7 @@
           class:bad={ratioHealth(o.ltvCacRatio) === 'bad'}>
           {o.ltvCacRatio === null ? '—' : num(o.ltvCacRatio, 1) + '×'}
         </span>
-        <span style="font:500 10px/1.3 ui-monospace, monospace;color:#5b6472;">{ti('admin.rev.target', { n: HEALTHY_LTV_CAC_RATIO })}</span>
+        <span class="font-mono text-[10px] leading-[1.3] font-medium text-fg-3">{ti('admin.rev.target', { n: HEALTHY_LTV_CAC_RATIO })}</span>
       </div>
       <div class="hud-kpi">
         <span class="hud-kpi-label">{t('admin.rev.payback')}</span>
@@ -154,7 +154,7 @@
           class:bad={paybackHealth(o.paybackMonths) === 'bad'}>
           {months(o.paybackMonths)}
         </span>
-        <span style="font:500 10px/1.3 ui-monospace, monospace;color:#5b6472;">{t('admin.rev.monthsUnit')}</span>
+        <span class="font-mono text-[10px] leading-[1.3] font-medium text-fg-3">{t('admin.rev.monthsUnit')}</span>
       </div>
     </div>
   </HudPanel>
@@ -226,7 +226,7 @@
         </table>
       </AdminTableScroll>
     {:else}
-      <div style="padding:24px 14px;text-align:center;color:#5b6472;font-size:12.5px;">{t('admin.rev.insufficient')}</div>
+      <div class="px-3.5 py-6 text-center text-fg-3 text-[12.5px]">{t('admin.rev.insufficient')}</div>
     {/if}
   </HudPanel>
 
@@ -280,7 +280,7 @@
                   <td class="num r dim">
                     {pct(point.rate)}
                     {#if revenue !== null}
-                      <span style="color:#3a4150;font-size:10px;"> · {pct(revenue)}</span>
+                      <span class="text-fg-4 text-[10px]"> · {pct(revenue)}</span>
                     {/if}
                   </td>
                 {/each}
@@ -292,7 +292,7 @@
         </table>
       </AdminTableScroll>
     </HudPanel>
-    <div style="font-size:11px;color:#5b6472;margin-top:6px;">{t('admin.rev.cohortsHint')}</div>
+    <div class="text-[11px] text-fg-3 mt-1.5">{t('admin.rev.cohortsHint')}</div>
   </div>
 
   <HudPanel title={t('admin.rev.section.funnel')} sub={t('admin.rev.section.funnel.info')}>
@@ -327,10 +327,13 @@
           {#each o.leaks as leak}
             <tr>
               <td>
-                <span style="font-weight:500;color:{leak.count === 0 ? '#5b6472' : leak.severity === 'warn' ? '#fbbf24' : leak.severity === 'error' ? '#f87171' : '#e7edf5'};">
+                <span class="font-medium"
+                  class:text-fg-3={leak.count === 0}
+                  class:text-warn={leak.count > 0 && leak.severity === 'warn'}
+                  class:text-neg={leak.count > 0 && leak.severity === 'error'}>
                   {t('admin.rev.leak.' + leak.key)}
                 </span>
-                <div style="font-size:10.5px;color:#5b6472;margin-top:1px;">{t('admin.rev.leakHint.' + leak.key)}</div>
+                <div class="text-[10.5px] text-fg-3 mt-px">{t('admin.rev.leakHint.' + leak.key)}</div>
               </td>
               <td class="num r" class:warn={leak.count > 0 && leak.severity === 'warn'} class:bad={leak.count > 0 && leak.severity === 'error'} class:dim={leak.count === 0}>{leak.count}</td>
               <td class="num r dim">{leak.monthlyImpactCents > 0 ? eur(leak.monthlyImpactCents) : '—'}</td>
@@ -342,13 +345,13 @@
   </HudPanel>
 
   <HudPanel title={t('admin.rev.section.spend')} sub={t('admin.rev.section.spend.info')}>
-    <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.08);">
+    <div class="px-3.5 py-3 border-b border-border">
       <form method="POST" action="?/addCost" class="flex gap-2.5 flex-wrap items-end">
-        <label class="flex flex-col gap-1 text-[11px]" style="color:#5b6472;">
+        <label class="flex flex-col gap-1 text-[11px] text-fg-3">
           {t('admin.rev.fieldMonth')}
           <input name="month" type="month" value={o.cacWindowTo} required class="input w-[150px]" />
         </label>
-        <label class="flex flex-col gap-1 text-[11px]" style="color:#5b6472;">
+        <label class="flex flex-col gap-1 text-[11px] text-fg-3">
           {t('admin.rev.fieldCategory')}
           <select name="category" class="input">
             {#each data.categories as category}
@@ -356,11 +359,11 @@
             {/each}
           </select>
         </label>
-        <label class="flex flex-col gap-1 text-[11px]" style="color:#5b6472;">
+        <label class="flex flex-col gap-1 text-[11px] text-fg-3">
           {t('admin.rev.fieldAmount')}
           <input name="amount" inputmode="decimal" required class="input w-[120px]" />
         </label>
-        <label class="flex flex-col gap-1 text-[11px] flex-1 min-w-[180px]" style="color:#5b6472;">
+        <label class="flex flex-col gap-1 text-[11px] text-fg-3 flex-1 min-w-[180px]">
           {t('admin.rev.fieldNote')}
           <input name="note" maxlength="200" class="input w-full" />
         </label>
@@ -391,7 +394,7 @@
               <td class="r">
                 <form method="POST" action="?/deleteCost">
                   <input type="hidden" name="id" value={cost.id} />
-                  <button type="submit" style="background:transparent;border:0;color:#f87171;font-size:11px;cursor:pointer;padding:0;">
+                  <button type="submit" class="bg-transparent border-0 text-neg text-[11px] cursor-pointer p-0">
                     {t('admin.rev.delete')}
                   </button>
                 </form>
@@ -406,29 +409,29 @@
   </HudPanel>
 
   <HudPanel title={t('admin.rev.section.assumptions')} sub={t('admin.rev.section.assumptions.info')}>
-    <div style="padding:12px 14px;">
+    <div class="px-3.5 py-3">
       <form method="POST" action="?/saveAssumptions" class="flex gap-3 flex-wrap items-end">
-        <label class="flex flex-col gap-1 text-[11px]" style="color:#5b6472;">
+        <label class="flex flex-col gap-1 text-[11px] text-fg-3">
           {t('admin.rev.grossMargin')}
           <input name="grossMarginPct" value={o.assumptions.grossMarginPct} inputmode="decimal" class="input w-[100px]" />
         </label>
-        <label class="flex flex-col gap-1 text-[11px]" style="color:#5b6472;">
+        <label class="flex flex-col gap-1 text-[11px] text-fg-3">
           {t('admin.rev.ltvHorizon')}
           <input name="ltvHorizonMonths" value={o.assumptions.ltvHorizonMonths} inputmode="numeric" class="input w-[100px]" />
         </label>
-        <label class="flex flex-col gap-1 text-[11px]" style="color:#5b6472;">
+        <label class="flex flex-col gap-1 text-[11px] text-fg-3">
           {t('admin.rev.cacWindow')}
           <input name="cacWindowMonths" value={o.assumptions.cacWindowMonths} inputmode="numeric" class="input w-[100px]" />
         </label>
         <button type="submit" class="btn bg-fg text-bg">
           {t('admin.rev.saveAssumptions')}
         </button>
-        <span style="font-size:11px;color:#5b6472;flex:1;min-width:200px;">{t('admin.rev.assumptionsHint')}</span>
+        <span class="text-[11px] text-fg-3 flex-1 min-w-[200px]">{t('admin.rev.assumptionsHint')}</span>
       </form>
-      <div style="font-size:11px;color:#5b6472;margin-top:10px;">
+      <div class="text-[11px] text-fg-3 mt-2.5">
         {t('admin.rev.priceBasis')}
         {#each o.priceByTier as price}
-          <span class="num" style="margin-left:8px;color:#e7edf5;">{price.tier}: {eur(price.monthlyCents)}</span>
+          <span class="num ml-2 text-fg">{price.tier}: {eur(price.monthlyCents)}</span>
         {/each}
       </div>
     </div>

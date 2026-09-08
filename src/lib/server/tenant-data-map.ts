@@ -1,7 +1,7 @@
 import { isNull, type SQL } from 'drizzle-orm';
 import type { AnyPgColumn, PgTable } from 'drizzle-orm/pg-core';
 import {
-	restaurants, suppliers, supplierAliases, invoices, invoiceLineItems, products, categoryBudgets,
+	restaurants, userRestaurants, suppliers, supplierAliases, invoices, invoiceLineItems, products, categoryBudgets,
 	systemNotifications, invoiceAuditLog, productAliases, supplierMetrics, settings,
 	unitConversions, stockLevels, extractionCorrections, extractionResults, chatSessions, chatMessages,
 	llmUsageLog, tenantLlmQuotas, monthlyUsage, usageEvents, idempotencyKeys, uploadBatches, batchItems,
@@ -22,6 +22,7 @@ export interface TenantDataMapEntry {
 
 export const tenantDataMap: readonly TenantDataMapEntry[] = [
 	{ tableName: 'restaurants', table: restaurants, scopeColumn: restaurants.id, deletion: 'root', exportKey: 'restaurants' },
+	{ tableName: 'user_restaurants', table: userRestaurants, scopeColumn: userRestaurants.restaurantId, deletion: 'cascade-via-restaurants', exportKey: null },
 	{ tableName: 'suppliers', table: suppliers, scopeColumn: suppliers.restaurantId, deletion: 'cascade-via-restaurants', exportKey: 'suppliers' },
 	{
 		tableName: 'invoices', table: invoices, scopeColumn: invoices.restaurantId, deletion: 'cascade-via-restaurants',
