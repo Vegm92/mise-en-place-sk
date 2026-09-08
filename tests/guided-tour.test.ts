@@ -74,7 +74,7 @@ describe('the tour renders the help-centre copy', () => {
 	});
 
 	it('starts the nudge at the first tour page rather than a literal step', () => {
-		expect(SHELL).toContain('setTutorialStep(tourPages[0].step)');
+		expect(SHELL).toContain('setTutorialStep(tourPages[0]!.step)');
 	});
 });
 
