@@ -4,6 +4,7 @@ import { db } from '$lib/server/db';
 import { sql } from 'drizzle-orm';
 import { moneyToNumber } from '$lib/server/money';
 import { periodRange } from '$lib/server/period-range';
+import { UNCATEGORIZED_CATEGORY } from '$lib/constants';
 
 export const load: PageServerLoad = async ({ url, locals, parent }) => {
 	const rid = locals.restaurantId!;
@@ -124,6 +125,14 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 			pct: Math.round((moneyToNumber(cat.total) || 0) / maxCat * 100),
 		}));
 
+		const categorizedTotal = category_spend.reduce((sum, c) => sum + (c.category === UNCATEGORIZED_CATEGORY ? 0 : c.total), 0);
+		const allCategorizedTotal = category_spend.reduce((sum, c) => sum + c.total, 0);
+		const category_coverage = {
+			categorized: categorizedTotal,
+			total: allCategorizedTotal,
+			pct: allCategorizedTotal > 0 ? Math.round((categorizedTotal / allCategorizedTotal) * 100) : null,
+		};
+
 		const kpisRow0 = kpisRows[0];
 		const kpis = {
 			total_items_spend: moneyToNumber(kpisRow0?.total_items_spend ?? '0'),
@@ -141,7 +150,7 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 		}));
 
 		return {
-			title: 'spend.pageTitle', top_items, category_spend, kpis, monthly_spend,
+			title: 'spend.pageTitle', top_items, category_spend, category_coverage, kpis, monthly_spend,
 			has_invoices: totalInvoices > 0,
 			invoices_outside_range: Math.max(totalInvoices - invoicesInRange, 0),
 		};
