@@ -197,6 +197,68 @@ Not symmetrical, and worth knowing before deciding how urgent a restart is:
 
 - A dead letter's whole input domain is malformed job data, so a blank or non-uuid `restaurantId` must not cost us the audit row: Postgres would reject the insert and the record would be lost exactly when it matters most. Non-uuid values become NULL in the column; the raw value still reaches the audit trail inside `payload`.
 
+**`function deadLetterGrowth`**
+
+- Pending rows *last seen* inside a window, split by queue (#1001). Counts distinct failures rather than retries of one, because rows collapse on `(queue, source_id, error_class, status)` with an `occurrences` counter — which is what makes the count-based threshold in `monitoring.md` meaningful instead of noisy.
+
+### `src/lib/server/alerts.ts` — scheduled jobs
+
+**`function deadLetterAlert`**
+
+- Pure, so both thresholds are testable without a database or Sentry (#1001). `> 10` distinct pending rows in 24 h is a `warning`; any pending `account-cleanup` row is an `error`, because that is the GDPR deletion job — one dead-lettered row means a user who asked to be forgotten has not been, and nothing else in the system counts down on that. The 10 is deliberately the figure already used for failed scheduled jobs in `monitoring.md`, so ops has one number to remember.
+
+**`function runDeadLetterAlertJob`**
+
+- One Sentry fingerprint per reason (`dead-letter-threshold` / `dead-letter-zeroTolerance`), so a queue that stays over the line keeps updating a single issue rather than opening one an hour.
+- Cron `5 * * * *` — hourly, though the threshold is stated over 24 h, because a GDPR deletion sitting in the queue should not wait until tomorrow morning for somebody to notice.
+
+**`function runMetricSampleJob`**
+
+- Persists the `extract-invoice` depth `/api/health` already computes, so the worker-replica trigger in #1004 has a series to fire on rather than a single reading nobody kept (#1003). Cron `*/5 * * * *` — fine enough to watch a burst build, coarse enough that a month of samples is a few thousand rows.
+- Records `queue.oldest_seconds` alongside the depth: 50 items that arrived a second ago and 50 that have been waiting ten minutes are the same number and different incidents.
+
+### `src/lib/server/dead-letter-replay.ts`
+
+**_module level_**
+
+- Replay for every queue that can be replayed safely (#1001). Before this it existed for `extract-invoice` alone; the other five queues had no exit but a manual status change or the 180-day purge — including `account-cleanup`, the GDPR deletion job.
+- The constraint that shapes the whole module: the stored `payload` is **redacted** before it is written (`redactPayload` — emails masked, strings truncated at 512 chars, arrays capped at 25 items). Re-enqueuing it verbatim would run a job with quietly different data and report success. So a queue is replayable here only when its job data is identifiers that survive redaction unchanged, and anything textual is re-read from its own table.
+
+**`const NON_REPLAYABLE_QUEUES`**
+
+- `whatsapp-inbound`: the payload *is* the message — free text and media references that redaction masks and truncates, so a replay would deliver something other than what the sender wrote.
+- `account-cleanup`: `stripeSubscriptionIds` and `storageKeys` are arrays, and redaction caps arrays at 25 items. Replaying a GDPR deletion from a truncated list would report success having removed part of the account.
+- Both surface as *No replay* on `/admin/dead-letters` with the reason on hover, rather than a button that silently does the wrong thing — the alternative the issue explicitly allowed.
+
+**`const REPLAYERS`**
+
+- `extract-invoice`: the batch item is a state machine, not just a job, so it is walked back to `queued` via `markQueued` before a worker may claim it again; a row that will not go back returns `itemNotRequeueable` (409).
+- `normalize-product` / `categorize-product`: the job's text is the product's own name, so it is re-read from `products` by id and the redacted copy in the payload is ignored. A product that is gone, or whose `restaurant_id` does not match the dead-letter row's, returns `sourceMissing` (409) rather than replaying across tenants.
+- `whatsapp-notify`: two uuids and nothing else, so redaction leaves them byte-identical and the payload is used directly — after a valibot parse, so a malformed payload is a 400 rather than an enqueue of nonsense.
+
+### `src/lib/server/metrics.ts`
+
+**_module level_**
+
+- The coarse time series behind the audit's unmeasured numbers (#1003): route latency, `extract-invoice` depth, extraction latency. Producers bucket in memory and flush one row per `(name, label)` per window rather than writing a row per event — at production traffic a row per request would be ~200k rows a month to answer questions a per-minute rollup answers just as well. The cost is resolution below the flush interval and no exact percentiles: count/sum/min/max only.
+- Recording is best-effort by construction. A metric write must never fail the request or job it is measuring, so both `flushMetrics` and `recordGauge` log and swallow.
+
+**`const buckets`**
+
+- Keyed by name + label, but each entry carries them as *fields* rather than re-parsing a composite key. A route id is arbitrary text (`/(app)/batch/[id]`) and should never have to survive a round trip through a delimiter.
+
+**`function drain`**
+
+- The seam the tests drive: what a flush would write, without writing it.
+
+**`function flushMetrics`**
+
+- A failed write drops the window rather than retrying into the buffer. Retaining it would grow the buffer without bound for as long as the database stays unhappy — exactly when the process can least afford it.
+
+**`function startMetricFlush`**
+
+- A no-op under test, so a suite never opens a timer it has to remember to close.
+
 ### `src/lib/server/extraction-worker.ts`
 
 **`interface ExtractionJobData`**
@@ -207,6 +269,7 @@ Not symmetrical, and worth knowing before deciding how urgent a restart is:
 **`const DEGRADATION_ERRORS`**
 
 - Transient LLM-degradation error classes worth alerting on when they spike.
+- `extract.err.tooMany` joined them in #998: a full concurrency cap is transient by definition, so the job goes back to the queue instead of failing the item. It is *not* dead-lettered — the cap being full is not a poison job — and the user only ever sees the message once the retries are spent.
 
 **`function processExtractionJob`**
 

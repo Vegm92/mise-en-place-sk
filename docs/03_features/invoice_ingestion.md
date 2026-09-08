@@ -174,6 +174,20 @@ Extension, size, magic bytes, quota, rate limit, tenant access.
 
 - Route params land unvalidated; a non-UUID (e.g. legacy session id) would make Postgres throw on the uuid cast (22P02).
 
+**`function markDiscarded`**
+
+- Takes a required `DiscardReason` since #1010. `status = 'discarded'` was written by two callers that meant opposite things — a human rejecting an extraction (`/batch/[id]` `discardItem`) and the splitter retiring a composite PDF's source row (`extraction-worker.ts` `discardSource`) — with nothing on the row to tell them apart. Rejection rate, the most direct quality signal an extraction product has, was therefore unmeasurable, and every composite split inflated it.
+- A discriminator rather than a new status, deliberately: the `status <> 'discarded'` filters that compute what is still open are correct for both meanings and keep working untouched.
+- Three reasons, not the two the issue named: `duplicate_number` covers the third call site the issue's table missed — `/batch/[id]` discards the item when the save comes back `numberDuplicate`, which is neither a rejection nor a split.
+
+**`function markDone`, `function markFailed`**
+
+- Both stamp `extracted_at` (#1003), so end-to-end extraction latency is `extracted_at - queued_at` on the row. The query it replaces joined `extraction_results`, which only records successful live runs — it reported the latency of the happy path as if it were the latency of the pipeline.
+
+**`function markQueued`**
+
+- Clears `extracted_at` alongside the error columns. A redelivery starts a new attempt, so leaving the previous settle time would make the latency of the retry read as negative or as the age of the first attempt.
+
 **`function stallLevel`**
 
 - The stall clock is `queued_at`, not `updated_at`: `updated_at` moves on every transition, so a queued→extracting hop would silently reset the very timer that is supposed to measure the whole wait (#540).

@@ -20,6 +20,9 @@ export interface ExtractionStats {
 	succeeded: number;
 	failed: number;
 	successRate: number | null;
+	userRejected: number;
+	reviewed: number;
+	rejectionRate: number | null;
 	timed: number;
 	p50Seconds: number | null;
 	p95Seconds: number | null;
@@ -32,7 +35,11 @@ export async function extractionStats(windowHours = 24): Promise<ExtractionStats
 			SELECT
 				COUNT(*) FILTER (WHERE status IN ('done', 'confirmed', 'failed'))::int AS total,
 				COUNT(*) FILTER (WHERE status IN ('done', 'confirmed'))::int AS succeeded,
-				COUNT(*) FILTER (WHERE status = 'failed')::int AS failed
+				COUNT(*) FILTER (WHERE status = 'failed')::int AS failed,
+				COUNT(*) FILTER (WHERE status = 'confirmed')::int AS confirmed,
+				COUNT(*) FILTER (
+					WHERE status = 'discarded' AND discarded_reason = 'user_rejected'
+				)::int AS user_rejected
 			FROM batch_items
 			WHERE updated_at > now() - ${window}::interval
 		`),
@@ -41,23 +48,27 @@ export async function extractionStats(windowHours = 24): Promise<ExtractionStats
 				percentile_cont(0.5) WITHIN GROUP (ORDER BY secs) AS p50,
 				percentile_cont(0.95) WITHIN GROUP (ORDER BY secs) AS p95
 			FROM (
-				SELECT EXTRACT(EPOCH FROM (er.created_at - bi.queued_at)) AS secs
-				FROM extraction_results er
-				JOIN batch_items bi ON bi.id = er.batch_item_id
-				WHERE er.run_kind = 'live'
-					AND bi.queued_at IS NOT NULL
-					AND er.created_at > now() - ${window}::interval
+				SELECT EXTRACT(EPOCH FROM (extracted_at - queued_at)) AS secs
+				FROM batch_items
+				WHERE queued_at IS NOT NULL
+					AND extracted_at IS NOT NULL
+					AND extracted_at > now() - ${window}::interval
 			) t
 			WHERE secs >= 0
 		`),
 	]);
 	const total = num(outcome.total);
+	const userRejected = num(outcome.user_rejected);
+	const reviewed = num(outcome.confirmed) + userRejected;
 	return {
 		windowHours,
 		total,
 		succeeded: num(outcome.succeeded),
 		failed: num(outcome.failed),
 		successRate: total > 0 ? num(outcome.succeeded) / total : null,
+		userRejected,
+		reviewed,
+		rejectionRate: reviewed > 0 ? userRejected / reviewed : null,
 		timed: num(latency.timed),
 		p50Seconds: maybe(latency.p50),
 		p95Seconds: maybe(latency.p95),

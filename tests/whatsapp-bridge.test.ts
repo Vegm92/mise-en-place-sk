@@ -102,7 +102,10 @@ vi.mock('../src/lib/server/batch', () => ({
 	markQueued: vi.fn(),
 }));
 vi.mock('../src/lib/server/extract-batch', () => ({ enqueueBatchExtraction: enqueueBatchMock }));
-vi.mock('../src/lib/server/queue', () => ({ enqueueExtraction: enqueueExtractionMock }));
+vi.mock('../src/lib/server/queue', async (importOriginal) => ({
+	...(await importOriginal<typeof import('../src/lib/server/queue')>()),
+	enqueueExtraction: enqueueExtractionMock,
+}));
 vi.mock('../src/lib/server/env', async (importActual) => ({
 	...(await importActual<typeof import('../src/lib/server/env')>()),
 	APP_BASE_URL: 'https://app.example.com',

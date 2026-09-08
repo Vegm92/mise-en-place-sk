@@ -25,6 +25,7 @@ import { currentLocale, rememberCurrentLocale } from '$lib/server/locale';
 import { requestedLocale } from '$lib/locale-url';
 import { startWorkerLivenessMonitor } from '$lib/server/worker-liveness-monitor';
 import { resolveRequestId } from '$lib/server/request-id';
+import { METRIC_ROUTE_LATENCY, observe, startMetricFlush } from '$lib/server/metrics';
 
 assertProductionEnv();
 validateAdminSeedConfig();
@@ -67,6 +68,7 @@ if (addressWarning) console.warn(addressWarning);
 cleanupStaleBatches().catch(e => { if (!isNetworkUnreachable(e)) console.error('[hooks] batch cleanup error:', e); });
 seedAdminUser().catch(e => { if (!isNetworkUnreachable(e)) console.error('[hooks] seed error:', e); });
 startWorkerLivenessMonitor();
+startMetricFlush();
 
 async function resolveMembership(event: RequestEvent, user: NonNullable<App.Locals['user']>) {
 	const activeCookie = event.cookies.get('active_restaurant');
@@ -275,12 +277,8 @@ function applyLocale(event: RequestEvent): void {
 	if (requestedLocale(event.url)) rememberCurrentLocale(locale);
 }
 
-const appHandle: Handle = async ({ event, resolve }) => {
+const routeApp: Handle = async ({ event, resolve }) => {
 	const path = event.url.pathname;
-
-	if (isBypassPath(path)) {
-		return resolve(event);
-	}
 
 	event.locals.requestId = resolveRequestId(event);
 
@@ -321,6 +319,18 @@ const appHandle: Handle = async ({ event, resolve }) => {
 	const response = await resolveWithContext(event, path, resolveWithLocale);
 
 	return applySecurityHeaders(path, response, event);
+};
+
+const appHandle: Handle = async (input) => {
+	const { event, resolve } = input;
+	if (isBypassPath(event.url.pathname)) return resolve(event);
+
+	const startedAt = Date.now();
+	try {
+		return await routeApp(input);
+	} finally {
+		observe(METRIC_ROUTE_LATENCY, Date.now() - startedAt, event.route.id ?? '(unmatched)');
+	}
 };
 
 export const handle: Handle = sequence(Sentry.sentryHandle(), authHandle, appHandle, entitlementHandle);
