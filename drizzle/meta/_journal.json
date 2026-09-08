@@ -568,6 +568,13 @@
       "when": 1788864040989,
       "tag": "0080_latency_metrics",
       "breakpoints": true
+    },
+    {
+      "idx": 81,
+      "version": "7",
+      "when": 1788866859488,
+      "tag": "0081_fk_covering_indexes",
+      "breakpoints": true
     }
   ]
 }

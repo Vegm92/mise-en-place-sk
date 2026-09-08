@@ -26,6 +26,11 @@ the schema file (ADR-003).
   `user_restaurants`, `subscriptions`, `users`.)
 - **Indexes**: add the index that the query plan needs (notification reads:
   `(restaurant_id, status, created_at)`; dedup PKs; unique keys for upserts).
+  A new **foreign key** also needs an index leading on its own column (#996):
+  Postgres indexes the referenced side, never the referencing one, so without it
+  every cascade and every read by that key is a sequential scan. A composite
+  index counts only when the FK column comes first, and a partial one only when
+  its predicate cannot exclude a referencing row.
 - **Naming**: snake_case plural tables, singular columns; statuses default
   `pending`/`active`-style.
 - **Column type changes**: `db:generate` emits a bare

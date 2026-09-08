@@ -163,6 +163,15 @@ beforeAll(async () => {
 		INSERT INTO categories (restaurant_id, name, name_key, slug)
 		VALUES (${ridB}, 'RLS Category B', ${CATEGORY_NAME_KEY_B}, ${CATEGORY_NAME_KEY_B})
 	`;
+	const memberEmailA = `rls-member-a-${MEMBER_USER_ID_A}@example.com`;
+	const memberEmailB = `rls-member-b-${MEMBER_USER_ID_B}@example.com`;
+	const multiLocationEmail = `rls-multi-${MULTI_LOCATION_USER_ID}@example.com`;
+	await testSql`
+		INSERT INTO users (id, email, name) VALUES
+			(${MEMBER_USER_ID_A}, ${memberEmailA}, 'RLS Member A'),
+			(${MEMBER_USER_ID_B}, ${memberEmailB}, 'RLS Member B'),
+			(${MULTI_LOCATION_USER_ID}, ${multiLocationEmail}, 'RLS Multi Location')
+	`;
 	await testSql`
 		INSERT INTO user_restaurants (user_id, restaurant_id, role)
 		VALUES (${MEMBER_USER_ID_A}, ${ridA}, 'owner')
@@ -186,6 +195,9 @@ afterAll(async () => {
 	await runtimeSql?.end({ timeout: 5 });
 	if (ridA) await testSql`DELETE FROM restaurants WHERE id = ${ridA}`;
 	if (ridB) await testSql`DELETE FROM restaurants WHERE id = ${ridB}`;
+	await testSql`
+		DELETE FROM users WHERE id IN (${MEMBER_USER_ID_A}, ${MEMBER_USER_ID_B}, ${MULTI_LOCATION_USER_ID})
+	`;
 	await retryOnDeadlock(() => testSql.unsafe(`
 		DO $$
 		BEGIN
