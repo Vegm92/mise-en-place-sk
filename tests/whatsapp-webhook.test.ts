@@ -1,18 +1,23 @@
 /**
- * WhatsApp Cloud API webhook route (feat #108).
+ * WhatsApp Cloud API webhook route (feat #108; issue #997).
  *
  * GET  — Meta's verify-token handshake: the challenge is echoed only when the
  *        token matches, otherwise 403. A regression here either breaks setup or
  *        lets anyone register a webhook.
- * POST — parses Meta's nested entry/changes/value/messages envelope and fans each
- *        message out to the bot handler, always answering 200 fast.
+ * POST — parses Meta's nested entry/changes/value/messages envelope and
+ *        durably enqueues each message onto the `whatsapp-inbound` pg-boss
+ *        queue before answering 200, so a handler failure downstream is a
+ *        retried/dead-lettered job, not a message silently dropped on the
+ *        floor (issue #997). The actual bot handler runs later, out of the
+ *        request/response cycle entirely — see worker.ts and whatsapp-bot.test.ts.
  *
- * The bot handler and env token are mocked so this isolates the route plumbing.
+ * The enqueue function and env token are mocked so this isolates the route
+ * plumbing.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { handleMock, accountEventMock } = vi.hoisted(() => ({
-	handleMock: vi.fn().mockResolvedValue(undefined),
+const { enqueueMock, accountEventMock } = vi.hoisted(() => ({
+	enqueueMock: vi.fn().mockResolvedValue(true),
 	accountEventMock: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -20,7 +25,7 @@ const { handleMock, accountEventMock } = vi.hoisted(() => ({
 // skips HMAC verification (dev behaviour), so these tests isolate the route
 // plumbing. Signature rejection is covered separately below.
 vi.mock('$lib/server/env', () => ({ WHATSAPP_VERIFY_TOKEN: 'verify-me', WHATSAPP_APP_SECRET: '' }));
-vi.mock('$lib/server/whatsapp-bot', () => ({ handleWhatsAppMessage: handleMock }));
+vi.mock('$lib/server/queue', () => ({ enqueueWhatsAppInbound: enqueueMock }));
 vi.mock('$lib/server/whatsapp-health', () => ({ recordAccountEvent: accountEventMock }));
 
 import { GET, POST } from '../src/routes/api/whatsapp/webhook/+server';
@@ -40,7 +45,8 @@ function postEvent(body: unknown, opts: { invalidJson?: boolean; signature?: str
 }
 
 beforeEach(() => {
-	handleMock.mockClear();
+	enqueueMock.mockClear();
+	enqueueMock.mockResolvedValue(true);
 	accountEventMock.mockClear();
 });
 
@@ -71,7 +77,7 @@ describe('POST — message fan-out', () => {
 		};
 	}
 
-	it('dispatches every message in the envelope to the bot handler', async () => {
+	it('durably enqueues every message in the envelope before answering 200', async () => {
 		const res = await POST(
 			postEvent(
 				payload(
@@ -82,36 +88,36 @@ describe('POST — message fan-out', () => {
 		);
 		expect(res.status).toBe(200);
 		expect(await res.json()).toEqual({ ok: true });
-		expect(handleMock).toHaveBeenCalledTimes(2);
-		expect(handleMock).toHaveBeenCalledWith(expect.objectContaining({ id: 'wamid.1', type: 'text' }));
-		expect(handleMock).toHaveBeenCalledWith(expect.objectContaining({ id: 'wamid.2', type: 'image' }));
+		expect(enqueueMock).toHaveBeenCalledTimes(2);
+		expect(enqueueMock).toHaveBeenCalledWith(expect.objectContaining({ id: 'wamid.1', type: 'text' }));
+		expect(enqueueMock).toHaveBeenCalledWith(expect.objectContaining({ id: 'wamid.2', type: 'image' }));
 	});
 
-	it('returns 200 and dispatches nothing for a status-only callback (no messages)', async () => {
+	it('returns 200 and enqueues nothing for a status-only callback (no messages)', async () => {
 		const res = await POST(postEvent({ entry: [{ changes: [{ value: { statuses: [{ id: 'x' }] } }] }] }));
 		expect(res.status).toBe(200);
-		expect(handleMock).not.toHaveBeenCalled();
+		expect(enqueueMock).not.toHaveBeenCalled();
 	});
 
 	it('tolerates a malformed envelope without throwing', async () => {
 		const res = await POST(postEvent({ not: 'what we expect' }));
 		expect(res.status).toBe(200);
-		expect(handleMock).not.toHaveBeenCalled();
+		expect(enqueueMock).not.toHaveBeenCalled();
 	});
 
 	it('returns 400 on invalid JSON', async () => {
 		const res = await POST(postEvent(null, { invalidJson: true }));
 		expect(res.status).toBe(400);
-		expect(handleMock).not.toHaveBeenCalled();
+		expect(enqueueMock).not.toHaveBeenCalled();
 	});
 
-	it('swallows downstream handler errors (fire-and-forget, still 200)', async () => {
-		handleMock.mockRejectedValueOnce(new Error('boom'));
+	it('issue #997: surfaces a durable-enqueue failure as a non-2xx instead of a silent 200', async () => {
+		enqueueMock.mockRejectedValueOnce(new Error('pg-boss unreachable'));
 		const res = await POST(
 			postEvent(payload({ from: '+34600000003', id: 'wamid.3', type: 'text', text: { body: 'hi' } })),
 		);
-		expect(res.status).toBe(200);
-		expect(handleMock).toHaveBeenCalledTimes(1);
+		expect(res.status).toBe(500);
+		expect(await res.json()).toEqual({ error: 'enqueue failed' });
 	});
 });
 
@@ -120,12 +126,12 @@ describe('POST — account-level events (issue #321)', () => {
 		return { entry: [{ changes: [{ field, value }] }] };
 	}
 
-	it('routes a quality downgrade to the health recorder, not the bot', async () => {
+	it('routes a quality downgrade to the health recorder, not the message queue', async () => {
 		const res = await POST(postEvent(accountPayload('phone_number_quality_update', {
 			display_phone_number: '34612345678', event: 'FLAGGED', current_limit: 'TIER_1K',
 		})));
 		expect(res.status).toBe(200);
-		expect(handleMock).not.toHaveBeenCalled();
+		expect(enqueueMock).not.toHaveBeenCalled();
 		expect(accountEventMock).toHaveBeenCalledWith({
 			field: 'phone_number_quality_update',
 			value: expect.objectContaining({ event: 'FLAGGED' }),
@@ -145,7 +151,7 @@ describe('POST — account-level events (issue #321)', () => {
 		// events that matter under receipts.
 		await POST(postEvent({ entry: [{ changes: [{ field: 'messages', value: { statuses: [{ id: 'x' }] } }] }] }));
 		expect(accountEventMock).not.toHaveBeenCalled();
-		expect(handleMock).not.toHaveBeenCalled();
+		expect(enqueueMock).not.toHaveBeenCalled();
 	});
 
 	it('keeps messages and account events in the same envelope apart', async () => {
@@ -157,7 +163,7 @@ describe('POST — account-level events (issue #321)', () => {
 				],
 			}],
 		}));
-		expect(handleMock).toHaveBeenCalledTimes(1);
+		expect(enqueueMock).toHaveBeenCalledTimes(1);
 		expect(accountEventMock).toHaveBeenCalledTimes(1);
 	});
 
@@ -174,15 +180,15 @@ describe('POST — signature verification', () => {
 	it('rejects a POST with a bad signature when the app secret is configured', async () => {
 		vi.resetModules();
 		vi.doMock('$lib/server/env', () => ({ WHATSAPP_VERIFY_TOKEN: 'verify-me', WHATSAPP_APP_SECRET: 'super-secret' }));
-		vi.doMock('$lib/server/whatsapp-bot', () => ({ handleWhatsAppMessage: handleMock }));
+		vi.doMock('$lib/server/queue', () => ({ enqueueWhatsAppInbound: enqueueMock }));
 		const { POST: SignedPOST } = await import('../src/routes/api/whatsapp/webhook/+server');
 		const envelope = {
 			entry: [{ changes: [{ value: { messaging_product: 'whatsapp', messages: [{ from: '+34600000004', id: 'wamid.4', type: 'text', text: { body: 'hi' } }] } }] }],
 		};
 		const res = await SignedPOST(postEvent(envelope, { signature: 'sha256=deadbeef' }));
 		expect(res.status).toBe(401);
-		expect(handleMock).not.toHaveBeenCalled();
+		expect(enqueueMock).not.toHaveBeenCalled();
 		vi.doUnmock('$lib/server/env');
-		vi.doUnmock('$lib/server/whatsapp-bot');
+		vi.doUnmock('$lib/server/queue');
 	});
 });
