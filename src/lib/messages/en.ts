@@ -2407,7 +2407,7 @@ export default {
   'waitlist.compare.without.0':    'Paper or spreadsheet invoices that get lost.',
   'waitlist.compare.without.1':    'Spend invisible until month-end.',
   'waitlist.compare.without.2':    'Price hikes you discover too late.',
-  'waitlist.compare.without.3':    '4–6 hours a week of manual transcription.',
+  'waitlist.compare.without.3':    'Hours of manual transcription every week.',
   'waitlist.compare.with.title':   'With Mise en Place',
   'waitlist.compare.with.0':       'Everything digitized in seconds.',
   'waitlist.compare.with.1':       'Spend by category in real time.',
