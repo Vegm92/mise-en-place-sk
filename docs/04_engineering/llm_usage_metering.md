@@ -82,14 +82,6 @@ No test asserts the chat/digest metering rows exist yet:
 - Digest test asserting the same (currently only `tests/scheduler.test.ts`
   covers digest job registration).
 
-## Related docs
-
-- ADR-007 (`docs/06_decisions/extraction/ADR-007-llm-provider-seam.md`) — the
-  seam and the #426 closure; the enforcement decision above amends it.
-- Feature specs: `docs/03_features/chat.md`, `docs/03_features/digest.md`.
-- Monitoring: `docs/05_operations/monitoring.md` (LLM usage row).
-- Quota/billing: `docs/03_features/billing.md`, `docs/02_product/plans_and_entitlements.md`.
-
 ## Call latency (#1003)
 
 `LLMUsage.durationMs` is wall-clock milliseconds around the provider call, timed
@@ -103,3 +95,11 @@ network: the XML e-invoice path returns `zeroUsage` without a provider, and a
 stubbed provider in tests reports whatever it likes. Tokens and cost alone
 cannot distinguish a slow model from a slow queue, which is the question this
 column exists to answer.
+
+## Related docs
+
+- ADR-007 (`docs/06_decisions/extraction/ADR-007-llm-provider-seam.md`) — the
+  seam and the #426 closure; the enforcement decision above amends it.
+- Feature specs: `docs/03_features/chat.md`, `docs/03_features/digest.md`.
+- Monitoring: `docs/05_operations/monitoring.md` (LLM usage row).
+- Quota/billing: `docs/03_features/billing.md`, `docs/02_product/plans_and_entitlements.md`.
