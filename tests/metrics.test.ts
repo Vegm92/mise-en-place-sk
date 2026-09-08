@@ -49,7 +49,7 @@ describe('observe — bucketing', () => {
 		// Route ids are arbitrary text — '/(app)/batch/[id]' must come back whole.
 		observe(METRIC_ROUTE_LATENCY, 1, '/(app)/batch/[id]');
 
-		expect(drain()[0].label).toBe('/(app)/batch/[id]');
+		expect(drain()[0]!.label).toBe('/(app)/batch/[id]');
 	});
 
 	it('ignores a non-finite reading rather than poisoning the bucket', () => {

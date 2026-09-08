@@ -87,7 +87,7 @@ describe('scrubSentryEvent', () => {
 			],
 		};
 		const out = scrubSentryEvent(event);
-		const data = out.breadcrumbs[0].data as { url: string; method: string };
+		const data = out.breadcrumbs[0]!.data as { url: string; method: string };
 		expect(data.url).not.toContain('abc123');
 		expect(data.method).toBe('GET');
 	});
@@ -99,8 +99,8 @@ describe('scrubSentryEvent', () => {
 			],
 		};
 		const out = scrubSentryEvent(event);
-		expect(out.breadcrumbs[0].message).not.toContain('live-secret');
-		expect(out.breadcrumbs[0].message).toContain('code=%5Bredacted%5D');
+		expect(out.breadcrumbs[0]!.message).not.toContain('live-secret');
+		expect(out.breadcrumbs[0]!.message).toContain('code=%5Bredacted%5D');
 	});
 
 	it('drops authorization and cookie headers from request.headers', () => {

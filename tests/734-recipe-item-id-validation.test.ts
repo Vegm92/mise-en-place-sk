@@ -52,7 +52,7 @@ async function newRecipe(rid: string, name: string) {
 		VALUES (${rid}, ${name}, ${normalizeProductKey(name)}, 'plato', 'draft', '4')
 		RETURNING id
 	`;
-	return Number(row.id);
+	return Number(row!.id);
 }
 
 async function newItem(rid: string, recipeId: number, name: string) {
@@ -61,7 +61,7 @@ async function newItem(rid: string, recipeId: number, name: string) {
 		VALUES (${rid}, ${recipeId}, 'free', ${name}, '1.0000', 'kg', '0', 1)
 		RETURNING id
 	`;
-	return Number(row.id);
+	return Number(row!.id);
 }
 
 async function itemRow(id: number) {

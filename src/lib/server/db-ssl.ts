@@ -13,7 +13,7 @@ const MAX_CA_PREVIEW_CHARS = 120;
 
 function describeCaSource(value: string): string {
 	if (CREDENTIAL_URI.test(value)) return '<redacted>';
-	const shown = value.split('\n')[0].slice(0, MAX_CA_PREVIEW_CHARS);
+	const shown = (value.split('\n')[0] ?? '').slice(0, MAX_CA_PREVIEW_CHARS);
 	return JSON.stringify(shown === value ? shown : `${shown}…`);
 }
 

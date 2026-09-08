@@ -118,7 +118,7 @@ describe('generatePairingCode', () => {
 		// One live code per tenant: a second one silently superseding the one
 		// already written on a notepad would be worse than reissuing visibly.
 		expect(dbMock.update).toHaveBeenCalled();
-		expect((updatedValues[0].expiresAt as Date).getTime()).toBe(0);
+		expect((updatedValues[0]!.expiresAt as Date).getTime()).toBe(0);
 	});
 
 	it('refuses when the owner has minted too many codes', async () => {

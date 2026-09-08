@@ -102,12 +102,12 @@
         box-shadow:var(--mep-shadow-pop); padding:6px 8px; font-size:11px; white-space:nowrap;
         pointer-events:none; z-index:1;
       ">
-        <div style="font-weight:500;color:var(--mep-fg-3);margin-bottom:3px;">{xLabels[hovered]}</div>
+        <div style="font-weight:500;color:var(--mep-fg-3);margin-bottom:3px;">{xLabels[hovered]!}</div>
         {#each series as s (s.key)}
           <div style="display:flex;align-items:center;gap:5px;">
             <span style="width:7px;height:7px;border-radius:2px;background:{s.color};flex-shrink:0;"></span>
             <span style="color:var(--mep-fg-2);">{s.label}:</span>
-            <span class="num" style="color:var(--mep-fg);font-weight:500;">{valueFormatter(s.values[hovered])}</span>
+            <span class="num" style="color:var(--mep-fg);font-weight:500;">{valueFormatter(s.values[hovered]!)}</span>
           </div>
         {/each}
       </div>

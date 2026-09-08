@@ -25,7 +25,7 @@ import { sendMock, setUpPgBossTestEnv } from './helpers/pg-boss-mock';
 setUpPgBossTestEnv();
 
 function payloadOf(callIndex = 0): Record<string, unknown> {
-	return sendMock.mock.calls[callIndex][1] as Record<string, unknown>;
+	return sendMock.mock.calls[callIndex]![1] as Record<string, unknown>;
 }
 
 describe('enqueue* functions carry the caller\'s requestId into the pg-boss job payload', () => {

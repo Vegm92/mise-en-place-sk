@@ -66,7 +66,7 @@ describe('renderTemplate (server-safe i18n, used to write system_notifications.m
 			const template = (translations[loc] as Record<string, string>)[key];
 			expect(template, `${loc}/${key} must exist in translations`).toBeDefined();
 			expect(template).not.toBe(key);
-			expect(template.length).toBeGreaterThan(0);
+			expect(template!.length).toBeGreaterThan(0);
 		});
 	});
 });

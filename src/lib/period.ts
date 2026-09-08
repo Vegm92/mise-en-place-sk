@@ -43,7 +43,9 @@ export interface PeriodLinkState {
 }
 
 export function withPeriodParam(href: string, state: PeriodLinkState): string {
-	const [path, query = ''] = href.split('?');
+	const parts = href.split('?');
+	const path = parts[0] ?? '';
+	const query = parts[1] ?? '';
 	const params = new URLSearchParams(query);
 	const mode = periodModeForPath(path);
 	if (mode === 'range' && state.activePeriod !== DEFAULT_RANGE_PERIOD && isRangePeriod(state.activePeriod)) {

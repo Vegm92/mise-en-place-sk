@@ -85,8 +85,8 @@ describe('readJournal (drizzle/)', () => {
 		const journal = readJournal();
 		expect(journal.length).toBeGreaterThan(0);
 		for (let i = 1; i < journal.length; i++) {
-			expect(journal[i].when).toBeGreaterThan(journal[i - 1].when);
-			expect(journal[i].idx).toBe(journal[i - 1].idx + 1);
+			expect(journal[i]!.when).toBeGreaterThan(journal[i - 1]!.when);
+			expect(journal[i]!.idx).toBe(journal[i - 1]!.idx + 1);
 		}
 		expect(journal.every((j) => /^[0-9a-f]{64}$/.test(j.hash))).toBe(true);
 	});

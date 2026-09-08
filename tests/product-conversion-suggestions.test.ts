@@ -40,9 +40,9 @@ beforeAll(async () => {
 	const [sa] = await testSql`INSERT INTO suppliers (restaurant_id, name) VALUES (${ridA}, ${SUPPLIER_A_NAME}) RETURNING id`;
 	const [sb] = await testSql`INSERT INTO suppliers (restaurant_id, name) VALUES (${ridB}, ${SUPPLIER_B_NAME}) RETURNING id`;
 	const [sm] = await testSql`INSERT INTO suppliers (restaurant_id, name) VALUES (${ridA}, ${SUPPLIER_MIXED_NAME}) RETURNING id`;
-	supplierA = sa.id;
-	supplierB = sb.id;
-	supplierMixed = sm.id;
+	supplierA = sa!.id;
+	supplierB = sb!.id;
+	supplierMixed = sm!.id;
 });
 
 afterEach(async () => {
@@ -81,7 +81,7 @@ async function raiseAlert(
 		VALUES (${rid}, 'unit_conversion_needed', ${`unit_conversion_needed: ${ingredient}`}, ${payload}, ${status})
 		RETURNING id
 	`;
-	return row.id as number;
+	return row!.id as number;
 }
 
 async function raiseLine(rid: string, supplierId: number, description: string, unit: string) {
@@ -90,10 +90,10 @@ async function raiseLine(rid: string, supplierId: number, description: string, u
 	`;
 	const [line] = await testSql`
 		INSERT INTO invoice_line_items (restaurant_id, invoice_id, description, unit, quantity, unit_price, requires_unit_conversion)
-		VALUES (${rid}, ${inv.id}, ${description}, ${unit}, 2, 30, true)
+		VALUES (${rid}, ${inv!.id}, ${description}, ${unit}, 2, 30, true)
 		RETURNING id
 	`;
-	return line.id as number;
+	return line!.id as number;
 }
 
 describe.skipIf(!hasDbEnv)('loadConversionPrompts — which suggestion rows need a conversion', () => {
@@ -130,8 +130,8 @@ describe.skipIf(!hasDbEnv)('loadConversionPrompts — which suggestion rows need
 		const prompts = await loadConversionPrompts(testDb, ridA);
 
 		expect(prompts).toHaveLength(1);
-		expect(prompts[0].notificationId).toBe(newest);
-		expect(prompts[0].quantity).toBe(4);
+		expect(prompts[0]!.notificationId).toBe(newest);
+		expect(prompts[0]!.quantity).toBe(4);
 	});
 
 	it('drops prompts whose conversion rule is already defined', async () => {
@@ -185,15 +185,15 @@ describe.skipIf(!hasDbEnv)('defineUnitConversion — setting a conversion from t
 			FROM unit_conversions WHERE restaurant_id = ${ridA}
 		`;
 		expect(rows).toHaveLength(1);
-		expect(rows[0].restaurant_id).toBe(ridA);
-		expect(rows[0].supplier_id).toBe(supplierA);
-		expect(rows[0].ingredient).toBe('Aceite de Oliva');
-		expect(rows[0].purchase_unit).toBe('garrafa');
-		expect(rows[0].canonical_unit).toBe('L');
-		expect(rows[0].conversion_factor).toBe(5);
+		expect(rows[0]!.restaurant_id).toBe(ridA);
+		expect(rows[0]!.supplier_id).toBe(supplierA);
+		expect(rows[0]!.ingredient).toBe('Aceite de Oliva');
+		expect(rows[0]!.purchase_unit).toBe('garrafa');
+		expect(rows[0]!.canonical_unit).toBe('L');
+		expect(rows[0]!.conversion_factor).toBe(5);
 
 		const [after] = await testSql`SELECT status FROM system_notifications WHERE id = ${notifId}`;
-		expect(after.status).toBe('sent');
+		expect(after!.status).toBe('sent');
 
 		expect(await loadConversionPrompts(testDb, ridA)).toEqual([]);
 	});
@@ -212,11 +212,11 @@ describe.skipIf(!hasDbEnv)('defineUnitConversion — setting a conversion from t
 		});
 
 		const [rowA] = await testSql`SELECT requires_unit_conversion, canonical_unit FROM invoice_line_items WHERE id = ${lineA}`;
-		expect(rowA.requires_unit_conversion).toBe(false);
-		expect(rowA.canonical_unit).toBe('L');
+		expect(rowA!.requires_unit_conversion).toBe(false);
+		expect(rowA!.canonical_unit).toBe('L');
 
 		const [rowB] = await testSql`SELECT requires_unit_conversion FROM invoice_line_items WHERE id = ${lineB}`;
-		expect(rowB.requires_unit_conversion).toBe(true);
+		expect(rowB!.requires_unit_conversion).toBe(true);
 
 		const otherTenantRules = await testSql`SELECT id FROM unit_conversions WHERE restaurant_id = ${ridB}`;
 		expect(otherTenantRules).toHaveLength(0);
@@ -248,7 +248,7 @@ describe.skipIf(!hasDbEnv)('defineUnitConversion — setting a conversion from t
 
 		const rows = await testSql`SELECT conversion_factor FROM unit_conversions WHERE restaurant_id = ${ridA}`;
 		expect(rows).toHaveLength(1);
-		expect(rows[0].conversion_factor).toBe(25);
+		expect(rows[0]!.conversion_factor).toBe(25);
 	});
 });
 
@@ -257,7 +257,7 @@ describe.skipIf(!hasDbEnv)('future extractions consult the unit_conversions tabl
 		const before = await annotateLineItems(SUPPLIER_A_NAME, [
 			{ description: 'Aceite de Oliva', quantity: 2, unit: 'garrafa 5L', unitPrice: 30, totalPrice: 60 },
 		], ridA, supplierA, testDb);
-		expect(before.enriched[0].requiresUnitConversion).toBe(true);
+		expect(before.enriched[0]!.requiresUnitConversion).toBe(true);
 
 		await defineUnitConversion(testDb, ridA, {
 			supplierId: supplierA, supplierName: SUPPLIER_A_NAME, ingredient: 'Aceite de Oliva',
@@ -269,10 +269,10 @@ describe.skipIf(!hasDbEnv)('future extractions consult the unit_conversions tabl
 		], ridA, supplierA, testDb);
 
 		expect(after.conversionNotes).toEqual([]);
-		expect(after.enriched[0].requiresUnitConversion).toBe(false);
-		expect(after.enriched[0].canonicalUnit).toBe('L');
-		expect(after.enriched[0].convertedQuantity).toBe(10);
-		expect(after.enriched[0].convertedUnitPrice).toBe(6);
+		expect(after.enriched[0]!.requiresUnitConversion).toBe(false);
+		expect(after.enriched[0]!.canonicalUnit).toBe('L');
+		expect(after.enriched[0]!.convertedQuantity).toBe(10);
+		expect(after.enriched[0]!.convertedUnitPrice).toBe(6);
 	});
 
 	it('finds the rule when the extraction knows only the supplier name, whatever its casing', async () => {
@@ -286,9 +286,9 @@ describe.skipIf(!hasDbEnv)('future extractions consult the unit_conversions tabl
 		], ridA, null, testDb);
 
 		expect(asWorkerSeesIt.conversionNotes).toEqual([]);
-		expect(asWorkerSeesIt.enriched[0].requiresUnitConversion).toBe(false);
-		expect(asWorkerSeesIt.enriched[0].canonicalUnit).toBe('kg');
-		expect(asWorkerSeesIt.enriched[0].convertedQuantity).toBe(18);
+		expect(asWorkerSeesIt.enriched[0]!.requiresUnitConversion).toBe(false);
+		expect(asWorkerSeesIt.enriched[0]!.canonicalUnit).toBe('kg');
+		expect(asWorkerSeesIt.enriched[0]!.convertedQuantity).toBe(18);
 	});
 
 	it('does not let one tenant\'s rule answer another tenant\'s extraction', async () => {
@@ -301,7 +301,7 @@ describe.skipIf(!hasDbEnv)('future extractions consult the unit_conversions tabl
 			{ description: 'Aceite de Oliva', quantity: 2, unit: 'garrafa 5L', unitPrice: 30, totalPrice: 60 },
 		], ridB, supplierB, testDb);
 
-		expect(other.enriched[0].requiresUnitConversion).toBe(true);
+		expect(other.enriched[0]!.requiresUnitConversion).toBe(true);
 	});
 });
 

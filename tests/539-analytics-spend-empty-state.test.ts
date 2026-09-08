@@ -42,7 +42,7 @@ async function seedOldInvoice(rid: string, supplierId: number, invoiceDate: stri
 	`;
 	await testSql`
 		INSERT INTO invoice_line_items (restaurant_id, invoice_id, description, quantity, unit, unit_price, total_price)
-		VALUES (${rid}, ${inv.id}, 'Tomate pera', 10, 'kg', 9.00, 90.00)
+		VALUES (${rid}, ${inv!.id}, 'Tomate pera', 10, 'kg', 9.00, 90.00)
 	`;
 }
 
@@ -65,9 +65,9 @@ describeDb('/analytics/spend load() — no data vs none in range (issue #539)', 
 			INSERT INTO suppliers (restaurant_id, name, category)
 			VALUES (${ridOutOfRange}, 'Frutas Gómez', 'Frutas y Verduras') RETURNING id
 		`;
-		await seedOldInvoice(ridOutOfRange, Number(supplier.id), oldDate, 'OLD-1');
-		await seedOldInvoice(ridOutOfRange, Number(supplier.id), oldDate, 'OLD-2');
-		await seedOldInvoice(ridOutOfRange, Number(supplier.id), oldDate, 'OLD-3');
+		await seedOldInvoice(ridOutOfRange, Number(supplier!.id), oldDate, 'OLD-1');
+		await seedOldInvoice(ridOutOfRange, Number(supplier!.id), oldDate, 'OLD-2');
+		await seedOldInvoice(ridOutOfRange, Number(supplier!.id), oldDate, 'OLD-3');
 
 		await testSql`SELECT refresh_analytics_rollups()`;
 	});
@@ -114,7 +114,7 @@ describeDb('/analytics/spend load() — no data vs none in range (issue #539)', 
 
 		const now = new Date();
 		const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-		expect(short.monthly_spend[short.monthly_spend.length - 1].month).toBe(currentMonth);
+		expect(short.monthly_spend[short.monthly_spend.length - 1]!.month).toBe(currentMonth);
 
 		const oldMonth = oldDate.slice(0, 7);
 		const oldMonthRow = short.monthly_spend.find(m => m.month === oldMonth);
