@@ -1,5 +1,5 @@
-import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { apiError } from '$lib/server/api-response';
 import { db, runAsSystem } from '$lib/server/db';
 import { userRestaurants } from '$lib/server/schema';
 import { rateLimitScoped } from '$lib/server/rate-limit-scope';
@@ -10,10 +10,10 @@ import { userMemberships } from '$lib/server/locations';
 
 export const GET: RequestHandler = async ({ locals }) => {
 	const user = locals.user;
-	if (!user) throw error(401, 'Unauthorized');
+	if (!user) return apiError(401, 'Unauthorized');
 
 	if (!(await rateLimitScoped({ scope: 'user', name: 'account-export', max: 5 }, { userId: user.id }))) {
-		throw error(429, 'Too many requests — please wait a moment before trying again');
+		return apiError(429, 'Too many requests — please wait a moment before trying again');
 	}
 
 	const memberships = await userMemberships(user.id);

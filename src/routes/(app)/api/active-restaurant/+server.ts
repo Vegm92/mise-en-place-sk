@@ -1,26 +1,33 @@
-import { json, error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
+import * as v from 'valibot';
 import type { RequestHandler } from './$types';
 import { memberLocations } from '$lib/server/locations';
 import { rateLimitScoped } from '$lib/server/rate-limit-scope';
+import { apiError, invalidBody } from '$lib/server/api-response';
+import { parseJson } from '$lib/server/public-form-action';
 
 const NODE_ENV: string = process.env.NODE_ENV ?? 'development';
 
+const SwitchBody = v.object({
+	restaurantId: v.pipe(v.string('restaurantId is required'), v.minLength(1, 'restaurantId is required')),
+});
+
 export const POST: RequestHandler = async ({ request, locals, cookies }) => {
 	const user = locals.user;
-	if (!user) throw error(401, 'Unauthorized');
+	if (!user) return apiError(401, 'Unauthorized');
 
 	if (!(await rateLimitScoped({ scope: 'user', name: 'switch-restaurant', max: 30 }, { userId: user.id }))) {
-		throw error(429, 'Too many requests — please wait a moment and try again');
+		return apiError(429, 'Too many requests — please wait a moment and try again');
 	}
 
-	const body = await request.json().catch(() => null);
-	const restaurantId = typeof body?.restaurantId === 'string' ? body.restaurantId : '';
-	if (!restaurantId) throw error(400, 'restaurantId is required');
+	const parsed = await parseJson(SwitchBody, request);
+	if (!parsed.success) return invalidBody(parsed, 400, 'restaurantId is required');
+	const { restaurantId } = parsed.output;
 
 	const locations = await memberLocations(user.id);
 	const target = locations.find(l => l.restaurantId === restaurantId);
-	if (!target) throw error(403, 'Not a member of that restaurant');
-	if (target.locked) throw error(403, 'set.locations.err.lockedSwitch');
+	if (!target) return apiError(403, 'Not a member of that restaurant');
+	if (target.locked) return apiError(403, 'set.locations.err.lockedSwitch');
 
 	cookies.set('active_restaurant', restaurantId, {
 		path: '/',
