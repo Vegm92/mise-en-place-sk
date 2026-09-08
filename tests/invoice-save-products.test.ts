@@ -156,7 +156,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → product linking (issue #298)
 async function claimSupplier(email: string | null): Promise<number> {
 	const [row] = await testSql`
 		INSERT INTO suppliers (restaurant_id, name, contact_email)
-		VALUES (${restaurant.id}, ${`__claim_sup_${Math.random().toString(36).slice(2, 8)}__`}, ${email})
+		VALUES (${restaurant.id}, ${`__claim_sup_${randomUUID().slice(0, 6)}__`}, ${email})
 		RETURNING id`;
 	return row.id as number;
 }
@@ -168,7 +168,7 @@ async function claimInvoice(
 	const [row] = await testSql`
 		INSERT INTO invoices (restaurant_id, supplier_id, invoice_number, invoice_date, review_state, incidence_kind)
 		VALUES (
-			${restaurant.id}, ${supplierId}, ${`CLAIM-${Math.random().toString(36).slice(2, 8)}`}, '2026-07-20',
+			${restaurant.id}, ${supplierId}, ${`CLAIM-${randomUUID().slice(0, 6)}`}, '2026-07-20',
 			${opts.reviewState ?? 'incidencia'}, ${opts.incidenceKind === undefined ? 'documento' : opts.incidenceKind}
 		)
 		RETURNING id`;

@@ -5,6 +5,7 @@
  * tests/restaurant-phone-signal.test.ts). Centralized so the same literal
  * shape doesn't reappear per file (jscpd / `pnpm lint:duplication`).
  */
+import { randomUUID } from 'node:crypto';
 import { expect } from 'vitest';
 import { fakeBatchItem } from './batch-item';
 import type { BatchItem } from '../../src/lib/server/batch';
@@ -52,7 +53,7 @@ export function lineItemInvoiceForm(
 ): FormData {
 	const fd = new FormData();
 	fd.append('supplier_name', supplier);
-	fd.append('invoice_number', `INV-${Math.random().toString(36).slice(2, 8)}`);
+	fd.append('invoice_number', `INV-${randomUUID().slice(0, 6)}`);
 	fd.append('invoice_date', '2026-07-20');
 	fd.append('total_amount', '100');
 	if (opts.lowConfidenceAck ?? true) fd.append('low_confidence_ack', 'true');
