@@ -38,8 +38,6 @@ describe('sendWhatsAppMessage', () => {
 	it('posts to the configured Graph API version, not a hardcoded one', async () => {
 		await setupWhatsAppSend();
 
-		await sendWhatsAppMessage('34612345678', 'hola');
-
 		const [url, init] = fetchMock.mock.calls[0]!;
 		expect(url).toBe('https://graph.facebook.com/v25.0/123456/messages');
 		expect(init.headers.Authorization).toBe('Bearer test-token');

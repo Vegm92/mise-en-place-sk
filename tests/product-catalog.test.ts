@@ -142,8 +142,8 @@ describe.skipIf(!hasDbEnv)('resolveLineProducts — pack info carried onto new p
 
 		const [packProd] = await testSql`
 			SELECT units_per_pack, base_unit FROM products WHERE restaurant_id = ${rid} AND id = ${r.productId}`;
-		expect(prod!.units_per_pack).toBe(6);
-		expect(prod!.base_unit).toBe('L');
+		expect(packProd!.units_per_pack).toBe(6);
+		expect(packProd!.base_unit).toBe('L');
 	});
 
 	it('leaves units_per_pack and base_unit null when the line has no derivable pack size', async () => {
@@ -155,8 +155,8 @@ describe.skipIf(!hasDbEnv)('resolveLineProducts — pack info carried onto new p
 
 		const [nullProd] = await testSql`
 			SELECT units_per_pack, base_unit FROM products WHERE restaurant_id = ${rid} AND id = ${r.productId}`;
-		expect(prod!.units_per_pack).toBeNull();
-		expect(prod!.base_unit).toBeNull();
+		expect(nullProd!.units_per_pack).toBeNull();
+		expect(nullProd!.base_unit).toBeNull();
 	});
 });
 

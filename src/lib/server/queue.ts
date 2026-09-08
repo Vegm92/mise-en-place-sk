@@ -1,5 +1,6 @@
 import { PgBoss } from 'pg-boss';
 import { pgSslConfig } from './db-ssl';
+import type { WhatsAppInboundMessage } from './whatsapp-bot';
 
 const DATABASE_URL = process.env.DATABASE_URL ?? '';
 
@@ -7,12 +8,14 @@ export const EXTRACTION_QUEUE = 'extract-invoice';
 export const NORMALIZE_QUEUE = 'normalize-product';
 export const CATEGORIZE_QUEUE = 'categorize-product';
 export const WHATSAPP_NOTIFY_QUEUE = 'whatsapp-notify';
+export const WHATSAPP_INBOUND_QUEUE = 'whatsapp-inbound';
 export const ACCOUNT_CLEANUP_QUEUE = 'account-cleanup';
 
 export const EXTRACTION_DEAD_LETTER_QUEUE = `${EXTRACTION_QUEUE}-dead-letter`;
 export const NORMALIZE_DEAD_LETTER_QUEUE = `${NORMALIZE_QUEUE}-dead-letter`;
 export const CATEGORIZE_DEAD_LETTER_QUEUE = `${CATEGORIZE_QUEUE}-dead-letter`;
 export const WHATSAPP_NOTIFY_DEAD_LETTER_QUEUE = `${WHATSAPP_NOTIFY_QUEUE}-dead-letter`;
+export const WHATSAPP_INBOUND_DEAD_LETTER_QUEUE = `${WHATSAPP_INBOUND_QUEUE}-dead-letter`;
 export const ACCOUNT_CLEANUP_DEAD_LETTER_QUEUE = `${ACCOUNT_CLEANUP_QUEUE}-dead-letter`;
 
 export const DEAD_LETTER_QUEUES: Array<{ source: string; deadLetter: string }> = [
@@ -20,6 +23,7 @@ export const DEAD_LETTER_QUEUES: Array<{ source: string; deadLetter: string }> =
 	{ source: NORMALIZE_QUEUE, deadLetter: NORMALIZE_DEAD_LETTER_QUEUE },
 	{ source: CATEGORIZE_QUEUE, deadLetter: CATEGORIZE_DEAD_LETTER_QUEUE },
 	{ source: WHATSAPP_NOTIFY_QUEUE, deadLetter: WHATSAPP_NOTIFY_DEAD_LETTER_QUEUE },
+	{ source: WHATSAPP_INBOUND_QUEUE, deadLetter: WHATSAPP_INBOUND_DEAD_LETTER_QUEUE },
 	{ source: ACCOUNT_CLEANUP_QUEUE, deadLetter: ACCOUNT_CLEANUP_DEAD_LETTER_QUEUE },
 ];
 
