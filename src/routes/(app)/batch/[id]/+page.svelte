@@ -471,7 +471,7 @@
       ...uncertainLineIndexes.map(i => ({ line: i })),
     ];
     if (targets.length === 0) return;
-    const target = targets[uncertainCursor % targets.length];
+    const target = targets[uncertainCursor % targets.length]!;
     uncertainCursor += 1;
     if (target.line !== undefined) openLine = target.line;
     tick().then(() => {
@@ -620,8 +620,9 @@
   const linesCarryRates = $derived(lineRates.length > 0);
 
   function syncBandAmount(i: number) {
-    const cents = bandAmountCents(taxBands[i].base, taxBands[i].rate);
-    if (cents !== null) taxBands[i].amount = (cents / 100).toFixed(2);
+    const band = taxBands[i]!;
+    const cents = bandAmountCents(band.base, band.rate);
+    if (cents !== null) band.amount = (cents / 100).toFixed(2);
   }
   function addBand() {
     taxBands = [...taxBands, { rate: '', type: '', base: lineTotal.toFixed(2), amount: '' }];
@@ -747,7 +748,7 @@
       due_date: dueDateInput,
       total_amount: totalAmountInput,
     };
-    return { labelKey: RETURN_LABELS[returnField], value: values[returnField] ?? '' };
+    return { labelKey: RETURN_LABELS[returnField] ?? '', value: values[returnField] ?? '' };
   });
 
   let lastFocusedField: string | null = null;
@@ -1305,7 +1306,7 @@
                       <div class="rev-card-body">
                         <div>
                           <label class="rev-field-label" for="line-desc-{i}">{t('tbl.desc')} <ConfidenceDot confidence={itemConf} size={6} /></label>
-                          <input id="line-desc-{i}" type="text" name="line_descriptions" bind:value={lineItems[i].description} class="rev-input" />
+                          <input id="line-desc-{i}" type="text" name="line_descriptions" bind:value={item.description} class="rev-input" />
                         </div>
                         <div>
                           <label class="rev-field-label" for="line-product-{i}">
@@ -1319,31 +1320,31 @@
                             {/if}
                           </label>
                           <input id="line-product-{i}" type="text" list="mep-product-options"
-                            bind:value={lineItems[i].product_name} class="rev-input"
+                            bind:value={item.product_name} class="rev-input"
                             placeholder={t('review.productPh')} title={t('review.productMatchHint')} />
                         </div>
                         <div class="rev-card-grid3">
                           <div>
                             <label class="rev-field-label" for="line-qty-{i}">{t('tbl.qty')}</label>
-                            <input id="line-qty-{i}" type="text" name="line_quantities" bind:value={lineItems[i].quantity} class="rev-input num" style="text-align:right;" />
+                            <input id="line-qty-{i}" type="text" name="line_quantities" bind:value={item.quantity} class="rev-input num" style="text-align:right;" />
                           </div>
                           <div>
                             <label class="rev-field-label" for="line-unit-{i}">{t('tbl.unit')}</label>
-                            <input id="line-unit-{i}" type="text" name="line_units" bind:value={lineItems[i].unit} class="rev-input" />
+                            <input id="line-unit-{i}" type="text" name="line_units" bind:value={item.unit} class="rev-input" />
                           </div>
                           <div>
                             <label class="rev-field-label" for="line-rate-{i}">{t('review.lineRate')}</label>
-                            <input id="line-rate-{i}" type="text" bind:value={lineItems[i].tax_rate} class="rev-input num" placeholder="%" style="text-align:right;" />
+                            <input id="line-rate-{i}" type="text" bind:value={item.tax_rate} class="rev-input num" placeholder="%" style="text-align:right;" />
                           </div>
                         </div>
                         <div class="rev-card-grid2">
                           <div>
                             <label class="rev-field-label" for="line-unit-price-{i}">{t('tbl.unitPrice')}</label>
-                            <input id="line-unit-price-{i}" type="text" name="line_unit_prices" bind:value={lineItems[i].unit_price} class="rev-input num" style="text-align:right;" />
+                            <input id="line-unit-price-{i}" type="text" name="line_unit_prices" bind:value={item.unit_price} class="rev-input num" style="text-align:right;" />
                           </div>
                           <div>
                             <label class="rev-field-label" for="line-total-{i}">{t('tbl.total')}</label>
-                            <input id="line-total-{i}" type="text" name="line_total_prices" bind:value={lineItems[i].total_price} class="rev-input num" style="text-align:right;font-weight:600;" />
+                            <input id="line-total-{i}" type="text" name="line_total_prices" bind:value={item.total_price} class="rev-input num" style="text-align:right;font-weight:600;" />
                           </div>
                         </div>
                         <button type="button" class="rev-card-remove" onclick={() => removeRow(i)}>
@@ -1385,14 +1386,14 @@
                       <td class="num text-fg-4 text-[11px]">{i + 1}</td>
                       <td>
                         <div style="display:flex;align-items:center;gap:5px;">
-                          <input type="text" name="line_descriptions" bind:value={lineItems[i].description}
+                          <input type="text" name="line_descriptions" bind:value={item.description}
                             aria-label={ti('batch.aria.lineDesc', { row: i + 1 })}
                             class="rev-cell" style="font-weight:500;" />
                           <ConfidenceDot confidence={itemConf} size={6} />
                         </div>
                         <div class="rev-line-product">
                           <span class="rev-line-product-label">{t('review.productMatch')}</span>
-                          <input type="text" list="mep-product-options" bind:value={lineItems[i].product_name}
+                          <input type="text" list="mep-product-options" bind:value={item.product_name}
                             aria-label={ti('batch.aria.lineProduct', { row: i + 1 })}
                             class="rev-cell rev-product-input" placeholder={t('review.productPh')}
                             title={t('review.productMatchHint')} />
@@ -1406,26 +1407,26 @@
                         </div>
                       </td>
                       <td class="num">
-                        <input type="text" name="line_quantities" bind:value={lineItems[i].quantity}
+                        <input type="text" name="line_quantities" bind:value={item.quantity}
                           aria-label={ti('batch.aria.lineQty', { row: i + 1 })}
                           class="rev-cell num" style="text-align:right;" />
                       </td>
                       <td>
-                        <input type="text" name="line_units" bind:value={lineItems[i].unit}
+                        <input type="text" name="line_units" bind:value={item.unit}
                           aria-label={ti('batch.aria.lineUnit', { row: i + 1 })}
                           class="rev-cell text-fg-2" />
                       </td>
                       <td class="num">
-                        <input type="text" name="line_unit_prices" bind:value={lineItems[i].unit_price}
+                        <input type="text" name="line_unit_prices" bind:value={item.unit_price}
                           aria-label={ti('batch.aria.lineUnitPrice', { row: i + 1 })}
                           class="rev-cell num" style="text-align:right;" />
                       </td>
                       <td class="num">
-                        <input type="text" bind:value={lineItems[i].tax_rate} class="rev-cell num rev-cell-rate"
+                        <input type="text" bind:value={item.tax_rate} class="rev-cell num rev-cell-rate"
                           placeholder="%" aria-label={ti('batch.aria.lineRate', { row: i + 1 })} style="text-align:right;" />
                       </td>
                       <td class="num">
-                        <input type="text" name="line_total_prices" bind:value={lineItems[i].total_price}
+                        <input type="text" name="line_total_prices" bind:value={item.total_price}
                           aria-label={ti('batch.aria.lineTotal', { row: i + 1 })}
                           class="rev-cell num" style="text-align:right;font-weight:500;" />
                       </td>
@@ -1522,22 +1523,22 @@
                     {#each taxBands as band, i}
                       <tr>
                         <td>
-                          <input type="text" bind:value={taxBands[i].rate} oninput={() => syncBandAmount(i)}
+                          <input type="text" bind:value={band.rate} oninput={() => syncBandAmount(i)}
                             class="rev-cell num" placeholder="%" aria-label={t('review.taxRate')} style="text-align:right;" />
                         </td>
                         <td>
-                          <select bind:value={taxBands[i].type} class="rev-cell" aria-label={t('review.taxKind')}>
+                          <select bind:value={band.type} class="rev-cell" aria-label={t('review.taxKind')}>
                             <option value="">{t('review.taxKindNone')}</option>
                             <option value="iva">{t('review.taxIva')}</option>
                             <option value="rec">{t('review.taxRec')}</option>
                           </select>
                         </td>
                         <td class="num">
-                          <input type="text" bind:value={taxBands[i].base} oninput={() => syncBandAmount(i)}
+                          <input type="text" bind:value={band.base} oninput={() => syncBandAmount(i)}
                             class="rev-cell num" aria-label={t('review.taxBandBase')} style="text-align:right;" />
                         </td>
                         <td class="num">
-                          <input type="text" bind:value={taxBands[i].amount}
+                          <input type="text" bind:value={band.amount}
                             class="rev-cell num" aria-label={t('review.taxAmount')} style="text-align:right;font-weight:500;" />
                         </td>
                         <td>

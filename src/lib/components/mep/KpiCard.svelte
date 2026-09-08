@@ -16,12 +16,12 @@
   }: {
     label: string;
     value: string | number;
-    sub?: string;
-    variant?: Variant;
-    spark?: number[];
-    delta?: number;
-    deltaCtx?: string;
-    invert?: boolean;
+    sub?: string | undefined;
+    variant?: Variant | undefined;
+    spark?: number[] | undefined;
+    delta?: number | undefined;
+    deltaCtx?: string | undefined;
+    invert?: boolean | undefined;
   } = $props();
 
   const tintClass: Record<Variant, string> = {

@@ -96,7 +96,7 @@ describe('createGeminiProvider().generate — response schema forwarding (issue 
 		await provider.generate('hello', undefined, undefined, schema);
 
 		expect(generateContentMock).toHaveBeenCalledOnce();
-		const call = generateContentMock.mock.calls[0][0];
+		const call = generateContentMock.mock.calls[0]![0];
 		expect(call.config?.responseMimeType).toBe('application/json');
 		expect(call.config?.responseSchema).toBe(schema);
 	});
@@ -106,7 +106,7 @@ describe('createGeminiProvider().generate — response schema forwarding (issue 
 		const provider = createGeminiProvider();
 		await provider.generate('hello');
 
-		const call = generateContentMock.mock.calls[0][0];
+		const call = generateContentMock.mock.calls[0]![0];
 		expect(call.config).toBeUndefined();
 	});
 });

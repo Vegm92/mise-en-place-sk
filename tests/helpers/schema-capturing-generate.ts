@@ -21,6 +21,6 @@ export async function expectProviderSchemaForwarded<TData>(
 	const generate = makeSchemaCapturingGenerate(responseText);
 	await runJob(jobData, { provider: { model: 'test-model', generate }, recordUsage: vi.fn(async () => {}) });
 	expect(generate).toHaveBeenCalledOnce();
-	const [, , , schema] = generate.mock.calls[0];
+	const [, , , schema] = generate.mock.calls[0]!;
 	expect(schema).toMatchObject({ type: 'OBJECT' });
 }

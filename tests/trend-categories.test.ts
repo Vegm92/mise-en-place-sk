@@ -43,9 +43,9 @@ describeDb('spend trend — category buckets', () => {
 		// None of these lines is linked to a product, which is also the fallback case:
 		// COALESCE(products.category, suppliers.category, 'Other') lands on the tag.
 		const inserted = await testDb.insert(invoices).values([
-			{ restaurantId, supplierId: uncategorized.id, invoiceNumber: 'T-NULL', invoiceDate: today, totalAmount: '400.00', status: 'pending' },
-			{ restaurantId, supplierId: explicitOther.id, invoiceNumber: 'T-OTHER', invoiceDate: today, totalAmount: '150.00', status: 'pending' },
-			{ restaurantId, supplierId: produce.id, invoiceNumber: 'T-FRUIT', invoiceDate: today, totalAmount: '90.00', status: 'pending' },
+			{ restaurantId, supplierId: uncategorized!.id, invoiceNumber: 'T-NULL', invoiceDate: today, totalAmount: '400.00', status: 'pending' },
+			{ restaurantId, supplierId: explicitOther!.id, invoiceNumber: 'T-OTHER', invoiceDate: today, totalAmount: '150.00', status: 'pending' },
+			{ restaurantId, supplierId: produce!.id, invoiceNumber: 'T-FRUIT', invoiceDate: today, totalAmount: '90.00', status: 'pending' },
 		]).returning({ id: invoices.id, invoiceNumber: invoices.invoiceNumber });
 
 		const idOf = (number: string) => inserted.find((i) => i.invoiceNumber === number)!.id;
@@ -80,7 +80,7 @@ describeDb('spend trend — category buckets', () => {
 		// One segment, not two — otherwise the chart stacks 'Other' twice and the
 		// legend repeats it.
 		expect(other).toHaveLength(1);
-		expect(other[0].amount).toBe(550);
+		expect(other[0]!.amount).toBe(550);
 	});
 
 	it('never emits a bare null category', async () => {
@@ -105,7 +105,7 @@ describeDb('spend trend — category buckets', () => {
 			const segments = await currentSegments(granularity);
 			const other = segments.filter((s) => s.category === UNCATEGORIZED_CATEGORY);
 			expect(other, `granularity ${granularity}`).toHaveLength(1);
-			expect(other[0].amount, `granularity ${granularity}`).toBe(550);
+			expect(other[0]!.amount, `granularity ${granularity}`).toBe(550);
 		}
 	});
 });

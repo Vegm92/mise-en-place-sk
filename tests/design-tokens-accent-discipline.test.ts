@@ -81,7 +81,7 @@ const accentBlocks = [
 	.map(m => ({
 		name: m[2],
 		theme: m[1] ? 'dark' : 'light',
-		acc: m[3].match(/--mep-acc:\s*(#[0-9a-fA-F]{6})/)?.[1],
+		acc: m[3]!.match(/--mep-acc:\s*(#[0-9a-fA-F]{6})/)?.[1],
 	}))
 	.filter((b): b is { name: string; theme: string; acc: string } => Boolean(b.acc));
 
@@ -144,7 +144,7 @@ describe('accent discipline — blue acts, warm warns', () => {
 		const unknown: string[] = [];
 		for (const { rel, text } of sources) {
 			for (const m of text.matchAll(/data-accent="([a-z]+)"/g)) {
-				if (!declared.has(m[1])) unknown.push(`${rel}: data-accent="${m[1]}"`);
+				if (!declared.has(m[1]!)) unknown.push(`${rel}: data-accent="${m[1]!}"`);
 			}
 		}
 		expect(unknown).toEqual([]);
@@ -162,7 +162,7 @@ describe('accent discipline — blue acts, warm warns', () => {
 				/(?:const|let)\s+([A-Za-z_0-9]*(?:COLORS|PALETTE|SERIES|CAT)[A-Za-z_0-9]*)\s*(?::[^=]+)?=\s*\[([^\]]*)\]/g,
 			);
 			for (const m of decls) {
-				if (SEMANTIC.test(m[2])) offenders.push(`${rel}: ${m[1]}`);
+				if (SEMANTIC.test(m[2]!)) offenders.push(`${rel}: ${m[1]!}`);
 			}
 		}
 		expect(offenders).toEqual([]);
@@ -171,7 +171,7 @@ describe('accent discipline — blue acts, warm warns', () => {
 	it('never hard-codes an accent or severity value in a component', () => {
 		const ramp = new Set(
 			[...cssCode.matchAll(/--mep-(?:acc|acc-hover|warn|caution|neg|pos|info):\s*(#[0-9a-fA-F]{6})/g)]
-				.map(m => m[1].toLowerCase()),
+				.map(m => m[1]!.toLowerCase()),
 		);
 		expect(ramp.size).toBeGreaterThan(0);
 

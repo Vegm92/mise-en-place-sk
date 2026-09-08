@@ -55,7 +55,7 @@ export function createGeminiProvider() {
 			const response = await ai.models.generateContent({
 				model,
 				contents,
-				config: Object.keys(config).length ? config : undefined,
+				...(Object.keys(config).length ? { config } : {}),
 			});
 			return {
 				text: response.text ?? '',

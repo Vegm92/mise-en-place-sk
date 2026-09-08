@@ -114,9 +114,9 @@ export const actions: Actions = {
 
 		if (saved.length === 0) return rejectSavedNothing(errors);
 
-		const { batchId, itemIds } = await createBatch(rid, saved.map((name, i) => ({ key: keys[i], name })));
+		const { batchId, itemIds } = await createBatch(rid, saved.map((name, i) => ({ key: keys[i]!, name })));
 
-		await enqueueBatchExtraction(itemIds[0], rid, {
+		await enqueueBatchExtraction(itemIds[0]!, rid, {
 			getItem,
 			getBatchItems,
 			markQueued,

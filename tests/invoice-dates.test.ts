@@ -141,14 +141,14 @@ describe.skipIf(!hasDbEnv)('invoice date write boundary', () => {
 			SELECT data_type FROM information_schema.columns
 			WHERE table_name = 'invoices' AND column_name = 'invoice_date'
 		`;
-		expect(col.data_type).toBe('date');
+		expect(col!.data_type).toBe('date');
 
 		const [row] = await testSql`
 			SELECT invoice_date::text AS invoice_date, due_date::text AS due_date FROM invoices
 			WHERE restaurant_id = ${rid} AND invoice_number = 'DATE-OK-1'
 		`;
-		expect(row.invoice_date).toBe('2026-01-05');
-		expect(row.due_date).toBe('2026-02-04');
+		expect(row!.invoice_date).toBe('2026-01-05');
+		expect(row!.due_date).toBe('2026-02-04');
 	});
 
 	it('orders by calendar date, not by string', async () => {

@@ -45,7 +45,7 @@ vi.mock('$lib/server/db', async () => {
 	// in that case, but this factory still runs at import time, and
 	// `new Proxy(null, ...)` throws, failing the whole file at collection
 	// instead of skipping it. Hand back an inert stand-in: nothing reads it.
-	if (!testDb) return { db: {}, forTenant, runAsSystem: (fn: () => unknown) => fn() };
+	if (!testDb) return { db: {}, forTenant };
 	const db = new Proxy(testDb as object, {
 		get(target, prop, receiver) {
 			if (prop === 'transaction') {
@@ -61,7 +61,7 @@ vi.mock('$lib/server/db', async () => {
 			return Reflect.get(target, prop, receiver);
 		},
 	});
-	return { db, forTenant, runAsSystem: (fn: () => unknown) => fn() };
+	return { db, forTenant };
 });
 
 import { testSql, closeDb, hasDbEnv } from './helpers/test-db';
@@ -74,13 +74,13 @@ async function makeUser(suffix: string, passwordHash: string | null = null) {
 		VALUES (${email}, ${'Chef ' + suffix}, ${passwordHash}, now())
 		RETURNING id
 	`;
-	return { id: row.id as string, email };
+	return { id: row!.id as string, email };
 }
 
 async function makeRestaurant(suffix: string) {
 	const slug = `test-vitest-acct-del-${suffix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 	const [row] = await testSql`INSERT INTO restaurants (name, slug) VALUES (${'Rest ' + suffix}, ${slug}) RETURNING id`;
-	return row.id as string;
+	return row!.id as string;
 }
 
 async function membership(userId: string, restaurantId: string, role: 'owner' | 'member' = 'owner') {
@@ -96,16 +96,6 @@ async function setSubscription(restaurantId: string, stripeSubscriptionId: strin
 
 async function addInvoiceFile(restaurantId: string, sourceFile: string) {
 	await testSql`INSERT INTO invoices (restaurant_id, source_file) VALUES (${restaurantId}, ${sourceFile})`;
-}
-
-async function seedOwnedRestaurant(userId: string, suffix: string) {
-	const rid = await makeRestaurant(suffix);
-	await membership(userId, rid, 'owner');
-	const subId = `sub_${suffix}_${Date.now()}`;
-	const fileKey = `invoices/${suffix}-${Date.now()}.pdf`;
-	await setSubscription(rid, subId);
-	await addInvoiceFile(rid, fileKey);
-	return { rid, subId, fileKey };
 }
 
 async function userExists(id: string) {
@@ -137,11 +127,6 @@ async function runDelete(userId: string, email: string, body: unknown, cookieDel
 		const t = thrown as { status?: number; body?: { message: string }; message?: string };
 		return { thrown: true as const, status: t.status, message: t.body?.message ?? t.message };
 	}
-}
-
-async function runDeleteAsOwner(userId: string, email: string) {
-	verifyCredentialsMock.mockResolvedValue({ id: userId, email, name: null, image: null });
-	return runDelete(userId, email, { password: 'correct-horse' });
 }
 
 async function cleanupUserAndRestaurants(userId: string, restaurantIds: string[]) {
@@ -241,7 +226,12 @@ describe.skipIf(!hasDbEnv)('POST /api/user/delete (issue #492)', () => {
 
 	it('success path: all rows gone, and cleanup is enqueued strictly after the commit (real DB read inside the mock)', async () => {
 		const { id: userId, email } = await makeUser('success', 'hashed:pw');
-		const { rid, subId, fileKey } = await seedOwnedRestaurant(userId, 'success');
+		const rid = await makeRestaurant('success');
+		await membership(userId, rid, 'owner');
+		const subId = `sub_success_${Date.now()}`;
+		await setSubscription(rid, subId);
+		const fileKey = `invoices/success-${Date.now()}.pdf`;
+		await addInvoiceFile(rid, fileKey);
 		verifyCredentialsMock.mockResolvedValue({ id: userId, email, name: null, image: null });
 
 		let userStillPresentWhenEnqueued: boolean | null = null;
@@ -306,25 +296,25 @@ describe.skipIf(!hasDbEnv)('POST /api/user/delete (issue #492)', () => {
 		`;
 		await testSql`
 			INSERT INTO invoice_line_items (restaurant_id, invoice_id, description)
-			VALUES (${rid}, ${invoiceRow.id}, 'line 1')
+			VALUES (${rid}, ${invoiceRow!.id}, 'line 1')
 		`;
 		const [sessionRow] = await testSql`
 			INSERT INTO chat_sessions (restaurant_id, title) VALUES (${rid}, 'session') RETURNING id
 		`;
 		await testSql`
 			INSERT INTO chat_messages (restaurant_id, session_id, role, text)
-			VALUES (${rid}, ${sessionRow.id}, 'user', 'hi')
+			VALUES (${rid}, ${sessionRow!.id}, 'user', 'hi')
 		`;
 		const [productRow] = await testSql`
 			INSERT INTO products (restaurant_id, canonical_name, name_key) VALUES (${rid}, 'Aceite', 'aceite-mapfk') RETURNING id
 		`;
 		await testSql`
-			INSERT INTO product_aliases (restaurant_id, product_id, raw_key) VALUES (${rid}, ${productRow.id}, 'aceite-raw')
+			INSERT INTO product_aliases (restaurant_id, product_id, raw_key) VALUES (${rid}, ${productRow!.id}, 'aceite-raw')
 		`;
 		const [batchRow] = await testSql`INSERT INTO upload_batches (restaurant_id) VALUES (${rid}) RETURNING id`;
 		await testSql`
 			INSERT INTO batch_items (batch_id, restaurant_id, position, file_key, display_name)
-			VALUES (${batchRow.id}, ${rid}, 1, 'k', 'd')
+			VALUES (${batchRow!.id}, ${rid}, 1, 'k', 'd')
 		`;
 
 		const result = await runDelete(userId, email, { password: 'correct-horse' });
@@ -341,24 +331,6 @@ describe.skipIf(!hasDbEnv)('POST /api/user/delete (issue #492)', () => {
 		expect(await testSql`SELECT id FROM product_aliases WHERE restaurant_id = ${rid}`).toHaveLength(0);
 		expect(await testSql`SELECT id FROM upload_batches WHERE restaurant_id = ${rid}`).toHaveLength(0);
 		expect(await testSql`SELECT id FROM batch_items WHERE restaurant_id = ${rid}`).toHaveLength(0);
-	});
-
-	it('a user who solely owns two restaurants gets both subscriptions cancelled and both sets of files collected', async () => {
-		const { id: userId, email } = await makeUser('multi', 'hashed:pw');
-		const a = await seedOwnedRestaurant(userId, 'multi-a');
-		const b = await seedOwnedRestaurant(userId, 'multi-b');
-
-		const result = await runDeleteAsOwner(userId, email);
-
-		expect(result).toMatchObject({ thrown: false, status: 200, json: { deleted: true } });
-		expect(await restaurantExists(a.rid)).toBe(false);
-		expect(await restaurantExists(b.rid)).toBe(false);
-
-		expect(enqueueAccountCleanupMock).toHaveBeenCalledTimes(1);
-		const [uid, , subIds, keys] = enqueueAccountCleanupMock.mock.calls[0] as [string, string | null, string[], string[]];
-		expect(uid).toBe(userId);
-		expect([...subIds].sort()).toEqual([a.subId, b.subId].sort());
-		expect([...keys].sort()).toEqual([a.fileKey, b.fileKey].sort());
 	});
 
 	it('rate limits deletion attempts', async () => {

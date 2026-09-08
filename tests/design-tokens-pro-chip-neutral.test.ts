@@ -19,11 +19,12 @@ const ROOT = path.resolve(__dirname, '..');
 const LAYOUT = path.join(ROOT, 'src/routes/(app)/+layout.svelte');
 const layout = readFileSync(LAYOUT, 'utf8');
 
-/** bg-hover + text-fg-2 + border border-border */
-const NEUTRAL_CHIP = [/\bbg-hover\b/, /\btext-fg-2\b/, /\bborder-border\b/];
+/** background: var(--mep-hover); color: var(--mep-fg-2); border: 1px solid var(--mep-border); */
+const NEUTRAL_CHIP =
+	/background:var\(--mep-hover\);color:var\(--mep-fg-2\);border:1px solid var\(--mep-border\);/;
 
 /** Every span rendering the PRO badge translation key, wherever it sits in the file. */
-const chipSpans = [...layout.matchAll(/<span\s+class="([^"]*)">\{t\('nav\.badge\.pro'\)\}<\/span>/g)].map(
+const chipSpans = [...layout.matchAll(/<span\s+style="([^"]*)">\{t\('nav\.badge\.pro'\)\}<\/span>/g)].map(
 	m => m[1],
 );
 
@@ -35,12 +36,12 @@ describe('PRO chip stays neutral (ADR-026)', () => {
 	});
 
 	it('never spells a PRO chip with --mep-acc', () => {
-		const offenders = chipSpans.filter(cls => /--mep-acc|(?:bg|text|border)-acc\b/.test(cls));
+		const offenders = chipSpans.filter(style => /--mep-acc/.test(style!));
 		expect(offenders).toEqual([]);
 	});
 
 	it('every PRO chip uses the neutral background/color/border triple', () => {
-		const offenders = chipSpans.filter(cls => !NEUTRAL_CHIP.every(re => re.test(cls)));
+		const offenders = chipSpans.filter(style => !NEUTRAL_CHIP.test(style!));
 		expect(offenders).toEqual([]);
 	});
 });

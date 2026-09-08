@@ -184,7 +184,7 @@ export async function recordDeadLetter(input: DeadLetterInput): Promise<number |
 						eq(deadLetterQueue.status, 'pending'),
 					))
 					.returning({ id: deadLetterQueue.id });
-				if (bumped.length > 0) return bumped[0].id;
+				if (bumped.length > 0) return bumped[0]!.id;
 			}
 
 			const [row] = await db

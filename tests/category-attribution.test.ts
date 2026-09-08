@@ -104,14 +104,14 @@ async function makeSupplier(rid: string, name: string, category: string | null):
 	const [row] = await testDb.insert(suppliers)
 		.values({ restaurantId: rid, name, category })
 		.returning({ id: suppliers.id });
-	return row.id;
+	return row!.id;
 }
 
 async function makeProduct(rid: string, name: string, category: string | null): Promise<number> {
 	const [row] = await testDb.insert(products)
 		.values({ restaurantId: rid, canonicalName: name, nameKey: name.toLowerCase(), category })
 		.returning({ id: products.id });
-	return row.id;
+	return row!.id;
 }
 
 /** One invoice whose total_amount is exactly the sum of its lines. */
@@ -130,12 +130,12 @@ async function makeInvoice(
 		.returning({ id: invoices.id });
 	for (const line of lines) {
 		await testDb.insert(invoiceLineItems).values({
-			restaurantId: rid, invoiceId: inv.id, productId: line.productId,
+			restaurantId: rid, invoiceId: inv!.id, productId: line.productId,
 			description: line.description, quantity: 1, unit: 'ud',
 			unitPrice: line.amount.toFixed(2), totalPrice: line.amount.toFixed(2),
 		});
 	}
-	return inv.id;
+	return inv!.id;
 }
 
 describeDb('category attribution — the generalist wholesaler', () => {
@@ -241,7 +241,7 @@ describeDb('category attribution — no regression for mono-category suppliers',
 			  AND deleted_at IS NULL
 			  AND TO_CHAR(invoice_date, 'YYYY-MM') = ${MONTH}
 		`);
-		expect(total).toBe(Number(row.total));
+		expect(total).toBe(Number(row!.total));
 	});
 
 	it('a nameless line is the one way the two totals can drift apart', async () => {
@@ -253,7 +253,7 @@ describeDb('category attribution — no regression for mono-category suppliers',
 			})
 			.returning({ id: invoices.id });
 		await testDb.insert(invoiceLineItems).values({
-			restaurantId: rid, invoiceId: inv.id, description: '',
+			restaurantId: rid, invoiceId: inv!.id, description: '',
 			quantity: 1, unit: 'ud', unitPrice: '15.00', totalPrice: '15.00',
 		});
 
@@ -273,7 +273,7 @@ describeDb('category attribution — the shared criterion', () => {
 			FROM (SELECT NULL::text AS category) AS suppliers,
 			     (SELECT NULL::text AS category) AS products
 		`);
-		expect(rows[0].category).toBe(UNCATEGORIZED_CATEGORY);
+		expect(rows[0]!.category).toBe(UNCATEGORIZED_CATEGORY);
 	});
 
 	it('prefers the product over the supplier tag', async () => {
@@ -282,7 +282,7 @@ describeDb('category attribution — the shared criterion', () => {
 			FROM (SELECT 'Bebidas'::text AS category) AS suppliers,
 			     (SELECT 'Frutas y Verduras'::text AS category) AS products
 		`);
-		expect(rows[0].category).toBe('Frutas y Verduras');
+		expect(rows[0]!.category).toBe('Frutas y Verduras');
 	});
 });
 
@@ -305,7 +305,7 @@ describeDb('runBudgetCheck — one budget per category on the delivery note', ()
 				invoiceDate: today, totalAmount: '180.00', status: 'pending',
 			})
 			.returning({ id: invoices.id });
-		invoiceId = inv.id;
+		invoiceId = inv!.id;
 		await testDb.insert(invoiceLineItems).values([
 			{ restaurantId: rid, invoiceId, productId: tomate, description: 'Tomate pera', quantity: 1, unit: 'ud', unitPrice: '120.00', totalPrice: '120.00' },
 			{ restaurantId: rid, invoiceId, productId: agua, description: 'Agua mineral', quantity: 1, unit: 'ud', unitPrice: '50.00', totalPrice: '50.00' },

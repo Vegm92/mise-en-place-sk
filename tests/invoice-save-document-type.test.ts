@@ -64,7 +64,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → document_type persistence (i
 		if (out.type !== 'saved') return;
 
 		const [row] = await testSql`SELECT document_type FROM invoices WHERE id = ${out.invoiceId}`;
-		expect(row.document_type).toBe('factura');
+		expect(row!.document_type).toBe('factura');
 	});
 
 	it("persists 'albaran' when extraction classified the document as such", async () => {
@@ -74,7 +74,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → document_type persistence (i
 		if (out.type !== 'saved') return;
 
 		const [row] = await testSql`SELECT document_type FROM invoices WHERE id = ${out.invoiceId}`;
-		expect(row.document_type).toBe('albaran');
+		expect(row!.document_type).toBe('albaran');
 	});
 
 	it('stores null and still saves when extraction omits document_type (older/absent data)', async () => {
@@ -84,7 +84,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → document_type persistence (i
 		if (out.type !== 'saved') return;
 
 		const [row] = await testSql`SELECT document_type FROM invoices WHERE id = ${out.invoiceId}`;
-		expect(row.document_type).toBeNull();
+		expect(row!.document_type).toBeNull();
 	});
 
 	it('coerces an unrecognised document_type value to null instead of persisting garbage', async () => {
@@ -94,7 +94,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → document_type persistence (i
 		if (out.type !== 'saved') return;
 
 		const [row] = await testSql`SELECT document_type FROM invoices WHERE id = ${out.invoiceId}`;
-		expect(row.document_type).toBeNull();
+		expect(row!.document_type).toBeNull();
 	});
 
 	it('is a no-op for save/dedup behaviour when there is no extraction item at all', async () => {
@@ -103,6 +103,6 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → document_type persistence (i
 		if (out.type !== 'saved') return;
 
 		const [row] = await testSql`SELECT document_type FROM invoices WHERE id = ${out.invoiceId}`;
-		expect(row.document_type).toBeNull();
+		expect(row!.document_type).toBeNull();
 	});
 });

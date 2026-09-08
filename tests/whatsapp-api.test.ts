@@ -35,7 +35,7 @@ describe('sendWhatsAppMessage', () => {
 
 		await sendWhatsAppMessage('34612345678', 'hola');
 
-		const [url, init] = fetchMock.mock.calls[0];
+		const [url, init] = fetchMock.mock.calls[0]!;
 		expect(url).toBe('https://graph.facebook.com/v25.0/123456/messages');
 		expect(init.headers.Authorization).toBe('Bearer test-token');
 		expect(JSON.parse(init.body)).toEqual({
@@ -53,7 +53,7 @@ describe('sendWhatsAppMessage', () => {
 		await sendWhatsAppMessage('34612345678', 'hola');
 
 		// v19.0 expired in 2026; anything at or below it is dead on arrival.
-		const url = String(fetchMock.mock.calls[0][0]);
+		const url = String(fetchMock.mock.calls[0]![0]);
 		const version = Number(url.match(/graph\.facebook\.com\/v(\d+)\./)?.[1]);
 		expect(version).toBeGreaterThan(19);
 	});
@@ -82,10 +82,10 @@ describe('downloadWhatsAppMedia', () => {
 		const { downloadWhatsAppMedia } = await import('../src/lib/server/whatsapp');
 		const result = await downloadWhatsAppMedia('media-1');
 
-		expect(fetchMock.mock.calls[0][0]).toBe('https://graph.facebook.com/v25.0/media-1');
+		expect(fetchMock.mock.calls[0]![0]).toBe('https://graph.facebook.com/v25.0/media-1');
 		// The CDN URL is short-lived and still requires the bearer token.
-		expect(fetchMock.mock.calls[1][0]).toBe('https://lookaside.fbsbx.com/abc');
-		expect(fetchMock.mock.calls[1][1].headers.Authorization).toBe('Bearer test-token');
+		expect(fetchMock.mock.calls[1]![0]).toBe('https://lookaside.fbsbx.com/abc');
+		expect(fetchMock.mock.calls[1]![1].headers.Authorization).toBe('Bearer test-token');
 		expect(result.mimeType).toBe('application/pdf');
 		expect(result.extension).toBe('pdf');
 	});
@@ -198,7 +198,7 @@ describe('downloadWhatsAppMedia', () => {
 
 			const result = await downloadWhatsAppMedia('media-ok');
 			expect(result.mimeType).toBe('application/pdf');
-			expect(fetchMock.mock.calls[1][1].redirect).toBe('manual');
+			expect(fetchMock.mock.calls[1]![1].redirect).toBe('manual');
 		});
 
 		it('refuses to follow a redirect response, credentials and all', async () => {

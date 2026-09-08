@@ -175,7 +175,7 @@ describe('settings ?/addLocation', () => {
 	it('creates the location as a child of the paying restaurant and switches to it', async () => {
 		state.memberships = [{ restaurantId: 'rest-1' }];
 		const cookies = cookieJar();
-		const thrown = await Promise.resolve(settingsActions.addLocation(addLocationEvent('  Casa Lua Norte ', cookies)))
+		const thrown = await Promise.resolve!(settingsActions.addLocation!(addLocationEvent('  Casa Lua Norte ', cookies)))
 			.catch((e: unknown) => e);
 
 		const restaurantInsert = state.inserted.find(i => i.table === 'restaurants');
@@ -189,34 +189,34 @@ describe('settings ?/addLocation', () => {
 
 	it('generates a slug that survives duplicate names and accents', async () => {
 		state.memberships = [{ restaurantId: 'rest-1' }];
-		await Promise.resolve(settingsActions.addLocation(addLocationEvent('Café Málaga'))).catch(() => {});
+		await Promise.resolve!(settingsActions.addLocation!(addLocationEvent('Café Málaga'))).catch(() => {});
 		const slug = (state.inserted.find(i => i.table === 'restaurants')?.values as { slug: string }).slug;
 		expect(slug).toMatch(/^cafe-malaga-[0-9a-f]{6}$/);
 	});
 
 	it('refuses on a tier without multi-location', async () => {
 		state.subscriptionTier = 'pro';
-		const result = await settingsActions.addLocation(addLocationEvent('Segunda sede'));
+		const result = await settingsActions.addLocation!(addLocationEvent('Segunda sede'));
 		expect(result).toMatchObject({ status: 403, data: { error: 'set.locations.err.notAvailable' } });
 		expect(state.inserted).toEqual([]);
 	});
 
 	it('refuses once the plan allowance is used up', async () => {
 		state.memberships = Array.from({ length: 5 }, (_, i) => ({ restaurantId: `rest-${i}` }));
-		const result = await settingsActions.addLocation(addLocationEvent('Sexta sede'));
+		const result = await settingsActions.addLocation!(addLocationEvent('Sexta sede'));
 		expect(result).toMatchObject({ status: 403, data: { error: 'set.locations.err.limitReached' } });
 		expect(state.inserted).toEqual([]);
 	});
 
 	it('rejects an empty name', async () => {
-		const result = await settingsActions.addLocation(addLocationEvent('   '));
+		const result = await settingsActions.addLocation!(addLocationEvent('   '));
 		expect(result).toMatchObject({ status: 422, data: { error: 'set.locations.err.nameRequired' } });
 	});
 
 	// #499: only the owner of the current restaurant may add a billed location.
 	it('refuses a non-owner member and inserts nothing', async () => {
 		state.ownerRole = 'member';
-		const result = await settingsActions.addLocation(addLocationEvent('Sucursal ajena'));
+		const result = await settingsActions.addLocation!(addLocationEvent('Sucursal ajena'));
 		expect(result).toMatchObject({ status: 403, data: { error: 'set.locations.err.notOwner' } });
 		expect(state.inserted).toEqual([]);
 	});

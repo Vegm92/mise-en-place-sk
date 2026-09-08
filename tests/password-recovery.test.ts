@@ -89,12 +89,12 @@ beforeEach(() => {
 
 describe('/forgot-password', () => {
 	it('rejects an empty email', async () => {
-		const result = await forgotActions.default(formEvent({ email: '' }));
+		const result = await forgotActions.default!(formEvent({ email: '' }));
 		expect(result).toMatchObject({ status: 422, data: { error: 'missing' } });
 	});
 
 	it('sends a reset link when the account exists', async () => {
-		const result = await forgotActions.default(formEvent({ email: ' Chef@Example.com ' }));
+		const result = await forgotActions.default!(formEvent({ email: ' Chef@Example.com ' }));
 		expect(createVerificationTokenMock).toHaveBeenCalledWith('reset-password:chef@example.com');
 		expect(sendEmailMock).toHaveBeenCalledOnce();
 		expect(result).toEqual({ sent: true });
@@ -102,14 +102,14 @@ describe('/forgot-password', () => {
 
 	it('answers "sent" even when the account does not exist, so accounts cannot be enumerated', async () => {
 		state.userExists = false;
-		const result = await forgotActions.default(formEvent({ email: 'ghost@example.com' }));
+		const result = await forgotActions.default!(formEvent({ email: 'ghost@example.com' }));
 		expect(result).toEqual({ sent: true });
 		expect(sendEmailMock).not.toHaveBeenCalled();
 	});
 
 	it('rate limits per IP, short-circuiting before the email bucket is touched', async () => {
 		rateLimitMock.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
-		const result = await forgotActions.default(formEvent({ email: 'chef@example.com' }));
+		const result = await forgotActions.default!(formEvent({ email: 'chef@example.com' }));
 		expect(result).toMatchObject({ status: 429, data: { error: 'rate_limited' } });
 		expect(sendEmailMock).not.toHaveBeenCalled();
 		expect(rateLimitMock.mock.calls.map(c => c[0])).toEqual(['recover:ip:203.0.113.7']);
@@ -118,7 +118,7 @@ describe('/forgot-password', () => {
 
 	it('rate limits per email once the IP bucket has room', async () => {
 		rateLimitMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
-		const result = await forgotActions.default(formEvent({ email: 'chef@example.com' }));
+		const result = await forgotActions.default!(formEvent({ email: 'chef@example.com' }));
 		expect(result).toMatchObject({ status: 429, data: { error: 'rate_limited' } });
 		expect(sendEmailMock).not.toHaveBeenCalled();
 		expect(rateLimitMock.mock.calls.map(c => c[0])).toEqual([
@@ -136,12 +136,12 @@ describe('/reset-password', () => {
 	});
 
 	it('refuses without email/token', async () => {
-		const result = await resetActions.default(formEvent({ password: 'longenough123', confirm: 'longenough123' }));
+		const result = await resetActions.default!(formEvent({ password: 'longenough123', confirm: 'longenough123' }));
 		expect(result).toMatchObject({ status: 400, data: { error: 'expired' } });
 	});
 
 	it('rejects a file part posted under the password field with a clean 400 instead of crashing (issue #844)', async () => {
-		const result = await resetActions.default(
+		const result = await resetActions.default!(
 			formEventWithFile({ email: 'chef@example.com', token: 'abc', password: maliciousFile('not a password'), confirm: 'longenough123' }),
 		);
 		expect(result).toMatchObject({ status: 400, data: { error: 'expired' } });
@@ -149,14 +149,14 @@ describe('/reset-password', () => {
 	});
 
 	it('rejects a password shorter than 8 characters', async () => {
-		const result = await resetActions.default(
+		const result = await resetActions.default!(
 			formEvent({ email: 'chef@example.com', token: 'abc', password: 'short', confirm: 'short' }),
 		);
 		expect(result).toMatchObject({ status: 422, data: { error: 'tooShort' } });
 	});
 
 	it('rejects a mismatched confirmation', async () => {
-		const result = await resetActions.default(
+		const result = await resetActions.default!(
 			formEvent({ email: 'chef@example.com', token: 'abc', password: 'longenough123', confirm: 'longenough456' }),
 		);
 		expect(result).toMatchObject({ status: 422, data: { error: 'mismatch' } });
@@ -164,7 +164,7 @@ describe('/reset-password', () => {
 
 	it('rejects an invalid or expired token', async () => {
 		consumeVerificationTokenMock.mockResolvedValue(false);
-		const result = await resetActions.default(
+		const result = await resetActions.default!(
 			formEvent({ email: 'chef@example.com', token: 'abc', password: 'longenough123', confirm: 'longenough123' }),
 		);
 		expect(result).toMatchObject({ status: 400, data: { error: 'expired' } });
@@ -172,7 +172,7 @@ describe('/reset-password', () => {
 
 	it('updates the password, clears the session cookie, and sends the user back to sign in', async () => {
 		const thrown = await Promise.resolve(
-			resetActions.default(
+			resetActions.default!(
 				formEvent({ email: 'chef@example.com', token: 'abc', password: 'longenough123', confirm: 'longenough123' }),
 			),
 		).catch((e: unknown) => e);

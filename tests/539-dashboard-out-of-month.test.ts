@@ -57,8 +57,8 @@ describeDb('/dashboard load() — no data vs none this month (issue #539)', () =
 		await testSql`
 			INSERT INTO invoices (restaurant_id, supplier_id, invoice_number, invoice_date, total_amount, status)
 			VALUES
-				(${ridOtherMonth}, ${supplier.id}, 'PM-1', ${pastMonthDate}, 150.00, 'paid'),
-				(${ridOtherMonth}, ${supplier.id}, 'PM-2', ${pastMonthDate}, 210.00, 'paid')
+				(${ridOtherMonth}, ${supplier!.id}, 'PM-1', ${pastMonthDate}, 150.00, 'paid'),
+				(${ridOtherMonth}, ${supplier!.id}, 'PM-2', ${pastMonthDate}, 210.00, 'paid')
 		`;
 	});
 

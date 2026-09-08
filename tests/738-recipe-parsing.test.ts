@@ -65,7 +65,7 @@ async function newRecipe(rid: string, name: string) {
 		VALUES (${rid}, ${name}, ${normalizeProductKey(name)}, 'plato', 'draft', '4')
 		RETURNING id
 	`;
-	return Number(row.id);
+	return Number(row!.id);
 }
 
 async function newItem(rid: string, recipeId: number, name: string) {
@@ -74,7 +74,7 @@ async function newItem(rid: string, recipeId: number, name: string) {
 		VALUES (${rid}, ${recipeId}, 'free', ${name}, '1.0000', 'kg', '3.5000', '0', 1)
 		RETURNING id
 	`;
-	return Number(row.id);
+	return Number(row!.id);
 }
 
 async function itemRow(id: number) {
@@ -243,7 +243,7 @@ describe.skipIf(!hasDbEnv)('products saveFacts also bounds its macro fields (#73
 			INSERT INTO products (restaurant_id, canonical_name, name_key)
 			VALUES (${rid}, ${name}, ${normalizeProductKey(name)}) RETURNING id
 		`;
-		return Number(row.id);
+		return Number(row!.id);
 	}
 
 	async function runSaveFacts(productId: number, fields: Record<string, string>) {
@@ -274,8 +274,8 @@ describe.skipIf(!hasDbEnv)('products saveFacts also bounds its macro fields (#73
 
 		expect(result).toMatchObject({ kind: 'fail', status: 422, data: { error: 'rec.err.macro' } });
 		const [row] = await testSql`SELECT kcal_100, nutrition_source FROM products WHERE id = ${id}`;
-		expect(row.kcal_100).toBeNull();
-		expect(row.nutrition_source).toBeNull();
+		expect(row!.kcal_100).toBeNull();
+		expect(row!.nutrition_source).toBeNull();
 	});
 
 	it('a valid kcal100 still saves', async () => {
@@ -285,6 +285,6 @@ describe.skipIf(!hasDbEnv)('products saveFacts also bounds its macro fields (#73
 
 		expect(result.kind).toBe('redirect');
 		const [row] = await testSql`SELECT kcal_100 FROM products WHERE id = ${id}`;
-		expect(row.kcal_100).toBe('350.50');
+		expect(row!.kcal_100).toBe('350.50');
 	});
 });

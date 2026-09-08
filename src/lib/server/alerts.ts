@@ -47,7 +47,7 @@ type PricePoint = { unitPrice: number; normalizedUnitPrice: number | null; baseU
 
 function median(values: number[]): number {
 	const sorted = [...values].sort((a, b) => a - b);
-	return sorted[Math.floor((sorted.length - 1) / 2)];
+	return sorted[Math.floor((sorted.length - 1) / 2)] ?? 0;
 }
 
 function buildPriceHistory<K, R extends { unitPrice: string; normalizedUnitPrice: string | null; baseUnit: string | null }>(
@@ -64,9 +64,9 @@ function buildPriceHistory<K, R extends { unitPrice: string; normalizedUnitPrice
 }
 
 function collapseHistory(points: PricePoint[]): PricePoint {
-	if (points.length === 1) return points[0];
+	if (points.length === 1) return points[0]!;
 	const unitPrice = median(points.map(p => p.unitPrice));
-	const baseUnit = points[0].baseUnit;
+	const baseUnit = points[0]!.baseUnit;
 	const sameBaseUnit = baseUnit != null && points.every(p => p.baseUnit === baseUnit && p.normalizedUnitPrice != null);
 	const normalizedUnitPrice = sameBaseUnit ? median(points.map(p => p.normalizedUnitPrice!)) : null;
 	return { unitPrice, normalizedUnitPrice, baseUnit: sameBaseUnit ? baseUnit : null };
@@ -1121,7 +1121,7 @@ export async function reevaluateInvoiceAlerts(input: InvoiceReevaluationInput): 
 	await safely('possible duplicate purchase', () =>
 		reevaluateDuplicatePurchaseAlerts({
 			invoiceId, supplierId, supplierName, restaurantId,
-			documentType, invoiceDate, totalAmount, lineDescriptions, purchaseOrder,
+			documentType, invoiceDate, totalAmount, lineDescriptions, purchaseOrder: purchaseOrder ?? null,
 		}));
 
 	await safely('VERI*FACTU mismatch', () =>
@@ -1278,11 +1278,12 @@ export async function sendOverdueReminder(data: OverdueReminderJobData): Promise
 	const cnt = await db.$count(invoices, tdb.scope(invoices.restaurantId, tenantWhere));
 	if (cnt === 0) return false;
 
-	const [{ total: totalAmount }] = await db.select({
+	const [totalRow] = await db.select({
 		total: sql<number>`COALESCE(SUM(${invoices.totalAmount}), 0)::float8`,
 	})
 		.from(invoices)
 		.where(tdb.scope(invoices.restaurantId, tenantWhere));
+	const totalAmount = totalRow?.total ?? 0;
 
 	if (!(await claimOnce(data.restaurantId, 'incidencia_digest_sent_day', data.day))) return false;
 

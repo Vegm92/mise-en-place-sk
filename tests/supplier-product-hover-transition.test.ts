@@ -14,7 +14,7 @@ describe('supplier products hover-reveal transition (issue #568)', () => {
 	it('the product legend detail row is always mounted and toggled via a visibility class, not #if-gated on hover', () => {
 		expect(desktopDetail).toContain('{#if slice.totalQty != null}');
 		expect(desktopDetail).toContain(
-			'class="sup-product-detail text-[11px] text-fg-3 -mt-0.5 mb-0.5 ml-[23px]" class:is-visible={hoveredSlice === i}',
+			'class="sup-product-detail text-[11px] text-fg-3" class:is-visible={hoveredSlice === i}',
 		);
 	});
 

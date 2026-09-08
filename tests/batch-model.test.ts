@@ -42,8 +42,8 @@ describe.skipIf(!hasDbEnv)('batch creation and reads', () => {
 		const items = await store.getBatchItems(batchId);
 		expect(items.map(i => i.position)).toEqual([1, 2]);
 		expect(items.map(i => i.status)).toEqual(['pending', 'pending']);
-		expect(items[0].fileKey).toBe('ns/a.pdf');
-		expect(items[0].restaurantId).toBe(rid);
+		expect(items[0]!.fileKey).toBe('ns/a.pdf');
+		expect(items[0]!.restaurantId).toBe(rid);
 	});
 
 	it('addItems continues the position sequence', async () => {
@@ -58,12 +58,12 @@ describe.skipIf(!hasDbEnv)('guarded status transitions', () => {
 	it('walks the happy path: pending → queued → extracting → done → confirmed', async () => {
 		const { itemIds: [id] } = await store.createBatch(rid, twoFiles().slice(0, 1));
 
-		expect(await store.markQueued(id)).toBe(true);
-		expect(await store.markExtracting(id)).toBe(true);
-		expect(await store.markDone(id, { supplier_name: 'Test SL' }, ['nota'])).toBe(true);
-		expect(await store.markConfirmed(id)).toBe(true);
+		expect(await store.markQueued(id!)).toBe(true);
+		expect(await store.markExtracting(id!)).toBe(true);
+		expect(await store.markDone(id!, { supplier_name: 'Test SL' }, ['nota'])).toBe(true);
+		expect(await store.markConfirmed(id!)).toBe(true);
 
-		const item = await store.getItem(id);
+		const item = await store.getItem(id!);
 		expect(item?.status).toBe('confirmed');
 		expect(item?.extractedData).toEqual({ supplier_name: 'Test SL' });
 		expect(item?.conversionNotes).toEqual(['nota']);
@@ -73,81 +73,81 @@ describe.skipIf(!hasDbEnv)('guarded status transitions', () => {
 		const { itemIds: [id] } = await store.createBatch(rid, twoFiles().slice(0, 1));
 
 		// pending: worker transitions must all no-op
-		expect(await store.markExtracting(id)).toBe(false);
-		expect(await store.markDone(id, {}, [])).toBe(false);
-		expect(await store.markFailed(id, 'x')).toBe(false);
-		expect(await store.markConfirmed(id)).toBe(false);
-		expect((await store.getItem(id))?.status).toBe('pending');
+		expect(await store.markExtracting(id!)).toBe(false);
+		expect(await store.markDone(id!, {}, [])).toBe(false);
+		expect(await store.markFailed(id!, 'x')).toBe(false);
+		expect(await store.markConfirmed(id!)).toBe(false);
+		expect((await store.getItem(id!))?.status).toBe('pending');
 	});
 
 	it('a stale duplicate request cannot clobber a done item (the old lost-update bug)', async () => {
 		const { itemIds: [id] } = await store.createBatch(rid, twoFiles().slice(0, 1));
-		await store.markQueued(id);
-		await store.markExtracting(id);
-		await store.markDone(id, { total_amount: 42 }, []);
+		await store.markQueued(id!);
+		await store.markExtracting(id!);
+		await store.markDone(id!, { total_amount: 42 }, []);
 
 		// duplicate extract submit tries to re-queue; duplicate worker tries to re-claim
-		expect(await store.markQueued(id)).toBe(false);
-		expect(await store.markExtracting(id)).toBe(false);
+		expect(await store.markQueued(id!)).toBe(false);
+		expect(await store.markExtracting(id!)).toBe(false);
 
-		const item = await store.getItem(id);
+		const item = await store.getItem(id!);
 		expect(item?.status).toBe('done');
 		expect(item?.extractedData).toEqual({ total_amount: 42 });
 	});
 
 	it('failed → queued retry clears the error', async () => {
 		const { itemIds: [id] } = await store.createBatch(rid, twoFiles().slice(0, 1));
-		await store.markQueued(id);
-		await store.markFailed(id, 'extract.err.generic');
+		await store.markQueued(id!);
+		await store.markFailed(id!, 'extract.err.generic');
 
-		expect(await store.markQueued(id)).toBe(true);
-		const item = await store.getItem(id);
+		expect(await store.markQueued(id!)).toBe(true);
+		const item = await store.getItem(id!);
 		expect(item?.status).toBe('queued');
 		expect(item?.extractError).toBeNull();
 	});
 
 	it('extracting → extracting re-claims for a pg-boss retry redelivery (#482)', async () => {
 		const { itemIds: [id] } = await store.createBatch(rid, twoFiles().slice(0, 1));
-		await store.markQueued(id);
-		await store.markExtracting(id);
+		await store.markQueued(id!);
+		await store.markExtracting(id!);
 
-		expect(await store.markExtracting(id)).toBe(true);
-		expect((await store.getItem(id))?.status).toBe('extracting');
+		expect(await store.markExtracting(id!)).toBe(true);
+		expect((await store.getItem(id!))?.status).toBe('extracting');
 	});
 
 	it('markQueued stamps queued_at so the stall clock starts, and a retry restarts it', async () => {
 		const { itemIds: [id] } = await store.createBatch(rid, twoFiles().slice(0, 1));
-		expect((await store.getItem(id))?.queuedAt).toBeNull();
+		expect((await store.getItem(id!))?.queuedAt).toBeNull();
 
-		await store.markQueued(id);
-		const first = (await store.getItem(id))?.queuedAt;
+		await store.markQueued(id!);
+		const first = (await store.getItem(id!))?.queuedAt;
 		expect(first).toBeInstanceOf(Date);
 
-		await store.markFailed(id, 'extract.err.generic');
-		await store.markQueued(id);
-		const second = (await store.getItem(id))?.queuedAt;
+		await store.markFailed(id!, 'extract.err.generic');
+		await store.markQueued(id!);
+		const second = (await store.getItem(id!))?.queuedAt;
 		expect(new Date(second!).getTime()).toBeGreaterThanOrEqual(new Date(first!).getTime());
 	});
 
 	it('discard wins over a late worker claim', async () => {
 		const { itemIds: [id] } = await store.createBatch(rid, twoFiles().slice(0, 1));
-		await store.markQueued(id);
-		expect(await store.markDiscarded(id)).toBe(true);
+		await store.markQueued(id!);
+		expect(await store.markDiscarded(id!)).toBe(true);
 
 		// worker job arrives after the user discarded — must not resurrect the item
-		expect(await store.markExtracting(id)).toBe(false);
-		expect(await store.markDone(id, {}, [])).toBe(false);
-		expect((await store.getItem(id))?.status).toBe('discarded');
+		expect(await store.markExtracting(id!)).toBe(false);
+		expect(await store.markDone(id!, {}, [])).toBe(false);
+		expect((await store.getItem(id!))?.status).toBe('discarded');
 	});
 });
 
 describe.skipIf(!hasDbEnv)('stall reaping (issue #540)', () => {
 	async function queuedLongAgo(msAgo: number): Promise<string> {
 		const { itemIds: [id] } = await store.createBatch(rid, twoFiles().slice(0, 1));
-		await store.markQueued(id);
+		await store.markQueued(id!);
 		const queuedAt = new Date(Date.now() - msAgo).toISOString();
-		await testSql`UPDATE batch_items SET queued_at = ${queuedAt}::timestamptz WHERE id = ${id}::uuid`;
-		return id;
+		await testSql`UPDATE batch_items SET queued_at = ${queuedAt}::timestamptz WHERE id = ${id!}::uuid`;
+		return id!;
 	}
 
 	it('fails an in-flight item that outlived the hard timeout, with a retryable error', async () => {
@@ -198,18 +198,18 @@ describe.skipIf(!hasDbEnv)('stall reaping (issue #540)', () => {
 
 	it('requeueStalled refuses an item that is not in flight', async () => {
 		const { itemIds: [id] } = await store.createBatch(rid, twoFiles().slice(0, 1));
-		expect(await store.requeueStalled(id)).toBe(false);
-		expect((await store.getItem(id))?.status).toBe('pending');
+		expect(await store.requeueStalled(id!)).toBe(false);
+		expect((await store.getItem(id!))?.status).toBe('pending');
 	});
 });
 
 describe.skipIf(!hasDbEnv)('batch lifecycle helpers', () => {
 	it('removeItem only deletes pending/failed items', async () => {
 		const { itemIds } = await store.createBatch(rid, twoFiles());
-		await store.markQueued(itemIds[0]);
+		await store.markQueued(itemIds[0]!);
 
-		expect(await store.removeItem(itemIds[0], rid)).toBeNull(); // queued → protected
-		const removed = await store.removeItem(itemIds[1], rid);     // pending → removable
+		expect(await store.removeItem(itemIds[0]!, rid)).toBeNull(); // queued → protected
+		const removed = await store.removeItem(itemIds[1]!, rid);     // pending → removable
 		expect(removed?.fileKey).toBe('ns/b.pdf');
 	});
 
@@ -217,19 +217,19 @@ describe.skipIf(!hasDbEnv)('batch lifecycle helpers', () => {
 		const { batchId, itemIds } = await store.createBatch(rid, twoFiles());
 		const otherRid = crypto.randomUUID();
 
-		expect(await store.removeItem(itemIds[1], otherRid)).toBeNull();
-		expect(await store.getItem(itemIds[1])).not.toBeNull();
+		expect(await store.removeItem(itemIds[1]!, otherRid)).toBeNull();
+		expect(await store.getItem(itemIds[1]!)).not.toBeNull();
 
 		await store.deleteBatch(batchId, otherRid);
-		expect(await store.getItem(itemIds[0])).not.toBeNull();
+		expect(await store.getItem(itemIds[0]!)).not.toBeNull();
 	});
 
 	it('nextReviewableItem skips settled items and wraps around', async () => {
 		const { batchId, itemIds } = await store.createBatch(rid, twoFiles());
-		await store.markQueued(itemIds[0]);
-		await store.markExtracting(itemIds[0]);
-		await store.markDone(itemIds[0], {}, []);
-		await store.markConfirmed(itemIds[0]);
+		await store.markQueued(itemIds[0]!);
+		await store.markExtracting(itemIds[0]!);
+		await store.markDone(itemIds[0]!, {}, []);
+		await store.markConfirmed(itemIds[0]!);
 
 		const next = await store.nextReviewableItem(batchId, 1);
 		expect(next?.id).toBe(itemIds[1]);
@@ -243,11 +243,11 @@ describe.skipIf(!hasDbEnv)('batch lifecycle helpers', () => {
 		const { batchId, itemIds } = await store.createBatch(rid, twoFiles());
 		expect(await store.isBatchSettled(batchId)).toBe(false);
 
-		await store.markQueued(itemIds[0]);
-		await store.markExtracting(itemIds[0]);
-		await store.markDone(itemIds[0], {}, []);
-		await store.markConfirmed(itemIds[0]);
-		await store.markDiscarded(itemIds[1]);
+		await store.markQueued(itemIds[0]!);
+		await store.markExtracting(itemIds[0]!);
+		await store.markDone(itemIds[0]!, {}, []);
+		await store.markConfirmed(itemIds[0]!);
+		await store.markDiscarded(itemIds[1]!);
 
 		expect(await store.isBatchSettled(batchId)).toBe(true);
 	});
@@ -255,7 +255,7 @@ describe.skipIf(!hasDbEnv)('batch lifecycle helpers', () => {
 	it('deleteBatch cascades to items', async () => {
 		const { batchId, itemIds } = await store.createBatch(rid, twoFiles());
 		await store.deleteBatch(batchId, rid);
-		expect(await store.getItem(itemIds[0])).toBeNull();
+		expect(await store.getItem(itemIds[0]!)).toBeNull();
 		expect(await store.getBatchItems(batchId)).toEqual([]);
 	});
 });
@@ -293,10 +293,10 @@ describe.skipIf(!hasDbEnv)('cleanupStaleBatches (#427)', () => {
 
 	it('deletes storage objects for stale non-confirmed items, preserves confirmed items\' files, and removes the batch row', async () => {
 		const { batchId, itemIds } = await store.createBatch(rid, twoFiles());
-		await store.markQueued(itemIds[0]);
-		await store.markExtracting(itemIds[0]);
-		await store.markDone(itemIds[0], {}, []);
-		await store.markConfirmed(itemIds[0]); // ns/a.pdf is now owned by an invoice
+		await store.markQueued(itemIds[0]!);
+		await store.markExtracting(itemIds[0]!);
+		await store.markDone(itemIds[0]!, {}, []);
+		await store.markConfirmed(itemIds[0]!); // ns/a.pdf is now owned by an invoice
 		// itemIds[1] (ns/b.pdf) stays pending — an abandoned upload
 		await backdateBatch(batchId, 25);
 

@@ -38,13 +38,13 @@ async function makeUser(suffix: string) {
 	const [row] = await testSql`
 		INSERT INTO users (email, name, email_verified) VALUES (${email}, ${'Chef ' + suffix}, now()) RETURNING id
 	`;
-	return { id: row.id as string, email };
+	return { id: row!.id as string, email };
 }
 
 async function makeRestaurant(suffix: string) {
 	const slug = `test-vitest-acct-exp-${suffix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 	const [row] = await testSql`INSERT INTO restaurants (name, slug) VALUES (${'Rest ' + suffix}, ${slug}) RETURNING id`;
-	return row.id as string;
+	return row!.id as string;
 }
 
 async function membership(userId: string, restaurantId: string, role: 'owner' | 'member' = 'owner') {
