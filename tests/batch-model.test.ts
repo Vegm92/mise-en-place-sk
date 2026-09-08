@@ -56,7 +56,8 @@ describe.skipIf(!hasDbEnv)('batch creation and reads', () => {
 
 describe.skipIf(!hasDbEnv)('guarded status transitions', () => {
 	it('walks the happy path: pending → queued → extracting → done → confirmed', async () => {
-		const { itemIds: [id] } = await store.createBatch(rid, twoFiles().slice(0, 1));
+		const { itemIds } = await store.createBatch(rid, twoFiles().slice(0, 1));
+		const id = itemIds[0]!;
 
 		expect(await store.markQueued(id!)).toBe(true);
 		expect(await store.markExtracting(id!)).toBe(true);
@@ -70,7 +71,8 @@ describe.skipIf(!hasDbEnv)('guarded status transitions', () => {
 	});
 
 	it('transitions from a wrong source state affect 0 rows and report false', async () => {
-		const { itemIds: [id] } = await store.createBatch(rid, twoFiles().slice(0, 1));
+		const { itemIds } = await store.createBatch(rid, twoFiles().slice(0, 1));
+		const id = itemIds[0]!;
 
 		// pending: worker transitions must all no-op
 		expect(await store.markExtracting(id!)).toBe(false);

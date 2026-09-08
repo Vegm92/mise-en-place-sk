@@ -4,7 +4,7 @@ import type { RequestHandler } from './$types';
 import { apiError } from '$lib/server/api-response';
 import { parseJson } from '$lib/server/public-form-action';
 import * as Sentry from '@sentry/sveltekit';
-import { db, runAsSystem } from '$lib/server/db';
+import { db } from '$lib/server/db';
 import { userRestaurants, subscriptions, invoices, batchItems, users } from '$lib/server/schema';
 import { verifyCredentials } from '$lib/server/auth-credentials';
 import { enqueueAccountCleanup } from '$lib/server/queue';
@@ -16,12 +16,12 @@ import { userMemberships } from '$lib/server/locations';
 async function collectTenantFileKeys(restaurantIds: string[]): Promise<string[]> {
 	if (restaurantIds.length === 0) return [];
 
-	const [invoiceFiles, batchFiles] = await runAsSystem(() => Promise.all([
+	const [invoiceFiles, batchFiles] = await Promise.all([
 		db.select({ key: invoices.sourceFile }).from(invoices)
 			.where(and(inArray(invoices.restaurantId, restaurantIds), isNotNull(invoices.sourceFile))),
 		db.select({ key: batchItems.fileKey }).from(batchItems)
 			.where(inArray(batchItems.restaurantId, restaurantIds)),
-	]));
+	]);
 
 	const keys = new Set<string>();
 	for (const row of [...invoiceFiles, ...batchFiles]) {
@@ -73,24 +73,24 @@ export const POST: RequestHandler = async ({ locals, request, cookies }) => {
 	let storageKeys: string[] = [];
 
 	if (ownedIds.length > 0) {
-		const otherMembers = await runAsSystem(() => db
+		const otherMembers = await db
 			.select({ restaurantId: userRestaurants.restaurantId })
 			.from(userRestaurants)
 			.where(and(
 				inArray(userRestaurants.restaurantId, ownedIds),
 				ne(userRestaurants.userId, user.id),
-			)));
+			));
 		const shared = new Set(otherMembers.map(m => m.restaurantId));
 		soleOwnedIds = ownedIds.filter(id => !shared.has(id));
 
 		if (soleOwnedIds.length > 0) {
-			const liveSubs = await runAsSystem(() => db
+			const liveSubs = await db
 				.select({ stripeSubscriptionId: subscriptions.stripeSubscriptionId })
 				.from(subscriptions)
 				.where(and(
 					inArray(subscriptions.restaurantId, soleOwnedIds),
 					isNotNull(subscriptions.stripeSubscriptionId),
-				)));
+				));
 			stripeSubscriptionIds = liveSubs
 				.map(s => s.stripeSubscriptionId)
 				.filter((id): id is string => id !== null);
@@ -100,7 +100,6 @@ export const POST: RequestHandler = async ({ locals, request, cookies }) => {
 	}
 
 	await db.transaction(async (tx) => {
-		await tx.execute(sql`SET LOCAL app.admin = 'true'`);
 		if (soleOwnedIds.length > 0) {
 			for (const entry of explicitDeletionEntries()) {
 				await tx.delete(entry.table).where(inArray(entry.scopeColumn, soleOwnedIds));

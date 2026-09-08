@@ -1,6 +1,6 @@
 import { PgBoss } from 'pg-boss';
 import { pgSslConfig } from './db-ssl';
-import type { WhatsAppInboundMessage } from './integrations/whatsapp/transport';
+import type { WhatsAppInboundMessage } from './whatsapp-bot';
 
 const DATABASE_URL = process.env.DATABASE_URL ?? '';
 

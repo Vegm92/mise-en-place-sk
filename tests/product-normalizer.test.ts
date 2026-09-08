@@ -56,6 +56,11 @@ describe('parseNormalizeResponse', () => {
 
 // ── Orchestration ─────────────────────────────────────────────────────────────
 
+async function countSysNotifs(restaurantId: string) {
+	const [row] = await testSql`SELECT COUNT(*)::int AS cnt FROM system_notifications WHERE restaurant_id = ${restaurantId}`;
+	return (row!.cnt as number);
+}
+
 function fakeProvider(text: string): LLMProvider {
 	return { model: 'test-model', generate: async () => ({ text, usage: { inputTokens: 10, outputTokens: 5, model: 'test-model' } }) };
 }

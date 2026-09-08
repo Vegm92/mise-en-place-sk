@@ -48,11 +48,11 @@ describe.skipIf(!hasDbEnv)('categoryBudgets — upsert and delete', () => {
 				set: { monthlyBudget: '1500.00' },
 			});
 
-		const rows = await testDb.select().from(categoryBudgets)
+		const insertRows = await testDb.select().from(categoryBudgets)
 			.where(and(eq(categoryBudgets.restaurantId, rid1), eq(categoryBudgets.category, cat)));
 
-		expect(rows).toHaveLength(1);
-		expect(rows[0]!.monthlyBudget).toBe('1500.00');
+		expect(insertRows).toHaveLength(1);
+		expect(insertRows[0]!.monthlyBudget).toBe('1500.00');
 	});
 
 	it('updates an existing budget via upsert', async () => {
@@ -64,11 +64,11 @@ describe.skipIf(!hasDbEnv)('categoryBudgets — upsert and delete', () => {
 				set: { monthlyBudget: '2000.00' },
 			});
 
-		const rows = await testDb.select().from(categoryBudgets)
+		const updateRows = await testDb.select().from(categoryBudgets)
 			.where(and(eq(categoryBudgets.restaurantId, rid1), eq(categoryBudgets.category, cat)));
 
-		expect(rows).toHaveLength(1);
-		expect(rows[0]!.monthlyBudget).toBe('2000.00');
+		expect(updateRows).toHaveLength(1);
+		expect(updateRows[0]!.monthlyBudget).toBe('2000.00');
 	});
 
 	it('deletes a budget row when the amount is cleared', async () => {

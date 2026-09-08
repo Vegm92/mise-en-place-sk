@@ -814,10 +814,11 @@ async function previewOne(
 		LIMIT 1
 	`);
 	if (aliasRows.length > 0) {
+		const previewAlias = aliasRows[0]!;
 		return {
 			description: raw,
-			productId: aliasRows[0]!.product_id,
-			productName: aliasRows[0]!.canonical_name,
+			productId: previewAlias.product_id,
+			productName: previewAlias.canonical_name,
 			status: 'exact',
 			score: null,
 			suggestedTaxRate: null,
@@ -1061,11 +1062,11 @@ export async function rejectProductAlias(
 			LIMIT 1
 		`);
 		if (aliasRows.length === 0) return { ok: false, reason: 'not_found' } as AliasDecision;
-		const alias = aliasRows[0]!;
+		const rejectAlias = aliasRows[0]!;
 
 		const created = await tx.execute<{ id: number }>(sql`
 			INSERT INTO products (restaurant_id, canonical_name, name_key)
-			VALUES (${restaurantId}, ${alias.raw_text ?? description.trim()}, ${rawKey})
+			VALUES (${restaurantId}, ${rejectAlias.raw_text ?? description.trim()}, ${rawKey})
 			ON CONFLICT (restaurant_id, name_key) DO UPDATE SET name_key = products.name_key
 			RETURNING id
 		`);
@@ -1078,14 +1079,14 @@ export async function rejectProductAlias(
 					WHEN original_source = 'fuzzy' AND review_outcome IS NULL THEN 'rejected'
 					ELSE review_outcome
 				END
-			WHERE id = ${alias.id}
+			WHERE id = ${rejectAlias.id}
 		`);
 
 		await tx.execute(sql`
 			UPDATE invoice_line_items
 			SET product_id = ${newProductId}
 			WHERE restaurant_id = ${restaurantId}
-			  AND product_id = ${alias.product_id}
+			  AND product_id = ${rejectAlias.product_id}
 			  AND mep_norm_key(description) = ${rawKey}
 		`);
 
@@ -1112,8 +1113,8 @@ export async function mergeIntoProduct(
 			LIMIT 1
 		`);
 		if (aliasRows.length === 0) return { ok: false, reason: 'not_found' } as AliasDecision;
-		const alias = aliasRows[0]!;
-		const oldProductId = alias.product_id;
+		const mergeAlias = aliasRows[0]!;
+		const oldProductId = mergeAlias.product_id;
 
 		if (oldProductId !== targetProductId) {
 			await tx.execute(sql`
@@ -1123,7 +1124,7 @@ export async function mergeIntoProduct(
 						WHEN original_source = 'fuzzy' AND review_outcome IS NULL THEN 'rejected'
 						ELSE review_outcome
 					END
-				WHERE id = ${alias.id}
+				WHERE id = ${mergeAlias.id}
 			`);
 			await tx.execute(sql`
 				UPDATE invoice_line_items
@@ -1146,7 +1147,7 @@ export async function mergeIntoProduct(
 						WHEN original_source = 'fuzzy' AND review_outcome IS NULL THEN 'confirmed'
 						ELSE review_outcome
 					END
-				WHERE id = ${alias.id}
+				WHERE id = ${mergeAlias.id}
 			`);
 		}
 

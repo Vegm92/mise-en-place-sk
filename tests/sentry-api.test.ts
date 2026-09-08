@@ -29,6 +29,17 @@ describe('SENTRY_API_BASE_URL (env.ts)', () => {
 describe('sentry-api fetches against the configured base URL', () => {
 	const fetchMock = vi.fn();
 
+	async function callListIssues(baseUrl: string) {
+		vi.doMock('../src/lib/server/env', () => ({
+			SENTRY_API_BASE_URL: baseUrl,
+			SENTRY_AUTH_TOKEN: 'test-token',
+			SENTRY_ORG: 'my-org',
+		}));
+		const { listUnresolvedIssues } = await import('../src/lib/server/sentry-api');
+		await listUnresolvedIssues(10);
+		return String(fetchMock.mock.calls[0]![0]);
+	}
+
 	beforeEach(() => {
 		vi.resetModules();
 		fetchMock.mockReset();

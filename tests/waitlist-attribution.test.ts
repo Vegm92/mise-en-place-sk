@@ -43,6 +43,16 @@ afterAll(async () => {
 	if (hasDbEnv) await closeDb();
 });
 
+function assertFullAttribution(row: Record<string, unknown>) {
+	expect(row.source).toBe('google');
+	expect(row.campaign).toBe('spring_launch');
+	expect(row.variant).toBe('b');
+	expect(row.segment).toBe('chefs');
+	expect(row.referrer).toBe('https://google.com/search');
+	expect(row.landing_path).toBe('/waitlist');
+	expect(row.referred_by).toBe('ABC123');
+}
+
 describeDb('insertWaitlistEmail — attribution (issue #326)', () => {
 	it('persists source + campaign (and the rest of the attribution) on the row', async () => {
 		const email = uniqueEmail('full');
