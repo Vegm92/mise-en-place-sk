@@ -100,45 +100,28 @@
   );
 </script>
 
-<div style="height: 100%; display: flex; flex-direction: column; overflow: hidden; background: var(--mep-bg);">
+<div class="flex flex-col overflow-hidden bg-bg" style="height: 100%;">
 
-  <div style="
-    padding: 16px 14px 10px; flex-shrink: 0;
-    background: var(--mep-surface);
-    border-bottom: 1px solid var(--mep-divider);
-    display: flex; align-items: center; gap: 8px;
-  ">
-    <a href="/invoices" style="
-      width: 44px; height: 44px; border-radius: 999px; border: 0;
-      background: transparent; color: var(--mep-fg); cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      text-decoration: none; flex-shrink: 0;
-    " aria-label={t('mid.back')}>
+  <div class="px-[14px] pt-4 pb-2.5 shrink-0 bg-surface border-b border-divider flex items-center gap-2">
+    <a href="/invoices" class="w-11 h-11 rounded-full border-0 bg-transparent text-fg cursor-pointer flex items-center justify-center no-underline shrink-0" aria-label={t('mid.back')}>
       <ChevronLeft size={18} />
     </a>
     <div style="flex: 1; min-width: 0;">
       <div style="display: flex; align-items: center; gap: 6px;">
-        <div class="num" style="font-size: 14.5px; font-weight: 600; color: var(--mep-fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+        <div class="num text-[14.5px] font-semibold text-fg overflow-hidden text-ellipsis whitespace-nowrap">
           {invoice.invoice_number ?? `#${invoice.id}`}
         </div>
         {#if invoice.document_type === 'factura' || invoice.document_type === 'albaran'}
-          <span style="
-            flex-shrink: 0; font-size: 11px; font-weight: 500; padding: 1px 6px; border-radius: 10px;
-            background: var(--mep-surface-2); color: var(--mep-fg-3);
-          ">
+          <span class="shrink-0 text-[11px] font-medium py-px px-1.5 rounded-[10px] bg-surface-2 text-fg-3">
             {t(`field.documentType.${invoice.document_type}`)}
           </span>
         {/if}
       </div>
-      <div style="font-size: 11px; color: var(--mep-fg-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+      <div class="text-[11px] text-fg-3 overflow-hidden text-ellipsis whitespace-nowrap">
         {invoice.supplier_name ?? '—'}
       </div>
     </div>
-    <button style="
-      width: 44px; height: 44px; border-radius: 999px; border: 0;
-      background: transparent; color: var(--mep-fg); cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-    " aria-label={t('mid.moreOptions')}>
+    <button class="w-11 h-11 rounded-full border-0 bg-transparent text-fg cursor-pointer flex items-center justify-center" aria-label={t('mid.moreOptions')}>
       <MoreHorizontal size={18} />
     </button>
   </div>
@@ -149,7 +132,7 @@
       <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;">
         <div>
           <div class="label" style="margin-bottom: 6px;">{t('mid.totalVat')}</div>
-          <div class="num" style="font-size: 30px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.6px; line-height: 1;">
+          <div class="num text-[30px] font-semibold text-fg tracking-[-0.6px] leading-none">
             {fmt(invoice.display_amount ?? invoice.total_amount)}
           </div>
         </div>
@@ -158,22 +141,18 @@
           <IncidenceKindBadge kind={invoice.incidence_kind} reasons={invoice.incidence_reasons} hint />
         </div>
       </div>
-      <div style="
-        margin-top: 12px; padding-top: 12px;
-        border-top: 1px solid var(--mep-divider);
-        display: flex; justify-content: space-between; font-size: 12px;
-      ">
+      <div class="mt-3 pt-3 border-t border-divider flex justify-between text-[12px]">
         <div>
-          <div style="color: var(--mep-fg-3);">{t('mid.issued')}</div>
-          <div class="num" style="color: var(--mep-fg); font-weight: 500; margin-top: 2px;">{fmtDate(invoice.invoice_date)}</div>
+          <div class="text-fg-3">{t('mid.issued')}</div>
+          <div class="num text-fg font-medium mt-0.5">{fmtDate(invoice.invoice_date)}</div>
         </div>
         <div>
-          <div style="color: var(--mep-fg-3);">{t('tbl.due')}</div>
-          <div class="num" style="color: var(--mep-fg); font-weight: 500; margin-top: 2px;">{fmtDate(invoice.due_date)}</div>
+          <div class="text-fg-3">{t('tbl.due')}</div>
+          <div class="num text-fg font-medium mt-0.5">{fmtDate(invoice.due_date)}</div>
         </div>
         <div>
-          <div style="color: var(--mep-fg-3);">{t('tbl.lines')}</div>
-          <div class="num" style="color: var(--mep-fg); font-weight: 500; margin-top: 2px;">{lineItems.length}</div>
+          <div class="text-fg-3">{t('tbl.lines')}</div>
+          <div class="num text-fg font-medium mt-0.5">{lineItems.length}</div>
         </div>
       </div>
       {#if invoice.payment_method || invoice.payment_terms || invoice.iban}
@@ -223,16 +202,13 @@
 
     {#if invoice.source_file}
       <div class="card" style="padding: 0; overflow: hidden;">
-        <div style="
-          padding: 10px 14px;
-          display: flex; align-items: center; gap: 8px;
-        ">
-          <FileText size={13} style="color: var(--mep-fg-2); flex-shrink: 0;" />
-          <div style="flex: 1; font-size: 12px; color: var(--mep-fg-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+        <div class="px-[14px] py-2.5 flex items-center gap-2">
+          <FileText size={13} class="text-fg-2 shrink-0" />
+          <div class="flex-1 text-[12px] text-fg-2 overflow-hidden text-ellipsis whitespace-nowrap">
             {documentDisplayName}
           </div>
           <a href="/invoice/{invoice.id}/file" target="_blank"
-            style="font-size: 12px; color: var(--mep-acc); font-weight: 500; text-decoration: none; flex-shrink: 0;">
+            class="text-[12px] text-acc font-medium no-underline shrink-0">
             {t('mid.open')}
           </a>
         </div>
@@ -248,7 +224,7 @@
             {invoice.linked_invoice.invoice_number ?? `#${invoice.linked_invoice.id}`}
           </div>
         </div>
-        <span class="body" style="color: var(--mep-acc); font-weight: 500;">{t('inv.detail.viewLinked')}</span>
+        <span class="body text-acc font-medium">{t('inv.detail.viewLinked')}</span>
       </a>
     {/if}
 
@@ -309,32 +285,26 @@
     {#if lineItems.length > 0}
       <div class="card" style="padding: 4px 0;">
         {#each shown as item, i}
-          <div style="
-            padding: 11px 14px;
-            border-bottom: {i < shown.length - 1 || remaining > 0 ? '1px solid var(--mep-divider)' : 'none'};
-            display: flex; align-items: center; gap: 12px;
-          ">
+          <div class="px-[14px] py-[11px] flex items-center gap-3"
+            style="{i < shown.length - 1 || remaining > 0 ? 'border-bottom:1px solid var(--mep-divider);' : ''}"
+          >
             <div style="flex: 1; min-width: 0;">
-              <div style="font-size: 13px; font-weight: 500; color: var(--mep-fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              <div class="text-[13px] font-medium text-fg overflow-hidden text-ellipsis whitespace-nowrap">
                 {item.description ?? '—'}
               </div>
               {#if item.quantity != null && item.unit_price != null}
-                <div class="num" style="font-size: 11px; color: var(--mep-fg-3); margin-top: 2px;">
+                <div class="num text-[11px] text-fg-3 mt-0.5">
                   {item.quantity.toFixed(2).replace('.', ',')} {item.unit ?? ''} × {item.unit_price.toFixed(2).replace('.', ',')} €
                 </div>
               {/if}
             </div>
-            <div class="num" style="font-size: 13px; font-weight: 500; color: var(--mep-fg); flex-shrink: 0;">
+            <div class="num text-[13px] font-medium text-fg shrink-0">
               {fmt(item.total_price)}
             </div>
           </div>
         {/each}
         {#if remaining > 0}
-          <a href="/invoice/{invoice.id}" style="
-            display: block; padding: 10px 14px; text-align: center;
-            font-size: 12px; color: var(--mep-acc); font-weight: 500;
-            border-top: 1px solid var(--mep-divider); text-decoration: none;
-          ">
+          <a href="/invoice/{invoice.id}" class="block px-[14px] py-2.5 text-center text-[12px] text-acc font-medium border-t border-divider no-underline">
             {ti('mid.viewLines', { n: lineItems.length })}
           </a>
         {/if}
@@ -349,15 +319,10 @@
       ] as action}
         <a
           href={action.href}
-          class="card"
-          style="
-            padding: 14px 8px; border: 1px solid var(--mep-border);
-            display: flex; flex-direction: column; align-items: center; gap: 6px;
-            background: var(--mep-surface); cursor: pointer; text-decoration: none;
-          "
+          class="card px-2 py-[14px] border border-border flex flex-col items-center gap-1.5 bg-surface cursor-pointer no-underline"
         >
-          <action.icon size={18} style="color: var(--mep-fg-2);" />
-          <span style="font-size: 11.5px; color: var(--mep-fg-2); font-weight: 500;">{action.label}</span>
+          <action.icon size={18} class="text-fg-2" />
+          <span class="text-[11.5px] text-fg-2 font-medium">{action.label}</span>
         </a>
       {/each}
     </div>
