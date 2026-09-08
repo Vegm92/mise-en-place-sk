@@ -37,18 +37,18 @@ beforeAll(async () => {
 		INSERT INTO suppliers (restaurant_id, name) VALUES (${rid}, ${SUPPLIER}) RETURNING id`;
 	const [oldInv] = await testSql`
 		INSERT INTO invoices (restaurant_id, supplier_id, invoice_date, status)
-		VALUES (${rid}, ${sup.id}, '2026-07-01', 'pending') RETURNING id`;
+		VALUES (${rid}, ${sup!.id}, '2026-07-01', 'pending') RETURNING id`;
 	const [newInv] = await testSql`
 		INSERT INTO invoices (restaurant_id, supplier_id, invoice_date, status)
-		VALUES (${rid}, ${sup.id}, '2026-07-20', 'pending') RETURNING id`;
-	newInvoiceId = newInv.id;
+		VALUES (${rid}, ${sup!.id}, '2026-07-20', 'pending') RETURNING id`;
+	newInvoiceId = newInv!.id;
 
 	// Historical prices, spelled the way the supplier printed them back then.
 	await testSql`
 		INSERT INTO invoice_line_items (invoice_id, restaurant_id, description, quantity, unit, unit_price)
 		VALUES
-			(${oldInv.id}, ${rid}, 'TOMATE PERA', 10, 'kg', 2.00),
-			(${oldInv.id}, ${rid}, 'Azúcar blanquilla', 5, 'kg', 1.00)`;
+			(${oldInv!.id}, ${rid}, 'TOMATE PERA', 10, 'kg', 2.00),
+			(${oldInv!.id}, ${rid}, 'Azúcar blanquilla', 5, 'kg', 1.00)`;
 
 	await testSql`
 		INSERT INTO stock_levels (restaurant_id, ingredient, current_stock, daily_burn_rate, canonical_unit)
@@ -65,15 +65,15 @@ describe.skipIf(!hasDbEnv)('runPriceShock — normalized matching (issue #296)',
 	it('fires when the same product is reprinted with different casing/spacing', async () => {
 		const alerts = await runPriceShock(newInvoiceId, SUPPLIER, [item('Tomate  Pera', 3.0)], rid);
 		expect(alerts).toHaveLength(1);
-		expect(alerts[0].notificationType).toBe('price_shock');
-		expect(alerts[0].payload.oldPrice).toBe(2.0);
-		expect(alerts[0].payload.newPrice).toBe(3.0);
+		expect(alerts[0]!.notificationType).toBe('price_shock');
+		expect(alerts[0]!.payload.oldPrice).toBe(2.0);
+		expect(alerts[0]!.payload.newPrice).toBe(3.0);
 	});
 
 	it('fires across accent differences (azucar vs Azúcar)', async () => {
 		const alerts = await runPriceShock(newInvoiceId, SUPPLIER, [item('AZUCAR BLANQUILLA', 1.5)], rid);
 		expect(alerts).toHaveLength(1);
-		expect(alerts[0].payload.oldPrice).toBe(1.0);
+		expect(alerts[0]!.payload.oldPrice).toBe(1.0);
 	});
 
 	it('stays silent when the price change is under the threshold', async () => {
@@ -86,8 +86,8 @@ describe.skipIf(!hasDbEnv)('runStockForecast — normalized matching (issue #296
 	it('matches a stock row saved with different casing', async () => {
 		const alerts = await runStockForecast([item('HARINA 00', null, 1)], rid);
 		expect(alerts).toHaveLength(1);
-		expect(alerts[0].notificationType).toBe('low_stock_forecast');
+		expect(alerts[0]!.notificationType).toBe('low_stock_forecast');
 		// (current 1 + added 1) / burn 1 = 2 days < 3-day threshold
-		expect(alerts[0].payload.projectedDays).toBe(2);
+		expect(alerts[0]!.payload.projectedDays).toBe(2);
 	});
 });

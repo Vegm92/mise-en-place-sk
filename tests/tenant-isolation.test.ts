@@ -31,7 +31,7 @@ beforeAll(async () => {
 	const store = createBatchStore(testDb);
 	const { batchId, itemIds } = await store.createBatch(rid1, [{ key: 'ns/a.pdf', name: 'a.pdf' }]);
 	ownedBatchId = batchId;
-	ownedItemId = itemIds[0];
+	ownedItemId = itemIds[0]!;
 });
 
 afterAll(async () => {

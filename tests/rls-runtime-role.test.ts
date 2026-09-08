@@ -124,15 +124,15 @@ beforeAll(async () => {
 
 	const [a] = await testSql`INSERT INTO restaurants (name, slug) VALUES ('RLS Test Tenant A', ${`rls-test-a-${Date.now()}`}) RETURNING id`;
 	const [b] = await testSql`INSERT INTO restaurants (name, slug) VALUES ('RLS Test Tenant B', ${`rls-test-b-${Date.now()}`}) RETURNING id`;
-	ridA = a.id as string;
-	ridB = b.id as string;
+	ridA = a!.id as string;
+	ridB = b!.id as string;
 
 	await testSql`INSERT INTO invoices (restaurant_id, invoice_number, status) VALUES (${ridA}, 'RLS-A-1', 'pending')`;
 	await testSql`INSERT INTO invoices (restaurant_id, invoice_number, status) VALUES (${ridB}, 'RLS-B-1', 'pending')`;
 	const [supplierA] = await testSql`INSERT INTO suppliers (restaurant_id, name) VALUES (${ridA}, 'RLS Supplier A') RETURNING id`;
 	const [supplierB] = await testSql`INSERT INTO suppliers (restaurant_id, name) VALUES (${ridB}, 'RLS Supplier B') RETURNING id`;
-	supplierIdA = supplierA.id as number;
-	supplierIdB = supplierB.id as number;
+	supplierIdA = supplierA!.id as number;
+	supplierIdB = supplierB!.id as number;
 	await testSql`UPDATE restaurants SET venue_type = 'carta' WHERE id = ${ridA}`;
 	await testSql`
 		INSERT INTO digest_shares (token, restaurant_id, week)
@@ -219,8 +219,8 @@ describe.skipIf(!canRun)('RLS policies (drizzle/0055) — runtime role backstop'
 		await runtimeSql!`SELECT set_config('app.restaurant_id', ${ridA}, false)`;
 		const rows = await runtimeSql!`SELECT invoice_number, restaurant_id FROM invoices WHERE invoice_number IN ('RLS-A-1', 'RLS-B-1')`;
 		expect(rows).toHaveLength(1);
-		expect(rows[0].invoice_number).toBe('RLS-A-1');
-		expect(rows[0].restaurant_id).toBe(ridA);
+		expect(rows[0]!.invoice_number).toBe('RLS-A-1');
+		expect(rows[0]!.restaurant_id).toBe(ridA);
 		await resetGucs(runtimeSql!);
 	});
 
@@ -530,12 +530,12 @@ describe.skipIf(!canRun)('digest share (#329) public route — runtime-role back
 
 		const [spend] = await runtimeSql!`
 			SELECT COALESCE(SUM(i.total_amount), 0) AS spend FROM invoices i
-			WHERE i.restaurant_id = ${share.restaurant_id} AND i.deleted_at IS NULL
+			WHERE i.restaurant_id = ${share!.restaurant_id} AND i.deleted_at IS NULL
 		`;
 		expect(spend).toBeDefined();
 
 		const [restaurant] = await runtimeSql!`
-			SELECT venue_type FROM restaurants WHERE id = ${share.restaurant_id} LIMIT 1
+			SELECT venue_type FROM restaurants WHERE id = ${share!.restaurant_id} LIMIT 1
 		`;
 		expect(restaurant?.venue_type).toBe('carta');
 
@@ -548,8 +548,8 @@ describe.skipIf(!canRun)('digest share (#329) public route — runtime-role back
 			SELECT restaurant_id FROM digest_shares WHERE token = ${SHARE_TOKEN} AND revoked_at IS NULL
 		`;
 		expect(rows).toHaveLength(1);
-		expect(rows[0].restaurant_id).toBe(ridA);
-		expect(rows[0].restaurant_id).not.toBe(ridB);
+		expect(rows[0]!.restaurant_id).toBe(ridA);
+		expect(rows[0]!.restaurant_id).not.toBe(ridB);
 		await resetGucs(runtimeSql!);
 	});
 });

@@ -47,7 +47,9 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → product linking (issue #298)
 		expect(items).toHaveLength(2);
 		for (const it of items) expect(it.product_id).not.toBeNull();
 
-		const [{ count }] = await testSql`SELECT COUNT(*)::int AS count FROM products WHERE restaurant_id = ${restaurant.id}`;
+		const [_r_] = await testSql`SELECT COUNT(*)::int AS count FROM products WHERE restaurant_id = ${restaurant.id}`;
+
+		const { count } = _r_!;
 		expect(count).toBeGreaterThanOrEqual(2);
 	});
 
@@ -66,17 +68,17 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → product linking (issue #298)
 
 		const [packProduct] = await testSql`
 			SELECT canonical_unit, units_per_pack, base_unit FROM products WHERE id = ${pack.product_id}`;
-		expect(packProduct.canonical_unit).toBe('caja');
-		expect(packProduct.units_per_pack).toBe(6);
-		expect(packProduct.base_unit).toBe('L');
+		expect(packProduct!.canonical_unit).toBe('caja');
+		expect(packProduct!.units_per_pack).toBe(6);
+		expect(packProduct!.base_unit).toBe('L');
 
 		// "Sal fina" has no multipack/size pattern to derive — the new product
 		// carries the unit it does have, but must not fabricate pack data.
 		const [plainProduct] = await testSql`
 			SELECT canonical_unit, units_per_pack, base_unit FROM products WHERE id = ${plain.product_id}`;
-		expect(plainProduct.canonical_unit).toBe('kg');
-		expect(plainProduct.units_per_pack).toBeNull();
-		expect(plainProduct.base_unit).toBeNull();
+		expect(plainProduct!.canonical_unit).toBe('kg');
+		expect(plainProduct!.units_per_pack).toBeNull();
+		expect(plainProduct!.base_unit).toBeNull();
 	});
 
 	it('creates the product without a category — the supplier no longer decides', async () => {
@@ -96,8 +98,8 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → product linking (issue #298)
 
 		const [item] = await testSql`
 			SELECT product_id FROM invoice_line_items WHERE invoice_id = ${out.invoiceId}`;
-		const [product] = await testSql`SELECT category FROM products WHERE id = ${item.product_id}`;
-		expect(product.category).toBeNull();
+		const [product] = await testSql`SELECT category FROM products WHERE id = ${item!.product_id}`;
+		expect(product!.category).toBeNull();
 	});
 
 	it('re-links the lines an interrupted save left with a NULL product_id', async () => {
@@ -118,7 +120,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → product linking (issue #298)
 		const { actions } = await import('../src/routes/(app)/invoice/[id]/+page.server');
 		let redirected: unknown;
 		try {
-			await actions.relinkProducts({
+			await actions.relinkProducts!({
 				params: { id: String(out.invoiceId) },
 				locals: { restaurantId: restaurant.id },
 			} as never);
@@ -158,7 +160,7 @@ async function claimSupplier(email: string | null): Promise<number> {
 		INSERT INTO suppliers (restaurant_id, name, contact_email)
 		VALUES (${restaurant.id}, ${`__claim_sup_${randomUUID().slice(0, 6)}__`}, ${email})
 		RETURNING id`;
-	return row.id as number;
+	return row!.id as number;
 }
 
 async function claimInvoice(
@@ -172,7 +174,7 @@ async function claimInvoice(
 			${opts.reviewState ?? 'incidencia'}, ${opts.incidenceKind === undefined ? 'documento' : opts.incidenceKind}
 		)
 		RETURNING id`;
-	return row.id as number;
+	return row!.id as number;
 }
 
 function claimFormData(subject = 'Falta producto', body = 'Revisad el envío, por favor.'): FormData {
@@ -209,7 +211,7 @@ describe.skipIf(!hasDbEnv)('requestCorrection action (issue #887)', () => {
 		const supplierId = await claimSupplier('proveedor@example.com');
 		const invoiceId = await claimInvoice(supplierId, { reviewState: 'revisado' });
 
-		const result = await actions.requestCorrection(claimEvent(invoiceId, claimFormData()));
+		const result = await actions.requestCorrection!(claimEvent(invoiceId, claimFormData()));
 		expect(result).toMatchObject({ status: 422, data: { claim: 'notEligible' } });
 		expect(sendEmailMock).not.toHaveBeenCalled();
 	});
@@ -218,10 +220,10 @@ describe.skipIf(!hasDbEnv)('requestCorrection action (issue #887)', () => {
 		const supplierId = await claimSupplier('proveedor2@example.com');
 		const invoiceId = await claimInvoice(supplierId);
 
-		await expectRedirect(actions.requestCorrection(claimEvent(invoiceId, claimFormData('Falta caja', 'Nos falta una caja.'))));
+		await expectRedirect(actions.requestCorrection!(claimEvent(invoiceId, claimFormData('Falta caja', 'Nos falta una caja.'))));
 
 		expect(sendEmailMock).toHaveBeenCalledOnce();
-		expect(sendEmailMock.mock.calls[0][0]).toMatchObject({
+		expect(sendEmailMock.mock.calls[0]![0]).toMatchObject({
 			kind: 'supplier_claim',
 			to: 'proveedor2@example.com',
 			subject: 'Falta caja',
@@ -231,8 +233,8 @@ describe.skipIf(!hasDbEnv)('requestCorrection action (issue #887)', () => {
 			SELECT action, reason, snapshot FROM invoice_audit_log
 			WHERE restaurant_id = ${restaurant.id} AND invoice_id = ${invoiceId} AND action = 'claim_email_sent'`;
 		expect(rows).toHaveLength(1);
-		expect(rows[0].reason).toBe('Falta caja');
-		const snapshot = JSON.parse(rows[0].snapshot);
+		expect(rows[0]!.reason).toBe('Falta caja');
+		const snapshot = JSON.parse(rows[0]!.snapshot);
 		expect(snapshot).toMatchObject({ to: 'proveedor2@example.com', subject: 'Falta caja' });
 	});
 
@@ -240,10 +242,10 @@ describe.skipIf(!hasDbEnv)('requestCorrection action (issue #887)', () => {
 		const supplierId = await claimSupplier('proveedor3@example.com');
 		const invoiceId = await claimInvoice(supplierId);
 
-		await expectRedirect(actions.requestCorrection(claimEvent(invoiceId, claimFormData())));
+		await expectRedirect(actions.requestCorrection!(claimEvent(invoiceId, claimFormData())));
 		sendEmailMock.mockClear();
 
-		const second = await actions.requestCorrection(claimEvent(invoiceId, claimFormData()));
+		const second = await actions.requestCorrection!(claimEvent(invoiceId, claimFormData()));
 		expect(second).toMatchObject({ status: 409, data: { claim: 'alreadySent' } });
 		expect(sendEmailMock).not.toHaveBeenCalled();
 
@@ -259,7 +261,7 @@ describe.skipIf(!hasDbEnv)('requestCorrection action (issue #887)', () => {
 			const supplierId = await claimSupplier('proveedor4@example.com');
 			const invoiceId = await claimInvoice(supplierId);
 
-			await expectRedirect(actions.requestCorrection(claimEvent(invoiceId, claimFormData(), otherRestaurant.id)));
+			await expectRedirect(actions.requestCorrection!(claimEvent(invoiceId, claimFormData(), otherRestaurant.id)));
 			expect(sendEmailMock).not.toHaveBeenCalled();
 		} finally {
 			await cleanupTestRestaurant(otherRestaurant.id);

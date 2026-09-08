@@ -195,7 +195,7 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 			spendByMonthCat.get(r.month)!.set(r.category, Number(r.spend));
 		}
 		const trendData = {
-			xLabels: allMonths.map(m => MONTH_LABELS[(Number.parseInt(m.split('-')[1], 10) - 1)] ?? m),
+			xLabels: allMonths.map(m => MONTH_LABELS[(Number.parseInt(m.split('-')[1] ?? '0', 10) - 1)] ?? m),
 			series: allCats.map(cat => ({
 				key: cat,
 				label: cat,
@@ -236,6 +236,6 @@ export const actions: Actions = {
 		const [row] = await db.insert(suppliers)
 			.values({ restaurantId: rid, name, category: cat })
 			.returning({ id: suppliers.id });
-		redirect(303, `/suppliers/${row.id}`);
+		redirect(303, `/suppliers/${row!.id}`);
 	},
 };

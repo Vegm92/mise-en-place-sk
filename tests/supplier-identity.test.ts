@@ -72,8 +72,8 @@ describe.skipIf(!hasDbEnv)('#905 CIF-first supplier resolution', () => {
 		withRestaurant('cif-invalid-store', async (rid) => {
 			await getOrCreateSupplierId(rid, 'Fruites Mateu', testDb, CAT, { cif: 'B-99.999.998' });
 			const [row] = await rowsFor(rid);
-			expect(row.cif).toBe('B-99.999.998');
-			expect(row.normalizedCif).toBeNull();
+			expect(row!.cif).toBe('B-99.999.998');
+			expect(row!.normalizedCif).toBeNull();
 		}));
 
 	it('does not match on a tax id the model reports as barely legible', () => withRestaurant('cif-low-conf', async (rid) => {
@@ -96,8 +96,8 @@ describe.skipIf(!hasDbEnv)('#905 CIF-first supplier resolution', () => {
 		const id = await getOrCreateSupplierId(rid, 'Lácteos García', testDb);
 		await getOrCreateSupplierId(rid, 'Lácteos García', testDb, CAT, { cif: 'ES B99999997' });
 		const [row] = await rowsFor(rid);
-		expect(row.id).toBe(id);
-		expect(row.normalizedCif).toBe('B99999997');
+		expect(row!.id).toBe(id);
+		expect(row!.normalizedCif).toBe('B99999997');
 	}));
 
 	it('fills contact fields left empty on the supplier the tax id resolved to', () => withRestaurant('cif-contact', async (rid) => {
@@ -106,9 +106,9 @@ describe.skipIf(!hasDbEnv)('#905 CIF-first supplier resolution', () => {
 			cif: 'B99999997', email: 'pedidos@pepe.es', phone: '900112233', address: 'Calle Mayor 1',
 		});
 		const [row] = await rowsFor(rid);
-		expect(row.contactEmail).toBe('pedidos@pepe.es');
-		expect(row.contactPhone).toBe('900112233');
-		expect(row.address).toBe('Calle Mayor 1');
+		expect(row!.contactEmail).toBe('pedidos@pepe.es');
+		expect(row!.contactPhone).toBe('900112233');
+		expect(row!.address).toBe('Calle Mayor 1');
 	}));
 });
 
@@ -118,9 +118,9 @@ describe.skipIf(!hasDbEnv)('#905 alias capture', () => {
 		await getOrCreateSupplierId(rid, 'Lucía María Fernández', testDb, CAT, { cif: 'B99999997' });
 		const aliases = await aliasesFor(rid);
 		expect(aliases).toHaveLength(1);
-		expect(aliases[0].supplierId).toBe(id);
-		expect(aliases[0].name).toBe('Lucía María Fernández');
-		expect(aliases[0].normalizedName).toBe('lucia maria fernandez');
+		expect(aliases[0]!.supplierId).toBe(id);
+		expect(aliases[0]!.name).toBe('Lucía María Fernández');
+		expect(aliases[0]!.normalizedName).toBe('lucia maria fernandez');
 	}));
 
 	it('does not record an alias when the name only differs by legal form or case', () => withRestaurant('alias-same-name', async (rid) => {

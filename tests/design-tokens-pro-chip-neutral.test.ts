@@ -24,7 +24,7 @@ const NEUTRAL_CHIP = [/\bbg-hover\b/, /\btext-fg-2\b/, /\bborder-border\b/];
 
 /** Every span rendering the PRO badge translation key, wherever it sits in the file. */
 const chipSpans = [...layout.matchAll(/<span\s+class="([^"]*)">\{t\('nav\.badge\.pro'\)\}<\/span>/g)].map(
-	m => m[1],
+	m => m[1]!,
 );
 
 describe('PRO chip stays neutral (ADR-026)', () => {

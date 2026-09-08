@@ -89,7 +89,7 @@ export function unitKey(unit: string | null | undefined): string | null {
 
 export function unitFamily(unit: string | null | undefined): UnitFamily | null {
 	const key = unitKey(unit);
-	return key ? UNIT_FACTORS[key].family : null;
+	return key ? (UNIT_FACTORS[key]?.family ?? null) : null;
 }
 
 export function convertQty(qty: number, from: string | null, to: string | null): number | null {
@@ -99,6 +99,7 @@ export function convertQty(qty: number, from: string | null, to: string | null):
 	if (!a || !b) return null;
 	const fa = UNIT_FACTORS[a];
 	const fb = UNIT_FACTORS[b];
+	if (!fa || !fb) return null;
 	if (fa.family !== fb.family) return null;
 	return (qty * fa.factor) / fb.factor;
 }
@@ -131,7 +132,7 @@ export function parseQty(raw: MoneyInput, maxIntDigits = 15): string | null {
 	const m = QTY_INPUT.exec(text);
 	if (!m) return null;
 	const [, intPart, fracPart = ''] = m;
-	const value = roundDecimalString(intPart, fracPart, 4, maxIntDigits);
+	const value = roundDecimalString(intPart ?? '', fracPart, 4, maxIntDigits);
 	return value !== null && Number(value) > 0 ? value : null;
 }
 
@@ -142,7 +143,7 @@ export function parseDecimal(raw: MoneyInput, scale = 2, maxIntDigits = 15): str
 	const m = QTY_INPUT.exec(text);
 	if (!m) return null;
 	const [, intPart, fracPart = ''] = m;
-	return roundDecimalString(intPart, fracPart, scale, maxIntDigits);
+	return roundDecimalString(intPart ?? '', fracPart, scale, maxIntDigits);
 }
 
 export function parsePercent(raw: MoneyInput, max: number): string | null {

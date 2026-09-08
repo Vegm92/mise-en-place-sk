@@ -137,7 +137,7 @@ describe.skipIf(!hasDbEnv)('alert preferences persist in the settings table (iss
 		const rows = await testSql`
 			SELECT value FROM settings WHERE restaurant_id = ${restaurant.id} AND key = ${alertPreferenceKey('price_shock')}`;
 		expect(rows).toHaveLength(1);
-		expect(rows[0].value).toBe('true');
+		expect(rows[0]!.value).toBe('true');
 		expect(await isAlertEnabled(restaurant.id, 'price_shock')).toBe(true);
 	});
 

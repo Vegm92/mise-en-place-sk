@@ -52,7 +52,7 @@ describe('content hash covers the tax (issue: albarán and factura are not the s
       { rate: 0.21, base: 100, tax_amount: 21, type: 'iva' },
       { rate: 0.1, base: 50, tax_amount: 5, type: 'iva' },
     ];
-    const b: TaxBand[] = [a[1], a[0]];
+    const b: TaxBand[] = [a[1]!, a[0]!];
     expect(computeInvoiceContentHash({ ...header, ...lines, taxBands: a }))
       .toBe(computeInvoiceContentHash({ ...header, ...lines, taxBands: b }));
   });

@@ -92,6 +92,7 @@ export async function reportSupplierMerges(exec: BatchDb = db): Promise<Supplier
 		const toMember = (row: SupplierRow): SupplierMergeMember =>
 			({ id: Number(row.id), name: row.name, invoiceCount: Number(row.invoice_count) });
 		const [winner, ...losers] = members;
+		if (!winner) continue;
 		const blocked = blockedByGroup.get(key) ?? 0;
 		const loserMembers = losers.map(toMember);
 		const loserInvoices = loserMembers.reduce((total, l) => total + l.invoiceCount, 0);

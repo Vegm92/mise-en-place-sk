@@ -20,7 +20,7 @@ describe('nextAccessibleIndex', () => {
 		const reportsIndex = TOUR_PAGES.findIndex(p => p.path === '/reports');
 		const trialFeatures = { weeklyDigest: false };
 		const idx = nextAccessibleIndex(TOUR_PAGES, reportsIndex, trialFeatures);
-		expect(TOUR_PAGES[idx].path).not.toBe('/reports');
+		expect(TOUR_PAGES[idx]!.path).not.toBe('/reports');
 	});
 
 	it('walks a trial-tier user through the whole tour without landing on a gated page', () => {
@@ -28,7 +28,7 @@ describe('nextAccessibleIndex', () => {
 		let idx = nextAccessibleIndex(TOUR_PAGES, 0, trialFeatures);
 		const visited: string[] = [];
 		while (idx !== -1) {
-			visited.push(TOUR_PAGES[idx].path);
+			visited.push(TOUR_PAGES[idx]!.path);
 			idx = nextAccessibleIndex(TOUR_PAGES, idx + 1, trialFeatures);
 		}
 		const gated = Object.keys(TOUR_FEATURE_REQUIREMENT);

@@ -147,7 +147,8 @@ describe('/invoices load() — filters come from the search params', () => {
 		const outerWheres = state.whereArgs.map(render)
 			.filter((w) => w.sql.includes('"deleted_at" is null') && w.params.includes('Lácteos'));
 		expect(outerWheres).toHaveLength(2);
-		const [listWhere, countWhere] = outerWheres;
+		const listWhere = outerWheres[0]!;
+		const countWhere = outerWheres[1]!;
 		// The mocked db chain isn't a real query builder, so exists()/notExists()
 		// can't inline their subquery SQL here (that's asserted for real against
 		// Postgres in tests/category-attribution.test.ts) — this only confirms the

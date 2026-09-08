@@ -106,9 +106,9 @@ describeDb('createVerificationToken', () => {
 			SELECT token FROM verification_tokens WHERE identifier = ${identifier}
 		`;
 		expect(rows).toHaveLength(1);
-		expect(rows[0].token).not.toBe(token);
-		expect(rows[0].token).toBe(sha256(token));
-		expect(rows[0].token).toMatch(/^[0-9a-f]{64}$/);
+		expect(rows[0]!.token).not.toBe(token);
+		expect(rows[0]!.token).toBe(sha256(token));
+		expect(rows[0]!.token).toMatch(/^[0-9a-f]{64}$/);
 
 		expect(await consumeVerificationToken(identifier, token)).toBe(true);
 	});

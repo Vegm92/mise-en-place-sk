@@ -99,7 +99,7 @@ describe('redactPayload', () => {
 
 	it('caps long strings and keeps a length marker', () => {
 		const out = redactPayload({ raw: 'x'.repeat(900) }) as Record<string, string>;
-		expect(out.raw.startsWith('x'.repeat(512))).toBe(true);
+		expect(out.raw!.startsWith('x'.repeat(512))).toBe(true);
 		expect(out.raw).toContain('[+388 chars]');
 	});
 
@@ -112,7 +112,7 @@ describe('redactPayload', () => {
 	it('stops recursing past the depth limit', () => {
 		const deep = { a: { b: { c: { d: { e: 'too far' } } } } };
 		const out = redactPayload(deep) as Record<string, Record<string, Record<string, Record<string, unknown>>>>;
-		expect(out.a.b.c.d).toBe('[depth-limit]');
+		expect(out.a!.b!.c!.d).toBe('[depth-limit]');
 	});
 
 	it('summarises binary blobs rather than inlining them', () => {
@@ -323,8 +323,8 @@ describe('recordDeadLetter', () => {
 				payload: { restaurantId },
 			});
 			expect(id).toBe(1);
-			expect(state.inserted[0].restaurantId).toBeNull();
-			expect(state.inserted[0].payload).toEqual({ restaurantId: restaurantId ?? null });
+			expect(state.inserted[0]!.restaurantId).toBeNull();
+			expect(state.inserted[0]!.payload).toEqual({ restaurantId: restaurantId ?? null });
 		},
 	);
 
@@ -334,7 +334,7 @@ describe('recordDeadLetter', () => {
 			error: new Error('boom'),
 			restaurantId: '8fac72f0-31a9-4321-a2a2-5ea84f59e563',
 		});
-		expect(state.inserted[0].restaurantId).toBe('8fac72f0-31a9-4321-a2a2-5ea84f59e563');
+		expect(state.inserted[0]!.restaurantId).toBe('8fac72f0-31a9-4321-a2a2-5ea84f59e563');
 	});
 
 	it('never throws when the database is down — the pipeline must keep moving', async () => {

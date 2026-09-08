@@ -21,12 +21,12 @@ function normalizeAmountString(value: string): { sign: string; intPart: string; 
 		const re = s.lastIndexOf(',') > s.lastIndexOf('.') ? ES_GROUPED_AMOUNT : US_GROUPED_AMOUNT;
 		const grouped = re.exec(s);
 		if (!grouped) return null;
-		return { sign, intPart: grouped[1].replace(/[.,]/g, ''), fracPart: grouped[2] };
+		return { sign, intPart: (grouped[1] ?? '').replace(/[.,]/g, ''), fracPart: grouped[2] ?? '' };
 	}
 
 	const plain = PLAIN_AMOUNT.exec(s);
 	if (!plain) return null;
-	return { sign, intPart: plain[1], fracPart: plain[2] ?? '' };
+	return { sign, intPart: plain[1] ?? '', fracPart: plain[2] ?? '' };
 }
 
 export function parseAmount(value: unknown): number | null {

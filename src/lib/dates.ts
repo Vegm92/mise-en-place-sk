@@ -25,7 +25,7 @@ export function toIsoDate(value: unknown): string | null {
 		const day = Number(d);
 
 		if (month >= 1 && month <= 12 && day >= 1) {
-			const maxDays = month === 2 && isLeapYear(year) ? 29 : DAYS_IN_MONTH[month];
+			const maxDays = month === 2 && isLeapYear(year) ? 29 : DAYS_IN_MONTH[month] ?? 0;
 			if (day <= maxDays) {
 				result = raw;
 			}

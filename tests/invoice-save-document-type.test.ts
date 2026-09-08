@@ -28,7 +28,7 @@ const fakeItem = (extractedData: Record<string, unknown> | null): BatchItem =>
 async function savedDocumentType(item: BatchItem | null, invoiceNumber: string): Promise<string | null> {
 	const invoiceId = await saveInvoiceOrThrow(item, singleLineInvoiceForm({ invoiceNumber }), restaurant.id, UID);
 	const [row] = await testSql`SELECT document_type FROM invoices WHERE id = ${invoiceId}`;
-	return row.document_type as string | null;
+	return row!.document_type as string | null;
 }
 
 describe.skipIf(!hasDbEnv)('saveReviewedInvoice → document_type persistence (issue #461)', () => {

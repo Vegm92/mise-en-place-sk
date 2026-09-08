@@ -158,5 +158,5 @@ export async function getOrCreateSupplierId(
 			payment_terms = COALESCE(suppliers.payment_terms, ${merge.paymentTerms})
 		RETURNING id
 	`);
-	return rows[0].id;
+	return rows[0]!.id;
 }

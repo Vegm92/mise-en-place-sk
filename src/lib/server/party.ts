@@ -61,15 +61,10 @@ function swapParties(invoice: ExtractedInvoice): ExtractedInvoice {
 		iban: null,
 		payment_method: null,
 		payment_terms: null,
-		field_confidences: confidences && {
-			...confidences,
-			supplier_name: confidences.receiver_name,
-			supplier_nif: confidences.receiver_nif,
-			supplier_category: undefined,
-			receiver_name: confidences.supplier_name,
-			receiver_nif: confidences.supplier_nif,
-			iban: undefined,
-		},
+		...(confidences ? (() => {
+			const { supplier_category: _sc, iban: _ib, ...rest } = confidences;
+			return { field_confidences: { ...rest, supplier_name: confidences.receiver_name, supplier_nif: confidences.receiver_nif, receiver_name: confidences.supplier_name, receiver_nif: confidences.supplier_nif } };
+		})() : {}),
 	};
 }
 
