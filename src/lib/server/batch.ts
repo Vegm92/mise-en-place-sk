@@ -2,7 +2,7 @@ import { and, asc, eq, inArray, isNotNull, lt, ne, sql } from 'drizzle-orm';
 import type { ExtractTablesWithRelations } from 'drizzle-orm';
 import type { PostgresJsDatabase, PostgresJsTransaction } from 'drizzle-orm/postgres-js';
 import * as schema from './schema';
-import { uploadBatches, batchItems } from './schema';
+import { uploadBatches, batchItems, type DiscardReason } from './schema';
 import { getStorage } from './storage';
 import { forTenant } from './tenant';
 import { db } from './db';
@@ -43,10 +43,12 @@ export interface BatchItem {
 	extractError: string | null;
 	extractErrorVars: Record<string, string | number> | null;
 	queuedAt: Date | null;
+	extractedAt: Date | null;
 	source: BatchItemSource;
 	sourceRef: string | null;
 	jobCode: string | null;
 	reviewStatus: BatchItemReviewStatus | null;
+	discardedReason: DiscardReason | null;
 }
 
 const REFUNDABLE_ON_CANCEL: readonly BatchItemStatus[] = ['pending', 'queued', 'failed'];
@@ -74,10 +76,12 @@ const itemColumns = {
 	extractError: batchItems.extractError,
 	extractErrorVars: batchItems.extractErrorVars,
 	queuedAt: batchItems.queuedAt,
+	extractedAt: batchItems.extractedAt,
 	source: batchItems.source,
 	sourceRef: batchItems.sourceRef,
 	jobCode: batchItems.jobCode,
 	reviewStatus: batchItems.reviewStatus,
+	discardedReason: batchItems.discardedReason,
 };
 
 function asItem(row: Record<string, unknown>): BatchItem {
@@ -270,6 +274,7 @@ export function createBatchStore(db: BatchDb) {
 			extractError: null,
 			extractErrorVars: null,
 			queuedAt: new Date(),
+			extractedAt: null,
 		});
 	}
 
@@ -317,6 +322,7 @@ export function createBatchStore(db: BatchDb) {
 			conversionNotes,
 			extractError: null,
 			extractErrorVars: null,
+			extractedAt: new Date(),
 		});
 	}
 
@@ -329,6 +335,7 @@ export function createBatchStore(db: BatchDb) {
 			status: 'failed',
 			extractError,
 			extractErrorVars: extractErrorVars ?? null,
+			extractedAt: new Date(),
 		});
 	}
 
@@ -336,11 +343,11 @@ export function createBatchStore(db: BatchDb) {
 		return transition(itemId, ['done'], { status: 'confirmed' });
 	}
 
-	function markDiscarded(itemId: string): Promise<boolean> {
+	function markDiscarded(itemId: string, reason: DiscardReason): Promise<boolean> {
 		return transition(
 			itemId,
 			['pending', 'queued', 'extracting', 'done', 'failed'],
-			{ status: 'discarded' },
+			{ status: 'discarded', discardedReason: reason },
 		);
 	}
 
