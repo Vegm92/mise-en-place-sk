@@ -393,7 +393,23 @@ describe('WhatsApp notification hand-off', () => {
 
 		await processExtractionJob({ itemId: item.id, restaurantId: 'r1' }, undefined, { retryCount: 0, retryLimit: 2 });
 
-		expect(queueMocks.enqueueWhatsAppNotify).toHaveBeenCalledWith(item.id, 'r1');
+		expect(queueMocks.enqueueWhatsAppNotify).toHaveBeenCalledWith(item.id, 'r1', undefined);
+	});
+
+	it('issue #1002: carries the job\'s requestId onto the outbound notify enqueue, so the whole chain stays traceable', async () => {
+		batchMocks.getItem.mockResolvedValue(whatsappItem);
+		batchMocks.markExtracting.mockResolvedValue(true);
+		extractMocks.extractWithProvider.mockResolvedValue({
+			invoice: { supplier_name: 'Acme', line_items: [] }, usage: {},
+		});
+
+		await processExtractionJob(
+			{ itemId: item.id, restaurantId: 'r1', requestId: 'req-abc123' },
+			undefined,
+			{ retryCount: 0, retryLimit: 2 },
+		);
+
+		expect(queueMocks.enqueueWhatsAppNotify).toHaveBeenCalledWith(item.id, 'r1', 'req-abc123');
 	});
 
 	it('enqueues a notification once the failure is terminal', async () => {
@@ -658,7 +674,22 @@ describe('processExtractionJob — composite documents are separated before extr
 		await segmentDeps.enqueue('child-1');
 
 		expect(batchMocks.markQueued).toHaveBeenCalledWith('child-1');
-		expect(queueMocks.enqueueExtraction).toHaveBeenCalledWith('child-1', 'r1');
+		expect(queueMocks.enqueueExtraction).toHaveBeenCalledWith('child-1', 'r1', undefined);
+	});
+
+	it('issue #1002: carries the parent job\'s requestId onto each segment it fans out', async () => {
+		segmentationMocks.segmentDocument.mockResolvedValue(SPLIT);
+		extractMocks.extractWithProvider.mockResolvedValue({
+			invoice: { supplier_name: 'Acme', line_items: [] },
+			usage: {},
+		});
+		await processExtractionJob({ ...job, requestId: 'req-parent-1' }, undefined, RETRIES_LEFT);
+
+		const [, segmentDeps] = segmentationMocks.segmentDocument.mock.calls[0] as unknown as
+			[unknown, { enqueue: (id: string) => Promise<unknown> }];
+		await segmentDeps.enqueue('child-2');
+
+		expect(queueMocks.enqueueExtraction).toHaveBeenCalledWith('child-2', 'r1', 'req-parent-1');
 	});
 
 	it.each([

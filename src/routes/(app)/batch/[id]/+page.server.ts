@@ -278,7 +278,7 @@ export const actions: Actions = {
 			getItem,
 			getBatchItems,
 			markQueued,
-			enqueue: enqueueExtraction,
+			enqueue: (id, extractionRid) => enqueueExtraction(id, extractionRid, locals.requestId),
 		});
 		redirect(303, `/batch/${params.id}`);
 	},
@@ -289,7 +289,7 @@ export const actions: Actions = {
 			const requeued = item.status === 'queued' || item.status === 'extracting'
 				? await requeueStalled(item.id)
 				: await markQueued(item.id);
-			if (requeued) await enqueueExtraction(item.id, item.restaurantId);
+			if (requeued) await enqueueExtraction(item.id, item.restaurantId, locals.requestId);
 		}
 		redirect(303, `/batch/${params.id}`);
 	},
@@ -303,7 +303,7 @@ export const actions: Actions = {
 
 		const outcome = await saveReviewedInvoice(item, formData, rid, async (tx) => {
 			await createBatchStore(tx).markConfirmed(item.id);
-		});
+		}, locals.requestId);
 
 		if (outcome.type === 'replay') redirect(303, `/batch/${params.id}`);
 
@@ -362,7 +362,7 @@ export const actions: Actions = {
 			const anyActive = items.some(i => i.status === 'queued' || i.status === 'extracting' || i.status === 'done');
 			if (anyActive) {
 				for (const id of added) {
-					if (await markQueued(id)) await enqueueExtraction(id, items[0].restaurantId);
+					if (await markQueued(id)) await enqueueExtraction(id, items[0].restaurantId, locals.requestId);
 				}
 			}
 		}

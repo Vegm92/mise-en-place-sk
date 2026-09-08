@@ -36,7 +36,7 @@ export const GET: RequestHandler = async ({ url }) => {
 	return new Response('Forbidden', { status: 403 });
 };
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
 	const rawBody = await request.text();
 
 	if (!verifySignature(rawBody, request.headers.get('x-hub-signature-256'))) {
@@ -54,7 +54,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	try {
 		for (const msg of messages) {
-			await enqueueWhatsAppInbound(msg);
+			await enqueueWhatsAppInbound(msg, locals?.requestId);
 		}
 	} catch (err) {
 		console.error('[whatsapp-webhook] failed to durably enqueue inbound message:', err);
