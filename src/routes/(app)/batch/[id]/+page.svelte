@@ -183,16 +183,18 @@
     confidence?: number | null;
     product_code?: string | null;
     product_name?: string | null;
-    product_status?: 'exact' | 'fuzzy' | 'new' | null;
+    product_status?: 'exact' | 'fuzzy' | 'pending' | 'new' | null;
+    product_suggestion?: { candidateName: string } | null;
   };
 
   type ProductMatch = {
     description: string;
     productId: number | null;
     productName: string;
-    status: 'exact' | 'fuzzy' | 'new';
+    status: 'exact' | 'fuzzy' | 'pending' | 'new';
     score: number | null;
     suggestedTaxRate: number | null;
+    suggestion?: { candidateName: string; candidateProductId: number } | null;
   };
 
   // svelte-ignore state_referenced_locally — the batch id in the route param never changes without a remount
@@ -280,8 +282,9 @@
   function normalizeLine(item: LineItem, match?: ProductMatch): LineItem {
     return {
       ...item,
-      product_name: match && match.status !== 'new' ? match.productName : '',
+      product_name: match && match.status !== 'new' && match.status !== 'pending' ? match.productName : '',
       product_status: match?.status ?? null,
+      product_suggestion: match?.suggestion ?? null,
       description: str(item.description),
       quantity: str(item.quantity),
       unit: str(item.unit),
@@ -1313,6 +1316,10 @@
                             {t('review.productMatch')}
                             {#if productUnmatched(item.product_name)}
                               <span class="rev-product-chip warn">{t('review.productUnknown')}</span>
+                            {:else if item.product_status === 'pending' && item.product_suggestion}
+                              <span class="rev-product-chip" title={t('review.productPendingHint')}>
+                                {ti('review.productPending', { candidateName: item.product_suggestion.candidateName })}
+                              </span>
                             {:else if !str(item.product_name)}
                               <span class="rev-product-chip">{t('review.productNew')}</span>
                             {:else if item.product_status === 'fuzzy'}
@@ -1399,6 +1406,10 @@
                             title={t('review.productMatchHint')} />
                           {#if productUnmatched(item.product_name)}
                             <span class="rev-product-chip warn">{t('review.productUnknown')}</span>
+                          {:else if item.product_status === 'pending' && item.product_suggestion}
+                            <span class="rev-product-chip" title={t('review.productPendingHint')}>
+                              {ti('review.productPending', { candidateName: item.product_suggestion.candidateName })}
+                            </span>
                           {:else if !str(item.product_name)}
                             <span class="rev-product-chip">{t('review.productNew')}</span>
                           {:else if item.product_status === 'fuzzy'}

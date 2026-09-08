@@ -1,8 +1,17 @@
 # ADR-018 — Chat and Digest Read One Markdown Snapshot, Never the Database
 
-**Status:** Active
+**Status:** Active for the digest — amended for chat by [ADR-040](./ADR-040-bounded-tool-calling-supplements-the-chat-snapshot.md)
 **Feature:** Insights (chat, weekly digest)
 **Date:** 2026-08-09
+
+**Amendment (2026-09-08, issue #815):** the "architecturally fashionable
+answer is tool-calling" framing below rejected *all* tool access on the
+strength of three real objections to *unbounded, model-composed-SQL*
+tool-calling. ADR-040 keeps all three objections and adds a narrower kind of
+tool access that doesn't trigger them — fixed, reviewed, tenant-scoped
+functions (not synthesized queries), capped at two calls per message. That
+applies to **chat only**; everything below about the digest — one snapshot,
+cached per tenant-week, no tool access — is unchanged and still current.
 
 ## Context
 

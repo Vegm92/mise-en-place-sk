@@ -10,6 +10,7 @@ import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import {
 	getLinkedSuppliers, unlinkSupplier as unlinkSupplierFromProduct,
 	deleteProduct, resolveUnitConversionAlerts, loadProductYearlyPrices,
+	createManualAlias, deleteProductAlias, mergeIntoProduct, listProductOptions,
 } from '$lib/server/products';
 import { moneyToNullableNumber } from '$lib/server/money';
 import { requirePositiveIntId } from '$lib/server/route-params';
@@ -28,7 +29,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const product = productRows[0];
 	if (!product) error(404, 'Product not found');
 
-	const [linkedSuppliers, aliases, priceHistory, yearlyPrices, supplierPrices] = await Promise.all([
+	const [linkedSuppliers, aliases, priceHistory, yearlyPrices, supplierPrices, productOptions] = await Promise.all([
 		getLinkedSuppliers(db, rid, id),
 
 		db.select({
@@ -62,6 +63,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 		loadProductYearlyPrices(db, rid, id),
 		productSupplierPrices(rid, id, localToday()),
+		listProductOptions(db, rid),
 	]);
 
 	return {
@@ -69,6 +71,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		product,
 		linkedSuppliers,
 		aliases,
+		productOptions: productOptions.filter((p) => p.id !== id),
 		priceHistory: priceHistory.map(p => ({
 			...p,
 			unitPrice: moneyToNullableNumber(p.unitPrice),
@@ -146,6 +149,59 @@ export const actions: Actions = {
 		if (unitsPerPack != null && baseUnit) {
 			await resolveUnitConversionAlerts(db, rid, id);
 		}
+
+		redirect(303, `/products/${id}`);
+	},
+
+	createAlias: async ({ params, request, locals }) => {
+		const id = requirePositiveIntId(params.id, 'product');
+		const rid = locals.restaurantId!;
+		const data = await request.formData();
+		const rawText = String(data.get('rawText') ?? '').trim();
+		if (!rawText) return fail(422, { error: 'No se pudo guardar el alias. Revisa el texto y el producto de destino.' });
+
+		if (!(await rateLimitScoped({ scope: 'tenant', name: 'product-alias-manual', max: 60 }, { restaurantId: rid }))) {
+			return fail(429, { error: 'Too many requests' });
+		}
+
+		const result = await createManualAlias(db, rid, id, rawText);
+		if (!result.ok) return fail(422, { error: 'No se pudo guardar el alias. Revisa el texto y el producto de destino.' });
+
+		redirect(303, `/products/${id}`);
+	},
+
+	reassignAlias: async ({ params, request, locals }) => {
+		const id = requirePositiveIntId(params.id, 'product');
+		const rid = locals.restaurantId!;
+		const data = await request.formData();
+		const rawText = String(data.get('rawText') ?? '').trim();
+		const targetProductId = Number(data.get('targetProductId'));
+		if (!rawText || !Number.isInteger(targetProductId) || targetProductId <= 0) {
+			return fail(422, { error: 'No se pudo guardar el alias. Revisa el texto y el producto de destino.' });
+		}
+
+		if (!(await rateLimitScoped({ scope: 'tenant', name: 'product-alias-manual', max: 60 }, { restaurantId: rid }))) {
+			return fail(429, { error: 'Too many requests' });
+		}
+
+		const result = await mergeIntoProduct(db, rid, rawText, targetProductId);
+		if (!result.ok) return fail(422, { error: 'No se pudo guardar el alias. Revisa el texto y el producto de destino.' });
+
+		redirect(303, `/products/${id}`);
+	},
+
+	deleteAlias: async ({ params, request, locals }) => {
+		const id = requirePositiveIntId(params.id, 'product');
+		const rid = locals.restaurantId!;
+		const data = await request.formData();
+		const aliasId = Number(data.get('aliasId'));
+		if (!Number.isInteger(aliasId) || aliasId <= 0) return fail(422, { error: 'No se pudo guardar el alias. Revisa el texto y el producto de destino.' });
+
+		if (!(await rateLimitScoped({ scope: 'tenant', name: 'product-alias-manual', max: 60 }, { restaurantId: rid }))) {
+			return fail(429, { error: 'Too many requests' });
+		}
+
+		await deleteProductAlias(db, rid, aliasId);
 
 		redirect(303, `/products/${id}`);
 	},

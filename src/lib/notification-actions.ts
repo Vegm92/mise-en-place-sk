@@ -44,13 +44,13 @@ export async function decideProductSuggestion(n: Notif, accept: boolean): Promis
 	const p = n.payload as { description?: string; source?: string; candidateProductId?: number } | null;
 	const description = p?.description;
 	if (!description) return false;
-	const isLlm = p?.source === 'llm';
+	const hasCandidate = typeof p?.candidateProductId === 'number';
 	const body: Record<string, unknown> = { description };
 	if (accept) {
 		body.action = 'confirm';
-		if (isLlm && typeof p?.candidateProductId === 'number') body.targetProductId = p.candidateProductId;
+		if (hasCandidate) body.targetProductId = p!.candidateProductId;
 	} else {
-		body.action = isLlm ? 'dismiss' : 'reject';
+		body.action = hasCandidate ? 'dismiss' : 'reject';
 	}
 	const resp = await postJson('/api/product-aliases', body);
 	return resp?.ok === true;
