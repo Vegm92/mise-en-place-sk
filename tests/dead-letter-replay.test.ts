@@ -83,6 +83,17 @@ describe('which queues offer a replay button', () => {
 		},
 	);
 
+	it('does not mistake an inherited Object property for a replayer', async () => {
+		// The lookups are Maps, not object literals: `REPLAYERS['constructor']`
+		// would otherwise return Object and be called as the replayer.
+		for (const queue of ['constructor', 'toString', '__proto__']) {
+			expect(isReplayable(entry(queue))).toBe(false);
+			expect(nonReplayableReason(queue)).toBeNull();
+			expect(await replayDeadLetter(entry(queue)))
+				.toEqual({ ok: false, error: 'notReplayable', status: 400 });
+		}
+	});
+
 	it('an extract row with no source item is not replayable', () => {
 		expect(isReplayable(entry(EXTRACTION_QUEUE, { sourceId: null }))).toBe(false);
 		expect(isReplayable(entry(EXTRACTION_QUEUE, { restaurantId: null }))).toBe(false);
