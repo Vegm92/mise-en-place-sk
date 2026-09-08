@@ -1097,7 +1097,7 @@ export async function saveReviewedInvoice(
 		totalAmount, documentType, purchaseOrder, confidenceRaw, lineInputs, savedItems, unitConversionAlerts,
 		qrMismatches, extractedData, lineDescriptions, lineQuantities, lineUnits, lineUnitPrices,
 		lineTotalPrices, proposedCategory, reviewState, tdb, restaurantPhoneMismatch, restaurantTaxIdMismatch,
-		requestId,
+		...(requestId !== undefined ? { requestId } : {}),
 	});
 
 	return { type: 'saved', invoiceId: invoiceId!, isFirstInvoice };

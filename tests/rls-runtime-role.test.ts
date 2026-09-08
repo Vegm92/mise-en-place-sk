@@ -131,8 +131,8 @@ beforeAll(async () => {
 	await testSql`INSERT INTO invoices (restaurant_id, invoice_number, status) VALUES (${ridB}, 'RLS-B-1', 'pending')`;
 	const [supplierA] = await testSql`INSERT INTO suppliers (restaurant_id, name) VALUES (${ridA}, 'RLS Supplier A') RETURNING id`;
 	const [supplierB] = await testSql`INSERT INTO suppliers (restaurant_id, name) VALUES (${ridB}, 'RLS Supplier B') RETURNING id`;
-	supplierIdA = supplierA.id as number;
-	supplierIdB = supplierB.id as number;
+	supplierIdA = supplierA!.id as number;
+	supplierIdB = supplierB!.id as number;
 	await testSql`UPDATE restaurants SET venue_type = 'carta' WHERE id = ${ridA}`;
 	await testSql`
 		INSERT INTO digest_shares (token, restaurant_id, week)
