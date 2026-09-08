@@ -132,12 +132,43 @@ describe.skipIf(!hasDbEnv)('guarded status transitions', () => {
 	it('discard wins over a late worker claim', async () => {
 		const { itemIds: [id] } = await store.createBatch(rid, twoFiles().slice(0, 1));
 		await store.markQueued(id!);
-		expect(await store.markDiscarded(id!)).toBe(true);
+		expect(await store.markDiscarded(id!, 'user_rejected')).toBe(true);
 
 		// worker job arrives after the user discarded — must not resurrect the item
 		expect(await store.markExtracting(id!)).toBe(false);
 		expect(await store.markDone(id!, {}, [])).toBe(false);
 		expect((await store.getItem(id!))?.status).toBe('discarded');
+	});
+});
+
+/**
+ * #1010: `status = 'discarded'` was written by two callers that meant opposite
+ * things — a human rejecting an extraction, and the splitter retiring a
+ * composite PDF's source row — with nothing on the row to tell them apart. That
+ * made rejection rate, the most direct quality signal the product has,
+ * unmeasurable, and let every composite split inflate it.
+ */
+describe.skipIf(!hasDbEnv)('discard reason (#1010)', () => {
+	it('records who discarded the item and why', async () => {
+		const { itemIds: [rejected, split] } = await store.createBatch(rid, twoFiles());
+
+		await store.markDiscarded(rejected, 'user_rejected');
+		await store.markDiscarded(split, 'composite_source');
+
+		expect((await store.getItem(rejected))?.discardedReason).toBe('user_rejected');
+		expect((await store.getItem(split))?.discardedReason).toBe('composite_source');
+	});
+
+	it('leaves the open/closed filters reading both as discarded', async () => {
+		const { batchId, itemIds } = await store.createBatch(rid, twoFiles());
+
+		await store.markDiscarded(itemIds[0], 'user_rejected');
+		await store.markDiscarded(itemIds[1], 'composite_source');
+
+		// The reason discriminates the meaning without splitting the status: the
+		// `status <> 'discarded'` filters that decide what is still open are
+		// correct for both, and must keep working untouched.
+		expect(await store.isBatchSettled(batchId)).toBe(true);
 	});
 });
 
@@ -247,7 +278,7 @@ describe.skipIf(!hasDbEnv)('batch lifecycle helpers', () => {
 		await store.markExtracting(itemIds[0]!);
 		await store.markDone(itemIds[0]!, {}, []);
 		await store.markConfirmed(itemIds[0]!);
-		await store.markDiscarded(itemIds[1]!);
+		await store.markDiscarded(itemIds[1]!, 'user_rejected');
 
 		expect(await store.isBatchSettled(batchId)).toBe(true);
 	});

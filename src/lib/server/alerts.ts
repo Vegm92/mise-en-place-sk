@@ -19,7 +19,10 @@ import { getOrGenerateWeeklyDigest, isoWeek } from './weekly-digest';
 import { TIERS, effectiveTier, ORPHAN_SUBSCRIPTIONS_CRON, ORPHAN_SUBSCRIPTIONS_QUEUE, runOrphanSubscriptionsJob } from './billing';
 import { getStorage } from './storage';
 import { MRR_SNAPSHOT_CRON, MRR_SNAPSHOT_QUEUE, runMrrSnapshotJob } from './revenue-metrics';
-import { purgeDeadLetters, recordDeadLetter } from './dead-letter';
+import { deadLetterGrowth, purgeDeadLetters, recordDeadLetter, type DeadLetterGrowth } from './dead-letter';
+import { ACCOUNT_CLEANUP_QUEUE, EXTRACTION_QUEUE } from './queue';
+import { extractionQueueDepth } from './pipeline-stats';
+import { METRIC_QUEUE_DEPTH, METRIC_QUEUE_OLDEST, purgeMetrics, recordGauge } from './metrics';
 import { sweepIdempotencyKeys } from './idempotency';
 import { EXTRACTION_IMPROVE_CRON, EXTRACTION_IMPROVE_QUEUE, runExtractionImproveJob } from './extraction-improve';
 import { filterEnabledAlerts, isAlertEnabled } from './alert-preferences';
@@ -1161,6 +1164,9 @@ export const REMINDERS_QUEUE = 'scheduled-overdue-reminders';
 export const TRIAL_QUEUE = 'scheduled-trial-notices';
 export const PURGE_QUEUE = 'scheduled-file-purge';
 export const DEAD_LETTER_PURGE_QUEUE = 'scheduled-dead-letter-purge';
+export const DEAD_LETTER_ALERT_QUEUE = 'scheduled-dead-letter-alert';
+export const METRIC_SAMPLE_QUEUE = 'scheduled-metric-sample';
+export const METRIC_PURGE_QUEUE = 'scheduled-metric-purge';
 export const ANALYTICS_REFRESH_QUEUE = 'scheduled-analytics-refresh';
 export const IDEMPOTENCY_SWEEP_QUEUE = 'scheduled-idempotency-sweep';
 
@@ -1175,6 +1181,9 @@ const REMINDERS_CRON = '30 6 * * *';
 const TRIAL_CRON = '0 7 * * *';
 const PURGE_CRON = '0 3 * * *';
 const DEAD_LETTER_PURGE_CRON = '20 3 * * *';
+const DEAD_LETTER_ALERT_CRON = '5 * * * *';
+const METRIC_SAMPLE_CRON = '*/5 * * * *';
+const METRIC_PURGE_CRON = '50 3 * * *';
 const ANALYTICS_REFRESH_CRON = '10 3 * * *';
 const IDEMPOTENCY_SWEEP_CRON = '40 3 * * *';
 
@@ -1379,6 +1388,78 @@ export async function runDeadLetterPurgeJob(): Promise<{ purged: number }> {
 	return result;
 }
 
+export const DEAD_LETTER_ALERT_THRESHOLD = 10;
+
+export const DEAD_LETTER_ZERO_TOLERANCE_QUEUES = [ACCOUNT_CLEANUP_QUEUE];
+
+export interface DeadLetterAlert {
+	level: 'error' | 'warning';
+	reason: 'zeroTolerance' | 'threshold';
+	queues: string[];
+	pending: number;
+}
+
+export function deadLetterAlert(growth: DeadLetterGrowth): DeadLetterAlert | null {
+	const critical = growth.byQueue.filter((q) => DEAD_LETTER_ZERO_TOLERANCE_QUEUES.includes(q.queue));
+	if (critical.length > 0) {
+		return {
+			level: 'error',
+			reason: 'zeroTolerance',
+			queues: critical.map((q) => q.queue),
+			pending: critical.reduce((sum, q) => sum + q.pending, 0),
+		};
+	}
+	if (growth.pending > DEAD_LETTER_ALERT_THRESHOLD) {
+		return {
+			level: 'warning',
+			reason: 'threshold',
+			queues: growth.byQueue.map((q) => q.queue),
+			pending: growth.pending,
+		};
+	}
+	return null;
+}
+
+export async function runDeadLetterAlertJob(): Promise<{ pending: number; alerted: boolean }> {
+	const growth = await deadLetterGrowth();
+	const alert = deadLetterAlert(growth);
+	if (!alert) return { pending: growth.pending, alerted: false };
+
+	const detail = `${alert.pending} pending in ${growth.windowHours} h (${alert.queues.join(', ')})`;
+	console.error(`[scheduler] dead-letter alert (${alert.reason}): ${detail}`);
+	Sentry.captureMessage(
+		alert.reason === 'zeroTolerance'
+			? 'Dead-lettered account deletion'
+			: 'Dead-letter queue growing',
+		{
+			level: alert.level,
+			fingerprint: [`dead-letter-${alert.reason}`],
+			tags: { subsystem: 'dead-letter' },
+			extra: { pending: alert.pending, windowHours: growth.windowHours, byQueue: growth.byQueue },
+		},
+	);
+	return { pending: growth.pending, alerted: true };
+}
+
+export async function runMetricSampleJob(): Promise<{ items: number; oldestSeconds: number | null }> {
+	const depth = await extractionQueueDepth();
+	const oldestSeconds = depth.oldestQueuedAt
+		? Math.max(0, Math.round((Date.now() - new Date(depth.oldestQueuedAt).getTime()) / 1000))
+		: null;
+
+	await recordGauge(METRIC_QUEUE_DEPTH, depth.items, EXTRACTION_QUEUE);
+	if (oldestSeconds !== null) await recordGauge(METRIC_QUEUE_OLDEST, oldestSeconds, EXTRACTION_QUEUE);
+	if (depth.jobs !== null) await recordGauge(METRIC_QUEUE_DEPTH, depth.jobs, `${EXTRACTION_QUEUE}:pgboss`);
+
+	return { items: depth.items, oldestSeconds };
+}
+
+export async function runMetricPurgeJob(): Promise<{ purged: number }> {
+	const result = await purgeMetrics();
+	if (result.purged) console.info(`[scheduler] metric purge: ${result.purged} samples removed`);
+	return result;
+}
+
 export async function runIdempotencySweepJob(): Promise<{ swept: number }> {
 	const result = await sweepIdempotencyKeys();
 	if (result.swept) console.info(`[scheduler] idempotency sweep: ${result.swept} claims expired`);
@@ -1403,6 +1484,9 @@ const JOBS: ScheduledJob[] = [
 	{ queue: PURGE_QUEUE, cron: PURGE_CRON, run: runFilePurgeJob },
 	{ queue: MRR_SNAPSHOT_QUEUE, cron: MRR_SNAPSHOT_CRON, run: runMrrSnapshotJob },
 	{ queue: DEAD_LETTER_PURGE_QUEUE, cron: DEAD_LETTER_PURGE_CRON, run: runDeadLetterPurgeJob },
+	{ queue: DEAD_LETTER_ALERT_QUEUE, cron: DEAD_LETTER_ALERT_CRON, run: runDeadLetterAlertJob },
+	{ queue: METRIC_SAMPLE_QUEUE, cron: METRIC_SAMPLE_CRON, run: runMetricSampleJob },
+	{ queue: METRIC_PURGE_QUEUE, cron: METRIC_PURGE_CRON, run: runMetricPurgeJob },
 	{ queue: ANALYTICS_REFRESH_QUEUE, cron: ANALYTICS_REFRESH_CRON, run: runAnalyticsRefreshJob },
 	{ queue: IDEMPOTENCY_SWEEP_QUEUE, cron: IDEMPOTENCY_SWEEP_CRON, run: runIdempotencySweepJob },
 	{ queue: ORPHAN_SUBSCRIPTIONS_QUEUE, cron: ORPHAN_SUBSCRIPTIONS_CRON, run: runOrphanSubscriptionsJob },
