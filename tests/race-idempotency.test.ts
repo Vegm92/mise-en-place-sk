@@ -80,11 +80,16 @@ describe.skipIf(!hasDbEnv)('#241 user_restaurants has a composite primary key', 
 		const r = await createTestRestaurant('urest-pk');
 		const userId = randomUUID();
 		try {
+			await testSql`
+				INSERT INTO users (id, email, name)
+				VALUES (${userId}, ${`urest-pk-${userId}@example.com`}, 'Membership PK')
+			`;
 			await testSql`INSERT INTO user_restaurants (user_id, restaurant_id, role) VALUES (${userId}, ${r.id}, 'owner')`;
 			await expect(
 				testSql`INSERT INTO user_restaurants (user_id, restaurant_id, role) VALUES (${userId}, ${r.id}, 'member')`,
 			).rejects.toThrow();
 		} finally {
+			await testSql`DELETE FROM users WHERE id = ${userId}`;
 			await cleanupTestRestaurant(r.id);
 		}
 	});
