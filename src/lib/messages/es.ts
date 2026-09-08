@@ -2395,7 +2395,7 @@ export default {
   'waitlist.compare.without.0':    'Facturas en papel o Excel que se pierden.',
   'waitlist.compare.without.1':    'Gasto invisible hasta fin de mes.',
   'waitlist.compare.without.2':    'Subidas de precio que descubres tarde.',
-  'waitlist.compare.without.3':    '4–6 horas semanales de transcripción manual.',
+  'waitlist.compare.without.3':    'Horas de transcripción manual cada semana.',
   'waitlist.compare.with.title':   'Con Mise en Place',
   'waitlist.compare.with.0':       'Todo digitalizado en segundos.',
   'waitlist.compare.with.1':       'Gasto por categoría en tiempo real.',
