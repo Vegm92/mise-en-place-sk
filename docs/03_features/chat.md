@@ -47,11 +47,11 @@ live SQL.
 - **Sessions**: new → title = first 60 chars of the message; existing →
   touch `updatedAt` under tenant scope (404 if missing).
 - **Persistence**: user + assistant messages written; `trackEvent('chat_message_sent')`.
-- Chat calls Gemini **directly** — it does NOT go through `llm-provider.ts`, so
-  usage is not recorded in `llm_usage_log` and cost limits are not enforced.
-  Open gap, fix contract documented in
-  `docs/04_engineering/llm_usage_metering.md` (route chat through the seam +
-  `recordLlmUsage(rid, usage, 'chat')`).
+- Chat goes through `llm-provider.ts` and calls
+  `recordLlmUsage(rid, usage, 'chat')`, so usage is recorded in
+  `llm_usage_log` (#426). The per-tenant cost cap (`checkExtractionQuota`)
+  is not applied to chat, so cost limits are not yet enforced on this
+  surface — see `docs/04_engineering/llm_usage_metering.md`.
 - Error mapping: 429/503 → user-friendly errors.
 
 ## State transitions
@@ -105,7 +105,7 @@ Message length; tenant scope; session ownership; entitlement.
 
 ## Observability
 
-- `trackEvent('chat_message_sent')`; usage accounting gap tracked in
+- `trackEvent('chat_message_sent')`; usage accounting in
   `docs/04_engineering/llm_usage_metering.md`.
 
 ## Acceptance criteria

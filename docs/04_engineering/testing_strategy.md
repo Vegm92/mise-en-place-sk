@@ -89,9 +89,9 @@ failure rather than a skip, so the summary should never appear there.
 - **Chat**: no dedicated test for `(app)/api/chat` (schema covered only).
 - **Weekly digest**: no dedicated test beyond `tests/scheduler.test.ts`
   (job registration).
-- **LLM metering**: no test asserts chat/digest write to `llm_usage_log` —
-  they are not metered at all today; the fix + planned tests are in
-  `docs/04_engineering/llm_usage_metering.md`.
+- **LLM metering**: chat and digest write to `llm_usage_log` (#426), but no
+  test asserts it — see `docs/04_engineering/llm_usage_metering.md` for the
+  planned coverage.
 - **Stripe checkout**: billing.test.ts covers tiers/quotas/access; the checkout
   route's happy path is not exercised end-to-end.
 - **Admin/revenue math**: `revenue-math.ts` is tested; the revenue-metrics
