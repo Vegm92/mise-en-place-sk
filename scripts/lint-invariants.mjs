@@ -370,7 +370,7 @@ function runActionAuthzGate() {
  * entry is budgeted at zero, so new inline token styles fail on arrival.
  */
 const INLINE_TOKEN_STYLE_BUDGET = new Map([
-	['src/routes/(app)/+layout.svelte', 58],
+	['src/routes/(app)/+layout.svelte', 56],
 	['src/routes/(app)/suppliers/[id]/+page.svelte', 53],
 	['src/routes/(app)/budgets/+page.svelte', 49],
 	['src/routes/(app)/analytics/extraction/+page.svelte', 48],
@@ -383,12 +383,12 @@ const INLINE_TOKEN_STYLE_BUDGET = new Map([
 	['src/lib/components/mobile/MobileInvoiceList.svelte', 21],
 	['src/lib/components/mep/BillingStatusCard.svelte', 19],
 	['src/routes/(admin)/admin/+page.svelte', 1],
-	['src/routes/(app)/analytics/spend/+page.svelte', 17],
+	['src/routes/(app)/analytics/spend/+page.svelte', 16],
 	['src/routes/(app)/suppliers/+page.svelte', 17],
 	['src/lib/components/mobile/MobileProducts.svelte', 16],
 	['src/lib/components/mobile/MobileSuppliersList.svelte', 15],
 	['src/lib/components/mep/BillingFeatureMatrix.svelte', 14],
-	['src/lib/components/mobile/MobileAnalyticsSpend.svelte', 14],
+	['src/lib/components/mobile/MobileAnalyticsSpend.svelte', 13],
 	['src/lib/components/mobile/MobileDashboard.svelte', 14],
 	['src/lib/components/waitlist/CaptureMock.svelte', 14],
 	['src/lib/components/mep/BillingPlanCard.svelte', 13],

@@ -8,8 +8,10 @@ import {
 	NORMALIZE_QUEUE,
 	CATEGORIZE_QUEUE,
 	WHATSAPP_NOTIFY_QUEUE,
+	WHATSAPP_INBOUND_QUEUE,
 	ACCOUNT_CLEANUP_QUEUE,
 	createQueuesWithDeadLetters,
+	type WhatsAppInboundJobData,
 } from './lib/server/queue.js';
 import { pgSslConfig } from './lib/server/db-ssl.js';
 import { runExtractionJobForBoss, type ExtractionJobData } from './lib/server/extraction-worker.js';

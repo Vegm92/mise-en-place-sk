@@ -33,9 +33,13 @@ function cifControlDigit(body: string): number {
 	return (10 - (sum % 10)) % 10;
 }
 
+const validTaxIdCache = new Map<string, boolean>();
+
 export function isValidSpanishTaxId(value: string | null | undefined): boolean {
 	const id = normalizeTaxId(value);
 	if (!id) return false;
+	const cached = validTaxIdCache.get(id);
+	if (cached !== undefined) return cached;
 	if (DNI_RE.test(id)) return id[8] === personalControlLetter(id.slice(0, 8));
 	if (NIE_RE.test(id)) return id[8] === personalControlLetter((NIE_PREFIX[id[0] ?? ''] ?? '') + id.slice(1, 8));
 	if (!CIF_RE.test(id)) return false;
@@ -58,7 +62,7 @@ export function isValidSpanishTaxId(value: string | null | undefined): boolean {
 		}
 	}
 
-	validTaxIdCache.set(value, res);
+	validTaxIdCache.set(id, res);
 	return res;
 }
 

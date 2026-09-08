@@ -159,8 +159,8 @@ describe('both routes use the configured origin, not the request host', () => {
 			const xml = await (await get(fakeEvent(REQUEST_HOST))).text();
 			return [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
 		});
-		expect(locs.length).toBeGreaterThan(0);
-		for (const loc of locs) {
+		expect(configuredLocs.length).toBeGreaterThan(0);
+		for (const loc of configuredLocs) {
 			expect(loc!.startsWith(`${CONFIGURED}/`), `${loc} should sit on the configured origin`).toBe(true);
 		}
 		expect(configuredLocs.join('\n')).not.toContain(REQUEST_HOST);
@@ -189,8 +189,8 @@ describe('both routes use the configured origin, not the request host', () => {
 			const xml = await (await get(fakeEvent(REQUEST_HOST))).text();
 			return [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
 		});
-		expect(locs.length).toBeGreaterThan(0);
-		for (const loc of locs) {
+		expect(fallbackLocs.length).toBeGreaterThan(0);
+		for (const loc of fallbackLocs) {
 			expect(loc!.startsWith(`${REQUEST_HOST}/`)).toBe(true);
 		}
 	});

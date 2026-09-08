@@ -2,10 +2,8 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { WHATSAPP_VERIFY_TOKEN, WHATSAPP_APP_SECRET } from '$lib/server/env';
-import {
-	handleWhatsAppMessage,
-	type WhatsAppInboundMessage,
-} from '$lib/server/whatsapp-bot';
+import type { WhatsAppInboundMessage } from '$lib/server/whatsapp-bot';
+import { enqueueWhatsAppInbound } from '$lib/server/queue';
 import { recordAccountEvent, type AccountEventInput } from '$lib/server/whatsapp-health';
 
 const NODE_ENV = process.env.NODE_ENV ?? 'development';

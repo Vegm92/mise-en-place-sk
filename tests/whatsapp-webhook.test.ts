@@ -11,9 +11,10 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { handleMock, accountEventMock } = vi.hoisted(() => ({
+const { handleMock, accountEventMock, enqueueMock } = vi.hoisted(() => ({
 	handleMock: vi.fn().mockResolvedValue(undefined),
 	accountEventMock: vi.fn().mockResolvedValue(undefined),
+	enqueueMock: vi.fn().mockResolvedValue(true),
 }));
 
 // WHATSAPP_APP_SECRET is intentionally empty here: with no secret the route
@@ -21,6 +22,7 @@ const { handleMock, accountEventMock } = vi.hoisted(() => ({
 // plumbing. Signature rejection is covered separately below.
 vi.mock('$lib/server/env', () => ({ WHATSAPP_VERIFY_TOKEN: 'verify-me', WHATSAPP_APP_SECRET: '' }));
 vi.mock('$lib/server/whatsapp-bot', () => ({ handleWhatsAppMessage: handleMock }));
+vi.mock('$lib/server/queue', () => ({ enqueueWhatsAppInbound: enqueueMock }));
 vi.mock('$lib/server/whatsapp-health', () => ({ recordAccountEvent: accountEventMock }));
 
 import { GET, POST } from '../src/routes/api/whatsapp/webhook/+server';
@@ -43,6 +45,7 @@ function postEvent(body: unknown, opts: { invalidJson?: boolean; signature?: str
 beforeEach(() => {
 	handleMock.mockClear();
 	accountEventMock.mockClear();
+	enqueueMock.mockClear();
 });
 
 describe('GET — verify-token handshake', () => {
@@ -102,7 +105,7 @@ describe('POST — message fan-out', () => {
 	it('returns 200 and dispatches nothing for a status-only callback (no messages)', async () => {
 		const res = await POST(postEvent({ entry: [{ changes: [{ value: { statuses: [{ id: 'x' }] } }] }] }));
 		expect(res.status).toBe(200);
-		expect(handleMock).not.toHaveBeenCalled();
+		expect(enqueueMock).not.toHaveBeenCalled();
 	});
 
 	it('tolerates a malformed envelope without throwing', async () => {

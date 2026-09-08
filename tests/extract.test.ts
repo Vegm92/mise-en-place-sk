@@ -96,7 +96,7 @@ describe('extractInvoice — text PDF path', () => {
     const sysInstrGen = makeGenerateFn(JSON.stringify(MOCK_INVOICE_DATA));
     await extractInvoice('/fake/invoice.pdf', sysInstrGen);
 
-    const [content, , systemInstruction] = vi.mocked(generate).mock.calls[0]!;
+    const [content, , systemInstruction] = vi.mocked(sysInstrGen).mock.calls[0]!;
     expect(content).not.toContain('invoice data extraction specialist');
     expect(content).not.toContain('supplier_nif');
     expect(systemInstruction).toContain('invoice data extraction specialist');
@@ -114,7 +114,7 @@ describe('extractInvoice — scanned PDF path', () => {
     expect(scanCallResult.supplier_name).toBe('Proveedor Test S.L.');
     expect(scanCallGen).toHaveBeenCalledOnce();
 
-    const call = vi.mocked(generate).mock.calls[0]![0] as Array<unknown>;
+    const call = vi.mocked(scanCallGen).mock.calls[0]![0] as Array<unknown>;
     expect(Array.isArray(call)).toBe(true);
     const first = call[0] as { inlineData: { mimeType: string } };
     expect(first.inlineData.mimeType).toBe('application/pdf');
@@ -126,7 +126,7 @@ describe('extractInvoice — scanned PDF path', () => {
     const scanSysGen = makeGenerateFn(JSON.stringify(MOCK_INVOICE_DATA));
     await extractInvoice('/fake/scanned.pdf', scanSysGen);
 
-    const [content, , systemInstruction] = vi.mocked(generate).mock.calls[0]!;
+    const [content, , systemInstruction] = vi.mocked(scanSysGen).mock.calls[0]!;
     const parts = content as Array<unknown>;
     expect(parts).toHaveLength(1);
     expect(systemInstruction).toContain('invoice data extraction specialist');
@@ -139,14 +139,14 @@ describe('extractInvoice — image path', () => {
     ['/fake/invoice.png', 'image/png'],
   ] as const)('calls Gemini with inline image data for %s', async (imgPath, expectedMime) => {
     const imgMimeGen = makeGenerateFn(JSON.stringify(MOCK_INVOICE_DATA));
-    await extractInvoice(imgPath, imgMimeGen);
+    const result = await extractInvoice(imgPath, imgMimeGen);
 
     expect(result.supplier_name).toBe('Proveedor Test S.L.');
-    expect(generate).toHaveBeenCalledOnce();
+    expect(imgMimeGen).toHaveBeenCalledOnce();
 
-    const call = vi.mocked(generate).mock.calls[0]![0] as Array<unknown>;
+    const call = vi.mocked(imgMimeGen).mock.calls[0]![0] as Array<unknown>;
     const first = call[0] as { inlineData: { mimeType: string } };
-    expect(first.inlineData.mimeType).toBe('image/jpeg');
+    expect(first.inlineData.mimeType).toBe(expectedMime);
   });
 
   it('calls Gemini with correct media type for PNG files', async () => {
@@ -162,7 +162,7 @@ describe('extractInvoice — image path', () => {
     const imgSysGen = makeGenerateFn(JSON.stringify(MOCK_INVOICE_DATA));
     await extractInvoice('/fake/invoice.jpg', imgSysGen);
 
-    const [content, , systemInstruction] = vi.mocked(generate).mock.calls[0]!;
+    const [content, , systemInstruction] = vi.mocked(imgSysGen).mock.calls[0]!;
     const parts = content as Array<unknown>;
     expect(parts).toHaveLength(1);
     expect(systemInstruction).toContain('invoice data extraction specialist');
@@ -270,7 +270,7 @@ describe('response schema forwarding (issue #842)', () => {
     const schemaFwdGen = makeGenerateFn(JSON.stringify(MOCK_INVOICE_DATA));
     await extractInvoice('/fake/invoice.pdf', schemaFwdGen);
 
-    const [, , , schema] = vi.mocked(generate).mock.calls[0]!;
+    const [, , , schema] = vi.mocked(schemaFwdGen).mock.calls[0]!;
     expect(schema).toBe(INVOICE_RESPONSE_SCHEMA);
   });
 
@@ -364,7 +364,7 @@ describe('extractInvoice — supplier and receiver contact fields (issues #385, 
     const contactFwdGen = makeGenerateFn(JSON.stringify(MOCK_INVOICE_DATA));
     await extractInvoice('/fake/invoice.pdf', contactFwdGen);
 
-    const systemInstruction = vi.mocked(generate).mock.calls[0]![2] as string;
+    const systemInstruction = vi.mocked(contactFwdGen).mock.calls[0]![2] as string;
     expect(systemInstruction).toContain('supplier_nif');
     expect(systemInstruction).toContain('supplier_address');
     expect(systemInstruction).toContain('supplier_email');
