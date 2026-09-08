@@ -8,8 +8,10 @@ import { parseJson } from '$lib/server/public-form-action';
 
 const NODE_ENV: string = process.env.NODE_ENV ?? 'development';
 
+const RESTAURANT_ID_REQUIRED = 'restaurantId is required';
+
 const SwitchBody = v.object({
-	restaurantId: v.pipe(v.string('restaurantId is required'), v.minLength(1, 'restaurantId is required')),
+	restaurantId: v.pipe(v.string(RESTAURANT_ID_REQUIRED), v.minLength(1, RESTAURANT_ID_REQUIRED)),
 });
 
 export const POST: RequestHandler = async ({ request, locals, cookies }) => {
@@ -21,7 +23,7 @@ export const POST: RequestHandler = async ({ request, locals, cookies }) => {
 	}
 
 	const parsed = await parseJson(SwitchBody, request);
-	if (!parsed.success) return invalidBody(parsed, 400, 'restaurantId is required');
+	if (!parsed.success) return invalidBody(parsed, 400, RESTAURANT_ID_REQUIRED);
 	const { restaurantId } = parsed.output;
 
 	const locations = await memberLocations(user.id);
