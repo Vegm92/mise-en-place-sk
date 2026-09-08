@@ -330,12 +330,12 @@ In order, from the repo's own numbers:
 | Protocol requirement | Present? | Evidence | Fix |
 |---|---|---|---|
 | No secret tracked in git | Yes | `git ls-files` → only `.env.example`; gitleaks full-history scan `.github/workflows/ci.yml:24-27` | — |
-| Multi-tenant scoping column on every tenant table | Mostly | `restaurant_id` on 34 tables `tenant-data-map.ts:23-61` | Add `user_restaurants` to the map |
+| Multi-tenant scoping column on every tenant table | Yes | `restaurant_id` on 34 tables `tenant-data-map.ts:23-61`; `user_restaurants` added by #994 | Closed by #994 |
 | Database-enforced tenant isolation | Declared, inert | `drizzle/0055_rls_tenant_isolation.sql:6-14`; `db-role.ts:49` says cutover pending | Complete the `mep_runtime` cutover (`DEPLOYMENT.md:100`) |
-| RLS on every tenant table | No — 3 gaps | 31 tables have `ENABLE ROW LEVEL SECURITY`; `extraction_results`, `supplier_aliases`, `categories` do not | Add policies mirroring `0055` |
+| RLS on every tenant table | Yes | `drizzle/0078_rls_tenant_isolation_gap.sql` covers `extraction_results`, `supplier_aliases`, `categories`, `user_restaurants` | Closed by #994. Still inert until the `mep_runtime` cutover (#975) |
 | Index on every foreign key | No — 9 gaps | §2.2 | Add the indexes listed in D5 |
 | Ownership checked separately from role | Ownership yes, role no | membership via `memberLocations` `locations.ts:37-56`; `user_restaurants.role` is read only for notification targeting (`alerts.ts:1201`, `billing.ts:191`, `party.ts:124`, `quota-warning.ts:36`) | Decide whether `role` is authorization or metadata; today it is metadata |
-| Audit trail on invoice writes | Partial (3 of 6 actions) | writes at `invoice/[id]/edit:94`, `invoice/[id]:277,307`, `invoices:220,254`; none at `invoice-save.ts:1026` or `batch/[id]:305` | Write `create` and `confirm` rows in the same transaction |
+| Audit trail on invoice writes | Yes | `create` and `confirm` rows now written in the same transaction as the invoice | Closed by #993 |
 | Structured-output enforcement on the model call | Yes | `responseMimeType` + `responseSchema` `llm-provider.ts:51-54`; schema `extract.ts:304`; shape guard `extract.ts:377-389`; sanitiser `extract.ts:426` | — |
 | Per-field confidence | Yes, but not on the invoice | prompt `extract.ts:86-98`; persisted `extraction_results.field_confidences` `schema.ts:499`; corrections `schema.ts:351` | — |
 | Human review gate | Yes | `isLowConfidenceBlocked` `invoice-save.ts:637-646`, enforced `:923` at threshold 0.85 | — |
@@ -344,16 +344,16 @@ In order, from the repo's own numbers:
 | Exponential backoff | **No** | `retryDelay: 30` is a fixed delay; the only exponential backoff is in-process for Gemini `extract.ts:537` | Use pg-boss `retryBackoff: true` |
 | Idempotency key on jobs | Partial | `singletonKey` on every enqueue (`queue.ts:66,83,100,115,135`) + guarded state transitions `batch.ts:255-265` | — |
 | Dead-letter queue | Yes | 5 DLQ queues `queue.ts:18-24`, drained to a table `worker.ts:158-179`, `dead-letter.ts:148` | — |
-| Poison job handling | Partial | dedupe by `(queue, source_id, error_class, status)` `dead-letter.ts:180-185`; replay is **manual and extract-only** `admin/dead-letters/+page.server.ts:99` | Add replay for the other 4 queues |
-| Alert on DLQ growth | Named, unquantified | `monitoring.md:69` lists it with no number; the "> 0 / > 10 in 24 h" figure at `:70-71` is for scheduled jobs | Page at pending > 10 / 24 h |
+| Poison job handling | Yes, with two stated exceptions | dedupe by `(queue, source_id, error_class, status)`; replay covers `extract-invoice`, `normalize-product`, `categorize-product`, `whatsapp-notify` (`dead-letter-replay.ts`). `whatsapp-inbound` and `account-cleanup` show *No replay* + the reason: `redactPayload` truncates their job data, so a replay would run different work | Closed by #1001 |
+| Alert on DLQ growth | Yes | `scheduled-dead-letter-alert` (`5 * * * *`): Sentry `warning` above 10 distinct pending rows / 24 h, `error` on any pending `account-cleanup` row; thresholds in `monitoring.md` | Closed by #1001 |
 | Cache layer | **None** | `response-cache.ts:1` sets `private, no-store` on every routed response | See D5 trigger |
 | Cache TTL / invalidation policy | n/a | no cache | — |
 | Sentry init | Yes | `hooks.server.ts:40`, `worker.ts:37`, `hooks.client.ts:9` | — |
 | Structured log format | **No** | unstructured `console.*`, e.g. `worker.ts:74` | Emit JSON lines |
-| Correlation ID | **No** | repo-wide grep finds none | Add a request id in `appHandle` and carry it onto the job payload |
+| Correlation ID | Yes | `resolveRequestId` in `appHandle`, echoed as `X-Request-Id`, carried onto the job payload and Sentry scope | Closed by #1002 |
 | Health endpoint | Yes | `api/health/+server.ts:117`; detail gated `:123`; wired as Railway healthcheck `railway.json:14` | — |
 | Worker healthcheck | **No** | `railway.worker.json` declares no `healthcheckPath` | Liveness is inferred from `worker_heartbeats` instead (`monitoring.md:70`) |
-| Load / throughput test | **No** | no matching file under `tests/` | — |
+| Load / throughput test | **No** | no matching file under `tests/` | Open — the ≈90 docs/hour ceiling is still computed from config, not observed |
 | CI pipeline | Yes | `.github/workflows/ci.yml`, §6 | — |
 | Forward-only migrations | Yes | 77 journal entries, no down files | — |
 | Expand/contract migration safety | **No mechanism** | pre-deploy migration `railway.json:11-13` runs against the old code | Split destructive migrations across two deploys |
@@ -361,6 +361,12 @@ In order, from the repo's own numbers:
 | Feature flags | Yes, two systems | `hooks.server.ts:203-218`; `entitlements.ts:24` | — |
 | Scaling triggers with metric thresholds | **No** | §5.2 | Adopt D5's trigger table |
 | Production metrics available | Yes | Railway API, §1.1 | — |
+| Per-route latency recorded | Yes | `metric_samples` `name = 'route.latency_ms'`, bucketed per 60 s flush in `appHandle` (`metrics.ts`) | Closed by #1003 |
+| Queue depth over time | Yes | `metric_samples` `name = 'queue.depth'` / `queue.oldest_seconds`, sampled every 5 min by `scheduled-metric-sample` | Closed by #1003 |
+| Extraction end-to-end latency | Yes | `batch_items.extracted_at - queued_at`, on the row; covers failed attempts, which the old `extraction_results` join did not | Closed by #1003 |
+| LLM call latency | Yes | `llm_usage_log.duration_ms`, timed in the provider so every `recordLlmUsage` caller records it | Closed by #1003 |
+| Extraction concurrency cap actually caps | Yes | the semaphore returns the job to the queue on a full cap instead of handing out a slot after 5 min (`rate-limiter.ts`) | Closed by #998 |
+| Discard reason distinguishable | Yes | `batch_items.discarded_reason`; `extractionStats` reports user rejections apart from composite splits | Closed by #1010 |
 
 ---
 

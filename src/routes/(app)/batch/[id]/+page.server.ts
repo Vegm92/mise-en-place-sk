@@ -319,7 +319,7 @@ export const actions: Actions = {
 		if (outcome.type === 'contentDuplicate') return fail(422, { contentDuplicate: true, duplicateId: outcome.duplicateId });
 
 		if (outcome.type === 'numberDuplicate') {
-			await markDiscarded(item.id);
+			await markDiscarded(item.id, 'duplicate_number');
 			if (await isBatchSettled(params.id)) redirect(303, '/?duplicate_inv=1');
 			redirect(303, `/batch/${params.id}`);
 		}
@@ -335,7 +335,7 @@ export const actions: Actions = {
 		if (item) {
 			trackEvent('extraction_discarded', item.restaurantId, { files: [item.displayName] });
 			await getStorage().delete(item.fileKey);
-			await markDiscarded(item.id);
+			await markDiscarded(item.id, 'user_rejected');
 			await refundIfNeverExtracted(item, 'discarded');
 			if (await isBatchSettled(params.id)) await settledRedirect(params.id);
 		}

@@ -186,6 +186,24 @@ directly at write time. Source of the trend/analytics pages.
 
 - Interpolation values for `extractError`, when the message needs to name numbers the translation key alone cannot carry — `extract.err.quotaCompositeExceeded` has to say "contiene 17 documentos y te quedan 8". Encoding counts into the key string would put data in an i18n identifier.
 
+**`const batchItems.discardedReason`**
+
+- Which of the two meanings of `status = 'discarded'` a row carries (#1010): `user_rejected` (a human threw the extraction away), `composite_source` (the splitter retired a composite PDF's source row after producing its children), `duplicate_number` (the save came back `numberDuplicate`). Nullable, because rows written before the column existed are genuinely unknown — migration 0079 backfills only the composite case, which the `<stem>_p<n>[-<m>].pdf` child keys identify without guessing.
+- A discriminator rather than a new status, so the `status <> 'discarded'` filters that compute what is still open keep working unchanged. `markDiscarded` requires it, so a new call site cannot quietly re-create the ambiguity.
+
+**`const batchItems.extractedAt`**
+
+- When the extraction attempt settled, success or failure (#1003). With `queued_at` this makes end-to-end latency a subtraction on the row, replacing a join to `extraction_results` that only recorded successful live runs. `markQueued` clears it so a redelivery times the attempt that actually ran. Migration 0080 backfills it from `extraction_results.created_at` where a corpus row exists, keeping the historical series comparable; anything else stays NULL rather than being guessed from `updated_at`, which also moves on confirm.
+
+**`const metricSamples`**
+
+- The coarse time series behind route latency, queue depth and their thresholds (#1003). Pre-aggregated by design: producers bucket in memory and flush one row per `(name, label)` per window, because a row per request would be ~200k rows a month at production traffic to answer questions a per-minute rollup answers just as well. A gauge writes `count = 1` with `sum = min = max` = the reading.
+- Platform-wide, not tenant data: it holds route ids and queue names, never tenant rows, so it carries no `restaurant_id`, is absent from `tenant-data-map.ts`, and needs no RLS policy. `scheduled-metric-purge` reaps samples older than `METRIC_RETENTION_DAYS` (30).
+
+**`const llmUsageLog.durationMs`**
+
+- Wall-clock duration of the provider call (#1003). Tokens and cost alone cannot tell a slow model from a slow queue. Null for rows predating the column and for the XML e-invoice path, which never calls a provider.
+
 **`const restaurants`**
 
 - Drizzle schema — PostgreSQL (Railway). Single source of truth.

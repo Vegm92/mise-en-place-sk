@@ -185,6 +185,14 @@ Immutable subset is in `docs/00_system/architectural_invariants.md`.
 
 - In-memory fallback bucket.
 
+**`class ExtractionSlotUnavailableError`**
+
+- Raised when `acquireExtractionSlot` could not honour the concurrency cap inside `SLOT_MAX_WAIT_MS` (5 min). Before #998 both the Redis and in-memory paths logged a warning and **handed back a slot anyway** — so under exactly the sustained load `MAX_CONCURRENT_EXTRACTIONS` (3) exists to bound, the cap stopped capping and concurrency was limited only by how fast pg-boss dispatched. Every waiter that timed out proceeded, each holding a Gemini call for up to 120 s. Callers must let the error propagate: the job belongs back on the queue, which is what applies backpressure. `extraction-worker.ts` classifies it as `extract.err.tooMany`, a degradation class, so pg-boss redelivers (`retryLimit: 2`) and the item is only failed once the retries are spent — `extract.err.tooMany` was already in both locale catalogs and emitted nowhere, so it needed no new copy.
+
+**`function acquireExtractionSlot`**
+
+- A `ExtractionSlotUnavailableError` from the Redis path is rethrown rather than caught into the in-memory fallback. A full semaphore is an answer, not a Redis fault; retrying it against the in-process limiter would waive the cluster-wide cap the Redis path exists to enforce.
+
 ### `src/lib/server/rate-limit-scope.ts`
 
 **`function rateLimitScoped`**
@@ -257,6 +265,7 @@ Immutable subset is in `docs/00_system/architectural_invariants.md`.
 
 **`const handle`**
 
+- Route latency (#1003). `appHandle` wraps the request in a timer and calls `observe(METRIC_ROUTE_LATENCY, …)` in a `finally`, so a slow request still counts when it ends in the redirect or error throws SvelteKit uses for control flow. The label is `event.route.id`, never the raw path: a path label opens a new time series per URL a scanner invents, so unmatched requests share one `(unmatched)` bucket. Railway reports one service-wide p95, so without this the audit's measured 566 ms p99 cannot be attributed to a route, and the read-replica trigger in #1004 has no series to fire on. Bypass paths are excluded before the timer starts, as they are from everything else in `appHandle`.
 - adapter-node resolves getClientAddress() from the socket peer unless ADDRESS_HEADER names the proxy header — behind nginx/Caddy every visitor shares one rate-limit bucket, so the IP-keyed login/signup/waitlist limits collapse into one global (#223).
 - Auth.js session: signed JWT cookie, verified locally, no round-trip (unlike the Supabase client this replaced). Build the request-scoped user; resolve the active restaurant (cookie preference if valid, else first). Request-level admin guard for the (admin) layout load, which doesn't rerun on child navigation. Anonymous apex hit → landing page, not the login wall (#291); deep links keep the redirectTo round-trip.
 

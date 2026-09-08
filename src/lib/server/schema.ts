@@ -1,5 +1,5 @@
 import {
-	boolean, check, date, foreignKey, index, integer, jsonb, numeric, pgTable, primaryKey, real, serial, text, timestamp, uniqueIndex, uuid,
+	bigserial, boolean, check, date, doublePrecision, foreignKey, index, integer, jsonb, numeric, pgTable, primaryKey, real, serial, text, timestamp, uniqueIndex, uuid,
 	type AnyPgColumn
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
@@ -374,6 +374,19 @@ export const chatMessages = pgTable('chat_messages', {
 	index('idx_chat_messages_session').on(t.sessionId),
 ]);
 
+export const metricSamples = pgTable('metric_samples', {
+	id:        bigserial('id', { mode: 'number' }).primaryKey(),
+	name:      text('name').notNull(),
+	label:     text('label'),
+	at:        timestamp('at', { withTimezone: true }).notNull().defaultNow(),
+	count:     integer('count').notNull().default(1),
+	sum:       doublePrecision('sum').notNull().default(0),
+	min:       doublePrecision('min'),
+	max:       doublePrecision('max'),
+}, (t) => [
+	index('metric_samples_name_at_idx').on(t.name, t.at),
+]);
+
 export const llmUsageLog = pgTable('llm_usage_log', {
 	id:               serial('id').primaryKey(),
 	restaurantId:     uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
@@ -382,6 +395,7 @@ export const llmUsageLog = pgTable('llm_usage_log', {
 	outputTokens:     integer('output_tokens').notNull().default(0),
 	estimatedCostUsd: numeric('estimated_cost_usd', { precision: 12, scale: 8 }).notNull().default('0'),
 	callerContext:    text('caller_context'),
+	durationMs:       integer('duration_ms'),
 	createdAt:        timestamp('created_at', { withTimezone: true }).defaultNow(),
 }, (t) => [
 	index('llm_usage_log_restaurant_month').on(t.restaurantId, t.createdAt),
@@ -457,6 +471,8 @@ export const uploadBatches = pgTable('upload_batches', {
 	createdAt:    timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 
+export type DiscardReason = 'user_rejected' | 'composite_source' | 'duplicate_number';
+
 export const batchItems = pgTable('batch_items', {
 	id:              uuid('id').primaryKey().default(sql`gen_random_uuid()`),
 	batchId:         uuid('batch_id').notNull().references(() => uploadBatches.id, { onDelete: 'cascade' }),
@@ -470,16 +486,19 @@ export const batchItems = pgTable('batch_items', {
 	extractError:    text('extract_error'),
 	extractErrorVars: jsonb('extract_error_vars').$type<Record<string, string | number>>(),
 	queuedAt:        timestamp('queued_at', { withTimezone: true }),
+	extractedAt:     timestamp('extracted_at', { withTimezone: true }),
 	source:          text('source').notNull().default('web'),
 	sourceRef:       text('source_ref'),
 	jobCode:         text('job_code'),
 	reviewStatus:    text('review_status'),
+	discardedReason: text('discarded_reason').$type<DiscardReason>(),
 	createdAt:       timestamp('created_at', { withTimezone: true }).defaultNow(),
 	updatedAt:       timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (t) => [
 	index('batch_items_batch_id_idx').on(t.batchId),
 	index('batch_items_updated_at_idx').on(t.updatedAt),
 	index('batch_items_queued_at_idx').on(t.queuedAt),
+	index('batch_items_extracted_at_idx').on(t.extractedAt),
 	uniqueIndex('batch_items_job_code_unique').on(t.jobCode)
 		.where(sql`${t.reviewStatus} is null or ${t.reviewStatus} = 'pending'`),
 	index('batch_items_source_ref_idx').on(t.sourceRef),
