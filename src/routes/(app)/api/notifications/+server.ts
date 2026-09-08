@@ -10,8 +10,10 @@ import { apiError, invalidBody } from '$lib/server/api-response';
 import { parseJson } from '$lib/server/public-form-action';
 import { idempotencyKeyField, withIdempotency } from '$lib/server/api-idempotency';
 
+const ID_REQUIRED = 'id required';
+
 const DismissBody = v.object({
-	id: v.pipe(v.number('id required'), v.integer('id required')),
+	id: v.pipe(v.number(ID_REQUIRED), v.integer(ID_REQUIRED)),
 	idempotency_key: idempotencyKeyField,
 });
 
@@ -43,7 +45,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const tdb  = forTenant(rid);
 
 	const parsed = await parseJson(DismissBody, request);
-	if (!parsed.success) return invalidBody(parsed, 422, 'id required');
+	if (!parsed.success) return invalidBody(parsed, 422, ID_REQUIRED);
 	const { id, idempotency_key } = parsed.output;
 
 	return withIdempotency(idempotency_key, rid, async () => {
