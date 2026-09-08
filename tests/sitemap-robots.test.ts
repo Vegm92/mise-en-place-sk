@@ -155,15 +155,15 @@ describe('both routes use the configured origin, not the request host', () => {
 	}
 
 	it('sitemap <loc> uses APP_BASE_URL even when another host served the request', async () => {
-		const locs = await withConfiguredOrigin(CONFIGURED, async ({ sitemapGet: get }) => {
+		const configuredLocs = await withConfiguredOrigin(CONFIGURED, async ({ sitemapGet: get }) => {
 			const xml = await (await get(fakeEvent(REQUEST_HOST))).text();
 			return [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
 		});
-		expect(locs.length).toBeGreaterThan(0);
-		for (const loc of locs) {
+		expect(configuredLocs.length).toBeGreaterThan(0);
+		for (const loc of configuredLocs) {
 			expect(loc!.startsWith(`${CONFIGURED}/`), `${loc} should sit on the configured origin`).toBe(true);
 		}
-		expect(locs.join('\n')).not.toContain(REQUEST_HOST);
+		expect(configuredLocs.join('\n')).not.toContain(REQUEST_HOST);
 	});
 
 	it('robots.txt Sitemap: line uses APP_BASE_URL too', async () => {
@@ -185,12 +185,12 @@ describe('both routes use the configured origin, not the request host', () => {
 	});
 
 	it('falls back to the request origin when APP_BASE_URL is unset, so dev and previews still work', async () => {
-		const locs = await withConfiguredOrigin('', async ({ sitemapGet: get }) => {
+		const fallbackLocs = await withConfiguredOrigin('', async ({ sitemapGet: get }) => {
 			const xml = await (await get(fakeEvent(REQUEST_HOST))).text();
 			return [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
 		});
-		expect(locs.length).toBeGreaterThan(0);
-		for (const loc of locs) {
+		expect(fallbackLocs.length).toBeGreaterThan(0);
+		for (const loc of fallbackLocs) {
 			expect(loc!.startsWith(`${REQUEST_HOST}/`)).toBe(true);
 		}
 	});

@@ -37,13 +37,13 @@ describe.skipIf(!hasDbEnv)('alert writers — message column carries no machine 
 			const alerts = await runCategorizationNudge(1, supplierId, r.id);
 
 			expect(alerts).toHaveLength(1);
-			const [alert] = alerts;
-			expect(looksLikeMachineEnum(alert!.message, alert!.notificationType)).toBe(false);
-			expect(alert!.message).not.toContain('supplier_uncategorized');
-			expect(alert!.message).toBe(
+			const alert = alerts[0]!;
+			expect(looksLikeMachineEnum(alert.message, alert.notificationType)).toBe(false);
+			expect(alert.message).not.toContain('supplier_uncategorized');
+			expect(alert.message).toBe(
 				renderTemplate('es', 'notif.msg.uncategorized', { supplier: 'ESPECIAS LOCAL S.L.U.' }),
 			);
-			expect(alert!.payload).toMatchObject({
+			expect(alert.payload).toMatchObject({
 				messageKey: 'notif.msg.uncategorized',
 				messageVars: { supplier: 'ESPECIAS LOCAL S.L.U.' },
 			});
@@ -59,10 +59,10 @@ describe.skipIf(!hasDbEnv)('alert writers — message column carries no machine 
 			const alerts = await runCategorySuggestion(supplierId, r.id, 'Bebidas');
 
 			expect(alerts).toHaveLength(1);
-			const [alert] = alerts;
-			expect(looksLikeMachineEnum(alert!.message, alert!.notificationType)).toBe(false);
-			expect(alert!.message).not.toContain('->');
-			expect(alert!.message).toBe(
+			const alert2 = alerts[0]!;
+			expect(looksLikeMachineEnum(alert2.message, alert2.notificationType)).toBe(false);
+			expect(alert2.message).not.toContain('->');
+			expect(alert2.message).toBe(
 				renderTemplate('es', 'notif.msg.catSuggested', { supplier: 'Distribuciones Sur', category: 'Bebidas' }),
 			);
 		} finally {

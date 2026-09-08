@@ -130,16 +130,16 @@ describe('saveEmail', () => {
 
 	it('rate limits repeated attempts per account', async () => {
 		rateLimitMock.mockResolvedValueOnce(false);
-		const result = await actions.saveEmail!(formEvent({ email: 'new@example.com' }));
-		expect(result).toMatchObject({ status: 429, data: { error: 'set.profile.err.rateLimited' } });
+		const emailRateLimitResult = await actions.saveEmail!(formEvent({ email: 'new@example.com' }));
+		expect(emailRateLimitResult).toMatchObject({ status: 429, data: { error: 'set.profile.err.rateLimited' } });
 		expect(rateLimitMock).toHaveBeenCalledWith('email-change:user:user-1', 5);
 		expect(sendEmailMock).not.toHaveBeenCalled();
 	});
 
 	it('rate limits repeated attempts per target address', async () => {
 		rateLimitMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
-		const result = await actions.saveEmail!(formEvent({ email: 'new@example.com' }));
-		expect(result).toMatchObject({ status: 429, data: { error: 'set.profile.err.rateLimited' } });
+		const emailAddrRateResult = await actions.saveEmail!(formEvent({ email: 'new@example.com' }));
+		expect(emailAddrRateResult).toMatchObject({ status: 429, data: { error: 'set.profile.err.rateLimited' } });
 		expect(rateLimitMock).toHaveBeenCalledWith('email-change:address:new@example.com', 5);
 		expect(sendEmailMock).not.toHaveBeenCalled();
 	});
@@ -180,8 +180,8 @@ describe('changePassword', () => {
 
 	it('rate limits repeated attempts per account', async () => {
 		rateLimitMock.mockResolvedValueOnce(false);
-		const result = await actions.changePassword!(formEvent(good));
-		expect(result).toMatchObject({ status: 429, data: { error: 'set.profile.err.rateLimited' } });
+		const pwRateLimitResult = await actions.changePassword!(formEvent(good));
+		expect(pwRateLimitResult).toMatchObject({ status: 429, data: { error: 'set.profile.err.rateLimited' } });
 		expect(rateLimitMock).toHaveBeenCalledWith('password-change:user-1', 5);
 		expect(verifyCredentialsMock).not.toHaveBeenCalled();
 	});

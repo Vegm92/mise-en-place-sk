@@ -208,8 +208,8 @@ describe('alert preference labels exist in both locales (issue #577)', () => {
 	];
 
 	it.each(['es', 'en'] as const)('has every key in %s', (locale) => {
-		const table = translations[locale] as Record<string, string>;
-		const missing = keys.filter((k) => !(k in table) || table[k]!.trim() === '');
+		const alertTable = translations[locale] as Record<string, string>;
+		const missing = keys.filter((k) => !(k in alertTable) || alertTable[k]!.trim() === '');
 		expect(missing).toEqual([]);
 	});
 
@@ -343,8 +343,8 @@ describe('field visibility labels exist in both locales (issue #880)', () => {
 	];
 
 	it.each(['es', 'en'] as const)('has every key in %s', (locale) => {
-		const table = translations[locale] as Record<string, string>;
-		const missing = keys.filter((k) => !(k in table) || table[k]!.trim() === '');
+		const fieldTable = translations[locale] as Record<string, string>;
+		const missing = keys.filter((k) => !(k in fieldTable) || fieldTable[k]!.trim() === '');
 		expect(missing).toEqual([]);
 	});
 });

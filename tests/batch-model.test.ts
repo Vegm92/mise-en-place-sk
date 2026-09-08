@@ -58,7 +58,7 @@ describe.skipIf(!hasDbEnv)('batch creation and reads', () => {
 describe.skipIf(!hasDbEnv)('guarded status transitions', () => {
 	it('walks the happy path: pending → queued → extracting → done → confirmed', async () => {
 		const { itemIds } = await store.createBatch(rid, twoFiles().slice(0, 1));
-		const id = itemIds[0];
+		const id = itemIds[0]!;
 
 		expect(await store.markQueued(id)).toBe(true);
 		expect(await store.markExtracting(id)).toBe(true);
@@ -73,7 +73,7 @@ describe.skipIf(!hasDbEnv)('guarded status transitions', () => {
 
 	it('transitions from a wrong source state affect 0 rows and report false', async () => {
 		const { itemIds } = await store.createBatch(rid, twoFiles().slice(0, 1));
-		const id = itemIds[0];
+		const id = itemIds[0]!;
 
 		// pending: worker transitions must all no-op
 		expect(await store.markExtracting(id)).toBe(false);
@@ -85,7 +85,7 @@ describe.skipIf(!hasDbEnv)('guarded status transitions', () => {
 
 	it('a stale duplicate request cannot clobber a done item (the old lost-update bug)', async () => {
 		const { itemIds } = await store.createBatch(rid, twoFiles().slice(0, 1));
-		const id = itemIds[0];
+		const id = itemIds[0]!;
 		await store.markQueued(id);
 		await store.markExtracting(id);
 		await store.markDone(id, { total_amount: 42 }, []);
@@ -101,7 +101,7 @@ describe.skipIf(!hasDbEnv)('guarded status transitions', () => {
 
 	it('failed → queued retry clears the error', async () => {
 		const { itemIds } = await store.createBatch(rid, twoFiles().slice(0, 1));
-		const id = itemIds[0];
+		const id = itemIds[0]!;
 		await store.markQueued(id);
 		await store.markFailed(id, 'extract.err.generic');
 
@@ -113,7 +113,7 @@ describe.skipIf(!hasDbEnv)('guarded status transitions', () => {
 
 	it('extracting → extracting re-claims for a pg-boss retry redelivery (#482)', async () => {
 		const { itemIds } = await store.createBatch(rid, twoFiles().slice(0, 1));
-		const id = itemIds[0];
+		const id = itemIds[0]!;
 		await store.markQueued(id);
 		await store.markExtracting(id);
 
@@ -123,7 +123,7 @@ describe.skipIf(!hasDbEnv)('guarded status transitions', () => {
 
 	it('markQueued stamps queued_at so the stall clock starts, and a retry restarts it', async () => {
 		const { itemIds } = await store.createBatch(rid, twoFiles().slice(0, 1));
-		const id = itemIds[0];
+		const id = itemIds[0]!;
 		expect((await store.getItem(id))?.queuedAt).toBeNull();
 
 		await store.markQueued(id);
@@ -138,7 +138,7 @@ describe.skipIf(!hasDbEnv)('guarded status transitions', () => {
 
 	it('discard wins over a late worker claim', async () => {
 		const { itemIds } = await store.createBatch(rid, twoFiles().slice(0, 1));
-		const id = itemIds[0];
+		const id = itemIds[0]!;
 		await store.markQueued(id);
 		expect(await store.markDiscarded(id)).toBe(true);
 
@@ -152,7 +152,7 @@ describe.skipIf(!hasDbEnv)('guarded status transitions', () => {
 describe.skipIf(!hasDbEnv)('stall reaping (issue #540)', () => {
 	async function queuedLongAgo(msAgo: number): Promise<string> {
 		const { itemIds } = await store.createBatch(rid, twoFiles().slice(0, 1));
-		const id = itemIds[0];
+		const id = itemIds[0]!;
 		await store.markQueued(id);
 		const queuedAt = new Date(Date.now() - msAgo).toISOString();
 		await testSql`UPDATE batch_items SET queued_at = ${queuedAt}::timestamptz WHERE id = ${id}::uuid`;
@@ -207,7 +207,7 @@ describe.skipIf(!hasDbEnv)('stall reaping (issue #540)', () => {
 
 	it('requeueStalled refuses an item that is not in flight', async () => {
 		const { itemIds } = await store.createBatch(rid, twoFiles().slice(0, 1));
-		const id = itemIds[0];
+		const id = itemIds[0]!;
 		expect(await store.requeueStalled(id)).toBe(false);
 		expect((await store.getItem(id))?.status).toBe('pending');
 	});
