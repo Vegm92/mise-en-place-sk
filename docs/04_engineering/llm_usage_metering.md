@@ -41,7 +41,7 @@ chat and digest work and their spend is now visible in `llm_usage_log` and
 
 | Piece | File | Role |
 |---|---|---|
-| Provider seam | `src/lib/server/llm-provider.ts` | `LLMProvider.generate(content)` returns `{ text, usage: { inputTokens, outputTokens, model } }`; `estimateCostUsd(model, in, out)` prices via the `COST_PER_MILLION` table. Seam selected by `LLM_PROVIDER` env (only `gemini` today). This is the ADR-007 seam |
+| Provider seam | `src/lib/server/llm-provider.ts` | `LLMProvider.generate(content)` returns `{ text, usage: { inputTokens, outputTokens, model, durationMs } }`; `estimateCostUsd(model, in, out)` prices via the `COST_PER_MILLION` table. Seam selected by `LLM_PROVIDER` env (only `gemini` today). This is the ADR-007 seam |
 | Usage accounting | `src/lib/server/llm-quota.ts` | `recordLlmUsage(restaurantId, usage, callerContext?)` inserts into `llm_usage_log` (cost computed + stored as `estimated_cost_usd`, `caller_context` labels the caller); non-fatal on failure. `checkExtractionQuota` enforces `tenant_llm_quotas` (count + cost) |
 | Plan quota | `src/lib/server/llm-quota.ts` | `claimMonthlyExtraction` / `releaseMonthlyExtraction` / `reserveMonthlyExtractions` gate the plan quota on `monthly_usage`; `getMonthlyUsage` is the single read every surface uses (ADR-036) |
 | Storage | `src/lib/server/schema/extensions.ts:121-147` | `llm_usage_log` (indexed `(restaurant_id, created_at)`), `tenant_llm_quotas` (per-tenant custom caps), `monthly_usage` (plan counter), `usage_events` (append-only trail the counter sums to) |
@@ -81,6 +81,20 @@ No test asserts the chat/digest metering rows exist yet:
   `GenerateFn`/provider mock pattern; no live Gemini).
 - Digest test asserting the same (currently only `tests/scheduler.test.ts`
   covers digest job registration).
+
+## Call latency (#1003)
+
+`LLMUsage.durationMs` is wall-clock milliseconds around the provider call, timed
+inside `generate` rather than at each call site — so every `recordLlmUsage`
+caller (extraction, structure detection, chat, digest) records it without
+threading a timer through its own code, and it lands in
+`llm_usage_log.duration_ms`.
+
+Optional on the type, and absent rather than zero when no call crossed the
+network: the XML e-invoice path returns `zeroUsage` without a provider, and a
+stubbed provider in tests reports whatever it likes. Tokens and cost alone
+cannot distinguish a slow model from a slow queue, which is the question this
+column exists to answer.
 
 ## Related docs
 

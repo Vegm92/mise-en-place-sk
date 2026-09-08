@@ -124,6 +124,8 @@
                       <input type="hidden" name="id" value={entry.id} />
                       <button type="submit" class="btn btn-secondary text-[11px] px-2 py-[3px]">{t('admin.dlq.replay')}</button>
                     </form>
+                  {:else if entry.notReplayableReason && entry.status !== 'replayed'}
+                    <span class="text-[11px] text-fg-3" title={t(entry.notReplayableReason)}>{t('admin.dlq.noReplay')}</span>
                   {/if}
                   {#if entry.status === 'pending'}
                     <form method="POST" action="?/setStatus" class="inline">

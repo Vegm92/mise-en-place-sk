@@ -307,9 +307,12 @@ export function extractionStatsCheck(stats: ExtractionStats): HealthCheck {
 		else if (stats.successRate < EXTRACTION_SUCCESS_WARN) status = 'warn';
 	}
 	if (status === 'ok' && stats.p95Seconds !== null && stats.p95Seconds > EXTRACTION_P95_WARN_SECONDS) status = 'warn';
+	const rejection = stats.reviewed > 0
+		? ` · ${percent(stats.rejectionRate)} rejected (${stats.userRejected}/${stats.reviewed} reviewed)`
+		: '';
 	const detail = stats.total === 0
 		? `No extractions finished in the last ${stats.windowHours} h`
-		: `${percent(stats.successRate)} success (${stats.succeeded}/${stats.total}) · p50 ${formatSeconds(stats.p50Seconds)} · p95 ${formatSeconds(stats.p95Seconds)} (${stats.timed} timed)`;
+		: `${percent(stats.successRate)} success (${stats.succeeded}/${stats.total}) · p50 ${formatSeconds(stats.p50Seconds)} · p95 ${formatSeconds(stats.p95Seconds)} (${stats.timed} timed)${rejection}`;
 	return { name: `Extraction ${stats.windowHours}h`, status, detail };
 }
 
