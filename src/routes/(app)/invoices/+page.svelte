@@ -245,6 +245,7 @@
       { key: 'reviewed',  label: t('inv.kpi.reviewed'),  value: stats.reviewed_count, sub: t('misc.invoices'), variant: 'pos' },
       { key: 'toReview',  label: t('inv.kpi.toReview'),  value: stats.to_review_count, sub: t('misc.invoices'), variant: stats.to_review_count > 0 ? 'warn' : 'default' },
       { key: 'issues',    label: t('inv.kpi.issues'),    value: stats.issue_count, sub: t('misc.invoices'), variant: stats.issue_count > 0 ? 'neg' : 'default' },
+      { key: 'uncategorized', label: t('inv.kpi.uncategorized'), value: stats.uncategorized_line_invoices, sub: t('misc.invoices'), variant: stats.uncategorized_line_invoices > 0 ? 'warn' : 'default' },
       { key: 'suppliers', label: t('inv.kpi.suppliers'), value: stats.supplier_count, sub: t('dash.kpi.active') },
     ]}
     trendTitle={t('inv.trend.title')}
