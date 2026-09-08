@@ -155,7 +155,7 @@ describe.skipIf(!hasDbEnv)('issue #570 — new-invoice classifier trigger chain'
 
 		const out = await saveReviewedInvoice(item, form(supplierName, [
 			{ desc: 'Aceite de oliva 570', unit: 'l', price: '4.20' },
-		]), rid, undefined, 'req-save-xyz');
+		]), rid, UID, undefined, 'req-save-xyz');
 		expect(out.type).toBe('saved');
 
 		expect(enqueueCategorizeMock).toHaveBeenCalledWith(rid, expect.any(Number), 'Aceite de oliva 570', 'req-save-xyz');
