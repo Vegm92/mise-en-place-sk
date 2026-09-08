@@ -56,7 +56,7 @@ Owner-email gated. Provides:
 | Worker up? | `worker_heartbeats.last_seen_at` — stale > 2 min means down or wedged, whatever the queue depth says |
 | Extractions stalled | `batch_items` in `queued`/`extracting` with `queued_at` older than 15 min; the web process reaps these to `failed` / `extract.err.stalled` on the next batch read |
 | Invoice save correctness | duplicate `contentHash` hits (should be ~0); idempotency claims expired |
-| LLM usage vs quota | `llm_usage_log` / `monthly_usage` (note: chat + digest call Gemini directly and are **not** metered — open gap; fix contract in `docs/04_engineering/llm_usage_metering.md`) |
+| LLM usage vs quota | `llm_usage_log` / `monthly_usage` (chat and digest write to `llm_usage_log` via `recordLlmUsage` — `caller_context` `chat` / `weekly-digest`, per `docs/04_engineering/llm_usage_metering.md`; the per-tenant cost cap, `checkExtractionQuota`, still runs only on the extraction path, so chat/digest spend is recorded but not enforced) |
 | Webhook throughput | `idempotency_keys` grouped by `scope` |
 | MV freshness | last `refresh_analytics_rollups` run (nightly cron) |
 | Scheduled emails actually sent | `pgboss.job` for `tenant-weekly-digest` / `tenant-overdue-reminder` / `tenant-trial-notice`: state counts and `output->>'sent'`; last dispatch in `app_flags` (`job_run:*`) |
@@ -93,4 +93,4 @@ Owner-email gated. Provides:
 - Troubleshooting matrix: `docs/05_operations/troubleshooting.md`.
 - Incident process: `docs/05_operations/incident_response.md`.
 - Deploy-specific failures: `DEPLOYMENT.md`.
-- LLM cost accounting gap: `docs/04_engineering/llm_usage_metering.md`.
+- LLM usage metering: `docs/04_engineering/llm_usage_metering.md`.
