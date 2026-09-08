@@ -1,0 +1,68 @@
+---
+title: D4 job-lifecycle — batch_items status machine and the pg-boss job around it
+---
+%% Solid = transition exists in the repo, cited. Red dashed class = a state whose
+%% only exit is a human or a 180-day purge, i.e. no automatic exit.
+stateDiagram-v2
+    direction TB
+
+    [*] --> pending: createBatch inserts batch_items status pending<br/>batch.ts:127 · schema.ts:466
+
+    pending --> queued: markQueued, guarded from pending|failed<br/>sets queued_at · batch.ts:267
+    failed --> queued: retry action or DLQ replay<br/>batch/[id]/+page.server.ts:291 · admin/dead-letters:103
+
+    queued --> extracting: markExtracting, guarded from queued|extracting<br/>batch.ts:306<br/>IDEMPOTENCY the guarded UPDATE is the only lock,<br/>pg-boss singletonKey = itemId queue.ts:66
+    extracting --> done: markDone writes extracted_data<br/>extraction-worker.ts:413 · batch.ts:314
+    extracting --> failed: markFailed with errorClass<br/>extraction-worker.ts:138 · batch.ts:328
+
+    queued --> failed: stall reaper, queued_at older than<br/>EXTRACTION_STALL_TIMEOUT_MS 900000 ms<br/>batch.ts:283 · env.ts:23
+    extracting --> failed: same reaper, IN_FLIGHT covers both<br/>batch.ts:62,294
+
+    done --> confirmed: markConfirmed, only from done<br/>batch.ts:336, called after the invoice insert commits<br/>batch/[id]/+page.server.ts:305
+    pending --> discarded: markDiscarded batch.ts:342
+    queued --> discarded: markDiscarded batch.ts:342
+    done --> discarded: markDiscarded batch.ts:342
+    failed --> discarded: markDiscarded batch.ts:342
+
+    confirmed --> [*]
+    discarded --> [*]
+
+    state "pg-boss job for extract-invoice" as boss {
+        [*] --> created: enqueueExtraction queue.ts:62
+        created --> active: boss.work batchSize 3 worker.ts:80
+        active --> completed: handler returns completed<br/>extraction-worker.ts:441
+        active --> retry: handler returns failed,<br/>retryLimit 2, retryDelay 30 s FIXED — no exponential backoff<br/>queue.ts:63-64
+        retry --> active
+        active --> deadletter: retries exhausted or expireInSeconds 600 elapsed<br/>deadLetter extract-invoice-dead-letter queue.ts:67
+        deadletter --> dlq_row: drain worker writes dead_letter_queue<br/>worker.ts:158-179 · dead-letter.ts:148
+        completed --> [*]
+    }
+
+    state "dead_letter_queue row, status pending" as dlq_row
+    dlq_row --> replayed: MANUAL admin replay — extract-invoice only,<br/>needs source_id and restaurant_id<br/>admin/dead-letters/+page.server.ts:99-109
+    dlq_row --> reviewed: MANUAL setStatus admin/dead-letters:78
+    dlq_row --> purged: scheduled purge after<br/>DEAD_LETTER_PENDING_RETENTION_DAYS 180<br/>dead-letter.ts:12,388 · cron 20 3 * * * alerts.ts:1177
+    replayed --> queued
+
+    note right of dlq_row
+        NO AUTOMATIC EXIT.
+        normalize-product, categorize-product, whatsapp-notify and
+        account-cleanup rows are not replayable at all — the replay
+        action rejects any queue other than extract-invoice
+        (admin/dead-letters/+page.server.ts:99). Their only exits are a
+        human status change or the 180-day purge.
+        No alert fires on growth: monitoring.md:70-71 names "above 0 / above
+        10 in 24 h" for scheduled-job failures, and nothing in the repo
+        wires a dead_letter_queue threshold to a pager.
+    end note
+
+    note right of failed
+        WhatsApp-sourced items notify the sender
+        (extraction-worker.ts:49) but have no retry
+        affordance outside the web batch UI.
+    end note
+
+    classDef exists stroke:#1e1e1e,stroke-width:2px,fill:#ffffff,color:#1e1e1e;
+    classDef stuck stroke:#e03131,stroke-width:2px,stroke-dasharray:6 4,fill:#ffffff,color:#e03131;
+    class pending,queued,extracting,done,confirmed,discarded,failed,created,active,retry,completed,deadletter,replayed,reviewed,purged exists;
+    class dlq_row stuck;

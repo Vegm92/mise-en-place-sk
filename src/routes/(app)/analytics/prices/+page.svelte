@@ -36,14 +36,6 @@
     catch { return d; }
   }
 
-  function chipBg(pct: number | null) {
-    if (pct === null || Math.abs(pct) < 0.01) return 'var(--mep-hover)';
-    return pct > 0 ? 'var(--mep-neg-soft)' : 'var(--mep-pos-soft)';
-  }
-  function chipFg(pct: number | null) {
-    if (pct === null || Math.abs(pct) < 0.01) return 'var(--mep-fg-3)';
-    return pct > 0 ? 'var(--mep-neg)' : 'var(--mep-pos)';
-  }
   function arrow(pct: number | null) {
     if (pct === null || Math.abs(pct) < 0.01) return '—';
     return pct > 0 ? '↑' : '↓';
@@ -72,12 +64,12 @@
   <div style="padding:20px 24px 24px;display:flex;flex-direction:column;gap:14px;">
 
     <div style="display:flex;align-items:center;gap:12px;">
-      <h2 style="margin:0;font-size:20px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;">{t('prices.question')}</h2>
+      <h2 class="m-0 text-[20px] font-semibold text-fg tracking-[-0.3px]">{t('prices.question')}</h2>
     </div>
 
     <div class="card" style="padding:10px 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
       <div style="position:relative;flex:1;min-width:180px;">
-        <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--mep-fg-3);">
+        <span class="absolute left-[10px] top-1/2 -translate-y-1/2 text-fg-3">
           <Search size={14} />
         </span>
         <input class="input" style="padding-left:32px;width:100%;"
@@ -92,14 +84,16 @@
           {/each}
         </select>
       </form>
-      <div style="display:flex;gap:0;background:var(--mep-surface-2);border-radius:6px;padding:2px;border:1px solid var(--mep-divider);">
+      <div class="flex bg-surface-2 rounded-md p-0.5 border border-divider">
         {#each filterOptions as [val, label]}
-          <button onclick={() => filterChange = val} style="
-            border:0;background:{filterChange === val ? 'var(--mep-surface)' : 'transparent'};
-            color:{filterChange === val ? 'var(--mep-fg)' : 'var(--mep-fg-3)'};
-            font-size:12px;padding:5px 10px;border-radius:4px;cursor:pointer;font-family:inherit;
-            box-shadow:{filterChange === val ? '0 1px 2px rgba(0,0,0,0.05)' : 'none'};
-          ">{label}</button>
+          <button onclick={() => filterChange = val}
+            class="border-0 text-[12px] px-2.5 py-[5px] rounded cursor-pointer font-[inherit]"
+            class:bg-surface={filterChange === val}
+            class:bg-transparent={filterChange !== val}
+            class:text-fg={filterChange === val}
+            class:text-fg-3={filterChange !== val}
+            style="{filterChange === val ? 'box-shadow:0 1px 2px rgba(0,0,0,0.05);' : ''}"
+          >{label}</button>
         {/each}
       </div>
     </div>
@@ -107,28 +101,30 @@
     <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2">
       <div class="card" style="padding:14px;">
         <div class="label" style="margin-bottom:6px;">{t('prices.tracked')}</div>
-        <div class="num" style="font-size:22px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;line-height:1.1;">{data.items.length}</div>
-        <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:6px;">{t('prices.inTotal')}</div>
+        <div class="num text-[22px] font-semibold text-fg tracking-[-0.4px] leading-[1.1]">{data.items.length}</div>
+        <div class="text-[11.5px] text-fg-3 mt-1.5">{t('prices.inTotal')}</div>
       </div>
       <div class="card" style="padding:14px;">
         <div class="label" style="margin-bottom:6px;">{t('prices.up')}</div>
-        <div class="num" style="font-size:22px;font-weight:600;color:{totalUp > 0 ? 'var(--mep-neg)' : 'var(--mep-fg)'};letter-spacing:-0.4px;line-height:1.1;">{totalUp}</div>
-        <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:6px;">{totalUp > 0 ? t('prices.upSub') : t('prices.noUp')}</div>
+        <div class="num text-[22px] font-semibold tracking-[-0.4px] leading-[1.1]"
+          class:text-neg={totalUp > 0} class:text-fg={totalUp <= 0}>{totalUp}</div>
+        <div class="text-[11.5px] text-fg-3 mt-1.5">{totalUp > 0 ? t('prices.upSub') : t('prices.noUp')}</div>
       </div>
       <div class="card" style="padding:14px;">
         <div class="label" style="margin-bottom:6px;">{t('prices.down')}</div>
-        <div class="num" style="font-size:22px;font-weight:600;color:{totalDown > 0 ? 'var(--mep-pos)' : 'var(--mep-fg)'};letter-spacing:-0.4px;line-height:1.1;">{totalDown}</div>
-        <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:6px;">{totalDown > 0 ? t('prices.downSub') : t('prices.noDown')}</div>
+        <div class="num text-[22px] font-semibold tracking-[-0.4px] leading-[1.1]"
+          class:text-pos={totalDown > 0} class:text-fg={totalDown <= 0}>{totalDown}</div>
+        <div class="text-[11.5px] text-fg-3 mt-1.5">{totalDown > 0 ? t('prices.downSub') : t('prices.noDown')}</div>
       </div>
       <div class="card" style="padding:14px;">
         <div class="label" style="margin-bottom:6px;">{t('prices.noChange')}</div>
-        <div class="num" style="font-size:22px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;line-height:1.1;">{totalFlat}</div>
-        <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:6px;">{t('prices.stablePrices')}</div>
+        <div class="num text-[22px] font-semibold text-fg tracking-[-0.4px] leading-[1.1]">{totalFlat}</div>
+        <div class="text-[11.5px] text-fg-3 mt-1.5">{t('prices.stablePrices')}</div>
       </div>
     </div>
 
     {#if !filtered.length}
-      <p class="body text-center py-16" style="color:var(--mep-fg-3);">{t('prices.noDataDesc')}</p>
+      <p class="body text-center py-16 text-fg-3">{t('prices.noDataDesc')}</p>
     {:else}
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
         {#each filtered as item, i}
@@ -136,69 +132,69 @@
           {@const up   = pct !== null && pct > 0.01}
           {@const down = pct !== null && pct < -0.01}
           {@const flat = !up && !down}
-          <div class="card" style="
-            padding:14px 14px 12px;
-            {i === 0 ? 'grid-column:span 2;border-color:var(--mep-acc-ring);box-shadow:0 0 0 3px var(--mep-acc-ring),var(--mep-shadow-card);' : ''}
-          ">
+          <div class="card px-3.5 pt-3.5 pb-3"
+            style="{i === 0 ? 'grid-column:span 2;border-color:var(--mep-acc-ring);box-shadow:0 0 0 3px var(--mep-acc-ring),var(--mep-shadow-card);' : ''}"
+          >
             <div style="display:flex;align-items:flex-start;gap:12px;">
               <div style="flex:1;min-width:0;">
-                <div style="font-size:14px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.1px;
-                  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title={item.description}>
+                <div class="text-[14px] font-semibold text-fg tracking-[-0.1px] overflow-hidden text-ellipsis whitespace-nowrap" title={item.description}>
                   {item.description}
                 </div>
-                <div style="font-size:11.5px;color:var(--mep-fg-3);">{item.supplier_name}</div>
+                <div class="text-[11.5px] text-fg-3">{item.supplier_name}</div>
               </div>
-              <span class="num" style="
-                font-size:11px;font-weight:600;padding:2px 6px;border-radius:4px;flex-shrink:0;
-                background:{chipBg(pct)};color:{chipFg(pct)};
-                display:inline-flex;align-items:center;gap:3px;
-              ">
+              <span class="num text-[11px] font-semibold py-px px-1.5 rounded shrink-0 inline-flex items-center gap-[3px]"
+                class:bg-hover={flat} class:text-fg-3={flat}
+                class:bg-neg-soft={up} class:text-neg={up}
+                class:bg-pos-soft={down} class:text-pos={down}
+              >
                 {arrow(pct)} {flat ? '0%' : Math.abs(pct ?? 0).toFixed(1).replace('.',',') + '%'}
               </span>
             </div>
 
             <div style="display:flex;align-items:baseline;gap:8px;margin-top:12px;">
-              <span class="num" style="font-size:26px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.5px;line-height:1;">
+              <span class="num text-[26px] font-semibold text-fg tracking-[-0.5px] leading-none">
                 {fmtPrice(item.latest_price)}
               </span>
               {#if item.unit}
-                <span style="font-size:12px;color:var(--mep-fg-3);">/ {item.unit}</span>
+                <span class="text-[12px] text-fg-3">/ {item.unit}</span>
               {/if}
               {#if item.latest_normalized_price !== null && item.base_unit}
-                <span class="num" title={t('prices.perBaseHint')} style="font-size:12px;color:var(--mep-fg-3);border:1px solid var(--mep-divider);border-radius:6px;padding:1px 6px;">
+                <span class="num text-[12px] text-fg-3 border border-divider rounded-md px-1.5 py-px" title={t('prices.perBaseHint')}>
                   {fmtPrice(item.latest_normalized_price)}/{item.base_unit}
                 </span>
               {/if}
               {#if item.prev_price !== null && !flat}
-                <span class="num" style="margin-left:auto;font-size:12.5px;color:var(--mep-fg-3);text-decoration:line-through;">
+                <span class="num ml-auto text-[12.5px] text-fg-3 line-through">
                   {fmtPrice(item.prev_price)}
                 </span>
               {/if}
             </div>
 
-            <div style="margin-top:6px;font-size:11px;color:var(--mep-fg-3);">
-              {t('prices.latest')}: <span class="num" style="color:var(--mep-fg-2);">{fmtDate(item.latest_date)}</span>
+            <div class="mt-1.5 text-[11px] text-fg-3">
+              {t('prices.latest')}: <span class="num text-fg-2">{fmtDate(item.latest_date)}</span>
               {#if item.prev_date}
-                · {t('prices.previous')}: <span class="num" style="color:var(--mep-fg-2);">{fmtDate(item.prev_date)}</span>
+                · {t('prices.previous')}: <span class="num text-fg-2">{fmtDate(item.prev_date)}</span>
               {/if}
             </div>
 
             {#if i === 0 && (item.latest_price || item.prev_price)}
-              <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--mep-divider);display:flex;gap:16px;">
+              <div class="mt-2.5 pt-2.5 border-t border-divider flex gap-4">
                 {#if item.prev_price !== null}
                   <div>
-                    <div style="font-size:11px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;">{t('prices.prevPrice')}</div>
-                    <div class="num" style="font-size:13px;font-weight:500;color:var(--mep-fg);margin-top:2px;">{fmtPrice(item.prev_price)}</div>
+                    <div class="text-[11px] text-fg-3 uppercase tracking-[0.04em] font-medium">{t('prices.prevPrice')}</div>
+                    <div class="num text-[13px] font-medium text-fg mt-0.5">{fmtPrice(item.prev_price)}</div>
                   </div>
                 {/if}
                 <div>
-                  <div style="font-size:11px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;">{t('prices.latestPrice')}</div>
-                  <div class="num" style="font-size:13px;font-weight:500;color:var(--mep-fg);margin-top:2px;">{fmtPrice(item.latest_price)}</div>
+                  <div class="text-[11px] text-fg-3 uppercase tracking-[0.04em] font-medium">{t('prices.latestPrice')}</div>
+                  <div class="num text-[13px] font-medium text-fg mt-0.5">{fmtPrice(item.latest_price)}</div>
                 </div>
                 {#if pct !== null}
                   <div>
-                    <div style="font-size:11px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;">{t('prices.variation')}</div>
-                    <div class="num" style="font-size:13px;font-weight:500;color:{chipFg(pct)};margin-top:2px;">
+                    <div class="text-[11px] text-fg-3 uppercase tracking-[0.04em] font-medium">{t('prices.variation')}</div>
+                    <div class="num text-[13px] font-medium mt-0.5"
+                      class:text-fg-3={flat} class:text-neg={up} class:text-pos={down}
+                    >
                       {arrow(pct)} {flat ? '0%' : Math.abs(pct).toFixed(1).replace('.',',') + '%'}
                     </div>
                   </div>

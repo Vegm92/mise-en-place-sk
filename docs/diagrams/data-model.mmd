@@ -1,0 +1,173 @@
+---
+title: D2 data-model — entities as declared in src/lib/server/schema.ts
+---
+%% restaurant_id is the multi-tenant scoping column (ADR-001, app-level scoping).
+%% Attributes tagged NO_TENANT_COLUMN mark a table with no tenant scoping — the red
+%% dashed class of the convention; erDiagram carries no per-entity styling, so the
+%% flag is written into the entity itself. NO_RLS_POLICY marks a tenant table that
+%% migration 0055/0057 never enabled RLS on. NO_INDEX marks an unindexed FK.
+erDiagram
+    restaurants {
+        uuid id PK "schema.ts:8"
+        text name "schema.ts:9"
+        text slug UK "schema.ts:10"
+        uuid parent_id FK "self-ref, idx restaurants_parent_idx schema.ts:24"
+        text cif_nif "schema.ts:20"
+    }
+    users {
+        uuid id PK "schema.ts:208"
+        text email UK "schema.ts:210"
+        text password_hash "schema.ts:213"
+        text access_status "schema.ts:214"
+        int token_version "schema.ts:216"
+        flag NO_TENANT_COLUMN "schema.ts:207"
+    }
+    accounts {
+        uuid user_id FK "NO_INDEX schema.ts:228"
+        text provider PK "schema.ts:230"
+        text provider_account_id PK "schema.ts:231"
+        flag NO_TENANT_COLUMN "schema.ts:227"
+    }
+    sessions {
+        text session_token PK "schema.ts:244"
+        uuid user_id FK "NO_INDEX schema.ts:245"
+        flag NO_TENANT_COLUMN "schema.ts:243"
+    }
+    user_restaurants {
+        uuid user_id PK "no FK to users schema.ts:28"
+        uuid restaurant_id PK, FK "NO_INDEX leading col is user_id schema.ts:33"
+        text role "default owner schema.ts:30"
+        flag NO_RLS_POLICY "absent from 0055 and tenant-data-map.ts"
+    }
+    suppliers {
+        serial id PK "schema.ts:37"
+        uuid restaurant_id FK "TENANT schema.ts:38"
+        text name "uq rid+lower(name) schema.ts:54"
+        text normalized_cif "partial uq schema.ts:55"
+    }
+    supplier_aliases {
+        serial id PK "schema.ts:59"
+        uuid restaurant_id FK "TENANT schema.ts:60"
+        int supplier_id FK "idx rid+supplier schema.ts:67"
+        flag NO_RLS_POLICY "absent from 0055"
+    }
+    invoices {
+        serial id PK "schema.ts:71"
+        uuid restaurant_id FK "TENANT schema.ts:72"
+        int supplier_id FK "NO_INDEX only partial uq schema.ts:111"
+        text invoice_number "partial uq rid+supplier+number schema.ts:111"
+        text content_hash "partial uq rid+hash schema.ts:120"
+        text review_state "default revisado schema.ts:88"
+        text incidence_kind "check lectura|documento schema.ts:130"
+        real confidence "document-level only schema.ts:92"
+        timestamp deleted_at "soft delete schema.ts:96"
+        int linked_invoice_id FK "partial idx schema.ts:114"
+    }
+    invoice_line_items {
+        serial id PK "schema.ts:134"
+        uuid restaurant_id FK "TENANT schema.ts:135"
+        int invoice_id FK "idx schema.ts:153"
+        int product_id FK "partial idx schema.ts:155"
+        numeric normalized_unit_price "schema.ts:150"
+    }
+    products {
+        serial id PK "schema.ts:159"
+        uuid restaurant_id FK "TENANT schema.ts:160"
+        text name_key "uq rid+name_key schema.ts:176"
+        jsonb allergens "schema.ts:168"
+    }
+    invoice_audit_log {
+        serial id PK "schema.ts:258"
+        uuid restaurant_id FK "TENANT idx schema.ts:267"
+        int invoice_id "no FK constraint schema.ts:260"
+        text action "edit|claim|soft_delete only — create and confirm unlogged"
+    }
+    upload_batches {
+        uuid id PK "schema.ts:454"
+        uuid restaurant_id FK "TENANT NO_INDEX schema.ts:455"
+    }
+    batch_items {
+        uuid id PK "schema.ts:460"
+        uuid batch_id FK "idx schema.ts:479"
+        uuid restaurant_id FK "TENANT NO_INDEX schema.ts:462"
+        text status "pending|queued|extracting|done|failed|confirmed|discarded batch.ts:21"
+        jsonb extracted_data "full LLM payload stored in-row schema.ts:467"
+        timestamp queued_at "idx, drives stall detection schema.ts:481"
+    }
+    extraction_results {
+        uuid id PK "schema.ts:488"
+        uuid restaurant_id FK "TENANT idx schema.ts:505"
+        uuid batch_item_id FK "idx schema.ts:508"
+        jsonb field_confidences "per-field confidence schema.ts:499"
+        text prompt_version "schema.ts:495"
+        flag NO_RLS_POLICY "absent from 0055"
+    }
+    extraction_corrections {
+        serial id PK "schema.ts:343"
+        uuid restaurant_id FK "TENANT NO_INDEX schema.ts:344"
+        int invoice_id FK "NO_INDEX schema.ts:345"
+        int supplier_id FK "NO_INDEX schema.ts:346"
+        real field_confidence "schema.ts:351"
+    }
+    categories {
+        serial id PK "schema.ts:732"
+        uuid restaurant_id FK "TENANT uq rid+name_key schema.ts:742"
+        flag NO_RLS_POLICY "absent from 0055"
+    }
+    dead_letter_queue {
+        serial id PK "schema.ts:643"
+        text queue "idx queue+last_seen schema.ts:661"
+        uuid restaurant_id FK "nullable, idx schema.ts:662"
+        text source_id "no FK schema.ts:646"
+        text status "pending|reviewed|replayed|discarded schema.ts:6"
+    }
+    subscriptions {
+        serial id PK "schema.ts:583"
+        uuid restaurant_id FK "TENANT unique schema.ts:584"
+        text plan_tier "schema.ts:588"
+    }
+    app_flags {
+        text key PK "schema.ts:600"
+        text value "schema.ts:601"
+        flag NO_TENANT_COLUMN "schema.ts:599"
+    }
+    whatsapp_session {
+        text id PK "schema.ts:524"
+        jsonb data "whole Baileys credential blob in-row schema.ts:525"
+        flag NO_TENANT_COLUMN "schema.ts:523"
+    }
+    worker_heartbeats {
+        text id PK "schema.ts:677"
+        timestamp last_seen_at "schema.ts:679"
+        flag NO_TENANT_COLUMN "schema.ts:676"
+    }
+    funnel_events {
+        serial id PK "schema.ts:445"
+        text event "idx event+created schema.ts:450"
+        flag NO_TENANT_COLUMN "schema.ts:444"
+    }
+
+    restaurants ||--o{ user_restaurants : "restaurant_id CASCADE schema.ts:29"
+    restaurants ||--o{ restaurants : "parent_id CASCADE schema.ts:11"
+    restaurants ||--o{ suppliers : "CASCADE schema.ts:38"
+    restaurants ||--o{ invoices : "CASCADE schema.ts:72"
+    restaurants ||--o{ invoice_line_items : "CASCADE schema.ts:135"
+    restaurants ||--o{ products : "CASCADE schema.ts:160"
+    restaurants ||--o{ upload_batches : "CASCADE schema.ts:455"
+    restaurants ||--o{ batch_items : "CASCADE schema.ts:462"
+    restaurants ||--o{ extraction_results : "CASCADE schema.ts:489"
+    restaurants ||--o{ extraction_corrections : "CASCADE schema.ts:344"
+    restaurants ||--o{ invoice_audit_log : "CASCADE schema.ts:259"
+    restaurants ||--o{ categories : "CASCADE schema.ts:733"
+    restaurants ||--o| subscriptions : "CASCADE unique schema.ts:584"
+    restaurants ||--o{ supplier_aliases : "CASCADE schema.ts:60"
+    restaurants ||--o{ dead_letter_queue : "CASCADE nullable schema.ts:645"
+    users ||--o{ accounts : "CASCADE schema.ts:228"
+    users ||--o{ sessions : "CASCADE schema.ts:245"
+    suppliers ||--o{ invoices : "supplier_id no ON DELETE schema.ts:73"
+    suppliers ||--o{ supplier_aliases : "CASCADE schema.ts:61"
+    invoices ||--o{ invoice_line_items : "invoice_id CASCADE schema.ts:136"
+    invoices ||--o| invoices : "linked_invoice_id SET NULL schema.ts:104"
+    products ||--o{ invoice_line_items : "product_id SET NULL schema.ts:145"
+    upload_batches ||--o{ batch_items : "batch_id CASCADE schema.ts:461"
+    batch_items ||--o| extraction_results : "batch_item_id SET NULL schema.ts:490"

@@ -91,7 +91,6 @@
   function isNew(createdAt: Date | null) {
     return createdAt ? new Date(createdAt) >= thirtyDaysAgo : false;
   }
-  function deltaColor(v: number) { return v > 0 ? 'var(--mep-neg)' : 'var(--mep-pos)'; }
   function deltaArrow(v: number) {
     if (v > 0.05) return '↑';
     if (v < -0.05) return '↓';
@@ -179,7 +178,7 @@
                 bind:value={search} />
             </div>
 
-            <div style="position:relative;">
+            <div class="relative">
               <select class="btn btn-secondary"
                 style="appearance:none;padding:0 28px 0 10px;cursor:pointer;min-width:130px;"
                 aria-label={t('sup.filterAllCategories')}
@@ -190,10 +189,10 @@
                   <option value={cat}>{tcat(cat)}</option>
                 {/each}
               </select>
-              <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:11px;">▾</span>
+              <span class="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-fg-3 text-[11px]">▾</span>
             </div>
 
-            <div style="position:relative;">
+            <div class="relative">
               <select class="btn btn-secondary"
                 style="appearance:none;padding:0 28px 0 10px;cursor:pointer;min-width:160px;"
                 aria-label={t('dsup.activityAll')}
@@ -204,9 +203,9 @@
                 <option value="due_soon">{t('status.due_soon')}</option>
                 <option value="paid_up">{t('status.paid')}</option>
               </select>
-              <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:11px;">▾</span>
+              <span class="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-fg-3 text-[11px]">▾</span>
             </div>
-            <div style="position:relative;">
+            <div class="relative">
               <select class="btn btn-secondary"
                 style="appearance:none;padding:0 28px 0 10px;cursor:pointer;min-width:190px;"
                 aria-label={t('sup.sort.label')}
@@ -216,14 +215,14 @@
                   <option value={key}>{t(SUPPLIER_SORT_LABEL_KEYS[key])}</option>
                 {/each}
               </select>
-              <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:11px;">▾</span>
+              <span class="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-fg-3 text-[11px]">▾</span>
             </div>
 
             <button type="button" class="btn btn-secondary"
               aria-pressed={data.uncategorizedOnly}
-              style="font-size:12.5px;white-space:nowrap;flex-shrink:0;
-                border-color:{data.uncategorizedOnly ? 'var(--mep-acc)' : 'var(--mep-border)'};
-                color:{data.uncategorizedOnly ? 'var(--mep-acc)' : 'var(--mep-fg-2)'};"
+              style="font-size:12.5px;white-space:nowrap;flex-shrink:0;"
+              class:text-acc={data.uncategorizedOnly} class:text-fg-2={!data.uncategorizedOnly}
+              class:border-acc={data.uncategorizedOnly} class:border-border={!data.uncategorizedOnly}
               onclick={() => applyFilters({ uncategorized: data.uncategorizedOnly ? null : '1' })}>
               {t('sup.filterUncategorized')}
             </button>
@@ -234,13 +233,13 @@
 
     {#snippet table()}
       {#if !data.suppliers.length}
-        <div style="text-align:center;padding:48px 24px;display:flex;flex-direction:column;align-items:center;gap:8px;">
+        <div class="text-center px-6 py-[48px] flex flex-col items-center gap-2">
           {#if hasFilters}
-            <p class="body" style="color:var(--mep-fg-3);">{t('sup.noResults')}</p>
+            <p class="body text-fg-3">{t('sup.noResults')}</p>
           {:else}
             <div style="font-size:28px;margin-bottom:4px;opacity:0.3;">🏪</div>
-            <p class="body-strong" style="color:var(--mep-fg-2);">{t('sup.emptyTitle')}</p>
-            <p class="body" style="color:var(--mep-fg-3);max-width:320px;">{t('sup.emptyDesc')}</p>
+            <p class="body-strong text-fg-2">{t('sup.emptyTitle')}</p>
+            <p class="body text-fg-3 max-w-[320px]">{t('sup.emptyDesc')}</p>
             <a href="/" class="btn btn-primary" style="height:34px;font-size:13px;text-decoration:none;margin-top:8px;">{t('action.upload')}</a>
           {/if}
         </div>
@@ -265,62 +264,53 @@
               {#each data.suppliers as s (s.id)}
                 <tr class="row" onclick={() => location.replace(`/suppliers/${s.id}`)} style="cursor:pointer;">
                   <td>
-                    <div style="display:flex;align-items:center;gap:10px;">
-                      <span style="
-                        width:28px;height:28px;border-radius:14px;flex-shrink:0;
-                        background:{categoryTint(s.category)};color:{categoryColor(s.category)};
-                        display:inline-flex;align-items:center;justify-content:center;
-                        font-size:11px;font-weight:600;
-                      ">{initials(s.name)}</span>
-                      <span style="font-size:13px;font-weight:500;color:var(--mep-fg);
-                        overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{s.name}</span>
+                    <div class="flex items-center gap-2.5">
+                      <span class="w-7 h-7 rounded-full shrink-0 inline-flex items-center justify-center text-[11px] font-semibold"
+                        style="background:{categoryTint(s.category)};color:{categoryColor(s.category)};">{initials(s.name)}</span>
+                      <span class="text-[13px] font-medium text-fg overflow-hidden text-ellipsis whitespace-nowrap">{s.name}</span>
                       {#if isNew(s.createdAt)}
-                        <span style="
-                          flex-shrink:0;font-size:11px;font-weight:700;
-                          background:var(--mep-acc-soft);color:var(--mep-acc);
-                          padding:1px 5px;border-radius:999px;letter-spacing:0.03em;
-                        ">{t('dsup.newBadge')}</span>
+                        <span class="shrink-0 text-[11px] font-bold bg-acc-soft text-acc px-[5px] py-px rounded-full tracking-[0.03em]">{t('dsup.newBadge')}</span>
                       {/if}
                     </div>
                   </td>
-                  <td style="font-size:12px;color:var(--mep-fg-3);">{s.cif ?? '—'}</td>
+                  <td class="text-[12px] text-fg-3">{s.cif ?? '—'}</td>
                   <td>
-                    <span style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;
-                      color:{s.category === 'Other' ? 'var(--mep-fg-3)' : 'var(--mep-fg-2)'};
-                      font-style:{s.category === 'Other' ? 'italic' : 'normal'};">
+                    <span class="inline-flex items-center gap-1.5 text-[12.5px]"
+                      class:text-fg-3={s.category === 'Other'} class:italic={s.category === 'Other'}
+                      class:text-fg-2={s.category !== 'Other'}>
                       <span class="swatch" style="background:{categoryColor(s.category)};"></span>
                       {tcat(s.category)}
                     </span>
                   </td>
-                  <td class="num" style="font-size:12.5px;color:var(--mep-fg-2);">{s.invoice_count}</td>
-                  <td class="num" style="font-weight:500;">{fmtEur(s.month_spend ?? 0, locale.current)}</td>
-                  <td class="num" style="font-size:12.5px;color:var(--mep-fg-2);">{fmtEur(s.total_spend ?? 0, locale.current)}</td>
+                  <td class="num text-[12.5px] text-fg-2">{s.invoice_count}</td>
+                  <td class="num font-medium">{fmtEur(s.month_spend ?? 0, locale.current)}</td>
+                  <td class="num text-[12.5px] text-fg-2">{fmtEur(s.total_spend ?? 0, locale.current)}</td>
                   <td style="padding:0 8px;">
                     {#if s.price_trend && s.price_trend.length >= 3}
                       <Sparkline values={s.price_trend} width={80} height={24} />
                     {:else}
-                      <span style="font-size:11.5px;color:var(--mep-fg-3);">—</span>
+                      <span class="text-[11.5px] text-fg-3">—</span>
                     {/if}
                   </td>
                   <td class="num">
                     {#if s.delta_pct === null || Math.abs(s.delta_pct) < 0.1}
-                      <span style="font-size:11.5px;color:var(--mep-fg-3);">—</span>
+                      <span class="text-[11.5px] text-fg-3">—</span>
                     {:else}
-                      <span style="font-size:12px;font-weight:500;color:{deltaColor(s.delta_pct)};
-                        display:inline-flex;align-items:center;gap:2px;">
-                        <span style="font-size:11px;">{deltaArrow(s.delta_pct)}</span>
+                      <span class="text-[12px] font-medium inline-flex items-center gap-0.5"
+                        class:text-neg={s.delta_pct > 0} class:text-pos={s.delta_pct <= 0}>
+                        <span class="text-[11px]">{deltaArrow(s.delta_pct)}</span>
                         {Math.abs(s.delta_pct).toFixed(1).replace('.', ',')}%
                       </span>
                     {/if}
                   </td>
-                  <td class="num" style="font-size:12.5px;color:var(--mep-fg-2);">
+                  <td class="num text-[12.5px] text-fg-2">
                     {fmtDateShort(s.last_invoice_date, locale.current)}
                     {#if s.cadence}
                       <div class="text-[11px] {s.cadence.late ? 'text-neg' : 'text-fg-3'}">{cadenceLabel(s.cadence, locale.current)}</div>
                     {/if}
                   </td>
-                  <td style="text-align:right;">
-                    <ChevronRight size={13} style="color:var(--mep-fg-3);" />
+                  <td class="text-right">
+                    <ChevronRight size={13} class="text-fg-3" />
                   </td>
                 </tr>
               {/each}
