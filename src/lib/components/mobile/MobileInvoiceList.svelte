@@ -155,33 +155,33 @@
   });
 </script>
 
-<div style="height: 100%; display: flex; flex-direction: column; overflow: hidden; padding-top: 2px;">
-  <div style="padding: 10px 18px 0; flex-shrink: 0;">
-    <div class="card" style="display: flex; align-items: center; padding: 0;">
-      <div style="flex: 1; text-align: center; padding: 10px 6px;">
-        <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-pos); letter-spacing: -0.02em; line-height: 1.1;">{stats.reviewed_count}</div>
-        <div style="font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; color: var(--mep-fg-3); margin-top: 2px;">{t('inv.kpi.reviewed')}</div>
+<div class="h-full flex flex-col overflow-hidden pt-0.5">
+  <div class="px-[18px] pt-[10px] shrink-0">
+    <div class="card flex items-center p-0">
+      <div class="flex-1 text-center px-1.5 py-[10px]">
+        <div class="num text-[16px] font-semibold text-pos tracking-[-0.02em] leading-[1.1]">{stats.reviewed_count}</div>
+        <div class="text-[11px] font-medium uppercase tracking-[0.04em] text-fg-3 mt-0.5">{t('inv.kpi.reviewed')}</div>
       </div>
-      <div style="width: 1px; height: 30px; background: var(--mep-border); flex-shrink: 0;"></div>
-      <div style="flex: 1; text-align: center; padding: 10px 6px;">
-        <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-warn); letter-spacing: -0.02em; line-height: 1.1;">{stats.to_review_count}</div>
-        <div style="font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; color: var(--mep-fg-3); margin-top: 2px;">{t('inv.kpi.toReview')}</div>
+      <div class="w-px h-[30px] bg-border shrink-0"></div>
+      <div class="flex-1 text-center px-1.5 py-[10px]">
+        <div class="num text-[16px] font-semibold text-warn tracking-[-0.02em] leading-[1.1]">{stats.to_review_count}</div>
+        <div class="text-[11px] font-medium uppercase tracking-[0.04em] text-fg-3 mt-0.5">{t('inv.kpi.toReview')}</div>
       </div>
-      <div style="width: 1px; height: 30px; background: var(--mep-border); flex-shrink: 0;"></div>
-      <div style="flex: 1; text-align: center; padding: 10px 6px;">
-        <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-neg); letter-spacing: -0.02em; line-height: 1.1;">{stats.issue_count}</div>
-        <div style="font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; color: var(--mep-fg-3); margin-top: 2px;">{t('inv.kpi.issues')}</div>
+      <div class="w-px h-[30px] bg-border shrink-0"></div>
+      <div class="flex-1 text-center px-1.5 py-[10px]">
+        <div class="num text-[16px] font-semibold text-neg tracking-[-0.02em] leading-[1.1]">{stats.issue_count}</div>
+        <div class="text-[11px] font-medium uppercase tracking-[0.04em] text-fg-3 mt-0.5">{t('inv.kpi.issues')}</div>
       </div>
-      <div style="width: 1px; height: 30px; background: var(--mep-border); flex-shrink: 0;"></div>
-      <div style="flex: 1; text-align: center; padding: 10px 6px;">
-        <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.02em; line-height: 1.1;">{stats.supplier_count}</div>
-        <div style="font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; color: var(--mep-fg-3); margin-top: 2px;">{t('inv.kpi.suppliers')}</div>
+      <div class="w-px h-[30px] bg-border shrink-0"></div>
+      <div class="flex-1 text-center px-1.5 py-[10px]">
+        <div class="num text-[16px] font-semibold text-fg tracking-[-0.02em] leading-[1.1]">{stats.supplier_count}</div>
+        <div class="text-[11px] font-medium uppercase tracking-[0.04em] text-fg-3 mt-0.5">{t('inv.kpi.suppliers')}</div>
       </div>
     </div>
   </div>
 
-  <div style="padding: 10px 18px 10px; position: relative;">
-    <span style="position: absolute; left: 30px; top: 50%; transform: translateY(-50%); color: var(--mep-fg-3); pointer-events: none;">
+  <div class="px-[18px] py-[10px] relative">
+    <span class="absolute left-[30px] top-1/2 -translate-y-1/2 text-fg-3 pointer-events-none">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
       </svg>
@@ -224,7 +224,7 @@
       aria-haspopup="dialog"
       onclick={() => categorySheetOpen = true}
     >{t('minv.filter.category')}</button>
-    <a class="chip" href="/invoices/export" style="gap: 6px;">
+    <a class="chip gap-1.5" href="/invoices/export">
       <FileDown size={13} />
       {t('inv.export')}
     </a>
@@ -322,20 +322,16 @@
     </div>
   {/if}
 
-  <div style="flex: 1; overflow: auto; padding-bottom: 24px;">
+  <div class="flex-1 overflow-auto pb-6">
     {#if grouped.length === 0}
-      <div style="padding: 40px 18px; text-align: center; color: var(--mep-fg-3); font-size: 13px;">
+      <div class="px-[18px] py-[40px] text-center text-fg-3 text-[13px]">
         {t('misc.invoice.zero')}
       </div>
     {:else}
       {#each grouped as [label, group]}
-        <div style="margin-bottom: 16px;">
-          <div style="
-            padding: 6px 18px;
-            font-size: 11.5px; color: var(--mep-fg-3);
-            text-transform: uppercase; letter-spacing: 0.04em; font-weight: 500;
-          ">{label}</div>
-          <div style="padding: 0 18px; display: flex; flex-direction: column; gap: 8px;">
+        <div class="mb-4">
+          <div class="px-[18px] py-[6px] text-[11.5px] text-fg-3 uppercase tracking-[0.04em] font-medium">{label}</div>
+          <div class="px-[18px] flex flex-col gap-2">
             {#each group as inv (inv.id)}
               <div class="flex items-center gap-1">
                 <label class="flex items-center justify-center shrink-0 min-h-[44px]">
@@ -344,42 +340,31 @@
                     onclick={(e) => e.stopPropagation()}
                     onchange={(e) => toggleSelect(inv.id, (e.target as HTMLInputElement).checked)} />
                 </label>
-              <a href="/invoice/{inv.id}" style="
-                flex: 1; min-width: 0;
-                display: flex; align-items: center; gap: 12px;
-                padding: 12px; border-radius: 10px;
-                background: var(--mep-surface);
-                text-decoration: none;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-              ">
-                <div style="
-                  width: 40px; height: 40px; border-radius: 8px; flex-shrink: 0;
-                  background: var(--mep-surface-2); color: var(--mep-fg-2);
-                  display: flex; align-items: center; justify-content: center;
-                ">
+              <a href="/invoice/{inv.id}" class="flex-1 min-w-0 flex items-center gap-3 p-3 rounded-[10px] bg-surface no-underline" style="box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                <div class="w-10 h-10 rounded-lg shrink-0 bg-surface-2 text-fg-2 flex items-center justify-center">
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                     <polyline points="14 2 14 8 20 8"/>
                   </svg>
                 </div>
-                <div style="flex: 1; min-width: 0;">
-                  <div style="font-size: 13.5px; font-weight: 500; color: var(--mep-fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                <div class="flex-1 min-w-0">
+                  <div class="text-[13.5px] font-medium text-fg overflow-hidden text-ellipsis whitespace-nowrap">
                     {inv.supplier_name ?? '—'}
                   </div>
-                  <div style="display: flex; align-items: center; gap: 6px; margin-top: 3px;">
+                  <div class="flex items-center gap-1.5 mt-[3px]">
                     <StatusBadge status={inv.review_state ?? 'revisado'} style="font-size: 11px; padding: 1px 5px;" />
                     <IncidenceKindBadge kind={inv.incidence_kind} small />
-                    <span class="num" style="font-size: 11px; color: var(--mep-fg-3);">
+                    <span class="num text-[11px] text-fg-3">
                       {inv.invoice_number ?? '—'}
                     </span>
                   </div>
                 </div>
-                <div style="text-align: right; flex-shrink: 0;">
-                  <div class="num" style="font-size: 14px; font-weight: 600; color: var(--mep-fg);">
+                <div class="text-right shrink-0">
+                  <div class="num text-[14px] font-semibold text-fg">
                     {(inv.display_amount ?? inv.total_amount) != null ? fmtEur((inv.display_amount ?? inv.total_amount)!, locale.current) : '—'}
                   </div>
                   {#if inv.line_items && inv.line_items.length > 0}
-                    <div class="num" style="font-size: 11px; color: var(--mep-fg-3);">
+                    <div class="num text-[11px] text-fg-3">
                       {inv.line_items.length} {t('minv.linesSuffix')}
                     </div>
                   {/if}
@@ -392,16 +377,15 @@
       {/each}
 
       {#if hasMore}
-        <div style="padding: 4px 18px 0;">
+        <div class="px-[18px] pt-1">
           <button
             type="button"
-            class="btn btn-secondary"
-            style="width: 100%; justify-content: center;"
+            class="btn btn-secondary w-full justify-center"
             onclick={onLoadMore}
           >{t('minv.loadMore')}</button>
         </div>
       {/if}
-      <div style="padding: 10px 18px 0; text-align: center; font-size: 13px; color: var(--mep-fg-3);">
+      <div class="px-[18px] pt-[10px] text-center text-[13px] text-fg-3">
         {ti('minv.showing', { shown: shown.length, total: pagination.total })}
       </div>
     {/if}
