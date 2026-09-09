@@ -70,7 +70,9 @@ function isNetworkUnreachable(e: unknown): boolean {
 const addressWarning = addressHeaderWarning();
 if (addressWarning) log.warn(addressWarning);
 
-cleanupStaleBatches().catch(e => { if (!isNetworkUnreachable(e)) log.error('batch cleanup error', { err: e }); });
+if (!process.env.VITEST && NODE_ENV !== 'test') {
+	cleanupStaleBatches().catch(e => { if (!isNetworkUnreachable(e)) log.error('batch cleanup error', { err: e }); });
+}
 seedAdminUser().catch(e => { if (!isNetworkUnreachable(e)) log.error('seed error', { err: e }); });
 startWorkerLivenessMonitor();
 startMetricFlush();
