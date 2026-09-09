@@ -105,11 +105,12 @@ export async function recordExtractionResult(
 	return rows.length ? rows[0]!.id : null;
 }
 
-export async function archiveBatchExtractions(dbc: CorpusDb = db): Promise<number> {
-	// tenant-scope-ok: retention job, deliberately cross-tenant — it copies the
-	// raw extraction of every tenant's already-extracted items into the corpus
-	// before the batch sweep deletes the batch rows, and each copied row keeps
-	// the item's own restaurant_id.
+export async function archiveBatchExtractions(dbc: CorpusDb = db, restaurantId?: string): Promise<number> {
+	const unrecorded = and(isNotNull(batchItems.extractedData), isNull(extractionResults.id));
+	// tenant-scope-ok: retention job, cross-tenant unless a caller names one
+	// restaurant — it copies the raw extraction of every tenant's
+	// already-extracted items into the corpus before the batch sweep deletes the
+	// batch rows, and each copied row keeps the item's own restaurant_id.
 	const pending = await dbc
 		.select({
 			id: batchItems.id,
@@ -122,7 +123,7 @@ export async function archiveBatchExtractions(dbc: CorpusDb = db): Promise<numbe
 		})
 		.from(batchItems)
 		.leftJoin(extractionResults, eq(extractionResults.batchItemId, batchItems.id))
-		.where(and(isNotNull(batchItems.extractedData), isNull(extractionResults.id)))
+		.where(restaurantId ? forTenant(restaurantId).scope(batchItems.restaurantId, unrecorded) : unrecorded)
 		.limit(1000);
 
 	if (!pending.length) return 0;
@@ -148,14 +149,16 @@ export async function archiveBatchExtractions(dbc: CorpusDb = db): Promise<numbe
 export async function pruneExtractionCorpus(
 	dbc: CorpusDb = db,
 	retentionDays = EXTRACTION_CORPUS_RETENTION_DAYS,
+	restaurantId?: string,
 ): Promise<number> {
 	const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
-	// tenant-scope-ok: retention job, deliberately cross-tenant — deletes corpus
-	// rows for every restaurant by age, the RGPD storage-limitation control for
-	// this table (ADR-034).
+	const byAge = lt(extractionResults.createdAt, cutoff);
+	// tenant-scope-ok: retention job, cross-tenant unless a caller names one
+	// restaurant — deletes corpus rows by age, the RGPD storage-limitation
+	// control for this table (ADR-034).
 	const deleted = await dbc
 		.delete(extractionResults)
-		.where(lt(extractionResults.createdAt, cutoff))
+		.where(restaurantId ? forTenant(restaurantId).scope(extractionResults.restaurantId, byAge) : byAge)
 		.returning({ id: extractionResults.id });
 	return deleted.length;
 }
