@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { db } from './db';
-import { EXTRACTION_QUEUE } from './queue';
+import { EXTRACTION_QUEUE } from './contracts/extraction-contract.js';
 import { STRIPE_WEBHOOK_SCOPE } from './idempotency';
 
 type Row = Record<string, unknown>;

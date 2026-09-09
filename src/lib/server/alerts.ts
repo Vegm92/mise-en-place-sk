@@ -20,7 +20,8 @@ import { TIERS, effectiveTier, ORPHAN_SUBSCRIPTIONS_CRON, ORPHAN_SUBSCRIPTIONS_Q
 import { getStorage } from './storage';
 import { MRR_SNAPSHOT_CRON, MRR_SNAPSHOT_QUEUE, runMrrSnapshotJob } from './revenue-metrics';
 import { deadLetterGrowth, purgeDeadLetters, recordDeadLetter, type DeadLetterGrowth } from './dead-letter';
-import { ACCOUNT_CLEANUP_QUEUE, EXTRACTION_QUEUE } from './queue';
+import { EXTRACTION_QUEUE } from './contracts/extraction-contract.js';
+import { ACCOUNT_CLEANUP_QUEUE } from './contracts/account-cleanup-contract.js';
 import { extractionQueueDepth } from './pipeline-stats';
 import { METRIC_QUEUE_DEPTH, METRIC_QUEUE_OLDEST, purgeMetrics, recordGauge } from './metrics';
 import { sweepIdempotencyKeys } from './idempotency';

@@ -30,7 +30,8 @@ import {
 import { getAccessState } from './billing.js';
 import { isLocationLocked } from './locations.js';
 import { deadLetterRefFromJob, recordDeadLetter, runWithDeadLetter } from './dead-letter.js';
-import { EXTRACTION_QUEUE, enqueueExtraction, enqueueWhatsAppNotify } from './queue.js';
+import { EXTRACTION_QUEUE } from './contracts/extraction-contract.js';
+import { enqueueExtraction, enqueueWhatsAppNotify } from './queue.js';
 import { acquireExtractionSlot, ExtractionSlotUnavailableError } from './rate-limiter.js';
 import { createLogger } from './log.js';
 import { detectTotalMismatch, type TaxBand } from '$lib/tax';
