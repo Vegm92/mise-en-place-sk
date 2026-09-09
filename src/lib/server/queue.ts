@@ -32,7 +32,6 @@ import {
 	ACCOUNT_CLEANUP_OPTIONS,
 } from './contracts/account-cleanup-contract.js';
 
-// Re-export the queue names for backward compatibility / easy import
 export {
 	EXTRACTION_QUEUE,
 	NORMALIZE_QUEUE,

@@ -2,7 +2,7 @@ export const ACCOUNT_CLEANUP_QUEUE = 'account-cleanup';
 export const ACCOUNT_CLEANUP_DEAD_LETTER_QUEUE = `${ACCOUNT_CLEANUP_QUEUE}-dead-letter`;
 
 export interface AccountCleanupJobData {
-	itemId: string; // userId
+	itemId: string;
 	restaurantId: string | null;
 	stripeSubscriptionIds: string[];
 	storageKeys: string[];
