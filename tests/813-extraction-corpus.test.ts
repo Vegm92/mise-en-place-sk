@@ -141,7 +141,7 @@ describe.skipIf(!hasDbEnv)('corpus persistence', () => {
 		}, testDb);
 
 		await backdateBatch(batchId, 25);
-		await store.cleanupStaleBatches(fakeStorage());
+		await store.cleanupStaleBatches(fakeStorage(), rid);
 
 		expect(await store.getBatchItems(batchId)).toEqual([]);
 
@@ -166,7 +166,7 @@ describe.skipIf(!hasDbEnv)('corpus persistence', () => {
 		await store.markDone(itemIds[0]!, BASELINE, []);
 		await backdateBatch(batchId, 25);
 
-		await store.cleanupStaleBatches(fakeStorage());
+		await store.cleanupStaleBatches(fakeStorage(), rid);
 
 		const entries = await corpusEntriesForFile(rid, 'ns/corpus-b.pdf', testDb);
 		expect(entries).toHaveLength(1);
@@ -213,7 +213,7 @@ describe.skipIf(!hasDbEnv)('corpus persistence', () => {
 			WHERE file_key = 'ns/corpus-old.pdf'
 		`;
 
-		const pruned = await pruneExtractionCorpus(testDb);
+		const pruned = await pruneExtractionCorpus(testDb, undefined, rid);
 		expect(pruned).toBeGreaterThanOrEqual(1);
 		expect(await corpusEntriesForFile(rid, 'ns/corpus-old.pdf', testDb)).toEqual([]);
 		expect((await corpusEntriesForFile(rid, 'ns/corpus-a.pdf', testDb)).length).toBeGreaterThanOrEqual(1);

@@ -65,7 +65,9 @@ function isNetworkUnreachable(e: unknown): boolean {
 const addressWarning = addressHeaderWarning();
 if (addressWarning) console.warn(addressWarning);
 
-cleanupStaleBatches().catch(e => { if (!isNetworkUnreachable(e)) console.error('[hooks] batch cleanup error:', e); });
+if (!process.env.VITEST && process.env.NODE_ENV !== 'test') {
+	cleanupStaleBatches().catch(e => { if (!isNetworkUnreachable(e)) console.error('[hooks] batch cleanup error:', e); });
+}
 seedAdminUser().catch(e => { if (!isNetworkUnreachable(e)) console.error('[hooks] seed error:', e); });
 startWorkerLivenessMonitor();
 startMetricFlush();
