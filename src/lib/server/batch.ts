@@ -222,18 +222,23 @@ export function createBatchStore(db: BatchDb) {
 
 	async function cleanupStaleBatches(
 		storage: BatchFileStorage = getStorage(),
+		restaurantId?: string,
 	): Promise<{ batchesDeleted: number; filesDeleted: number; fileErrors: number; extractionsArchived: number; corpusPruned: number }> {
 		const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+		const byAge = lt(uploadBatches.createdAt, cutoff);
+		const scoped = restaurantId
+			? forTenant(restaurantId).scope(uploadBatches.restaurantId, byAge)
+			: byAge;
 
-		const extractionsArchived = await archiveBatchExtractions(db);
+		const extractionsArchived = await archiveBatchExtractions(db, restaurantId);
 
-		// tenant-scope-ok: scheduled retention job, deliberately cross-tenant —
-		// deletes stale batches for every restaurant by age, not by owner.
+		// tenant-scope-ok: scheduled retention job, cross-tenant unless a caller
+		// names one restaurant — it deletes stale batches by age, not by owner.
 		const stale = await db
 			.select({ fileKey: batchItems.fileKey })
 			.from(batchItems)
 			.innerJoin(uploadBatches, eq(batchItems.batchId, uploadBatches.id))
-			.where(and(lt(uploadBatches.createdAt, cutoff), ne(batchItems.status, 'confirmed')));
+			.where(and(scoped, ne(batchItems.status, 'confirmed')));
 
 		let filesDeleted = 0;
 		let fileErrors = 0;
@@ -249,10 +254,10 @@ export function createBatchStore(db: BatchDb) {
 
 		const deleted = await db
 			.delete(uploadBatches)
-			.where(lt(uploadBatches.createdAt, cutoff))
+			.where(scoped)
 			.returning({ id: uploadBatches.id });
 
-		const corpusPruned = await pruneExtractionCorpus(db);
+		const corpusPruned = await pruneExtractionCorpus(db, undefined, restaurantId);
 
 		return { batchesDeleted: deleted.length, filesDeleted, fileErrors, extractionsArchived, corpusPruned };
 	}

@@ -317,7 +317,7 @@ describe.skipIf(!hasDbEnv)('cleanupStaleBatches (#427)', () => {
 		]);
 		const storage = fakeStorage();
 
-		await store.cleanupStaleBatches(storage);
+		await store.cleanupStaleBatches(storage, rid);
 
 		expect(storage.deletedKeys).not.toContain('ns/fresh-a.pdf');
 		expect(storage.deletedKeys).not.toContain('ns/fresh-b.pdf');
@@ -334,7 +334,7 @@ describe.skipIf(!hasDbEnv)('cleanupStaleBatches (#427)', () => {
 		await backdateBatch(batchId, 25);
 
 		const storage = fakeStorage();
-		const result = await store.cleanupStaleBatches(storage);
+		const result = await store.cleanupStaleBatches(storage, rid);
 
 		expect(result.batchesDeleted).toBeGreaterThanOrEqual(1);
 		expect(storage.deletedKeys).toContain('ns/b.pdf');
@@ -350,7 +350,7 @@ describe.skipIf(!hasDbEnv)('cleanupStaleBatches (#427)', () => {
 		await backdateBatch(batchId, 25);
 
 		const storage = fakeStorage(key => key === 'ns/err-a.pdf');
-		const result = await store.cleanupStaleBatches(storage);
+		const result = await store.cleanupStaleBatches(storage, rid);
 
 		expect(result.fileErrors).toBeGreaterThanOrEqual(1);
 		expect(storage.deletedKeys).toContain('ns/err-b.pdf');
