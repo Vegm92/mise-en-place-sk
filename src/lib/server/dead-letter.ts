@@ -1,7 +1,10 @@
 import * as Sentry from '@sentry/sveltekit';
 import { and, desc, eq, gte, inArray, lt, or, sql } from 'drizzle-orm';
 import { db, forTenant, runAsSystem, runWithTenantContext } from './db';
+import { createLogger } from './log';
 import { deadLetterQueue, restaurants } from './schema';
+
+const log = createLogger('dlq');
 
 export const DEAD_LETTER_STATUSES = ['pending', 'reviewed', 'replayed', 'discarded'] as const;
 export type DeadLetterStatus = (typeof DEAD_LETTER_STATUSES)[number];
@@ -204,7 +207,7 @@ export async function recordDeadLetter(input: DeadLetterInput): Promise<number |
 			return row?.id ?? null;
 		});
 	} catch (err) {
-		console.error(`[dlq] could not record dead letter for "${input.queue}" (non-fatal):`, err);
+		log.error('could not record dead letter (non-fatal)', { queue: input.queue, errorClass, err });
 		Sentry.captureException(err, { tags: { deadLetter: input.queue, errorClass } });
 		return null;
 	}
@@ -258,7 +261,13 @@ export async function runWithDeadLetter<T>(
 		return await runWithTenantContext(ref.restaurantId, run);
 	} catch (err) {
 		if ((ref.retriesLeft ?? 0) > 0) throw err;
-		console.error(`[dlq] "${ref.queue}" job ${ref.jobId ?? '-'} dead-lettered after ${ref.attempt ?? 1} attempt(s):`, err);
+		log.error('job dead-lettered', {
+			queue: ref.queue,
+			jobId: ref.jobId ?? null,
+			attempt: ref.attempt ?? 1,
+			requestId: (ref.payload as { requestId?: string } | undefined)?.requestId,
+			err,
+		});
 		await recordDeadLetter({ ...ref, error: err });
 		throw err;
 	}

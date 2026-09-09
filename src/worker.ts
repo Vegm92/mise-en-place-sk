@@ -25,6 +25,7 @@ import { processAccountCleanupJob, type AccountCleanupJobData } from './lib/serv
 import { registerScheduledJobs } from './lib/server/alerts.js';
 import { deadLetterRefFromJob, recordDeadLetter, runWithDeadLetter } from './lib/server/dead-letter.js';
 import { MAX_CONCURRENT_EXTRACTIONS } from './lib/server/env.js';
+import { createLogger } from './lib/server/log.js';
 import { recordWorkerHeartbeat, startWorkerHeartbeat } from './lib/server/worker-heartbeat.js';
 import { handleInboundMessage } from './lib/server/integrations/whatsapp/message-handler.js';
 import { newRequestId } from './lib/server/request-id.js';
@@ -37,6 +38,7 @@ const NODE_ENV: string = process.env.NODE_ENV ?? 'development';
 const SENTRY_DSN = process.env.SENTRY_DSN ?? '';
 const SENTRY_RELEASE = process.env.SENTRY_RELEASE || undefined;
 const DATABASE_URL = process.env.DATABASE_URL ?? '';
+const log = createLogger('worker');
 
 Sentry.init({
 	dsn: SENTRY_DSN,
@@ -48,7 +50,7 @@ Sentry.init({
 
 function fatal(kind: string): (err: unknown) => void {
 	return (err) => {
-		console.error(`[worker] ${kind}:`, err);
+		log.error(kind, { err });
 		Sentry.captureException(err);
 		const exit = () => process.exit(1);
 		Promise.resolve(Sentry.flush(2000)).then(exit, exit);
@@ -58,7 +60,7 @@ process.on('unhandledRejection', fatal('unhandledRejection'));
 process.on('uncaughtException', fatal('uncaughtException'));
 
 if (!DATABASE_URL) {
-	console.error('[worker] DATABASE_URL is required');
+	log.error('DATABASE_URL is required');
 	process.exit(1);
 }
 
@@ -69,16 +71,16 @@ const boss = new PgBoss({
 });
 
 boss.on('error', (err) => {
-	console.error('[worker] pg-boss error:', err);
+	log.error('pg-boss error', { err });
 	Sentry.captureException(err);
 });
 
 await boss.start();
 await createQueuesWithDeadLetters(boss);
-console.info('[worker] pg-boss started');
+log.info('pg-boss started');
 
 const stopHeartbeat = startWorkerHeartbeat();
-console.info('[worker] Heartbeat registered — liveness visible on /admin/health');
+log.info('Heartbeat registered — liveness visible on /admin/health');
 
 const EXTRACTION_BATCH_SIZE = Math.max(1, MAX_CONCURRENT_EXTRACTIONS);
 await boss.work(
@@ -90,10 +92,11 @@ await boss.work(
 		return results;
 	},
 );
-console.info(
-	`[worker] Listening for "${EXTRACTION_QUEUE}" jobs (batchSize ${EXTRACTION_BATCH_SIZE}, ` +
-	`global cap ${MAX_CONCURRENT_EXTRACTIONS})`,
-);
+log.info('Listening for queue jobs', {
+	queue: EXTRACTION_QUEUE,
+	batchSize: EXTRACTION_BATCH_SIZE,
+	globalCap: MAX_CONCURRENT_EXTRACTIONS,
+});
 
 await boss.work(
 	NORMALIZE_QUEUE,
@@ -108,7 +111,7 @@ await boss.work(
 		await recordWorkerHeartbeat(jobs.length);
 	},
 );
-console.info(`[worker] Listening for "${NORMALIZE_QUEUE}" jobs`);
+log.info('Listening for queue jobs', { queue: NORMALIZE_QUEUE });
 
 await boss.work(
 	CATEGORIZE_QUEUE,
@@ -123,7 +126,7 @@ await boss.work(
 		await recordWorkerHeartbeat(jobs.length);
 	},
 );
-console.info(`[worker] Listening for "${CATEGORIZE_QUEUE}" jobs`);
+log.info('Listening for queue jobs', { queue: CATEGORIZE_QUEUE });
 
 await boss.work(
 	ACCOUNT_CLEANUP_QUEUE,
@@ -137,7 +140,7 @@ await boss.work(
 		}
 	},
 );
-console.info(`[worker] Listening for "${ACCOUNT_CLEANUP_QUEUE}" jobs`);
+log.info('Listening for queue jobs', { queue: ACCOUNT_CLEANUP_QUEUE });
 
 await boss.work(
 	WHATSAPP_INBOUND_QUEUE,
@@ -151,7 +154,7 @@ await boss.work(
 		}
 	},
 );
-console.info(`[worker] Listening for "${WHATSAPP_INBOUND_QUEUE}" jobs`);
+log.info('Listening for queue jobs', { queue: WHATSAPP_INBOUND_QUEUE });
 
 const whatsapp: WhatsAppTransport | null = await startWhatsAppTransport();
 if (whatsapp) {
@@ -168,9 +171,9 @@ if (whatsapp) {
 			}
 		},
 	);
-	console.info(`[worker] Listening for "${WHATSAPP_NOTIFY_QUEUE}" jobs`);
+	log.info('Listening for queue jobs', { queue: WHATSAPP_NOTIFY_QUEUE });
 } else {
-	console.info('[worker] WhatsApp bot disabled — not starting a transport');
+	log.info('WhatsApp bot disabled — not starting a transport');
 }
 
 for (const { source, deadLetter } of DEAD_LETTER_QUEUES) {
@@ -193,16 +196,16 @@ for (const { source, deadLetter } of DEAD_LETTER_QUEUES) {
 			}
 		},
 	);
-	console.info(`[worker] Draining "${deadLetter}" into the audit dead-letter queue`);
+	log.info('Draining dead-letter queue into the audit table', { queue: deadLetter, source });
 }
 
 await registerScheduledJobs(boss);
 
 async function shutdown() {
-	console.info('[worker] Shutting down…');
+	log.info('Shutting down…');
 	stopHeartbeat();
 	await boss.stop();
-	await whatsapp?.stop().catch((err) => console.error('[worker] WhatsApp transport stop failed:', err));
+	await whatsapp?.stop().catch((err) => log.error('WhatsApp transport stop failed', { err }));
 	process.exit(0);
 }
 process.on('SIGTERM', shutdown);

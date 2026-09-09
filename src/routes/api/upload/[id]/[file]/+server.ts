@@ -13,7 +13,7 @@ const MIME: Record<string, string> = {
 };
 
 export const GET: RequestHandler = async ({ params, locals }) => {
-	if (!locals.user) throw error(401, 'Unauthorized');
+	if (!locals.user || !locals.restaurantId) throw error(401, 'Unauthorized');
 
 	const item = await getItem(params.id);
 	if (!item || item.restaurantId !== locals.restaurantId) throw error(404, 'Item not found');
