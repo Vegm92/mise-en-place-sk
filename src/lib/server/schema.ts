@@ -549,6 +549,8 @@ export const extractionResults = pgTable('extraction_results', {
 	index('extraction_results_file_key_idx').on(t.restaurantId, t.fileKey),
 	index('extraction_results_prompt_version_idx').on(t.promptVersion, t.createdAt),
 	index('extraction_results_batch_item_idx').on(t.batchItemId),
+	uniqueIndex('extraction_results_archive_item_idx').on(t.batchItemId)
+		.where(sql`${t.batchItemId} is not null and ${t.promptVersion} = 'unrecorded'`),
 ]);
 
 export const promptChangeProposals = pgTable('prompt_change_proposals', {

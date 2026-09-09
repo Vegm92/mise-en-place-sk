@@ -141,6 +141,7 @@ export async function archiveBatchExtractions(dbc: CorpusDb = db): Promise<numbe
 	const inserted = await dbc
 		.insert(extractionResults)
 		.values(rows)
+		.onConflictDoNothing()
 		.returning({ id: extractionResults.id });
 	return inserted.length;
 }
