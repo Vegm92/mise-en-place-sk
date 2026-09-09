@@ -1,22 +1,51 @@
 import { PgBoss } from 'pg-boss';
-import { pgSslConfig } from './db-ssl';
-import type { WhatsAppInboundMessage } from './whatsapp-bot';
+import { pgSslConfig } from './db-ssl.js';
+import type { WhatsAppInboundMessage } from './integrations/whatsapp/transport.js';
 
-const DATABASE_URL = process.env.DATABASE_URL ?? '';
+import {
+	WHATSAPP_NOTIFY_QUEUE,
+	WHATSAPP_INBOUND_QUEUE,
+	WHATSAPP_NOTIFY_DEAD_LETTER_QUEUE,
+	WHATSAPP_INBOUND_DEAD_LETTER_QUEUE,
+	WHATSAPP_NOTIFY_OPTIONS,
+	WHATSAPP_INBOUND_OPTIONS,
+} from './contracts/whatsapp-contract.js';
 
-export const EXTRACTION_QUEUE = 'extract-invoice';
-export const NORMALIZE_QUEUE = 'normalize-product';
-export const CATEGORIZE_QUEUE = 'categorize-product';
-export const WHATSAPP_NOTIFY_QUEUE = 'whatsapp-notify';
-export const WHATSAPP_INBOUND_QUEUE = 'whatsapp-inbound';
-export const ACCOUNT_CLEANUP_QUEUE = 'account-cleanup';
+import {
+	EXTRACTION_QUEUE,
+	EXTRACTION_DEAD_LETTER_QUEUE,
+	EXTRACTION_OPTIONS,
+} from './contracts/extraction-contract.js';
 
-export const EXTRACTION_DEAD_LETTER_QUEUE = `${EXTRACTION_QUEUE}-dead-letter`;
-export const NORMALIZE_DEAD_LETTER_QUEUE = `${NORMALIZE_QUEUE}-dead-letter`;
-export const CATEGORIZE_DEAD_LETTER_QUEUE = `${CATEGORIZE_QUEUE}-dead-letter`;
-export const WHATSAPP_NOTIFY_DEAD_LETTER_QUEUE = `${WHATSAPP_NOTIFY_QUEUE}-dead-letter`;
-export const WHATSAPP_INBOUND_DEAD_LETTER_QUEUE = `${WHATSAPP_INBOUND_QUEUE}-dead-letter`;
-export const ACCOUNT_CLEANUP_DEAD_LETTER_QUEUE = `${ACCOUNT_CLEANUP_QUEUE}-dead-letter`;
+import {
+	NORMALIZE_QUEUE,
+	NORMALIZE_DEAD_LETTER_QUEUE,
+	CATEGORIZE_QUEUE,
+	CATEGORIZE_DEAD_LETTER_QUEUE,
+	NORMALIZE_OPTIONS,
+	CATEGORIZE_OPTIONS,
+} from './contracts/products-contract.js';
+
+import {
+	ACCOUNT_CLEANUP_QUEUE,
+	ACCOUNT_CLEANUP_DEAD_LETTER_QUEUE,
+	ACCOUNT_CLEANUP_OPTIONS,
+} from './contracts/account-cleanup-contract.js';
+
+export {
+	EXTRACTION_QUEUE,
+	NORMALIZE_QUEUE,
+	CATEGORIZE_QUEUE,
+	WHATSAPP_NOTIFY_QUEUE,
+	WHATSAPP_INBOUND_QUEUE,
+	ACCOUNT_CLEANUP_QUEUE,
+	EXTRACTION_DEAD_LETTER_QUEUE,
+	NORMALIZE_DEAD_LETTER_QUEUE,
+	CATEGORIZE_DEAD_LETTER_QUEUE,
+	WHATSAPP_NOTIFY_DEAD_LETTER_QUEUE,
+	WHATSAPP_INBOUND_DEAD_LETTER_QUEUE,
+	ACCOUNT_CLEANUP_DEAD_LETTER_QUEUE,
+};
 
 export const DEAD_LETTER_QUEUES: Array<{ source: string; deadLetter: string }> = [
 	{ source: EXTRACTION_QUEUE, deadLetter: EXTRACTION_DEAD_LETTER_QUEUE },
@@ -35,6 +64,7 @@ export async function createQueuesWithDeadLetters(b: PgBoss): Promise<void> {
 	}
 }
 
+const DATABASE_URL = process.env.DATABASE_URL ?? '';
 let boss: PgBoss | null = null;
 let startPromise: Promise<PgBoss> | null = null;
 
@@ -64,15 +94,7 @@ export async function enqueueExtraction(
 	requestId?: string,
 ): Promise<boolean> {
 	const b = await getBoss();
-	const jobId = await b.send(EXTRACTION_QUEUE, { itemId, restaurantId, requestId }, {
-		retryLimit: 2,
-		retryDelay: 30,
-		retryBackoff: true,
-		retryDelayMax: 300,
-		expireInSeconds: 600,
-		singletonKey: itemId,
-		deadLetter: EXTRACTION_DEAD_LETTER_QUEUE,
-	});
+	const jobId = await b.send(EXTRACTION_QUEUE, { itemId, restaurantId, requestId }, EXTRACTION_OPTIONS(itemId));
 	return jobId !== null;
 }
 
@@ -83,16 +105,7 @@ export async function enqueueNormalize(
 	requestId?: string,
 ): Promise<boolean> {
 	const b = await getBoss();
-	const jobId = await b.send(NORMALIZE_QUEUE, { restaurantId, productId, rawText, requestId }, {
-		priority: -10,
-		retryLimit: 1,
-		retryDelay: 60,
-		retryBackoff: true,
-		retryDelayMax: 300,
-		expireInSeconds: 900,
-		singletonKey: `${restaurantId}:${productId}`,
-		deadLetter: NORMALIZE_DEAD_LETTER_QUEUE,
-	});
+	const jobId = await b.send(NORMALIZE_QUEUE, { restaurantId, productId, rawText, requestId }, NORMALIZE_OPTIONS(restaurantId, productId));
 	return jobId !== null;
 }
 
@@ -103,16 +116,7 @@ export async function enqueueCategorize(
 	requestId?: string,
 ): Promise<boolean> {
 	const b = await getBoss();
-	const jobId = await b.send(CATEGORIZE_QUEUE, { restaurantId, productId, canonicalName, requestId }, {
-		priority: -10,
-		retryLimit: 1,
-		retryDelay: 60,
-		retryBackoff: true,
-		retryDelayMax: 300,
-		expireInSeconds: 900,
-		singletonKey: `${restaurantId}:${productId}`,
-		deadLetter: CATEGORIZE_DEAD_LETTER_QUEUE,
-	});
+	const jobId = await b.send(CATEGORIZE_QUEUE, { restaurantId, productId, canonicalName, requestId }, CATEGORIZE_OPTIONS(restaurantId, productId));
 	return jobId !== null;
 }
 
@@ -122,15 +126,7 @@ export async function enqueueWhatsAppNotify(
 	requestId?: string,
 ): Promise<boolean> {
 	const b = await getBoss();
-	const jobId = await b.send(WHATSAPP_NOTIFY_QUEUE, { itemId, restaurantId, requestId }, {
-		retryLimit: 3,
-		retryDelay: 60,
-		retryBackoff: true,
-		retryDelayMax: 600,
-		expireInSeconds: 300,
-		singletonKey: itemId,
-		deadLetter: WHATSAPP_NOTIFY_DEAD_LETTER_QUEUE,
-	});
+	const jobId = await b.send(WHATSAPP_NOTIFY_QUEUE, { itemId, restaurantId, requestId }, WHATSAPP_NOTIFY_OPTIONS(itemId));
 	return jobId !== null;
 }
 
@@ -142,15 +138,7 @@ export interface WhatsAppInboundJobData {
 
 export async function enqueueWhatsAppInbound(msg: WhatsAppInboundMessage, requestId?: string): Promise<boolean> {
 	const b = await getBoss();
-	const jobId = await b.send(WHATSAPP_INBOUND_QUEUE, { messageId: msg.id, msg, requestId }, {
-		retryLimit: 3,
-		retryDelay: 30,
-		retryBackoff: true,
-		retryDelayMax: 600,
-		expireInSeconds: 300,
-		singletonKey: msg.id,
-		deadLetter: WHATSAPP_INBOUND_DEAD_LETTER_QUEUE,
-	});
+	const jobId = await b.send(WHATSAPP_INBOUND_QUEUE, { messageId: msg.id, msg, requestId }, WHATSAPP_INBOUND_OPTIONS(msg.id));
 	return jobId !== null;
 }
 
@@ -165,15 +153,7 @@ export async function enqueueAccountCleanup(
 	const jobId = await b.send(
 		ACCOUNT_CLEANUP_QUEUE,
 		{ itemId: userId, restaurantId, stripeSubscriptionIds, storageKeys, requestId },
-		{
-			retryLimit: 5,
-			retryDelay: 60,
-			retryBackoff: true,
-			retryDelayMax: 900,
-			expireInSeconds: 3600,
-			singletonKey: userId,
-			deadLetter: ACCOUNT_CLEANUP_DEAD_LETTER_QUEUE,
-		},
+		ACCOUNT_CLEANUP_OPTIONS(userId),
 	);
 	return jobId !== null;
 }

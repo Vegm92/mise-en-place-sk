@@ -66,6 +66,7 @@ AGENTS.md
 !/docs/04_engineering/
 !/docs/05_operations/
 !/docs/06_decisions/
+!/docs/08_audits/
 !/docs/03_features/report_templates/
 !/docs/REVENUE_METRICS.md
 # Architecture decision records live in docs/06_decisions/ (not ignored) â€” see its README.md

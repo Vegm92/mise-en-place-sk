@@ -13,7 +13,7 @@ import { GEMINI_API_KEY } from './env';
 import { createGeminiProvider, Type, type Schema } from './llm-provider';
 import { recordLlmUsage } from './llm-quota';
 import { recordDeadLetter } from './dead-letter';
-import { CATEGORIZE_QUEUE, NORMALIZE_QUEUE } from './queue';
+import { CATEGORIZE_QUEUE, NORMALIZE_QUEUE } from './contracts/products-contract.js';
 import { renderTemplate } from '$lib/i18n-messages';
 import { toAllergenList } from '$lib/recipes';
 import { moneyToNullableNumber } from './money';
