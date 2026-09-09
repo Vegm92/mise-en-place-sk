@@ -11,7 +11,7 @@ import qrTerminal from 'qrcode-terminal';
 import { normalizePhoneNumber } from '../../../phone';
 import { setFlag } from '../../app-flags';
 import { usePostgresAuthState } from './auth-state';
-import { whatsappBotEnabled, WHATSAPP_QR_FLAG, WHATSAPP_STATUS_FLAG } from './runtime';
+import { whatsappBotEnabled, WHATSAPP_QR_FLAG, WHATSAPP_STATUS_FLAG } from './whatsapp-config.js';
 import type {
 	WhatsAppDownloadedMedia,
 	WhatsAppInboundHandler,

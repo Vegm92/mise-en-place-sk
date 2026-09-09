@@ -2,7 +2,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import type { ReservedSql } from 'postgres';
 import * as schema from './schema';
-import { getClient, type DB } from './db';
+import { getClient, type DB } from './db-client';
 
 export interface TenantContext {
 	mode: 'tenant' | 'admin';
