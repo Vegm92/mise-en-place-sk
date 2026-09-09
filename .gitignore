@@ -103,7 +103,10 @@ railway-root-ca.crt
 
 # Extraction golden-set staging (corpus feedback loop, branch
 # claude/corpus-redaction-feedback-pjxvev): raw albaranes/facturas dropped
-# here for review are never auto-tracked. Reviewed cases move to
-# tests/golden/cases/<id>/ and are committed deliberately (git add -f).
+# here for review are never auto-tracked.
 /tests/golden/inbox/*
 !/tests/golden/inbox/.gitkeep
+
+# Golden-set real cases contain real customer PDFs with private data.
+# Never track these — local/dev-eyes-only, git add -f is banned here.
+/tests/golden/cases/*
