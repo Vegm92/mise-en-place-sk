@@ -582,6 +582,13 @@
       "when": 1788938799074,
       "tag": "0082_fk_prefix_covering_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "7",
+      "when": 1788980165028,
+      "tag": "0083_quiet_earthquake",
+      "breakpoints": true
     }
   ]
 }

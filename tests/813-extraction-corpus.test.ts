@@ -13,6 +13,7 @@ import {
 import { createBatchStore } from '../src/lib/server/batch';
 import {
 	recordExtractionResult, listCorpusEntries, corpusEntriesForFile, promptVersionStats,
+	archiveBatchExtractions,
 	pruneExtractionCorpus, diffExtractions, summarizeComparisons, anonymizeExtraction,
 	UNRECORDED_PROMPT_VERSION, EXTRACTION_CORPUS_RETENTION_DAYS, COMPARED_FIELDS,
 } from '../src/lib/server/extraction-corpus';
@@ -172,6 +173,26 @@ describe.skipIf(!hasDbEnv)('corpus persistence', () => {
 		expect(entries).toHaveLength(1);
 		expect(entries[0]!.promptVersion).toBe(UNRECORDED_PROMPT_VERSION);
 		expect(entries[0]!.batchItemId).toBeNull();
+	});
+
+	it('rejects a second archive row for the same batch item, so two concurrent sweeps cannot duplicate one', async () => {
+		const { itemIds } = await store.createBatch(rid, [{ key: 'ns/corpus-race.pdf', name: 'race.pdf' }]);
+		await store.markQueued(itemIds[0]!);
+		await store.markExtracting(itemIds[0]!);
+		await store.markDone(itemIds[0]!, BASELINE, []);
+
+		await archiveBatchExtractions(testDb);
+
+		await expect(recordExtractionResult({
+			restaurantId: rid,
+			batchItemId: itemIds[0]!,
+			fileKey: 'ns/corpus-race.pdf',
+			promptVersion: UNRECORDED_PROMPT_VERSION,
+			extractedData: BASELINE,
+		}, testDb)).rejects.toThrow();
+
+		expect(await archiveBatchExtractions(testDb)).toBe(0);
+		expect(await corpusEntriesForFile(rid, 'ns/corpus-race.pdf', testDb)).toHaveLength(1);
 	});
 
 	it('lists live entries per tenant and groups the corpus by prompt version', async () => {

@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "extraction_results_archive_item_idx" ON "extraction_results" USING btree ("batch_item_id") WHERE "extraction_results"."batch_item_id" is not null and "extraction_results"."prompt_version" = 'unrecorded';

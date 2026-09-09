@@ -70,6 +70,16 @@ per-field agreement report against the baseline (`diffExtractions` /
 `--export` writes JSONL with supplier contact details redacted
 (`anonymizeExtraction`).
 
+The archive's select and insert are two statements, so two sweeps running at
+once — `hooks.server.ts` fires `cleanupStaleBatches()` at module load, once per
+booting replica — both saw an item as unarchived and both inserted it. A
+partial unique index, `extraction_results_archive_item_idx` on `batch_item_id`
+where `prompt_version = 'unrecorded'` (migration 0083), makes the second insert
+a no-op via `ON CONFLICT DO NOTHING`. It is deliberately scoped to the archive's
+own rows: the corpus keeps many rows per `batch_item_id` across prompt versions
+— every `corpus:replay` run adds one — so a plain unique index on
+`batch_item_id` would break replay.
+
 Retention: `EXTRACTION_CORPUS_RETENTION_DAYS = 730`, enforced by
 `pruneExtractionCorpus` on the same sweep. The corpus is tenant-scoped, listed
 in `tenant-data-map.ts` as cascade-deleted with the restaurant and exported
