@@ -575,6 +575,13 @@
       "when": 1788866859488,
       "tag": "0081_fk_covering_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "7",
+      "when": 1788938799074,
+      "tag": "0082_fk_prefix_covering_indexes",
+      "breakpoints": true
     }
   ]
 }

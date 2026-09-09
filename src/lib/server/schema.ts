@@ -31,6 +31,7 @@ export const userRestaurants = pgTable('user_restaurants', {
 	createdAt:    timestamp('created_at', { withTimezone: true }).defaultNow(),
 }, (t) => [
 	primaryKey({ columns: [t.userId, t.restaurantId] }),
+	index('user_restaurants_restaurant_idx').on(t.restaurantId),
 ]);
 
 export const suppliers = pgTable('suppliers', {
@@ -65,6 +66,7 @@ export const supplierAliases = pgTable('supplier_aliases', {
 }, (t) => [
 	uniqueIndex('uq_supplier_aliases_rid_normalized_name').on(t.restaurantId, t.normalizedName),
 	index('supplier_aliases_supplier_idx').on(t.restaurantId, t.supplierId),
+	index('supplier_aliases_supplier_id_idx').on(t.supplierId),
 ]);
 
 export const invoices = pgTable('invoices', {
@@ -154,6 +156,7 @@ export const invoiceLineItems = pgTable('invoice_line_items', {
 	index('idx_invoice_line_items_invoice_id').on(t.invoiceId),
 	index('idx_invoice_line_items_rid_description').on(t.restaurantId, t.description),
 	index('idx_invoice_line_items_product_id').on(t.restaurantId, t.productId).where(sql`${t.productId} IS NOT NULL`),
+	index('invoice_line_items_product_idx').on(t.productId),
 ]);
 
 export const products = pgTable('products', {
@@ -203,6 +206,7 @@ export const systemNotifications = pgTable('system_notifications', {
 	index('idx_system_notifications_budget_overage_exceeded')
 		.on(t.restaurantId)
 		.where(sql`${t.status} = 'pending' AND ${t.notificationType} = 'budget_overage' AND (${t.payload}->>'level') = 'exceeded'`),
+	index('system_notifications_invoice_idx').on(t.invoiceId),
 ]);
 
 export const users = pgTable('users', {
@@ -291,6 +295,8 @@ export const productAliases = pgTable('product_aliases', {
 	index('product_aliases_product_idx').on(t.restaurantId, t.productId),
 	index('product_aliases_pending_idx').on(t.restaurantId).where(sql`${t.confirmedAt} IS NULL`),
 	check('product_aliases_review_outcome_valid', sql`${t.reviewOutcome} IS NULL OR ${t.reviewOutcome} IN ('confirmed','rejected')`),
+	index('product_aliases_product_id_idx').on(t.productId),
+	index('product_aliases_supplier_idx').on(t.supplierId),
 ]);
 
 export const supplierMetrics = pgTable('supplier_metrics', {
@@ -332,6 +338,7 @@ export const unitConversions = pgTable('unit_conversions', {
 	index('unit_conversions_supplier_id_idx')
 		.on(t.restaurantId, t.supplierId, t.ingredient, t.purchaseUnit)
 		.where(sql`${t.supplierId} IS NOT NULL`),
+	index('unit_conversions_supplier_idx').on(t.supplierId),
 ]);
 
 export const stockLevels = pgTable('stock_levels', {
@@ -813,6 +820,7 @@ export const recipeItems = pgTable('recipe_items', {
 	index('idx_recipe_items_rid_recipe').on(t.restaurantId, t.recipeId, t.sortOrder),
 	index('idx_recipe_items_rid_child').on(t.restaurantId, t.childRecipeId).where(sql`${t.childRecipeId} IS NOT NULL`),
 	index('idx_recipe_items_rid_product').on(t.restaurantId, t.productId).where(sql`${t.productId} IS NOT NULL`),
+	index('recipe_items_product_idx').on(t.productId),
 	check('recipe_items_kind_valid', sql`${t.kind} IN ('free','product','recipe')`),
 	check('recipe_items_kind_refs', sql`(${t.kind} = 'free' AND ${t.productId} IS NULL AND ${t.childRecipeId} IS NULL) OR (${t.kind} = 'product' AND ${t.childRecipeId} IS NULL) OR (${t.kind} = 'recipe' AND ${t.productId} IS NULL AND ${t.childRecipeId} IS NOT NULL)`),
 	check('recipe_items_no_self_ref', sql`${t.childRecipeId} IS NULL OR ${t.childRecipeId} <> ${t.recipeId}`),
