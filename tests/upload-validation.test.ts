@@ -26,6 +26,7 @@ vi.mock('../src/lib/server/storage', () => ({
 }));
 
 import { saveUploadedFiles } from '../src/lib/server/sessions';
+import { GET as uploadGetHandler } from '../src/routes/api/upload/[id]/[file]/+server';
 
 /** Pads well-formed leading bytes past the 1 KB minimum-size floor (#541) with trailing zeros. */
 function padToMinSize(bytes: number[], min = 1100): number[] {
@@ -206,5 +207,21 @@ describe('saveUploadedFiles — a bad zip container is rejected, direct files st
 
 		expect(errors).toEqual([]);
 		expect(saved).toHaveLength(2);
+	});
+});
+
+describe('upload endpoint security — GET /api/upload/[id]/[file]', () => {
+	it('rejects unauthenticated or un-scoped requests with 401 Unauthorized', async () => {
+		const mockEventNoUser = {
+			params: { id: 'item1', file: 'test.pdf' },
+			locals: { user: null, restaurantId: null },
+		};
+		await expect(uploadGetHandler(mockEventNoUser as any)).rejects.toMatchObject({ status: 401 });
+
+		const mockEventNoRestaurant = {
+			params: { id: 'item1', file: 'test.pdf' },
+			locals: { user: { id: 'u1' }, restaurantId: null },
+		};
+		await expect(uploadGetHandler(mockEventNoRestaurant as any)).rejects.toMatchObject({ status: 401 });
 	});
 });
