@@ -14,7 +14,11 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import type { RequestEvent } from '@sveltejs/kit';
 
-const fakeEvent = { route: { id: null }, url: new URL('https://example.com/waitlist/theme-init.js') } as unknown as RequestEvent;
+const fakeEvent = {
+	route: { id: null },
+	url: new URL('https://example.com/waitlist/theme-init.js'),
+	locals: { requestId: 'req-1' },
+} as unknown as RequestEvent;
 
 class SvelteKitError extends Error {
 	status: number;
@@ -62,13 +66,18 @@ describe('hooks.server.ts handleError', () => {
 		spy.mockRestore();
 	});
 
-	it('still logs a 500 error', async () => {
+	it('still logs a 500 error, tagged with the request id for correlation', async () => {
 		const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
 		const error = new Error('boom');
 
 		await handleError({ error, event: fakeEvent, status: 500, message: 'Internal Error' });
 
-		expect(spy).toHaveBeenCalledWith('[server error]', error);
+		expect(spy).toHaveBeenCalledTimes(1);
+		const line = spy.mock.calls[0]![0] as string;
+		expect(line).toContain('[hooks]');
+		expect(line).toContain('server error');
+		expect(line).toContain('requestId=req-1');
+		expect(line).toContain('boom');
 		spy.mockRestore();
 	});
 });
