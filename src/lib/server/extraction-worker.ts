@@ -32,7 +32,10 @@ import { isLocationLocked } from './locations.js';
 import { deadLetterRefFromJob, recordDeadLetter, runWithDeadLetter } from './dead-letter.js';
 import { EXTRACTION_QUEUE, enqueueExtraction, enqueueWhatsAppNotify } from './queue.js';
 import { acquireExtractionSlot, ExtractionSlotUnavailableError } from './rate-limiter.js';
+import { createLogger } from './log.js';
 import { detectTotalMismatch, type TaxBand } from '$lib/tax';
+
+const log = createLogger('worker');
 
 export interface ExtractionJobData {
 	itemId?: string;
@@ -51,7 +54,7 @@ const DEGRADATION_ERRORS = new Set([
 async function notifyWhatsAppIfSource(item: BatchItem, restaurantId: string, requestId?: string): Promise<void> {
 	if (item.source !== 'whatsapp') return;
 	await enqueueWhatsAppNotify(item.id, restaurantId, requestId)
-		.catch((e) => console.error(`[worker] whatsapp notify enqueue failed (requestId ${requestId ?? 'none'}):`, e));
+		.catch((e) => log.error('whatsapp notify enqueue failed', { itemId: item.id, restaurantId, requestId, err: e }));
 }
 
 function classifyExtractionError(err: unknown): string {
@@ -76,28 +79,28 @@ function classifyExtractionError(err: unknown): string {
 
 async function claimExtractionAllowance(itemId: string, restaurantId: string, requestId?: string): Promise<boolean> {
 	if (await isLocationLocked(restaurantId)) {
-		console.warn(`[worker] Location ${restaurantId} is outside its plan's allowance — refusing extraction (requestId ${requestId ?? 'none'})`);
+		log.warn('Location outside its plan allowance — refusing extraction', { restaurantId, itemId, requestId });
 		await markFailed(itemId, 'extract.err.locationLocked');
 		return false;
 	}
 
 	const access = await getAccessState(restaurantId);
 	if (!access.allowed) {
-		console.warn(`[worker] Subscription inactive for tenant ${restaurantId} (${access.status}) — refusing extraction (requestId ${requestId ?? 'none'})`);
+		log.warn('Subscription inactive — refusing extraction', { restaurantId, itemId, status: access.status, requestId });
 		await markFailed(itemId, access.trialExpired ? 'extract.err.trialExpired' : 'extract.err.subscriptionInactive');
 		return false;
 	}
 
 	const quotaResult = await checkExtractionQuota(restaurantId);
 	if (!quotaResult.allowed) {
-		console.warn(`[worker] Quota exceeded for tenant ${restaurantId}: ${quotaResult.reason} (requestId ${requestId ?? 'none'})`);
+		log.warn('Quota exceeded — refusing extraction', { restaurantId, itemId, reason: quotaResult.reason, requestId });
 		await markFailed(itemId, 'extract.err.quotaExceeded');
 		return false;
 	}
 
 	const claim = await claimMonthlyExtraction(restaurantId, itemId);
 	if (!claim.claimed) {
-		console.warn(`[worker] Monthly plan quota reached for tenant ${restaurantId} (limit ${claim.limit})`);
+		log.warn('Monthly plan quota reached', { restaurantId, itemId, limit: claim.limit, requestId });
 		Sentry.captureMessage('extraction.quota_exhausted', {
 			level: 'warning',
 			tags: { restaurantId, requestId },
@@ -119,7 +122,7 @@ async function reportExtractionFailure(
 ): Promise<boolean> {
 	const extractError = classifyExtractionError(err);
 	const willRetry = DEGRADATION_ERRORS.has(extractError) && !attempt.isFinalAttempt;
-	console.error(`[worker] Extraction failed for item ${itemId}${willRetry ? ' (will retry)' : ''} (requestId ${requestId ?? 'none'}):`, err);
+	log.error('Extraction failed', { itemId, restaurantId, errorClass: extractError, willRetry, requestId, err });
 	if (DEGRADATION_ERRORS.has(extractError)) {
 		Sentry.captureException(err, {
 			level: 'warning',
@@ -168,7 +171,7 @@ async function archiveExtraction(
 			conversionNotes,
 		});
 	} catch (err) {
-		console.error(`[worker] extraction corpus write failed for item ${item.id} (continuing):`, err);
+		log.error('extraction corpus write failed (continuing)', { itemId: item.id, restaurantId, err });
 	}
 }
 
@@ -250,7 +253,7 @@ async function routeCompositeDocument(
 		);
 	} catch (err) {
 		if (DEGRADATION_ERRORS.has(classifyExtractionError(err))) throw err;
-		console.warn(`[worker] Structure detection failed for item ${item.id} — extracting it as one document (requestId ${requestId ?? 'none'}):`, err);
+		log.warn('Structure detection failed — extracting as one document', { itemId: item.id, restaurantId, requestId, err });
 		return { action: 'extract' };
 	} finally {
 		await slot.release();
@@ -272,7 +275,7 @@ export async function processExtractionJob(
 	const { restaurantId, requestId } = jobData;
 	const isFinalAttempt = !retryInfo || retryInfo.retryCount >= retryInfo.retryLimit;
 	if (!itemId) {
-		console.warn(`[worker] Job without itemId — routing to the dead-letter queue (requestId ${requestId ?? 'none'})`);
+		log.warn('Job without itemId — routing to the dead-letter queue', { restaurantId, requestId });
 		await recordDeadLetter({
 			queue: EXTRACTION_QUEUE,
 			errorClass: 'corrupt.missingItemId',
@@ -285,7 +288,7 @@ export async function processExtractionJob(
 
 	const item = await getItem(itemId);
 	if (!item) {
-		console.warn(`[worker] Batch item ${itemId} not found — routing to the dead-letter queue (requestId ${requestId ?? 'none'})`);
+		log.warn('Batch item not found — routing to the dead-letter queue', { itemId, restaurantId, requestId });
 		await recordDeadLetter({
 			queue: EXTRACTION_QUEUE,
 			errorClass: 'corrupt.itemNotFound',
@@ -299,7 +302,7 @@ export async function processExtractionJob(
 
 	const claimed = await markExtracting(itemId);
 	if (!claimed) {
-		console.warn(`[worker] Item ${itemId} not in queued/extracting state — skipping`);
+		log.warn('Item not in queued/extracting state — skipping', { itemId, restaurantId, requestId });
 		return 'completed';
 	}
 
@@ -339,7 +342,9 @@ export async function processExtractionJob(
 				await notifyWhatsAppIfSource(item, restaurantId, requestId);
 			}
 			if (route.action === 'quota') {
-				console.warn(`[worker] Item ${itemId} holds ${route.found} documents, ${route.remaining} left in plan — refusing the whole packet (requestId ${requestId ?? 'none'})`);
+				log.warn('Composite packet exceeds remaining plan quota — refusing the whole packet', {
+					itemId, restaurantId, found: route.found, remaining: route.remaining, requestId,
+				});
 				Sentry.captureMessage('extraction.composite_quota_exhausted', {
 					level: 'warning',
 					tags: { itemId, restaurantId, requestId },
@@ -371,7 +376,7 @@ export async function processExtractionJob(
 		const parties = resolveInvoiceParties(result, await ownPartyIdentity(restaurantId));
 		result = parties.invoice;
 		if (parties.swapped) {
-			console.warn(`[worker] Item ${itemId}: emisor/receptor swapped, matched by ${parties.reason}`);
+			log.warn('emisor/receptor swapped', { itemId, restaurantId, reason: parties.reason ?? 'unknown', requestId });
 			Sentry.captureMessage('extraction.parties_swapped', {
 				level: 'info',
 				tags: { itemId, restaurantId, reason: parties.reason ?? 'unknown', requestId },
@@ -419,9 +424,9 @@ export async function processExtractionJob(
 		await markDone(itemId, extractedData, conversionNotes);
 		await archiveExtraction(item, restaurantId, filePath, model, extractedData, conversionNotes);
 		if (totalMismatch) {
-			console.warn(`[worker] Total mismatch detected for item ${itemId} (lines + tax vs. extracted total)`);
+			log.warn('Total mismatch detected (lines + tax vs. extracted total)', { itemId, restaurantId, requestId });
 		}
-		console.info(`[worker] Extraction done for item ${itemId} (requestId ${requestId ?? 'none'})`);
+		log.info('Extraction done', { itemId, restaurantId, requestId });
 		await notifyWhatsAppIfSource(item, restaurantId, requestId);
 		return 'completed';
 	} catch (err) {

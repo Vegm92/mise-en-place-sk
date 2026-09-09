@@ -25,7 +25,10 @@ import { currentLocale, rememberCurrentLocale } from '$lib/server/locale';
 import { requestedLocale } from '$lib/locale-url';
 import { startWorkerLivenessMonitor } from '$lib/server/worker-liveness-monitor';
 import { resolveRequestId } from '$lib/server/request-id';
+import { createLogger } from '$lib/server/log';
 import { METRIC_ROUTE_LATENCY, observe, startMetricFlush } from '$lib/server/metrics';
+
+const log = createLogger('hooks');
 
 assertProductionEnv();
 validateAdminSeedConfig();
@@ -52,10 +55,12 @@ Sentry.init({
 	},
 });
 
-export const handleError = Sentry.handleErrorWithSentry(({ error, status }: { error: unknown; status: number }) => {
-	if (status < 500) return;
-	console.error('[server error]', error);
-});
+export const handleError = Sentry.handleErrorWithSentry(
+	({ error, event, status }: { error: unknown; event: RequestEvent; status: number }) => {
+		if (status < 500) return;
+		log.error('server error', { requestId: event?.locals?.requestId, err: error });
+	},
+);
 
 function isNetworkUnreachable(e: unknown): boolean {
 	const msg = String(e instanceof Error ? ((e as NodeJS.ErrnoException).code ?? (e.cause as Error | undefined)?.message ?? e.message) : e);
@@ -63,10 +68,10 @@ function isNetworkUnreachable(e: unknown): boolean {
 }
 
 const addressWarning = addressHeaderWarning();
-if (addressWarning) console.warn(addressWarning);
+if (addressWarning) log.warn(addressWarning);
 
-cleanupStaleBatches().catch(e => { if (!isNetworkUnreachable(e)) console.error('[hooks] batch cleanup error:', e); });
-seedAdminUser().catch(e => { if (!isNetworkUnreachable(e)) console.error('[hooks] seed error:', e); });
+cleanupStaleBatches().catch(e => { if (!isNetworkUnreachable(e)) log.error('batch cleanup error', { err: e }); });
+seedAdminUser().catch(e => { if (!isNetworkUnreachable(e)) log.error('seed error', { err: e }); });
 startWorkerLivenessMonitor();
 startMetricFlush();
 
@@ -86,7 +91,7 @@ async function resolveMembership(event: RequestEvent, user: NonNullable<App.Loca
 			isAccessOpen(),
 		]),
 	).catch(e => {
-		console.error('[hooks] membership lookup failed', e);
+		log.error('membership lookup failed', { requestId: event.locals.requestId, err: e });
 		Sentry.captureException(e, { tags: { degraded: 'hooks/memberships' } });
 		return [[], [], false] as [MemberLocation[], Array<{ accessStatus: string }>, boolean];
 	});
