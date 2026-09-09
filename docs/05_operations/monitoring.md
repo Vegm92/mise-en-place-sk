@@ -126,6 +126,20 @@ Owner-email gated. Provides:
   those; the plain public response is `{ status }` only. The owner steps
   (token, monitor, Sentry alert rule, worker `SENTRY_DSN`, `ALWAYS` restart
   policy) are gate 3 of `docs/05_operations/go_live_checklist.md`.
+- **Why `railway.worker.json` has no `healthcheckPath`.** Deliberate, not an
+  oversight. Railway's healthcheck only polls once, at deploy cutover, to
+  decide whether to route traffic to the new deployment, and is explicitly
+  "not used for continuous monitoring" afterwards
+  (`docs.railway.com/deployments/healthchecks`); the worker takes no routed
+  traffic, so there is no cutover to gate. It also would not add crash
+  recovery beyond what `restartPolicyType: ALWAYS` already gives
+  (`railway.worker.json:14`), and it cannot detect a wedged-but-still-running
+  process without duplicating the same staleness check the heartbeat already
+  does — so the only thing it would add is an HTTP listener on a process that
+  has none today (`src/worker.ts`, `Dockerfile` — `EXPOSE 3000` and `PORT`
+  belong to the web container only). The heartbeat above, pushed from inside
+  the job loop and alarmed from the web process, is the actual liveness
+  signal; this is the gap-table entry this paragraph exists to be pointed at.
 - Upstash Redis optional — when absent, in-memory rate limiting is used with a
   single-instance warning (multi-instance deploy must configure Upstash).
 
