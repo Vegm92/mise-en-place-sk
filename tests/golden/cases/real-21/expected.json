@@ -1,0 +1,128 @@
+{
+	"supplier_name": "VIÑALS GOURMET, S.L.",
+	"supplier_category": "Carnes y Derivados",
+	"supplier_nif": "B64557879",
+	"supplier_address": "Pol. Ind. del Cros, 08310 - ARGENTONA (BARCELONA)",
+	"supplier_email": "pedidos@vinalsgourmet.com",
+	"supplier_phone": "(+34) 93.757.10.33",
+	"receiver_name": "GREEN PLANETA NOMADA BEACH S.L.",
+	"receiver_nif": "B09745357",
+	"receiver_address": "Carrer Garbí, 20, 08870 - SITGES",
+	"receiver_email": null,
+	"receiver_phone": "675462649",
+	"payment_method": "otro",
+	"iban": null,
+	"payment_terms": "CONTADO",
+	"invoice_number": "14/0004265",
+	"purchase_order": null,
+	"seller_name": "JOSE PALACIO",
+	"document_type": "factura",
+	"invoice_date": "2024-08-01",
+	"due_date": "2024-08-01",
+	"delivery_date": "2024-08-01",
+	"delivery_address": "Carrer les Hortes 6 - 8, nau 3, 08750 MOLINS DE REI",
+	"printed_notes": "OPERACIÓN ASEGURADA POR COMPAÑIA DE CRÉDITO",
+	"total_amount": 408.43,
+	"currency": "EUR",
+	"tax_base": 371.3,
+	"gross_amount": 371.3,
+	"discount_amount": null,
+	"retention_rate": null,
+	"retention_amount": null,
+	"tax_breakdown": [
+		{
+			"rate": 0.1,
+			"base": 371.3,
+			"tax_amount": 37.13,
+			"type": "iva"
+		}
+	],
+	"outstanding_balance": null,
+	"qr_url": null,
+	"field_confidences": {
+		"supplier_name": 1,
+		"supplier_nif": 1,
+		"supplier_category": 0.9,
+		"receiver_name": 1,
+		"receiver_nif": 1,
+		"invoice_number": 1,
+		"document_type": 1,
+		"invoice_date": 1,
+		"due_date": 1,
+		"total_amount": 1,
+		"iban": 0
+	},
+	"line_items": [
+		{
+			"description": "CHULETON VACA MADURADA P/A",
+			"quantity": 5.97,
+			"unit": "kg",
+			"unit_price": 20.9,
+			"total_price": 124.77,
+			"tax_rate": 0.1,
+			"confidence": 0.9,
+			"product_code": "V12018"
+		},
+		{
+			"description": "CHULETON VACA MADURADA P/A",
+			"quantity": 2.73,
+			"unit": "kg",
+			"unit_price": 20.9,
+			"total_price": 57.06,
+			"tax_rate": 0.1,
+			"confidence": 0.9,
+			"product_code": "V12018"
+		},
+		{
+			"description": "ALA POLLO ADOBADA",
+			"quantity": 5.735,
+			"unit": "kg",
+			"unit_price": 4.85,
+			"total_price": 27.81,
+			"tax_rate": 0.1,
+			"confidence": 0.9,
+			"product_code": "V44007"
+		},
+		{
+			"description": "REBOZADO FINGER POLLO",
+			"quantity": 4.45,
+			"unit": "kg",
+			"unit_price": 8.5,
+			"total_price": 37.83,
+			"tax_rate": 0.1,
+			"confidence": 0.9,
+			"product_code": "V44000"
+		},
+		{
+			"description": "MUSLO POLLO DESH.",
+			"quantity": 5.09,
+			"unit": "kg",
+			"unit_price": 6.9,
+			"total_price": 35.12,
+			"tax_rate": 0.1,
+			"confidence": 0.9,
+			"product_code": "V40027"
+		},
+		{
+			"description": "T-BONE STEACK TERNERA",
+			"quantity": 1.855,
+			"unit": "kg",
+			"unit_price": 17.6,
+			"total_price": 32.65,
+			"tax_rate": 0.1,
+			"confidence": 0.9,
+			"product_code": "V11122"
+		},
+		{
+			"description": "ENTRA?A TERNERA C/P",
+			"quantity": 5.72,
+			"unit": "kg",
+			"unit_price": 9.8,
+			"total_price": 56.06,
+			"tax_rate": 0.1,
+			"confidence": 0.9,
+			"product_code": "V15000"
+		}
+	],
+	"confidence": 0.95
+}

@@ -1,0 +1,484 @@
+{
+	"supplier_name": "SASAFruit S.L.",
+	"supplier_category": "Frutas y Verduras",
+	"supplier_nif": "B66417643",
+	"supplier_address": "C/Victor Hugo 1, Local S7 08173 Sant Cugat del Valles Barcelona",
+	"supplier_email": "comandes@sasafruit.com",
+	"supplier_phone": "93 674 99 65",
+	"receiver_name": "GREEN PLANET NOMADA BEACH S.L",
+	"receiver_nif": "B09745357",
+	"receiver_address": "PLATJA D'AIGUADOLÇ 08870-SITGES",
+	"receiver_email": null,
+	"receiver_phone": null,
+	"payment_method": null,
+	"iban": null,
+	"payment_terms": null,
+	"invoice_number": "0010024018600",
+	"purchase_order": null,
+	"seller_name": "ARLEY",
+	"document_type": "factura",
+	"invoice_date": "2024-08-05",
+	"due_date": null,
+	"delivery_date": null,
+	"delivery_address": null,
+	"printed_notes": "NO SE ADMITEN RECLAMACIONES PASADAS 24 H.DE LA ENTREGA DE LA MERCANCIA",
+	"total_amount": 737.73,
+	"currency": "EUR",
+	"tax_base": 686.29,
+	"gross_amount": null,
+	"discount_amount": null,
+	"retention_rate": null,
+	"retention_amount": null,
+	"tax_breakdown": [
+		{
+			"rate": 0.1,
+			"base": 570.51,
+			"tax_amount": 39.22,
+			"type": "iva"
+		},
+		{
+			"rate": 0.05,
+			"base": 10.26,
+			"tax_amount": 0.51,
+			"type": "iva"
+		}
+	],
+	"outstanding_balance": 6516.32,
+	"qr_url": null,
+	"field_confidences": {
+		"supplier_name": 1,
+		"supplier_nif": 1,
+		"supplier_category": 0.9,
+		"receiver_name": 1,
+		"receiver_nif": 1,
+		"invoice_number": 1,
+		"document_type": 1,
+		"invoice_date": 1,
+		"due_date": 1,
+		"total_amount": 1,
+		"iban": 1
+	},
+	"line_items": [
+		{
+			"description": "MEZCLUM BROTES GOURMET 500GR",
+			"quantity": 2,
+			"unit": "ud",
+			"unit_price": 4.51,
+			"total_price": 9.02,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "PATATA AGRIA S/25KG",
+			"quantity": 15.2,
+			"unit": "kg",
+			"unit_price": 1.23,
+			"total_price": 18.7,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "CEBOLLA TIERNA MANOJO",
+			"quantity": 2,
+			"unit": "ud",
+			"unit_price": 1.38,
+			"total_price": 2.76,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "LIMAS",
+			"quantity": 9,
+			"unit": "ud",
+			"unit_price": 4.7,
+			"total_price": 42.3,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "TOMATE BARBASTRO EXTRA",
+			"quantity": 5.7,
+			"unit": "kg",
+			"unit_price": 5.51,
+			"total_price": 31.41,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "CILANTRO MANOJO",
+			"quantity": 1,
+			"unit": "ud",
+			"unit_price": 1.38,
+			"total_price": 1.38,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "CALABACIN",
+			"quantity": 1.1,
+			"unit": "kg",
+			"unit_price": 0.95,
+			"total_price": 1.05,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "PIMIENTO ROJO",
+			"quantity": 5,
+			"unit": "kg",
+			"unit_price": 2.27,
+			"total_price": 11.35,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "PIÑA EXTRA DEL MONTE",
+			"quantity": 7.48,
+			"unit": "kg",
+			"unit_price": 1.88,
+			"total_price": 14.06,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "TOMATE DANIELA",
+			"quantity": 7,
+			"unit": "kg",
+			"unit_price": 1.99,
+			"total_price": 13.93,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "BERENJENA",
+			"quantity": 5.04,
+			"unit": "kg",
+			"unit_price": 1.29,
+			"total_price": 6.5,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "PIMIENTO ITALIANO",
+			"quantity": 1.22,
+			"unit": "kg",
+			"unit_price": 1.1,
+			"total_price": 1.34,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "CEBOLLA GORDA",
+			"quantity": 3.26,
+			"unit": "kg",
+			"unit_price": 0.48,
+			"total_price": 1.56,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "MELON EXTRA",
+			"quantity": 3.46,
+			"unit": "kg",
+			"unit_price": 1.15,
+			"total_price": 3.98,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "PATATA MONALISA TORRIBAS S/15K",
+			"quantity": 15,
+			"unit": "kg",
+			"unit_price": 1.52,
+			"total_price": 22.8,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "CHIPS VEGETALES 600GR",
+			"quantity": 1,
+			"unit": "ud",
+			"unit_price": 10.33,
+			"total_price": 10.33,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "CEBOLLA FRITA 1 KG",
+			"quantity": 1,
+			"unit": "kg",
+			"unit_price": 6.74,
+			"total_price": 6.74,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "ACEITE OLIVA V.EXTRA 5L ABRIL",
+			"quantity": 1,
+			"unit": "ud",
+			"unit_price": 52.58,
+			"total_price": 52.58,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "SAL MALDON CUBO 1,4KG",
+			"quantity": 1,
+			"unit": "ud",
+			"unit_price": 21.59,
+			"total_price": 21.59,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "SAL NEGRA 175G SASA",
+			"quantity": 3,
+			"unit": "ud",
+			"unit_price": 3.11,
+			"total_price": 9.33,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "MAYONESA 5L HELLMANN'S",
+			"quantity": 1,
+			"unit": "ud",
+			"unit_price": 25.9,
+			"total_price": 25.9,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "SALSA TARTUFATA 7% 480G LE IFE",
+			"quantity": 3,
+			"unit": "ud",
+			"unit_price": 10.85,
+			"total_price": 32.55,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "CURRY 810GR SASA",
+			"quantity": 1,
+			"unit": "ud",
+			"unit_price": 3.95,
+			"total_price": 3.95,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "VENTRESCA BAYMAR 1KG/650",
+			"quantity": 3,
+			"unit": "ud",
+			"unit_price": 17.89,
+			"total_price": 53.67,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "PASTA SPAGUETTI 6KG EL PAVO",
+			"quantity": 1,
+			"unit": "ud",
+			"unit_price": 10.26,
+			"total_price": 10.26,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "PAPADUM 100GR PATAK",
+			"quantity": 2,
+			"unit": "ud",
+			"unit_price": 3.76,
+			"total_price": 7.52,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "OLIVA DESHUESADA 4KG",
+			"quantity": 2,
+			"unit": "ud",
+			"unit_price": 17.77,
+			"total_price": 35.54,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "OLIVA KALAMATA DESH. 1,8KG",
+			"quantity": 1,
+			"unit": "ud",
+			"unit_price": 19.98,
+			"total_price": 19.98,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "PIPARRAS 1/2 GALON",
+			"quantity": 1,
+			"unit": "ud",
+			"unit_price": 13.27,
+			"total_price": 13.27,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "PEPINILLO RODAJAS 1,380KG",
+			"quantity": 1,
+			"unit": "ud",
+			"unit_price": 15.44,
+			"total_price": 15.44,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "QUESO CREMA 2KG CHEESON",
+			"quantity": 3,
+			"unit": "ud",
+			"unit_price": 15.12,
+			"total_price": 45.36,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "QUESO FETA DADO 1KG PATROS N",
+			"quantity": 1,
+			"unit": "ud",
+			"unit_price": 11.11,
+			"total_price": 11.11,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "HELADO CHOCOLATE ALPS 2,5L",
+			"quantity": 1,
+			"unit": "ud",
+			"unit_price": 17.5,
+			"total_price": 17.5,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "HELADO VAINILLA 2,5L ALPS",
+			"quantity": 1,
+			"unit": "ud",
+			"unit_price": 17.5,
+			"total_price": 17.5,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "SORBETE FRESA ALPS 2.5L",
+			"quantity": 1,
+			"unit": "ud",
+			"unit_price": 17.5,
+			"total_price": 17.5,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "SORBETE LIMON 2,5L G.ALPES",
+			"quantity": 1,
+			"unit": "ud",
+			"unit_price": 17.5,
+			"total_price": 17.5,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "MANGO 1K CONGELADO GLOBAL",
+			"quantity": 1,
+			"unit": "ud",
+			"unit_price": 5.8,
+			"total_price": 5.8,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "PAN BAO 20UX30G 600G",
+			"quantity": 3,
+			"unit": "ud",
+			"unit_price": 7.67,
+			"total_price": 23.01,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "SALSA SIRACHA CHILLI 475ML F",
+			"quantity": 2,
+			"unit": "ud",
+			"unit_price": 2.87,
+			"total_price": 5.74,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "SALSA SOJA 1L KIKKOMAN",
+			"quantity": 1,
+			"unit": "ud",
+			"unit_price": 6.38,
+			"total_price": 6.38,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "MAYONESA JAPONES/KEWPIE 2.4L",
+			"quantity": 1,
+			"unit": "ud",
+			"unit_price": 15.77,
+			"total_price": 15.77,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		},
+		{
+			"description": "ATUN CLARO 1K PALMERA BOLSA",
+			"quantity": 2,
+			"unit": "ud",
+			"unit_price": 7.02,
+			"total_price": 14.04,
+			"tax_rate": null,
+			"confidence": 1,
+			"product_code": null
+		}
+	],
+	"confidence": 1
+}

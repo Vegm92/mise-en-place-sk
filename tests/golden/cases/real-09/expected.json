@@ -1,0 +1,208 @@
+{
+	"supplier_name": "VIÑALS GOURMET, S.L.",
+	"supplier_category": "Carnes y Derivados",
+	"supplier_nif": "B64557879",
+	"supplier_address": "Pol. Ind. del Cros, 08310 - ARGENTONA",
+	"supplier_email": "pedidos@vinalsgourmet.com",
+	"supplier_phone": "(+34) 93.757.10.33",
+	"receiver_name": "GREEN PLANETA NOMADA BEACH S.L.",
+	"receiver_nif": "B09745357",
+	"receiver_address": "Carrer Garbí, 20, 08870 - SITGES",
+	"receiver_email": null,
+	"receiver_phone": "675462649",
+	"payment_method": "efectivo",
+	"iban": null,
+	"payment_terms": "CONTADO",
+	"invoice_number": "14/0003935",
+	"purchase_order": null,
+	"seller_name": "JOSE PALACIO",
+	"document_type": "factura",
+	"invoice_date": "2024-07-13",
+	"due_date": "2024-07-13",
+	"delivery_date": "2024-07-13",
+	"delivery_address": null,
+	"printed_notes": "OPERACIÓN ASEGURADA POR COMPAÑIA DE CRÉDITO",
+	"total_amount": 844.55,
+	"currency": "EUR",
+	"tax_base": 772.27,
+	"gross_amount": 772.27,
+	"discount_amount": 0,
+	"retention_rate": null,
+	"retention_amount": null,
+	"tax_breakdown": [
+		{
+			"rate": 0.1,
+			"base": 772.27,
+			"tax_amount": 77.23,
+			"type": "iva"
+		}
+	],
+	"outstanding_balance": null,
+	"qr_url": null,
+	"field_confidences": {
+		"supplier_name": 1,
+		"supplier_nif": 1,
+		"supplier_category": 0.9,
+		"receiver_name": 0.95,
+		"receiver_nif": 0.95,
+		"invoice_number": 1,
+		"document_type": 1,
+		"invoice_date": 1,
+		"due_date": 1,
+		"total_amount": 1,
+		"iban": 0
+	},
+	"line_items": [
+		{
+			"description": "BURGER MEAT ANGUS V1906 200G",
+			"quantity": 12.25,
+			"unit": "kg",
+			"unit_price": 8.185,
+			"total_price": 100.27,
+			"tax_rate": 0.1,
+			"confidence": 0.9,
+			"product_code": null
+		},
+		{
+			"description": "BURGER MEAT TERNERA VG EXTRA 150G",
+			"quantity": 9.9,
+			"unit": "kg",
+			"unit_price": 3.4,
+			"total_price": 33.66,
+			"tax_rate": 0.1,
+			"confidence": 0.9,
+			"product_code": null
+		},
+		{
+			"description": "REBOZADO FINGER POLLO",
+			"quantity": 8.5,
+			"unit": "kg",
+			"unit_price": 8.14,
+			"total_price": 69.19,
+			"tax_rate": 0.1,
+			"confidence": 0.9,
+			"product_code": null
+		},
+		{
+			"description": "ALA POLLO ADOBADA",
+			"quantity": 4.85,
+			"unit": "kg",
+			"unit_price": 10.665,
+			"total_price": 51.73,
+			"tax_rate": 0.1,
+			"confidence": 0.9,
+			"product_code": null
+		},
+		{
+			"description": "CHULETON VACA MADURADA P/A",
+			"quantity": 20.9,
+			"unit": "kg",
+			"unit_price": 6.675,
+			"total_price": 139.51,
+			"tax_rate": 0.1,
+			"confidence": 0.9,
+			"product_code": null
+		},
+		{
+			"description": "CHULETA CERDO CORT.",
+			"quantity": 6.25,
+			"unit": "kg",
+			"unit_price": 4.475,
+			"total_price": 27.97,
+			"tax_rate": 0.1,
+			"confidence": 0.9,
+			"product_code": null
+		},
+		{
+			"description": "MUSLO POLLO DESH.",
+			"quantity": 6.9,
+			"unit": "kg",
+			"unit_price": 6.29,
+			"total_price": 43.4,
+			"tax_rate": 0.1,
+			"confidence": 0.9,
+			"product_code": null
+		},
+		{
+			"description": "T-BONE STEACK TERNERA",
+			"quantity": 17.6,
+			"unit": "kg",
+			"unit_price": 7.1,
+			"total_price": 124.96,
+			"tax_rate": 0.1,
+			"confidence": 0.9,
+			"product_code": null
+		},
+		{
+			"description": "QUESO SEMI LONCHEADO",
+			"quantity": 14.5,
+			"unit": "kg",
+			"unit_price": 2.09,
+			"total_price": 30.31,
+			"tax_rate": 0.1,
+			"confidence": 0.9,
+			"product_code": null
+		},
+		{
+			"description": "FUET VIC EXTRA (SECALLONA)",
+			"quantity": 12.59,
+			"unit": "kg",
+			"unit_price": 0.36,
+			"total_price": 4.53,
+			"tax_rate": 0.1,
+			"confidence": 0.9,
+			"product_code": null
+		},
+		{
+			"description": "LOMO CAÑA CERDO",
+			"quantity": 6.4,
+			"unit": "kg",
+			"unit_price": 2.215,
+			"total_price": 14.18,
+			"tax_rate": 0.1,
+			"confidence": 0.9,
+			"product_code": null
+		},
+		{
+			"description": "BUTIFARRA",
+			"quantity": 6.5,
+			"unit": "kg",
+			"unit_price": 2.08,
+			"total_price": 13.52,
+			"tax_rate": 0.1,
+			"confidence": 0.9,
+			"product_code": null
+		},
+		{
+			"description": "ENTRAÑA TERNERA C/P",
+			"quantity": 9.8,
+			"unit": "kg",
+			"unit_price": 8.76,
+			"total_price": 85.85,
+			"tax_rate": 0.1,
+			"confidence": 0.9,
+			"product_code": null
+		},
+		{
+			"description": "PICADA MIXTA",
+			"quantity": 6.9,
+			"unit": "kg",
+			"unit_price": 2.03,
+			"total_price": 14.01,
+			"tax_rate": 0.1,
+			"confidence": 0.9,
+			"product_code": null
+		},
+		{
+			"description": "PARMESANO ESCAMAS",
+			"quantity": 9.4,
+			"unit": "kg",
+			"unit_price": 2.04,
+			"total_price": 19.18,
+			"tax_rate": 0.1,
+			"confidence": 0.9,
+			"product_code": null
+		}
+	],
+	"confidence": 0.95
+}

@@ -1,0 +1,168 @@
+{
+	"supplier_name": "VIÑALS GOURMET, S.L.",
+	"supplier_category": "Carnes y Derivados",
+	"supplier_nif": "B64557879",
+	"supplier_address": "Pol. Ind. del Cros, 08310 - ARGENTONA (BARCELONA)",
+	"supplier_email": "pedidos@vinalsgourmet.com",
+	"supplier_phone": "(+34) 93.757.10.33",
+	"receiver_name": "GREEN PLANETA NOMADA BEACH S.L.",
+	"receiver_nif": "B09745357",
+	"receiver_address": "Carrer Garbí, 20, 08870 - SITGES (BARCELONA)",
+	"receiver_email": null,
+	"receiver_phone": "675462649",
+	"payment_method": "efectivo",
+	"iban": null,
+	"payment_terms": "CONTADO",
+	"invoice_number": "14/0004313",
+	"purchase_order": null,
+	"seller_name": "JOSE PALACIO",
+	"document_type": "factura",
+	"invoice_date": "2024-08-05",
+	"due_date": "2024-08-05",
+	"delivery_date": "2024-08-05",
+	"delivery_address": "Carrer les Hortes 6 - 8, nau 3, 08750 MOLINS DE REI",
+	"printed_notes": "OPERACIÓN ASEGURADA POR COMPAÑIA DE CRÉDITO",
+	"total_amount": 484.58,
+	"currency": "EUR",
+	"tax_base": 444.4,
+	"gross_amount": 401.78,
+	"discount_amount": 0,
+	"retention_rate": null,
+	"retention_amount": null,
+	"tax_breakdown": [
+		{
+			"rate": 0.1,
+			"base": 444.4,
+			"tax_amount": 44.44,
+			"type": "iva"
+		}
+	],
+	"outstanding_balance": null,
+	"qr_url": null,
+	"field_confidences": {
+		"supplier_name": 1,
+		"supplier_nif": 1,
+		"supplier_category": 0.9,
+		"receiver_name": 0.9,
+		"receiver_nif": 0.9,
+		"invoice_number": 0.95,
+		"document_type": 0.95,
+		"invoice_date": 0.95,
+		"due_date": 0.95,
+		"total_amount": 0.95,
+		"iban": 0
+	},
+	"line_items": [
+		{
+			"description": "REBOZADO FINGER POLLO",
+			"quantity": 8.5,
+			"unit": "kg",
+			"unit_price": 6.55,
+			"total_price": 55.68,
+			"tax_rate": 0.1,
+			"confidence": 0.9,
+			"product_code": "V44000"
+		},
+		{
+			"description": "ALA POLLO ADOBADA",
+			"quantity": 4.85,
+			"unit": "kg",
+			"unit_price": 8.7,
+			"total_price": 42.22,
+			"tax_rate": 0.1,
+			"confidence": 0.9,
+			"product_code": "V44007"
+		},
+		{
+			"description": "MUSLO POLLO DESH.",
+			"quantity": 6.9,
+			"unit": "kg",
+			"unit_price": 5.065,
+			"total_price": 34.95,
+			"tax_rate": 0.1,
+			"confidence": 0.9,
+			"product_code": "V40027"
+		},
+		{
+			"description": "ENTRAÑA TERNERA C/P",
+			"quantity": 9.8,
+			"unit": "kg",
+			"unit_price": 5.25,
+			"total_price": 51.45,
+			"tax_rate": 0.1,
+			"confidence": 0.9,
+			"product_code": "V15000"
+		},
+		{
+			"description": "BACON AHUM.MOLDE C/CORTEZA LONCH.",
+			"quantity": 7.35,
+			"unit": "kg",
+			"unit_price": 4.5,
+			"total_price": 33.08,
+			"tax_rate": 0.1,
+			"confidence": 0.9,
+			"product_code": "V66006"
+		},
+		{
+			"description": "PARMESANO ESCAMAS",
+			"quantity": 9.4,
+			"unit": "kg",
+			"unit_price": 2.055,
+			"total_price": 19.32,
+			"tax_rate": 0.1,
+			"confidence": 0.9,
+			"product_code": "V61043"
+		},
+		{
+			"description": "EDAM ROJA BARRA LONCH.",
+			"quantity": 9.55,
+			"unit": "kg",
+			"unit_price": 2.44,
+			"total_price": 23.3,
+			"tax_rate": 0.1,
+			"confidence": 0.9,
+			"product_code": "V61002"
+		},
+		{
+			"description": "BUTIFARRA",
+			"quantity": 6.8,
+			"unit": "kg",
+			"unit_price": 3.205,
+			"total_price": 21.79,
+			"tax_rate": 0.1,
+			"confidence": 0.9,
+			"product_code": "V52002"
+		},
+		{
+			"description": "ESTOFADO DLT TERNERA",
+			"quantity": 9.7,
+			"unit": "kg",
+			"unit_price": 2.2,
+			"total_price": 21.34,
+			"tax_rate": 0.1,
+			"confidence": 0.9,
+			"product_code": "V11057"
+		},
+		{
+			"description": "BURGER MEAT ANGUS V1906 200G",
+			"quantity": 12.25,
+			"unit": "kg",
+			"unit_price": 8.165,
+			"total_price": 100.02,
+			"tax_rate": 0.1,
+			"confidence": 0.9,
+			"product_code": "V50025"
+		},
+		{
+			"description": "BURGER MEAT TERNERA V1906 180G",
+			"quantity": 11,
+			"unit": "kg",
+			"unit_price": 3.75,
+			"total_price": 41.25,
+			"tax_rate": 0.1,
+			"confidence": 0.9,
+			"product_code": "V50065"
+		}
+	],
+	"confidence": 0.92
+}

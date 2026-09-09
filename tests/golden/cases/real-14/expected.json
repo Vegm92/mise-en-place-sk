@@ -1,0 +1,128 @@
+{
+	"supplier_name": "VIÑALS GOURMET, S.L.",
+	"supplier_category": "Carnes y Derivados",
+	"supplier_nif": "B64557879",
+	"supplier_address": "Pol. Ind. El Pla, C/ Horta 6-8, Nave 3, 08750 MOLINS DE REI (BARCELONA)",
+	"supplier_email": "pedidos@vinalsgourmet.com",
+	"supplier_phone": "(+34) 93.757.10.33 / 93.680.00.55",
+	"receiver_name": "GREEN PLANETA NOMADA BEACH S.L.",
+	"receiver_nif": "B09745357",
+	"receiver_address": "PLATJA D AIGUADOLÇ, 08870 SITGES BARCELONA",
+	"receiver_email": null,
+	"receiver_phone": "675462649",
+	"payment_method": "otro",
+	"iban": "ES0900491808822110150401",
+	"payment_terms": "CONTADO",
+	"invoice_number": "2024-14-4137",
+	"purchase_order": "U-114",
+	"seller_name": null,
+	"document_type": "factura",
+	"invoice_date": "2024-07-25",
+	"due_date": null,
+	"delivery_date": null,
+	"delivery_address": null,
+	"printed_notes": "DESPUES DE LAS 24 HORAS DE LE ENTREGA DEL PEDIDO NO SE ACEPTAN DEVOLUCIONES DE PRODUCTOS FRESCOS. ** ESTEN PENDIENTES A LAS OSCILACIONES DE PRECIOS SEGUN MERCADOS **",
+	"total_amount": 194.86,
+	"currency": "EUR",
+	"tax_base": 159.37,
+	"gross_amount": 178.92,
+	"discount_amount": null,
+	"retention_rate": null,
+	"retention_amount": null,
+	"tax_breakdown": [
+		{
+			"rate": 0.1,
+			"base": 159.37,
+			"tax_amount": 15.94,
+			"type": "iva"
+		}
+	],
+	"outstanding_balance": null,
+	"qr_url": null,
+	"field_confidences": {
+		"supplier_name": 1,
+		"supplier_nif": 1,
+		"supplier_category": 0.95,
+		"receiver_name": 1,
+		"receiver_nif": 1,
+		"invoice_number": 1,
+		"document_type": 1,
+		"invoice_date": 1,
+		"due_date": 1,
+		"total_amount": 1,
+		"iban": 1
+	},
+	"line_items": [
+		{
+			"description": "ALA POLLO ADOBADA",
+			"quantity": 6.965,
+			"unit": "kg",
+			"unit_price": 4.85,
+			"total_price": 33.78,
+			"tax_rate": null,
+			"confidence": 0.95,
+			"product_code": "V44007"
+		},
+		{
+			"description": "BURGER MEAT TERNERA V1906 200G",
+			"quantity": 30,
+			"unit": "un",
+			"unit_price": 1.9,
+			"total_price": 57,
+			"tax_rate": null,
+			"confidence": 0.95,
+			"product_code": "V50010"
+		},
+		{
+			"description": "JAMON YORK (1) EXTRA LONCH.",
+			"quantity": 0.29,
+			"unit": "kg",
+			"unit_price": 8.15,
+			"total_price": 2.36,
+			"tax_rate": null,
+			"confidence": 0.95,
+			"product_code": "V64004"
+		},
+		{
+			"description": "FUET VIC EXTRA (SECALLONA)",
+			"quantity": 0.565,
+			"unit": "kg",
+			"unit_price": 12.59,
+			"total_price": 7.11,
+			"tax_rate": null,
+			"confidence": 0.95,
+			"product_code": "V60035"
+		},
+		{
+			"description": "PARMESANO ESCAMAS",
+			"quantity": 2.08,
+			"unit": "kg",
+			"unit_price": 9.4,
+			"total_price": 19.55,
+			"tax_rate": null,
+			"confidence": 0.95,
+			"product_code": "V61043"
+		},
+		{
+			"description": "ENTRAÑA TERNERA C/P",
+			"quantity": 4.725,
+			"unit": "kg",
+			"unit_price": 9.8,
+			"total_price": 46.31,
+			"tax_rate": null,
+			"confidence": 0.95,
+			"product_code": "V15000"
+		},
+		{
+			"description": "CHULETA CERDO CORT.",
+			"quantity": 2.05,
+			"unit": "kg",
+			"unit_price": 6.25,
+			"total_price": 12.81,
+			"tax_rate": null,
+			"confidence": 0.95,
+			"product_code": "V30006"
+		}
+	],
+	"confidence": 0.98
+}

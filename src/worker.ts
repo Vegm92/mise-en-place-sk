@@ -4,15 +4,16 @@ import * as Sentry from '@sentry/sveltekit';
 import { PgBoss, type JobWithMetadata } from 'pg-boss';
 import {
 	DEAD_LETTER_QUEUES,
-	EXTRACTION_QUEUE,
-	NORMALIZE_QUEUE,
-	CATEGORIZE_QUEUE,
+	createQueuesWithDeadLetters,
+} from './lib/server/queue.js';
+import { EXTRACTION_QUEUE } from './lib/server/contracts/extraction-contract.js';
+import { NORMALIZE_QUEUE, CATEGORIZE_QUEUE } from './lib/server/contracts/products-contract.js';
+import {
 	WHATSAPP_NOTIFY_QUEUE,
 	WHATSAPP_INBOUND_QUEUE,
-	ACCOUNT_CLEANUP_QUEUE,
-	createQueuesWithDeadLetters,
 	type WhatsAppInboundJobData,
-} from './lib/server/queue.js';
+} from './lib/server/contracts/whatsapp-contract.js';
+import { ACCOUNT_CLEANUP_QUEUE } from './lib/server/contracts/account-cleanup-contract.js';
 import { pgSslConfig } from './lib/server/db-ssl.js';
 import { runExtractionJobForBoss, type ExtractionJobData } from './lib/server/extraction-worker.js';
 import {

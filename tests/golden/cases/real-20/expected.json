@@ -1,0 +1,168 @@
+{
+	"supplier_name": "VIÑALS GOURMET, S.L.",
+	"supplier_category": "Carnes y Derivados",
+	"supplier_nif": "B64557879",
+	"supplier_address": "Pol. Ind. del Cros, 08310 - ARGENTONA",
+	"supplier_email": "pedidos@vinalsgourmet.com",
+	"supplier_phone": "(+34) 93.757.10.33",
+	"receiver_name": "GREEN PLANETA NOMADA BEACH S.L.",
+	"receiver_nif": null,
+	"receiver_address": "Carrer Garbí, 20, 08870 - SITGES",
+	"receiver_email": null,
+	"receiver_phone": "675462649",
+	"payment_method": "efectivo",
+	"iban": null,
+	"payment_terms": "CONTADO",
+	"invoice_number": "14/0004238",
+	"purchase_order": null,
+	"seller_name": "JOSE PALACIO",
+	"document_type": "factura",
+	"invoice_date": "2024-07-31",
+	"due_date": "2024-07-30",
+	"delivery_date": "2024-07-31",
+	"delivery_address": null,
+	"printed_notes": "OPERACIÓN ASEGURADA POR COMPAÑIA DE CRÉDITO",
+	"total_amount": 495.06,
+	"currency": "EUR",
+	"tax_base": 450.05,
+	"gross_amount": 450.05,
+	"discount_amount": null,
+	"retention_rate": null,
+	"retention_amount": null,
+	"tax_breakdown": [
+		{
+			"rate": 0.1,
+			"base": 450.05,
+			"tax_amount": 45.01,
+			"type": "iva"
+		}
+	],
+	"outstanding_balance": null,
+	"qr_url": null,
+	"field_confidences": {
+		"supplier_name": 1,
+		"supplier_nif": 1,
+		"supplier_category": 1,
+		"receiver_name": 0.9,
+		"receiver_nif": 0,
+		"invoice_number": 1,
+		"document_type": 1,
+		"invoice_date": 1,
+		"due_date": 1,
+		"total_amount": 1,
+		"iban": 0
+	},
+	"line_items": [
+		{
+			"description": "BURGER MEAT TERNERA V1906 200G",
+			"quantity": 11,
+			"unit": "ud",
+			"unit_price": 10.685,
+			"total_price": 117.54,
+			"tax_rate": 0.1,
+			"confidence": 0.95,
+			"product_code": "V50010"
+		},
+		{
+			"description": "BURGER MEAT TERNERA V1906 180G",
+			"quantity": 11,
+			"unit": "ud",
+			"unit_price": 3.81,
+			"total_price": 41.91,
+			"tax_rate": 0.1,
+			"confidence": 0.95,
+			"product_code": "V50065"
+		},
+		{
+			"description": "T-BONE STEACK TERNERA",
+			"quantity": 17.6,
+			"unit": "kg",
+			"unit_price": 5.15,
+			"total_price": 90.64,
+			"tax_rate": 0.1,
+			"confidence": 0.95,
+			"product_code": "V11122"
+		},
+		{
+			"description": "ENTRA?A TERNERA C/P",
+			"quantity": 9.8,
+			"unit": "kg",
+			"unit_price": 6.105,
+			"total_price": 59.83,
+			"tax_rate": 0.1,
+			"confidence": 0.95,
+			"product_code": "V15000"
+		},
+		{
+			"description": "MUSLO POLLO DESH.",
+			"quantity": 6.9,
+			"unit": "kg",
+			"unit_price": 5.265,
+			"total_price": 36.33,
+			"tax_rate": 0.1,
+			"confidence": 0.95,
+			"product_code": "V40027"
+		},
+		{
+			"description": "ALA POLLO ADOBADA",
+			"quantity": 4.85,
+			"unit": "kg",
+			"unit_price": 6.265,
+			"total_price": 30.39,
+			"tax_rate": 0.1,
+			"confidence": 0.95,
+			"product_code": "V44007"
+		},
+		{
+			"description": "REBOZADO FINGER POLLO",
+			"quantity": 8.5,
+			"unit": "kg",
+			"unit_price": 2.195,
+			"total_price": 18.66,
+			"tax_rate": 0.1,
+			"confidence": 0.95,
+			"product_code": "V44000"
+		},
+		{
+			"description": "JAMON YORK (1) EXTRA LONCH.",
+			"quantity": 8.15,
+			"unit": "kg",
+			"unit_price": 0.525,
+			"total_price": 4.28,
+			"tax_rate": 0.1,
+			"confidence": 0.95,
+			"product_code": "V64004"
+		},
+		{
+			"description": "FUET VIC EXTRA (SECALLONA)",
+			"quantity": 12.59,
+			"unit": "kg",
+			"unit_price": 0.375,
+			"total_price": 4.72,
+			"tax_rate": 0.1,
+			"confidence": 0.95,
+			"product_code": "V60035"
+		},
+		{
+			"description": "BACON AHUM.MOLDE C/CORTEZA LONCH.",
+			"quantity": 7.35,
+			"unit": "kg",
+			"unit_price": 4.34,
+			"total_price": 31.9,
+			"tax_rate": 0.1,
+			"confidence": 0.95,
+			"product_code": "V66006"
+		},
+		{
+			"description": "BUTIFARRA",
+			"quantity": 6.5,
+			"unit": "kg",
+			"unit_price": 2.13,
+			"total_price": 13.85,
+			"tax_rate": 0.1,
+			"confidence": 0.95,
+			"product_code": "V52002"
+		}
+	],
+	"confidence": 0.92
+}

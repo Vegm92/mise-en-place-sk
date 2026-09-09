@@ -1,0 +1,168 @@
+{
+	"supplier_name": "VIÑALS GOURMET, S.L.",
+	"supplier_category": "Carnes y Derivados",
+	"supplier_nif": "B64557879",
+	"supplier_address": "Pol. Ind. El Pla, C/ Horta 6-8, Nave 3, 08750 MOLINS DE REI (BARCELONA)",
+	"supplier_email": "pedidos@vinalsgourmet.com",
+	"supplier_phone": "(+34) 93.757.10.33",
+	"receiver_name": "GREEN PLANETA NOMADA BEACH S.L.",
+	"receiver_nif": "B09745357",
+	"receiver_address": "PLATJA D AIGUADOL, 08870 SITGES BARCELONA",
+	"receiver_email": null,
+	"receiver_phone": "675462649",
+	"payment_method": "otro",
+	"iban": "ES0900491808822110150401",
+	"payment_terms": "CONTADO",
+	"invoice_number": "2024-14-4103",
+	"purchase_order": "U-124",
+	"seller_name": null,
+	"document_type": "factura",
+	"invoice_date": "2024-07-24",
+	"due_date": null,
+	"delivery_date": null,
+	"delivery_address": null,
+	"printed_notes": "DESPUES DE LAS 24 HORAS DE LE ENTREGA DEL PEDIDO NO SE ACEPTAN DEVOLUCIONES DE PRODUCTOS FRESCOS. ** ESTEN PENDIENTES A LAS OSCILACIONES DE PRECIOS SEGUN MERCADOS **",
+	"total_amount": 559.26,
+	"currency": "EUR",
+	"tax_base": 490.05,
+	"gross_amount": 510.25,
+	"discount_amount": 20.2,
+	"retention_rate": null,
+	"retention_amount": null,
+	"tax_breakdown": [
+		{
+			"rate": 0.1,
+			"base": 490.05,
+			"tax_amount": 49.01,
+			"type": "iva"
+		}
+	],
+	"outstanding_balance": null,
+	"qr_url": null,
+	"field_confidences": {
+		"supplier_name": 1,
+		"supplier_nif": 1,
+		"supplier_category": 0.9,
+		"receiver_name": 1,
+		"receiver_nif": 1,
+		"invoice_number": 1,
+		"document_type": 1,
+		"invoice_date": 1,
+		"due_date": 1,
+		"total_amount": 1,
+		"iban": 1
+	},
+	"line_items": [
+		{
+			"description": "ENTRAÑA TERNERA C/P",
+			"quantity": 6.915,
+			"unit": "kg",
+			"unit_price": 9.8,
+			"total_price": 67.77,
+			"tax_rate": 0.1,
+			"confidence": 1,
+			"product_code": "V15000"
+		},
+		{
+			"description": "T-BONE STEACK TERNERA",
+			"quantity": 4.89,
+			"unit": "kg",
+			"unit_price": 17.6,
+			"total_price": 86.07,
+			"tax_rate": 0.1,
+			"confidence": 1,
+			"product_code": "V11122"
+		},
+		{
+			"description": "ALA POLLO ADOBADA",
+			"quantity": 6.17,
+			"unit": "kg",
+			"unit_price": 4.85,
+			"total_price": 29.93,
+			"tax_rate": 0.1,
+			"confidence": 1,
+			"product_code": "V44007"
+		},
+		{
+			"description": "REBOZADO FINGER POLLO",
+			"quantity": 4.765,
+			"unit": "kg",
+			"unit_price": 8.5,
+			"total_price": 40.5,
+			"tax_rate": 0.1,
+			"confidence": 1,
+			"product_code": "V44000"
+		},
+		{
+			"description": "MUSLO POLLO DESH.",
+			"quantity": 5.095,
+			"unit": "kg",
+			"unit_price": 6.9,
+			"total_price": 35.16,
+			"tax_rate": 0.1,
+			"confidence": 1,
+			"product_code": "V40027"
+		},
+		{
+			"description": "BACON AHUM.MOLDE C/CORTEZA LONCH.",
+			"quantity": 3.815,
+			"unit": "kg",
+			"unit_price": 7.35,
+			"total_price": 28.04,
+			"tax_rate": 0.1,
+			"confidence": 1,
+			"product_code": "V66006"
+		},
+		{
+			"description": "BUTIFARRA",
+			"quantity": 2.055,
+			"unit": "kg",
+			"unit_price": 6.5,
+			"total_price": 13.36,
+			"tax_rate": 0.1,
+			"confidence": 1,
+			"product_code": "V52002"
+		},
+		{
+			"description": "CHULETON VACA MADURADA P/A",
+			"quantity": 4.53,
+			"unit": "kg",
+			"unit_price": 20.9,
+			"total_price": 94.68,
+			"tax_rate": 0.1,
+			"confidence": 1,
+			"product_code": "V12018"
+		},
+		{
+			"description": "CHULETON VACA MADURADA P/A",
+			"quantity": 2.705,
+			"unit": "kg",
+			"unit_price": 20.9,
+			"total_price": 56.54,
+			"tax_rate": 0.1,
+			"confidence": 1,
+			"product_code": "V12018"
+		},
+		{
+			"description": "BURGER MEAT TERNERA V1906 200G",
+			"quantity": 20,
+			"unit": "un",
+			"unit_price": 1.9,
+			"total_price": 38,
+			"tax_rate": 0.1,
+			"confidence": 1,
+			"product_code": "V50010"
+		},
+		{
+			"description": "EDAM ROJA BARRA LONCH.",
+			"quantity": 2.115,
+			"unit": "kg",
+			"unit_price": 9.55,
+			"total_price": 20.2,
+			"tax_rate": 0.1,
+			"confidence": 1,
+			"product_code": "V61002"
+		}
+	],
+	"confidence": 1
+}

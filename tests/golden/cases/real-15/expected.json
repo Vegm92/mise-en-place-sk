@@ -1,0 +1,69 @@
+{
+	"supplier_name": "VIÑALS GOURMET, S.L.",
+	"supplier_category": "Carnes y Derivados",
+	"supplier_nif": "B64557879",
+	"supplier_address": "Pol. Ind. El Pla, C/ Horta 6-8, Nave 3, 08750 MOLINS DE REI (BARCELONA)",
+	"supplier_email": "pedidos@vinalsgourmet.com",
+	"supplier_phone": "(+34) 93.757.10.33",
+	"receiver_name": "GREEN PLANETA NOMADA BEACH S.L.",
+	"receiver_nif": "B09745357",
+	"receiver_address": "PLATJA D AIGUADOL? 08870 SITGES BARCELONA",
+	"receiver_email": null,
+	"receiver_phone": "675462649",
+	"payment_method": "efectivo",
+	"iban": "ES0900491808822110150401",
+	"payment_terms": "CONTADO",
+	"invoice_number": "2024-14-4171",
+	"purchase_order": "U-52",
+	"seller_name": null,
+	"document_type": "factura",
+	"invoice_date": "2024-07-26",
+	"due_date": null,
+	"delivery_date": null,
+	"delivery_address": null,
+	"printed_notes": "DESPUES DE LAS 24 HORAS DE LE ENTREGA DEL PEDIDO NO SE ACEPTAN DEVOLUCIONES DE PRODUCTOS FRESCOS. ** ESTEN PENDIENTES A LAS OSCILACIONES DE PRECIOS SEGUN MERCADOS **",
+	"total_amount": 25.2,
+	"currency": "EUR",
+	"tax_base": 25.2,
+	"gross_amount": null,
+	"discount_amount": null,
+	"retention_rate": null,
+	"retention_amount": null,
+	"tax_breakdown": [
+		{
+			"rate": 0,
+			"base": 25.2,
+			"tax_amount": 0,
+			"type": "iva"
+		}
+	],
+	"outstanding_balance": null,
+	"qr_url": null,
+	"field_confidences": {
+		"supplier_name": 1,
+		"supplier_nif": 1,
+		"supplier_category": 0.9,
+		"receiver_name": 1,
+		"receiver_nif": 1,
+		"invoice_number": 1,
+		"document_type": 1,
+		"invoice_date": 1,
+		"due_date": 1,
+		"total_amount": 1,
+		"iban": 1
+	},
+	"line_items": [
+		{
+			"description": "RALLADO (B/1,5KG)",
+			"quantity": 2,
+			"unit": "kg",
+			"unit_price": 12.6,
+			"total_price": 25.2,
+			"tax_rate": 0,
+			"confidence": 1,
+			"allergens": null,
+			"product_code": "V61012"
+		}
+	],
+	"confidence": 0.98
+}
