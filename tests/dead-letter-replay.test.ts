@@ -45,7 +45,7 @@ const {
 } = await import('../src/lib/server/queue');
 const { isReplayable, nonReplayableReason, replayDeadLetter } =
 	await import('../src/lib/server/dead-letter-replay');
-const { deadLetterAlert, DEAD_LETTER_ALERT_THRESHOLD } = await import('../src/lib/server/alerts');
+const { deadLetterAlert, DEAD_LETTER_ALERT_THRESHOLD } = await import('../src/lib/server/dead-letter-health');
 
 const RID = '11111111-1111-4111-8111-111111111111';
 const ITEM = '22222222-2222-4222-8222-222222222222';

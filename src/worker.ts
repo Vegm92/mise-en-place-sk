@@ -23,7 +23,7 @@ import {
 	type NormalizeJobData,
 } from './lib/server/products.js';
 import { processAccountCleanupJob, type AccountCleanupJobData } from './lib/server/account-cleanup.js';
-import { registerScheduledJobs } from './lib/server/alerts.js';
+import { registerScheduledJobs } from './lib/server/scheduler.js';
 import { deadLetterRefFromJob, recordDeadLetter, runWithDeadLetter } from './lib/server/dead-letter.js';
 import { MAX_CONCURRENT_EXTRACTIONS } from './lib/server/env.js';
 import { createLogger } from './lib/server/log.js';
