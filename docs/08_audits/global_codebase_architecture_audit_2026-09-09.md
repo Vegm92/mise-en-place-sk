@@ -13,6 +13,7 @@ Evidence labels: **OBSERVED** comes from the listed source; **INFERRED** is a co
 
 - `node scripts/madge-report.mjs` was run on 2026-09-09T11:31:55.168Z. It parsed 296 TypeScript/JavaScript files and 1,020 import edges. Its full machine-readable output is [madge-out/graph.json](../../madge-out/graph.json) and the reproducible summary is [madge-out/MADGE_REPORT.md](../../madge-out/MADGE_REPORT.md).
 - Madge deliberately does not parse Svelte component scripts; router convention files are runtime entry points rather than imported files. Its orphan list is therefore a candidate list, not a dead-code verdict.
+- `pnpm knip` (`scripts/knip-report.mjs`, issue #1044) fills that gap: `knip`'s SvelteKit plugin parses `.svelte` scripts and classifies route/hook/layout files as entry points automatically, and `knip.json` declares the worker, `wait-for-migrations.ts`, and the standalone CLI scripts as additional roots so they aren't misread as dead code. Its output is [graph-out/GRAPH_REPORT.md](../../graph-out/GRAPH_REPORT.md), which lists its own confidence/limitations. It only runs knip's unused-files check — not the noisier unused-dependency/unused-export checks — so it is a component-reachability graph, not a full lint gate.
 - The audit inspected the request entry point (`src/hooks.server.ts`), worker entry point (`src/worker.ts`), schema, queues, central services, deployment files, and all import graph cycles. It does not prove production traffic, ownership, deployment configuration values, or runtime health.
 
 ---

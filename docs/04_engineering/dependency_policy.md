@@ -39,6 +39,10 @@ ones. Verify against `package.json` before assuming (dependencies evolve).
 - `drizzle-kit`, `typescript`, `vitest`, `@vitest/coverage-v8`,
   `svelte-check`, `prettier`, `eslint`/`eslint-plugin-svelte`, `tsx`,
   `chokidar` (dev scripts), `@types/*`
+- `madge` (`pnpm madge`) — file-level TS/JS import graph. `knip`
+  (`pnpm knip`, issue #1044) — route/Svelte-aware graph alongside it; its
+  SvelteKit plugin parses `.svelte` and classifies routes/hooks as entry
+  points, closing the gap Madge has there.
 
 ## Hard constraints (from ADRs + conventions)
 

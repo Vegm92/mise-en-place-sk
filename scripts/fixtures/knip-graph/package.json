@@ -1,0 +1,8 @@
+{
+	"name": "knip-graph-fixture",
+	"private": true,
+	"type": "module",
+	"dependencies": {
+		"svelte": "*"
+	}
+}
