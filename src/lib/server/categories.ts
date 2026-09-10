@@ -1,7 +1,8 @@
 import { asc, count, eq } from 'drizzle-orm';
 import { db, forTenant } from './db';
 import type { BatchDb } from './batch';
-import { categories, categoryBudgets, products, suppliers } from './schema';
+import { categories, categoryBudgets, suppliers } from './schema';
+import { renameProductsCategory } from './products';
 import {
 	MIN_CATEGORY_CONFIDENCE, UNCATEGORIZED_CATEGORY, VALID_CATEGORIES,
 	categoryKey, categorySlug, resolveCategory,
@@ -136,8 +137,7 @@ export async function renameCategory(
 		if (oldName !== validated.name) {
 			await tx.update(suppliers).set({ category: validated.name })
 				.where(tenant.scope(suppliers.restaurantId, eq(suppliers.category, oldName)));
-			await tx.update(products).set({ category: validated.name })
-				.where(tenant.scope(products.restaurantId, eq(products.category, oldName)));
+			await renameProductsCategory(rid, oldName, validated.name, tx);
 			await tx.update(categoryBudgets).set({ category: validated.name })
 				.where(tenant.scope(categoryBudgets.restaurantId, eq(categoryBudgets.category, oldName)));
 		}

@@ -30,7 +30,7 @@ vi.mock('../src/lib/server/db', async () => {
 });
 
 import {
-	buildCategorizePrompt, parseCategorizeResponse, processCategorizeJob,
+	buildCategorizePrompt, parseCategorizeResponse, processCategorizeJob, renameProductsCategory,
 } from '../src/lib/server/products';
 import type { createGeminiProvider } from '../src/lib/server/llm-provider';
 type LLMProvider = ReturnType<typeof createGeminiProvider>;
@@ -135,6 +135,28 @@ async function categoryOf(productId: number): Promise<string | null> {
 	const [row] = await testSql`SELECT category FROM products WHERE id = ${productId}`;
 	return (row?.category as string | null) ?? null;
 }
+
+describe.skipIf(!hasDbEnv)('renameProductsCategory (product-domain seam, issue #1046)', () => {
+	it('renames the category on this tenant\'s products only', async () => {
+		const other = await createTestRestaurant('categorizer-rename-other');
+		try {
+			const id = await seedProduct('Tomate pera', 'Frutas y Verduras');
+			const otherId = (await testSql`
+				INSERT INTO products (restaurant_id, canonical_name, name_key, category)
+				VALUES (${other.id}, 'Tomate pera', 'tomate pera', 'Frutas y Verduras')
+				RETURNING id
+			`)[0]!.id as number;
+
+			await renameProductsCategory(rid, 'Frutas y Verduras', 'Frescos');
+
+			expect(await categoryOf(id)).toBe('Frescos');
+			const [otherRow] = await testSql`SELECT category FROM products WHERE id = ${otherId}`;
+			expect(otherRow!.category).toBe('Frutas y Verduras');
+		} finally {
+			await cleanupTestRestaurant(other.id);
+		}
+	});
+});
 
 describe.skipIf(!hasDbEnv)('processCategorizeJob', () => {
 	it('writes a confident verdict onto the product and records usage', async () => {

@@ -1010,6 +1010,17 @@ export async function deleteProduct(
 	return { ok: true };
 }
 
+export async function renameProductsCategory(
+	rid: string,
+	oldCategory: string,
+	newCategory: string,
+	exec: BatchDb = db,
+): Promise<void> {
+	const tenant = forTenant(rid);
+	await exec.update(schema.products).set({ category: newCategory })
+		.where(tenant.scope(schema.products.restaurantId, eq(schema.products.category, oldCategory)));
+}
+
 export async function resolveUnitConversionAlerts(
 	database: Database,
 	restaurantId: string,
