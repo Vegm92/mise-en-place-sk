@@ -4,9 +4,21 @@ const US_GROUPED_AMOUNT = /^(\d{1,3}(?:,\d{3})*)\.(\d+)$/;
 
 export type MoneyInput = string | number | null | undefined;
 
-function normalizeAmountString(value: string): { sign: string; intPart: string; fracPart: string } | null {
+const MAX_CACHE_SIZE = 2000;
+type NormalizedParts = { sign: string; intPart: string; fracPart: string };
+const normalizeAmountCache = new Map<string, NormalizedParts | null>();
+const toCentsCache = new Map<string, number | null>();
+
+function normalizeAmountString(value: string): NormalizedParts | null {
+	let cached = normalizeAmountCache.get(value);
+	if (cached !== undefined) return cached;
+
 	let s = value.replace(/\s/g, '');
-	if (s === '') return null;
+	if (s === '') {
+		if (normalizeAmountCache.size >= MAX_CACHE_SIZE) normalizeAmountCache.clear();
+		normalizeAmountCache.set(value, null);
+		return null;
+	}
 
 	let sign = '';
 	if (s.startsWith('-')) {
@@ -15,18 +27,34 @@ function normalizeAmountString(value: string): { sign: string; intPart: string; 
 	} else if (s.startsWith('+')) {
 		s = s.slice(1);
 	}
-	if (s === '') return null;
+	if (s === '') {
+		if (normalizeAmountCache.size >= MAX_CACHE_SIZE) normalizeAmountCache.clear();
+		normalizeAmountCache.set(value, null);
+		return null;
+	}
 
 	if (s.includes(',') && s.includes('.')) {
 		const re = s.lastIndexOf(',') > s.lastIndexOf('.') ? ES_GROUPED_AMOUNT : US_GROUPED_AMOUNT;
 		const grouped = re.exec(s);
-		if (!grouped) return null;
-		return { sign, intPart: (grouped[1] ?? '').replace(/[.,]/g, ''), fracPart: grouped[2] ?? '' };
+		if (!grouped) {
+			if (normalizeAmountCache.size >= MAX_CACHE_SIZE) normalizeAmountCache.clear();
+			normalizeAmountCache.set(value, null);
+			return null;
+		}
+		cached = { sign, intPart: (grouped[1] ?? '').replace(/[.,]/g, ''), fracPart: grouped[2] ?? '' };
+	} else {
+		const plain = PLAIN_AMOUNT.exec(s);
+		if (!plain) {
+			if (normalizeAmountCache.size >= MAX_CACHE_SIZE) normalizeAmountCache.clear();
+			normalizeAmountCache.set(value, null);
+			return null;
+		}
+		cached = { sign, intPart: plain[1] ?? '', fracPart: plain[2] ?? '' };
 	}
 
-	const plain = PLAIN_AMOUNT.exec(s);
-	if (!plain) return null;
-	return { sign, intPart: plain[1] ?? '', fracPart: plain[2] ?? '' };
+	if (normalizeAmountCache.size >= MAX_CACHE_SIZE) normalizeAmountCache.clear();
+	normalizeAmountCache.set(value, cached);
+	return cached;
 }
 
 export function parseAmount(value: unknown): number | null {
@@ -49,17 +77,31 @@ export function toCents(value: MoneyInput): number | null {
 		raw = value;
 	}
 
+	let cached = toCentsCache.get(raw);
+	if (cached !== undefined) return cached;
+
 	const parts = normalizeAmountString(raw);
-	if (!parts) return null;
+	if (!parts) {
+		if (toCentsCache.size >= MAX_CACHE_SIZE) toCentsCache.clear();
+		toCentsCache.set(raw, null);
+		return null;
+	}
 	const { sign, intPart, fracPart } = parts;
 
 	const frac2 = (fracPart + '00').slice(0, 2);
 	const roundUp = fracPart.length > 2 && Number(fracPart[2]) >= 5;
 	let cents = Number(intPart) * 100 + Number(frac2);
 	if (roundUp) cents += 1;
-	if (!Number.isFinite(cents)) return null;
+	if (!Number.isFinite(cents)) {
+		if (toCentsCache.size >= MAX_CACHE_SIZE) toCentsCache.clear();
+		toCentsCache.set(raw, null);
+		return null;
+	}
 
-	return sign ? -cents : cents;
+	cached = sign ? -cents : cents;
+	if (toCentsCache.size >= MAX_CACHE_SIZE) toCentsCache.clear();
+	toCentsCache.set(raw, cached);
+	return cached;
 }
 
 export function fromCents(cents: number): string {

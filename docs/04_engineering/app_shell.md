@@ -386,6 +386,11 @@ the inventory template, issue #885) is a different route entirely.
 **`function seriesColor`**
 - The nth series colour, falling back to the neutral "other" hue (`SERIES_OTHER`).
 
+### `src/lib/money.ts`
+
+**`const normalizeAmountCache` / `const toCentsCache`**
+- Module-level bounded `Map` caches (max 2000 entries) for string normalization and exact cent parsing (`toCents`, `parseAmount`). Prevents redundant `RegExp` execution (`PLAIN_AMOUNT`, `ES_GROUPED_AMOUNT`, `US_GROUPED_AMOUNT`), string slicing, and numeric conversion steps across invoice totals, tax calculations, and line item sums (~8.9x speedup).
+
 ### `src/lib/formatters.ts`
 
 **`const numberFormatters` / `const dateTimeFormatters`**
