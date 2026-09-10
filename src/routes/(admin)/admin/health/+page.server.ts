@@ -5,6 +5,7 @@ import { runSystemChecks, stuckBatchItems, tableRowCounts } from '$lib/server/sy
 import { requeueStalled } from '$lib/server/batch';
 import { enqueueExtraction } from '$lib/server/queue';
 import { parseForm } from '$lib/server/public-form-action';
+import { isAdminUser } from '$lib/server/admin';
 
 const RETRY_ALL_LIMIT = 100;
 
@@ -50,6 +51,7 @@ async function retryItem(id: string, restaurantId: string, requestId?: string): 
 
 export const actions: Actions = {
 	retry: async ({ request, locals }) => {
+		if (!isAdminUser(locals.user)) return fail(403, { error: 'forbidden' });
 		const formData = await request.formData();
 		const parsed = parseForm(RetryForm, formData);
 		if (!parsed.success) return fail(400, { error: 'invalidRequest' });
@@ -64,6 +66,7 @@ export const actions: Actions = {
 	},
 
 	retryAll: async ({ locals }) => {
+		if (!isAdminUser(locals.user)) return fail(403, { error: 'forbidden' });
 		const items = await stuckBatchItems(RETRY_ALL_LIMIT);
 		let retried = 0;
 		for (const item of items) {
