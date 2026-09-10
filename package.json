@@ -44,6 +44,7 @@
 		"qa:sweep": "node scripts/qa-browser-sweep.mjs",
 		"pr:overlap": "node scripts/check-pr-overlap.mjs",
 		"madge": "node scripts/madge-report.mjs",
+		"knip": "node scripts/knip-report.mjs",
 		"icons:generate": "node scripts/generate-pwa-icons.mjs"
 	},
 	"devDependencies": {
@@ -58,6 +59,7 @@
 		"concurrently": "^10.0.4",
 		"jscpd": "^5.1.0",
 		"jsqr": "^1.4.0",
+		"knip": "6.35.1",
 		"madge": "^8.0.0",
 		"playwright": "^1.61.1",
 		"svelte": "^5.56.4",

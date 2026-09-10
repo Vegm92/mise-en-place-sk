@@ -1,0 +1,15 @@
+{
+	"$schema": "https://unpkg.com/knip@6/schema.json",
+	"entry": [
+		"src/worker.ts",
+		"src/wait-for-migrations.ts",
+		"src/backfill-products.ts",
+		"src/backfill-content-hash.ts",
+		"src/backfill-product-categories.ts",
+		"src/supplier-merge-report.ts",
+		"src/extraction-replay.ts",
+		"src/extraction-eval.ts",
+		"scripts/*.mjs"
+	],
+	"project": ["src/**/*.{ts,js,svelte}"]
+}
