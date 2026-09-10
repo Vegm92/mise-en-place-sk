@@ -13,7 +13,6 @@ import {
 	type DeadLetterStatus,
 } from '$lib/server/dead-letter';
 import { isReplayable, nonReplayableReason, replayDeadLetter } from '$lib/server/dead-letter-replay';
-import { isAdminUser } from '$lib/server/admin';
 
 const PAGE_SIZE = 50;
 
@@ -77,7 +76,6 @@ function entryId(formData: FormData): number {
 
 export const actions: Actions = {
 	setStatus: async ({ request, locals }) => {
-		if (!isAdminUser(locals.user)) return fail(403, { error: 'forbidden' });
 		const formData = await request.formData();
 		const parsed = parseForm(DeadLetterActionForm, formData);
 		if (!parsed.success) return fail(400, { error: 'invalidRequest' });
@@ -92,7 +90,6 @@ export const actions: Actions = {
 	},
 
 	replay: async ({ request, locals }) => {
-		if (!isAdminUser(locals.user)) return fail(403, { error: 'forbidden' });
 		const formData = await request.formData();
 		const id = entryId(formData);
 		if (!Number.isInteger(id)) return fail(400, { error: 'invalidRequest' });
