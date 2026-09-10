@@ -12,6 +12,7 @@ const STRIPE_PRICE_ID_PRO = (process.env.STRIPE_PRICE_ID_PRO ?? '').trim();
 const STRIPE_PRICE_ID_BUSINESS = (process.env.STRIPE_PRICE_ID_BUSINESS ?? '').trim();
 const STRIPE_PRICE_ID = (process.env.STRIPE_PRICE_ID ?? '').trim();
 import { db, forTenant, runAsSystem } from './db';
+import type { BatchDb } from './batch';
 import { subscriptions, restaurants, settings, systemNotifications, userRestaurants } from './schema';
 import { claimIdempotencyKey, releaseIdempotencyKey, STRIPE_WEBHOOK_SCOPE } from './idempotency';
 import { trackEvent } from './events';
@@ -32,6 +33,18 @@ export const FOUNDER_COUPON_ID  = STRIPE_FOUNDER_COUPON_ID;
 
 export function trialDaysFor(founder: boolean): number {
 	return founder ? FOUNDER_TRIAL_DAYS : TRIAL_DAYS;
+}
+
+export async function startTrialSubscription(
+	restaurantId: string,
+	founder: boolean,
+	exec: BatchDb = db,
+): Promise<void> {
+	await exec.insert(subscriptions).values({
+		restaurantId,
+		status: 'trialing',
+		trialEndsAt: new Date(Date.now() + trialDaysFor(founder) * DAY_MS),
+	});
 }
 
 export async function isFounderRestaurant(restaurantId: string): Promise<boolean> {

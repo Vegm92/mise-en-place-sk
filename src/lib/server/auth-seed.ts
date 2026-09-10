@@ -1,10 +1,9 @@
 import bcrypt from 'bcryptjs';
 import { eq } from 'drizzle-orm';
 import { db, runAsSystem } from './db';
-import { restaurants, subscriptions, userRestaurants, users } from './schema';
-import { trialDaysFor } from './billing';
+import { restaurants, userRestaurants, users } from './schema';
+import { startTrialSubscription } from './billing';
 import { seedDefaultCategories } from './categories';
-import { DAY_MS } from '$lib/constants';
 
 const AUTH_ADMIN_EMAIL = process.env.AUTH_ADMIN_EMAIL ?? '';
 const AUTH_ADMIN_PASSWORD = process.env.AUTH_ADMIN_PASSWORD ?? '';
@@ -60,12 +59,7 @@ export async function seedAdminUser(): Promise<void> {
 
 		await seedDefaultCategories(restaurant.id, db);
 
-		const trialEndsAt = new Date(Date.now() + trialDaysFor(created.founder ?? false) * DAY_MS);
-		await db.insert(subscriptions).values({
-			restaurantId: restaurant.id,
-			status:       'trialing',
-			trialEndsAt,
-		});
+		await startTrialSubscription(restaurant.id, created.founder ?? false, db);
 		return true;
 	});
 
