@@ -48,6 +48,12 @@ For *how the code works*, see the per-subsystem `## Code notes` sections (`docs/
 | [008](./invoicing/ADR-008-single-invoice-write-path.md) | One write path, four duplicate guards, non-fatal side effects | Active |
 | [009](./invoicing/ADR-009-unit-normalisation-and-product-identity.md) | Product identity resolved in three escalating tiers | Active |
 
+### [`products/`](./products) — product catalogue and cross-domain write seams
+
+| ADR | Decision | Status |
+|---|---|---|
+| [041](./products/ADR-041-product-domain-write-seam.md) | Product domain owns `products`/`product_aliases`; category rename goes through `renameProductsCategory` | Active |
+
 ### [`insights/`](./insights) — alerts, budgets, reminders, digest, chat
 
 | ADR | Decision | Status |
@@ -80,6 +86,7 @@ For *how the code works*, see the per-subsystem `## Code notes` sections (`docs/
 | [013](./billing/ADR-013-tiers-trial-and-quota.md) | Stripe owns money, Postgres owns entitlement | Active |
 | [023](./billing/ADR-023-entitlement-gate-is-route-declared.md) | Entitlement declared per route, enforced in one hook | Active |
 | [024](./billing/ADR-024-one-subscription-per-user.md) | One subscription per user; tier sets restaurant capacity | Active |
+| [042](./billing/ADR-042-billing-domain-write-seam.md) | Billing domain owns `subscriptions`; trial provisioning goes through `startTrialSubscription` | Active |
 
 ### [`identity/`](./identity) — auth and session
 
