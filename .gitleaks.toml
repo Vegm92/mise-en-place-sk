@@ -1,0 +1,12 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known false positives in project history"
+commits = [
+	# sonar-project.properties: `sonar.projectKey=...` is a public SonarCloud
+	# project identifier, not a credential. File no longer exists on main but
+	# the string is baked into this ancestor commit, which every PR's history
+	# scan still walks.
+	"0577136944a1ed00e11820e97359ffd490e4ef51",
+]
