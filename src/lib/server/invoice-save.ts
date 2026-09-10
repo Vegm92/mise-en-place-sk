@@ -16,7 +16,8 @@ import { getOrCreateSupplierId, type SupplierContactInfo } from './supplier';
 import { UNCATEGORIZED_CATEGORY, isValidPaymentMethod } from '$lib/constants';
 import { resolveCategoryFor } from './categories';
 import type { EnrichedLineItem, PackInfo } from './products';
-import type { ExtractedInvoice } from './extract';
+import type { ExtractedInvoice, DocumentReferenceFields } from './contracts/extraction-contract.js';
+export type { DocumentReferenceFields };
 import type { BatchDb, BatchItem } from './batch';
 import { parseQrUrl, detectVerifactuMismatch } from './qr';
 import { toMoneyString, moneyToNumber, parseAmount } from './money';
@@ -24,14 +25,6 @@ import { bandsFromInputs, taxableBaseMoney, detectTotalMismatch as detectAmountM
 import { renderTemplate } from '$lib/i18n-messages';
 import { isBlankOrIsoDate, toIsoDate } from './dates';
 import type { IncidenceKind, IncidenceReason, ReviewState } from '$lib/status';
-
-export interface DocumentReferenceFields {
-	purchaseOrder: string | null;
-	sellerName: string | null;
-	deliveryDate: string | null;
-	deliveryAddress: string | null;
-	printedNotes: string | null;
-}
 
 export const documentReferenceColumns = {
 	purchase_order: invoices.purchaseOrder,

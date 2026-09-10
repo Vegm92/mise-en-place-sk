@@ -1,8 +1,7 @@
 import { XMLParser } from 'fast-xml-parser';
 import { canonicalizeUnit } from './normalize';
-import type { ExtractedInvoice } from './extract';
+import type { ExtractedInvoice, DocumentReferenceFields } from './contracts/extraction-contract.js';
 import type { PaymentMethod } from '$lib/constants';
-import type { DocumentReferenceFields } from './invoice-save';
 
 export type EinvoiceFormat = 'facturae_322' | 'ubl_21';
 
