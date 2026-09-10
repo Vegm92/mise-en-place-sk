@@ -23,7 +23,7 @@ jobs:
 
       - name: Scan git history for secrets (gitleaks)
         run: |
-          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest \
+          docker run --rm -w /repo -v "$PWD:/repo" zricethezav/gitleaks:latest \
             detect --source /repo --log-opts="HEAD" --redact --exit-code 1
 
   ci:
