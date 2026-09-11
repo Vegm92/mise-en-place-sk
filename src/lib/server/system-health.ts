@@ -9,7 +9,7 @@ import {
 } from './whatsapp-health';
 import { getIssueSummary, isSentryConfigured } from './sentry-api';
 import { pendingDeadLetterCount } from './dead-letter';
-import { TENANT_FANOUT_QUEUES } from './alerts';
+import { TENANT_FANOUT_QUEUES } from './tenant-notification-jobs';
 import { lastJobRuns, type JobRunSummary } from './tenant-fanout';
 import { readWorkerHeartbeat, workerLiveness, type WorkerLiveness } from './worker-heartbeat';
 import { dbRoleDetail, readDbRole, type DbRoleInfo } from './db-role';

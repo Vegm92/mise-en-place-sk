@@ -96,7 +96,7 @@ describe('rollupFreshnessCheck', () => {
 
 describe('runAnalyticsRefreshJob', () => {
 	it('stamps the flag only after the refresh returns', async () => {
-		const { runAnalyticsRefreshJob } = await import('../src/lib/server/alerts');
+		const { runAnalyticsRefreshJob } = await import('../src/lib/server/maintenance-jobs');
 		const order: string[] = [];
 		dbExecuteMock.mockImplementation(async () => {
 			order.push('refresh');
@@ -114,7 +114,7 @@ describe('runAnalyticsRefreshJob', () => {
 	});
 
 	it('leaves the flag untouched when the refresh throws, so a failed run reads as stale', async () => {
-		const { runAnalyticsRefreshJob } = await import('../src/lib/server/alerts');
+		const { runAnalyticsRefreshJob } = await import('../src/lib/server/maintenance-jobs');
 		dbExecuteMock.mockRejectedValue(new Error('mv_price_snapshots does not exist'));
 		await expect(runAnalyticsRefreshJob()).rejects.toThrow('mv_price_snapshots');
 		expect(setFlagMock).not.toHaveBeenCalled();

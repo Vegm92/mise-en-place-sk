@@ -120,13 +120,15 @@ import {
 	sendOverdueReminder,
 	runWeeklyDigestJob,
 	sendWeeklyDigest,
-	runFilePurgeJob,
-	runAnalyticsRefreshJob,
 	DIGEST_TENANT_QUEUE,
 	REMINDERS_TENANT_QUEUE,
 	TRIAL_TENANT_QUEUE,
+} from '../src/lib/server/tenant-notification-jobs';
+import {
+	runFilePurgeJob,
+	runAnalyticsRefreshJob,
 	DELETED_FILE_RETENTION_DAYS,
-} from '../src/lib/server/alerts';
+} from '../src/lib/server/maintenance-jobs';
 import { runOrphanSubscriptionsJob, reconcileOrphanSubscriptions } from '../src/lib/server/billing';
 
 const DAY = 86_400_000;
