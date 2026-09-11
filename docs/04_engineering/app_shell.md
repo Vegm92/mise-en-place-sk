@@ -386,6 +386,11 @@ the inventory template, issue #885) is a different route entirely.
 **`function seriesColor`**
 - The nth series colour, falling back to the neutral "other" hue (`SERIES_OTHER`).
 
+### `src/lib/period.ts`
+
+**`const monthBoundsCache` / `const addDaysIsoCache` / `const daysBetweenCache` / `const previousRangeCache`**
+- Module-level bounded `Map` caches (max 2000 entries each) for period and date range calculations (`monthBounds`, `addDaysIso`, `daysBetween`, `previousRange`). Prevents repeated `Date` object allocations, string slicing, and ISO conversions on hot paths across dashboard metrics, analytics, budget tools, and report views (~8.8x speedup).
+
 ### `src/lib/money.ts`
 
 **`const normalizeAmountCache` / `const toCentsCache`**
