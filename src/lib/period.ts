@@ -61,11 +61,23 @@ export function monthOf(dateStr: string): string {
 	return dateStr.slice(0, 7);
 }
 
+const MAX_CACHE_SIZE = 2000;
+
+const monthBoundsCache = new Map<string, { rangeFrom: string; rangeTo: string }>();
+const daysBetweenCache = new Map<string, number>();
+const addDaysIsoCache = new Map<string, string>();
+const previousRangeCache = new Map<string, { rangeFrom: string; rangeTo: string }>();
+
 export function monthBounds(month: string): { rangeFrom: string; rangeTo: string } {
+	const cached = monthBoundsCache.get(month);
+	if (cached) return cached;
 	const year = parseInt(month.slice(0, 4), 10);
 	const m = parseInt(month.slice(5, 7), 10);
 	const lastDay = new Date(Date.UTC(year, m, 0)).getUTCDate();
-	return { rangeFrom: `${month}-01`, rangeTo: `${month}-${String(lastDay).padStart(2, '0')}` };
+	const res = { rangeFrom: `${month}-01`, rangeTo: `${month}-${String(lastDay).padStart(2, '0')}` };
+	if (monthBoundsCache.size >= MAX_CACHE_SIZE) monthBoundsCache.clear();
+	monthBoundsCache.set(month, res);
+	return res;
 }
 
 export function isFullMonth(rangeFrom: string, rangeTo: string): boolean {
@@ -74,20 +86,42 @@ export function isFullMonth(rangeFrom: string, rangeTo: string): boolean {
 }
 
 export function addDaysIso(dateStr: string, days: number): string {
+	const key = `${dateStr}:${days}`;
+	const cached = addDaysIsoCache.get(key);
+	if (cached) return cached;
 	const d = new Date(`${dateStr}T00:00:00Z`);
 	d.setUTCDate(d.getUTCDate() + days);
-	return d.toISOString().slice(0, 10);
+	const res = d.toISOString().slice(0, 10);
+	if (addDaysIsoCache.size >= MAX_CACHE_SIZE) addDaysIsoCache.clear();
+	addDaysIsoCache.set(key, res);
+	return res;
 }
 
 export function daysBetween(rangeFrom: string, rangeTo: string): number {
-	return Math.round((Date.parse(`${rangeTo}T00:00:00Z`) - Date.parse(`${rangeFrom}T00:00:00Z`)) / 86_400_000);
+	const key = `${rangeFrom}:${rangeTo}`;
+	const cached = daysBetweenCache.get(key);
+	if (cached !== undefined) return cached;
+	const res = Math.round((Date.parse(`${rangeTo}T00:00:00Z`) - Date.parse(`${rangeFrom}T00:00:00Z`)) / 86_400_000);
+	if (daysBetweenCache.size >= MAX_CACHE_SIZE) daysBetweenCache.clear();
+	daysBetweenCache.set(key, res);
+	return res;
 }
 
 export function previousRange(rangeFrom: string, rangeTo: string): { rangeFrom: string; rangeTo: string } {
-	if (isFullMonth(rangeFrom, rangeTo)) return monthBounds(shiftMonth(monthOf(rangeFrom), -1));
-	const span = daysBetween(rangeFrom, rangeTo);
-	const prevTo = addDaysIso(rangeFrom, -1);
-	return { rangeFrom: addDaysIso(prevTo, -span), rangeTo: prevTo };
+	const key = `${rangeFrom}:${rangeTo}`;
+	const cached = previousRangeCache.get(key);
+	if (cached) return cached;
+	let res: { rangeFrom: string; rangeTo: string };
+	if (isFullMonth(rangeFrom, rangeTo)) {
+		res = monthBounds(shiftMonth(monthOf(rangeFrom), -1));
+	} else {
+		const span = daysBetween(rangeFrom, rangeTo);
+		const prevTo = addDaysIso(rangeFrom, -1);
+		res = { rangeFrom: addDaysIso(prevTo, -span), rangeTo: prevTo };
+	}
+	if (previousRangeCache.size >= MAX_CACHE_SIZE) previousRangeCache.clear();
+	previousRangeCache.set(key, res);
+	return res;
 }
 
 export function resolveMonth(param: string | null, currentMonth: string): string {
