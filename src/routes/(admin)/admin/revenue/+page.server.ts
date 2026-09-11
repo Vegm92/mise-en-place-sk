@@ -1,6 +1,7 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { handleLoad } from '$lib/server/load-guard';
+import { isAdminUser } from '$lib/server/admin';
 import {
 	COST_CATEGORIES,
 	addAcquisitionCost,
@@ -28,6 +29,8 @@ export const load: PageServerLoad = async () => {
 
 export const actions: Actions = {
 	addCost: async ({ request, locals }) => {
+		if (!isAdminUser(locals.user)) return fail(403, { error: 'forbidden' });
+
 		const form = await request.formData();
 		const month = String(form.get('month') ?? '').trim();
 		const category = String(form.get('category') ?? '').trim();
@@ -51,7 +54,9 @@ export const actions: Actions = {
 		return { saved: true };
 	},
 
-	deleteCost: async ({ request }) => {
+	deleteCost: async ({ request, locals }) => {
+		if (!isAdminUser(locals.user)) return fail(403, { error: 'forbidden' });
+
 		const form = await request.formData();
 		const id = Number(form.get('id'));
 		if (!Number.isInteger(id) || id <= 0) return fail(400, { error: 'admin.rev.err.notFound' });
@@ -60,6 +65,8 @@ export const actions: Actions = {
 	},
 
 	saveAssumptions: async ({ request, locals }) => {
+		if (!isAdminUser(locals.user)) return fail(403, { error: 'forbidden' });
+
 		const form = await request.formData();
 		const input: Partial<Record<keyof AssumptionValues, number>> = {};
 		for (const [key, raw] of form.entries()) {
@@ -72,12 +79,16 @@ export const actions: Actions = {
 		return { saved: true };
 	},
 
-	snapshot: async () => {
+	snapshot: async ({ locals }) => {
+		if (!isAdminUser(locals.user)) return fail(403, { error: 'forbidden' });
+
 		const result = await captureMrrSnapshot();
 		return { snapshot: result.tenants };
 	},
 
-	backfill: async () => {
+	backfill: async ({ locals }) => {
+		if (!isAdminUser(locals.user)) return fail(403, { error: 'forbidden' });
+
 		const result = await backfillMrrSnapshots();
 		return { backfilled: result.rows };
 	},

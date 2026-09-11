@@ -64,7 +64,6 @@ export async function createQueuesWithDeadLetters(b: PgBoss): Promise<void> {
 	}
 }
 
-const DATABASE_URL = process.env.DATABASE_URL ?? '';
 let boss: PgBoss | null = null;
 let startPromise: Promise<PgBoss> | null = null;
 
@@ -72,7 +71,7 @@ async function getBoss(): Promise<PgBoss> {
 	if (boss) return boss;
 	if (!startPromise) {
 		startPromise = (async () => {
-			const connectionString = DATABASE_URL;
+			const connectionString = process.env.DATABASE_URL ?? '';
 			if (!connectionString) throw new Error('DATABASE_URL is required');
 			const b = new PgBoss({
 				connectionString,
