@@ -2,6 +2,7 @@ import { fail } from '@sveltejs/kit';
 import * as v from 'valibot';
 import type { Actions, PageServerLoad } from './$types';
 import { handleLoad } from '$lib/server/load-guard';
+import { isAdminUser } from '$lib/server/admin';
 import { parseForm } from '$lib/server/public-form-action';
 import {
 	DEAD_LETTER_STATUSES,
@@ -76,6 +77,8 @@ function entryId(formData: FormData): number {
 
 export const actions: Actions = {
 	setStatus: async ({ request, locals }) => {
+		if (!isAdminUser(locals.user)) return fail(403, { error: 'forbidden' });
+
 		const formData = await request.formData();
 		const parsed = parseForm(DeadLetterActionForm, formData);
 		if (!parsed.success) return fail(400, { error: 'invalidRequest' });
@@ -90,6 +93,8 @@ export const actions: Actions = {
 	},
 
 	replay: async ({ request, locals }) => {
+		if (!isAdminUser(locals.user)) return fail(403, { error: 'forbidden' });
+
 		const formData = await request.formData();
 		const id = entryId(formData);
 		if (!Number.isInteger(id)) return fail(400, { error: 'invalidRequest' });

@@ -1,6 +1,7 @@
 import { fail } from '@sveltejs/kit';
 import * as v from 'valibot';
 import type { Actions, PageServerLoad } from './$types';
+import { isAdminUser } from '$lib/server/admin';
 import { runSystemChecks, stuckBatchItems, tableRowCounts } from '$lib/server/system-health';
 import { requeueStalled } from '$lib/server/batch';
 import { enqueueExtraction } from '$lib/server/queue';
@@ -50,6 +51,8 @@ async function retryItem(id: string, restaurantId: string, requestId?: string): 
 
 export const actions: Actions = {
 	retry: async ({ request, locals }) => {
+		if (!isAdminUser(locals.user)) return fail(403, { error: 'forbidden' });
+
 		const formData = await request.formData();
 		const parsed = parseForm(RetryForm, formData);
 		if (!parsed.success) return fail(400, { error: 'invalidRequest' });
@@ -64,6 +67,8 @@ export const actions: Actions = {
 	},
 
 	retryAll: async ({ locals }) => {
+		if (!isAdminUser(locals.user)) return fail(403, { error: 'forbidden' });
+
 		const items = await stuckBatchItems(RETRY_ALL_LIMIT);
 		let retried = 0;
 		for (const item of items) {
