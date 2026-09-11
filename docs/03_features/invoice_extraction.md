@@ -376,7 +376,19 @@ Quota, access, classification, JSON shape, error classification.
 
 - Applied when corpus rows leave the tenant boundary (`corpus:replay --export`), masking supplier *and receiver* contact details (`receiver_email`/`receiver_phone`, issue #918) and the VERI*FACTU QR URL. Not applied to the stored row: inside the boundary the corpus holds the same data `batch_items` and `invoices` already hold, and redacting `supplier_nif` in place would destroy a field whose extraction accuracy is exactly what the corpus measures.
 
+### `src/lib/server/extraction-workflow.ts`
+
+**`function runExtractionWorkflow`**
+
+- The named application-workflow owner (issue #1047): the one place that drives a batch item from `queued` to a terminal outcome — `done`, `failed`, or dead-lettered — coordinating batch state, storage, document-structure/segmentation decisions, quota, Gemini extraction, product follow-up and dead-letter handling through five collaborator groups (`batchState`, `segmentation`, `quotaGate`, `geminiExtraction`, `deadLetterGate`) declared at the top of the file, replacing what used to be 19 flat module imports on `extraction-worker.ts`. It never persists an invoice itself — that is a distinct, human-gated transition (ADR-008's `saveReviewedInvoice`), triggered from the review screen's confirm action once a human accepts the extracted data, never from this workflow. `InvoicePersistenceOutcome` re-exports `invoice-save.ts`'s `SaveOutcome` as a type only (not a runtime import), so the handoff contract between the two is explicit without pulling `invoice-save.ts`'s own large dependency graph into the module this issue exists to shrink.
+
+**`const productFollowUp`**
+
+- The product follow-up collaborator (`annotateLineItems`, `products.ts`), re-exported by name so line-item enrichment reads as an explicit collaborator of the workflow rather than one call among many in a long function body.
+
 ### `src/lib/server/extraction-worker.ts`
+
+- Thin pg-boss adapter, kept only for the import path `worker.ts` and the test suite already depend on (`processExtractionJob`, `runExtractionJobForBoss`). The actual workflow lives in `extraction-workflow.ts`.
 
 **`function processExtractionJob`**
 
