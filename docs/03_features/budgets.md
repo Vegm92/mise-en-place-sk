@@ -152,6 +152,10 @@ Toggle from `/admin/feature-flags`.
 
 ## Code notes
 
+### `src/lib/constants.ts`
+
+- `categoryKey` and `categorySlug` are memoized using bounded Map caches (`categoryKeyCache` and `categorySlugCache`, max 2000 entries) to prevent repeated Unicode normalization (`.normalize('NFD')`) and diacritic regex replacements during category resolution, product categorization, and budget filtering.
+
 ### `src/lib/server/categories.ts`
 
 - Tenant-scoped throughout (`forTenant(rid).scope(...)`), matching every other per-tenant module. Wired into every read/write consumer as of part 2, issue #881 — see `visibleCategoryNames`/`selectableCategoryNames` below.
