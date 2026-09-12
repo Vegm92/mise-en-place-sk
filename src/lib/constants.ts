@@ -62,18 +62,42 @@ export function isValidCategory(value: unknown): value is string {
 
 export const DAY_MS = 24 * 60 * 60 * 1000;
 
+const CATEGORY_KEY_CACHE_MAX = 2000;
+const categoryKeyCache = new Map<string, string>();
+
 export function categoryKey(value: string): string {
-	return value
+	let cached = categoryKeyCache.get(value);
+	if (cached !== undefined) return cached;
+
+	cached = value
 		.normalize('NFD')
 		.replace(/[\u0300-\u036f]/g, '')
 		.trim()
 		.toLowerCase();
+
+	if (categoryKeyCache.size >= CATEGORY_KEY_CACHE_MAX) {
+		categoryKeyCache.clear();
+	}
+	categoryKeyCache.set(value, cached);
+	return cached;
 }
 
 const CANONICAL_BY_KEY = new Map(VALID_CATEGORIES.map(c => [categoryKey(c), c]));
 
+const CATEGORY_SLUG_CACHE_MAX = 2000;
+const categorySlugCache = new Map<string, string>();
+
 export function categorySlug(value: string): string {
-	return categoryKey(value).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+	let cached = categorySlugCache.get(value);
+	if (cached !== undefined) return cached;
+
+	cached = categoryKey(value).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+	if (categorySlugCache.size >= CATEGORY_SLUG_CACHE_MAX) {
+		categorySlugCache.clear();
+	}
+	categorySlugCache.set(value, cached);
+	return cached;
 }
 
 export function resolveCategory(raw: unknown, confidence?: number | null): string {
