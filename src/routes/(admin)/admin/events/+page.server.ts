@@ -10,11 +10,15 @@ const PAGE_SIZE = 50;
 
 const EVENT_STATUSES = ['pending', 'resolved', 'dismissed'] as const;
 
+function escapeIlike(str: string): string {
+	return str.replace(/[%_\\]/g, '\\$&');
+}
+
 function eventFilters(type: string, status: string, q: string): SQL {
 	const conds: SQL[] = [];
 	if (type) conds.push(sql`sn.notification_type = ${type}`);
 	if (status) conds.push(sql`sn.status = ${status}`);
-	if (q) conds.push(sql`sn.message ILIKE ${'%' + q + '%'}`);
+	if (q) conds.push(sql`sn.message ILIKE ${'%' + escapeIlike(q) + '%'}`);
 	return conds.length ? sql.join(conds, sql` AND `) : sql`1=1`;
 }
 
