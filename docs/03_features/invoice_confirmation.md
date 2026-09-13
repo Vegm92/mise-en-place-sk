@@ -365,6 +365,7 @@ shapes, `low_confidence_ack` value.
 **`function percentToFraction`**
 
 - Tolerates a trailing `%`, since the field it backs is labelled `% imp.` and typing the sign is natural; the stored value stays the raw text and normalises on the way out. Rejects negatives, exponent notation and a bare `%`. A typed `0` is a real rate (exento) and must stay distinct from no rate at all — anything testing it for truthiness rather than `null` reads 0% as untaxed.
+- Results for `percentToFraction` and `fractionToPercent` are memoized using bounded Map caches (`percentToFractionCache` max 2000, `fractionToPercentCache` max 2000) to avoid redundant string normalization, regex evaluations, and float parsing on repetitive tax rate inputs across line item parsing and tax band calculations.
 
 - The UI always speaks percent, storage always speaks fraction — the Gemini schema asks for `0.21` and both e-invoice parsers divide by 100, so every stored `rate` (and every `invoice_line_items.tax_rate`) is a fraction. Keeping one direction per layer is what stops a "21" from ever being read as 2100%.
 - Deliberately unambiguous rather than clever: an input is *always* a percentage, so `0.21` typed into a `%` field means 0,21%, not 21%. Guessing by magnitude would silently mangle a genuine 0,5% REC band.
