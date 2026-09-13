@@ -57,6 +57,7 @@ import { GET } from '../src/routes/api/health/+server';
 type HealthEventOpts = {
 	token?: string;
 	user?: { id: string; email: string; name: string | null; image: string | null } | null;
+	addressless?: boolean;
 };
 
 function healthEvent(opts: HealthEventOpts = {}) {
@@ -65,7 +66,14 @@ function healthEvent(opts: HealthEventOpts = {}) {
 	return {
 		request: new Request('http://localhost/api/health', { headers }),
 		locals: { user: opts.user ?? null },
-		getClientAddress: () => '198.51.100.5',
+		getClientAddress: () => {
+			if (opts.addressless) {
+				throw new Error(
+					'Address header was specified with ADDRESS_HEADER=x-forwarded-for but is absent from request'
+				);
+			}
+			return '198.51.100.5';
+		},
 	} as unknown as Parameters<typeof GET>[0];
 }
 
@@ -162,5 +170,31 @@ describe('#491 — public endpoint is rate-limited', () => {
 		rateLimitMock.mockResolvedValueOnce(false);
 		await GET(healthEvent());
 		expect(dbExecuteMock).not.toHaveBeenCalled();
+	});
+});
+
+describe('#1067 — the platform liveness probe sends no x-forwarded-for', () => {
+	it('still answers 200 when getClientAddress() throws', async () => {
+		const res = await GET(healthEvent({ addressless: true }));
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual({ status: 'ok' });
+	});
+
+	it('throttles the addressless probe under a shared key instead of crashing', async () => {
+		await GET(healthEvent({ addressless: true }));
+		expect(rateLimitMock).toHaveBeenCalledWith('health:unknown', 60);
+	});
+
+	it('records why a probe failed instead of swallowing it', async () => {
+		isAdminUserMock.mockReturnValue(true);
+		dbExecuteMock.mockRejectedValue(new Error('connection refused'));
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		try {
+			const res = await GET(healthEvent({ user: { id: 'admin', email: 'admin@example.com', name: null, image: null } }));
+			expect((await res.json()).db.reachable).toBe(false);
+			expect(warn.mock.calls.some((c) => String(c[0]).includes('health probe failed'))).toBe(true);
+		} finally {
+			warn.mockRestore();
+		}
 	});
 });
