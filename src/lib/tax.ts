@@ -23,21 +23,55 @@ export type TaxedLine = {
 
 const PERCENT_INPUT = /^(\d+)(?:[.,](\d+))?$/;
 
+const MAX_CACHE_SIZE = 2000;
+const percentToFractionCache = new Map<string, number | null>();
+const fractionToPercentCache = new Map<string, number | null>();
+
 export function percentToFraction(value: MoneyInput): number | null {
 	if (value === null || value === undefined) return null;
-	const raw = String(value).trim().replace(/%$/, '').trim();
-	if (raw === '' || !PERCENT_INPUT.test(raw)) return null;
+	const key = String(value);
+	let cached = percentToFractionCache.get(key);
+	if (cached !== undefined) return cached;
+
+	const raw = key.trim().replace(/%$/, '').trim();
+	if (raw === '' || !PERCENT_INPUT.test(raw)) {
+		if (percentToFractionCache.size >= MAX_CACHE_SIZE) percentToFractionCache.clear();
+		percentToFractionCache.set(key, null);
+		return null;
+	}
 	const n = Number(raw.replace(',', '.'));
-	if (!Number.isFinite(n)) return null;
-	return Math.round(n * 10000) / 1e6;
+	if (!Number.isFinite(n)) {
+		if (percentToFractionCache.size >= MAX_CACHE_SIZE) percentToFractionCache.clear();
+		percentToFractionCache.set(key, null);
+		return null;
+	}
+	cached = Math.round(n * 10000) / 1e6;
+	if (percentToFractionCache.size >= MAX_CACHE_SIZE) percentToFractionCache.clear();
+	percentToFractionCache.set(key, cached);
+	return cached;
 }
 
 export function fractionToPercent(rate: MoneyInput): number | null {
 	if (rate === null || rate === undefined) return null;
-	if (typeof rate === 'string' && rate.trim() === '') return null;
+	const key = String(rate);
+	let cached = fractionToPercentCache.get(key);
+	if (cached !== undefined) return cached;
+
+	if (typeof rate === 'string' && rate.trim() === '') {
+		if (fractionToPercentCache.size >= MAX_CACHE_SIZE) fractionToPercentCache.clear();
+		fractionToPercentCache.set(key, null);
+		return null;
+	}
 	const n = typeof rate === 'number' ? rate : Number(rate.trim().replace(',', '.'));
-	if (!Number.isFinite(n) || n < 0) return null;
-	return n > 1 ? Math.round(n * 10000) / 10000 : Math.round(n * 1e6) / 1e4;
+	if (!Number.isFinite(n) || n < 0) {
+		if (fractionToPercentCache.size >= MAX_CACHE_SIZE) fractionToPercentCache.clear();
+		fractionToPercentCache.set(key, null);
+		return null;
+	}
+	cached = n > 1 ? Math.round(n * 10000) / 10000 : Math.round(n * 1e6) / 1e4;
+	if (fractionToPercentCache.size >= MAX_CACHE_SIZE) fractionToPercentCache.clear();
+	fractionToPercentCache.set(key, cached);
+	return cached;
 }
 
 export function percentInputValue(rate: MoneyInput): string {
