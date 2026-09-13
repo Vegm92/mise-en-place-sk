@@ -80,4 +80,17 @@ describe('hooks.server.ts handleError', () => {
 		expect(line).toContain('boom');
 		spy.mockRestore();
 	});
+
+	it('enforces Content-Security-Policy header in HTTP security headers', async () => {
+		const { applySecurityHeaders } = await import('../src/hooks.server');
+		const initialRes = new Response('OK', { status: 200 });
+		const mockEvent = {
+			route: { id: '/dashboard' },
+			locals: { requestId: 'test-req' },
+		} as unknown as RequestEvent;
+
+		const response = applySecurityHeaders('/dashboard', initialRes, mockEvent);
+		expect(response.headers.get('Content-Security-Policy')).toContain("default-src 'self'");
+		expect(response.headers.get('X-Frame-Options')).toBe('DENY');
+	});
 });

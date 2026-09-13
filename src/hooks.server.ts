@@ -263,7 +263,7 @@ async function resolveWithContext(
 		: await runWithTenantContext(event.locals.restaurantId, runResolve);
 }
 
-function applySecurityHeaders(path: string, response: Response, event: RequestEvent): Response {
+export function applySecurityHeaders(path: string, response: Response, event: RequestEvent): Response {
 	const isFramedByApp = path.startsWith('/api/upload/') || /^\/invoice\/[^/]+\/file$/.test(path);
 	response.headers.set('X-Frame-Options', isFramedByApp ? 'SAMEORIGIN' : 'DENY');
 	response.headers.set('X-Content-Type-Options', 'nosniff');
@@ -271,6 +271,7 @@ function applySecurityHeaders(path: string, response: Response, event: RequestEv
 	response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
 	response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
 	response.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
+	response.headers.set('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.sentry.io; object-src 'none'; base-uri 'self'; frame-ancestors 'self';");
 	response.headers.set('X-Request-Id', event.locals.requestId);
 
 	if (event.route.id !== null) applyPrivateCacheHeaders(response.headers);
