@@ -11,9 +11,11 @@ import { version } from '$app/environment';
 import { readWorkerHeartbeat, workerLiveness } from '$lib/server/worker-heartbeat';
 import { isAdminUser } from '$lib/server/admin';
 import { checkRateLimit, getExtractionSemaphoreStatus } from '$lib/server/rate-limiter';
+import { createLogger } from '$lib/server/log';
 
 const START_TIME = Date.now();
 const HEALTH_TOKEN_HEADER = 'x-health-token';
+const log = createLogger('health');
 
 async function isDbReachable(): Promise<boolean> {
 	try {
@@ -43,7 +45,9 @@ async function computeHealthDetail() {
 		dbReachable = true;
 		const raw = (sizeRows as unknown as Array<{ size: string | number }>)[0]?.size;
 		dbSizeMb = Math.round(Number(raw ?? 0) / (1024 * 1024));
-	} catch { }
+	} catch (e) {
+		log.warn('health probe failed', { probe: 'db', err: e });
+	}
 
 	let queue: { reachable: boolean; pending: number } = { reachable: false, pending: 0 };
 	try {
@@ -53,12 +57,16 @@ async function computeHealthDetail() {
 		);
 		const pending = (rows as unknown as Array<{ pending: number }>)[0]?.pending ?? 0;
 		queue = { reachable: true, pending: Number(pending) };
-	} catch { }
+	} catch (e) {
+		log.warn('health probe failed', { probe: 'queue', err: e });
+	}
 
 	let liveness = workerLiveness(null);
 	try {
 		liveness = workerLiveness(await readWorkerHeartbeat());
-	} catch { }
+	} catch (e) {
+		log.warn('health probe failed', { probe: 'worker-heartbeat', err: e });
+	}
 
 	let activeCount = 0;
 	try {
@@ -74,7 +82,9 @@ async function computeHealthDetail() {
 				));
 			return Number(rows[0]?.cnt ?? 0);
 		});
-	} catch { }
+	} catch (e) {
+		log.warn('health probe failed', { probe: 'sessions', err: e });
+	}
 
 	let uploadsDir: { writable: boolean; free_mb: number } | null = null;
 	if (STORAGE_DRIVER === 'local') {
@@ -84,12 +94,16 @@ async function computeHealthDetail() {
 		try {
 			fs.accessSync(dir, fs.constants.W_OK);
 			writable = true;
-		} catch { }
+		} catch (e) {
+			log.warn('health probe failed', { probe: 'uploads-writable', err: e });
+		}
 		try {
 			const stat = (fs as unknown as { statfsSync?: (p: string) => { bfree: number; bsize: number } })
 				.statfsSync?.(dir);
 			if (stat) freeMb = Math.round((stat.bfree * stat.bsize) / (1024 * 1024));
-		} catch { }
+		} catch (e) {
+			log.warn('health probe failed', { probe: 'uploads-free-space', err: e });
+		}
 		uploadsDir = { writable, free_mb: freeMb };
 	}
 
@@ -115,7 +129,12 @@ async function computeHealthDetail() {
 }
 
 export const GET: RequestHandler = async ({ request, locals, getClientAddress }) => {
-	const ip = getClientAddress();
+	let ip = 'unknown';
+	try {
+		ip = getClientAddress();
+	} catch (e) {
+		log.debug('client address unavailable', { err: e });
+	}
 	if (!(await checkRateLimit(`health:${ip}`, HEALTH_RATE_LIMIT_RPM))) {
 		return json({ error: 'Too many requests' }, { status: 429, headers: { 'Retry-After': '60' } });
 	}
