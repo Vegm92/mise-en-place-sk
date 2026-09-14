@@ -100,6 +100,8 @@ describe('checkRateLimit() call sites go through rateLimitScoped() (issue #440)'
 	it('the authenticated call sites this issue fixed do route through rateLimitScoped() (sanity check against a silently-emptied scan)', () => {
 		const mustUseHelper = [
 			'src/routes/(app)/api/chat/+server.ts',
+			'src/routes/(app)/api/sidebar/+server.ts',
+			'src/routes/(app)/api/tutorial/+server.ts',
 			'src/routes/(app)/api/unit-conversions/+server.ts',
 			'src/routes/(app)/api/notifications/+server.ts',
 			'src/routes/(app)/api/product-aliases/+server.ts',

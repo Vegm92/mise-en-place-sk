@@ -5,6 +5,7 @@ import { db } from '$lib/server/db';
 import { settings } from '$lib/server/schema';
 import { apiError, invalidBody } from '$lib/server/api-response';
 import { parseJson } from '$lib/server/public-form-action';
+import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 
 const SidebarBody = v.object({
 	collapsed: v.boolean('Invalid collapsed'),
@@ -12,6 +13,10 @@ const SidebarBody = v.object({
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!locals.restaurantId) return apiError(401, 'Unauthorized');
+
+	if (!await rateLimitScoped({ scope: 'tenant', name: 'sidebar', max: 60 }, { restaurantId: locals.restaurantId })) {
+		return apiError(429, 'Too many requests');
+	}
 
 	const parsed = await parseJson(SidebarBody, request);
 	if (!parsed.success) return invalidBody(parsed, 400, 'Invalid collapsed');
