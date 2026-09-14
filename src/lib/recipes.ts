@@ -125,25 +125,63 @@ function roundDecimalString(
 	return scale > 0 ? `${wholePart}.${fracDigits}` : wholePart;
 }
 
+const PARSE_QTY_CACHE_MAX = 2000;
+const parseQtyCache = new Map<string, string | null>();
+
 export function parseQty(raw: MoneyInput, maxIntDigits = 15): string | null {
 	if (raw === null || raw === undefined) return null;
+	const key = `${raw}|${maxIntDigits}`;
+	let cached = parseQtyCache.get(key);
+	if (cached !== undefined) return cached;
+
 	const text = String(raw).trim();
-	if (text === '') return null;
-	const m = QTY_INPUT.exec(text);
-	if (!m) return null;
-	const [, intPart, fracPart = ''] = m;
-	const value = roundDecimalString(intPart ?? '', fracPart, 4, maxIntDigits);
-	return value !== null && Number(value) > 0 ? value : null;
+	if (text === '') {
+		cached = null;
+	} else {
+		const m = QTY_INPUT.exec(text);
+		if (!m) {
+			cached = null;
+		} else {
+			const [, intPart, fracPart = ''] = m;
+			const value = roundDecimalString(intPart ?? '', fracPart, 4, maxIntDigits);
+			cached = value !== null && Number(value) > 0 ? value : null;
+		}
+	}
+
+	if (parseQtyCache.size >= PARSE_QTY_CACHE_MAX) {
+		parseQtyCache.clear();
+	}
+	parseQtyCache.set(key, cached);
+	return cached;
 }
+
+const PARSE_DECIMAL_CACHE_MAX = 2000;
+const parseDecimalCache = new Map<string, string | null>();
 
 export function parseDecimal(raw: MoneyInput, scale = 2, maxIntDigits = 15): string | null {
 	if (raw === null || raw === undefined) return null;
+	const key = `${raw}|${scale}|${maxIntDigits}`;
+	let cached = parseDecimalCache.get(key);
+	if (cached !== undefined) return cached;
+
 	const text = String(raw).trim();
-	if (text === '') return null;
-	const m = QTY_INPUT.exec(text);
-	if (!m) return null;
-	const [, intPart, fracPart = ''] = m;
-	return roundDecimalString(intPart ?? '', fracPart, scale, maxIntDigits);
+	if (text === '') {
+		cached = null;
+	} else {
+		const m = QTY_INPUT.exec(text);
+		if (!m) {
+			cached = null;
+		} else {
+			const [, intPart, fracPart = ''] = m;
+			cached = roundDecimalString(intPart ?? '', fracPart, scale, maxIntDigits);
+		}
+	}
+
+	if (parseDecimalCache.size >= PARSE_DECIMAL_CACHE_MAX) {
+		parseDecimalCache.clear();
+	}
+	parseDecimalCache.set(key, cached);
+	return cached;
 }
 
 export function parsePercent(raw: MoneyInput, max: number): string | null {
