@@ -4,6 +4,8 @@ const REQUIRED_IN_PRODUCTION = [
 	'STRIPE_SECRET_KEY',
 	'STRIPE_WEBHOOK_SECRET',
 	'GEMINI_API_KEY',
+	'APP_BASE_URL',
+	'ORIGIN',
 ] as const;
 
 export function assertProductionEnv(env: NodeJS.ProcessEnv = process.env): void {

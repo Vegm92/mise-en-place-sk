@@ -8,6 +8,8 @@ const complete = {
 	STRIPE_SECRET_KEY: 'c',
 	STRIPE_WEBHOOK_SECRET: 'd',
 	GEMINI_API_KEY: 'e',
+	APP_BASE_URL: 'https://mise-place.com',
+	ORIGIN: 'https://mise-place.com',
 };
 
 describe('assertProductionEnv', () => {
@@ -22,6 +24,14 @@ describe('assertProductionEnv', () => {
 	it('rejects an incomplete production env, naming the missing variable', () => {
 		const { STRIPE_SECRET_KEY, ...incomplete } = complete;
 		expect(() => assertProductionEnv(incomplete)).toThrow('STRIPE_SECRET_KEY');
+	});
+
+	it('requires APP_BASE_URL and ORIGIN in production', () => {
+		const { APP_BASE_URL, ...noAppBase } = complete;
+		expect(() => assertProductionEnv(noAppBase)).toThrow('APP_BASE_URL');
+
+		const { ORIGIN, ...noOrigin } = complete;
+		expect(() => assertProductionEnv(noOrigin)).toThrow('ORIGIN');
 	});
 
 	it('requires WHATSAPP_APP_SECRET only when WhatsApp is enabled', () => {

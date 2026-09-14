@@ -32,6 +32,10 @@ vi.mock('$lib/server/auth-events', () => ({
 	logAuthEvent: logAuthEventMock,
 	hashIp: () => 'iphash',
 }));
+vi.mock('$lib/server/site-origin', () => ({
+	siteOrigin: () => 'https://app.example.test',
+	canonicalUrl: (url: URL, path: string) => `https://app.example.test${path}`,
+}));
 vi.mock('$lib/server/verification-token', () => ({
 	createVerificationToken: createVerificationTokenMock,
 	consumeVerificationToken: consumeVerificationTokenMock,
@@ -93,10 +97,14 @@ describe('/forgot-password', () => {
 		expect(result).toMatchObject({ status: 422, data: { error: 'missing' } });
 	});
 
-	it('sends a reset link when the account exists', async () => {
-		const result = await forgotActions.default!(formEvent({ email: ' Chef@Example.com ' }));
+	it('sends a reset link when the account exists using siteOrigin instead of spoofed request origin', async () => {
+		const result = await forgotActions.default!(
+			formEvent({ email: ' Chef@Example.com ' }, { url: new URL('https://attacker.invalid/forgot-password') }),
+		);
 		expect(createVerificationTokenMock).toHaveBeenCalledWith('reset-password:chef@example.com');
 		expect(sendEmailMock).toHaveBeenCalledOnce();
+		const sentPayload = sendEmailMock.mock.calls[0]![0];
+		expect(sentPayload.html).not.toContain('attacker.invalid');
 		expect(result).toEqual({ sent: true });
 	});
 

@@ -110,10 +110,14 @@ describe('saveName', () => {
 });
 
 describe('saveEmail', () => {
-	it('sends a confirmation email to the new address', async () => {
-		const result = await actions.saveEmail!(formEvent({ email: 'new@example.com' }));
+	it('sends a confirmation email to the new address using siteOrigin helper', async () => {
+		const result = await actions.saveEmail!(
+			formEvent({ email: 'new@example.com' }, { url: new URL('https://host-header-spoofed.invalid/settings') }),
+		);
 		expect(createVerificationTokenMock).toHaveBeenCalledWith('change-email:user-1:new@example.com');
 		expect(sendEmailMock).toHaveBeenCalledOnce();
+		const sentPayload = sendEmailMock.mock.calls[0]![0];
+		expect(sentPayload.html).not.toContain('host-header-spoofed.invalid');
 		expect(result).toEqual({ section: 'email', ok: 'set.profile.ok.email' });
 	});
 

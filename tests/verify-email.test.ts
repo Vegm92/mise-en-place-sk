@@ -15,7 +15,16 @@ const { consumeVerificationTokenMock, updatedRows, selectResult } = vi.hoisted((
 	selectResult: { rows: [] as Array<Record<string, unknown>> },
 }));
 
+const { createVerificationTokenMock } = vi.hoisted(() => ({
+	createVerificationTokenMock: vi.fn().mockResolvedValue('tok123'),
+}));
+
+vi.mock('$lib/server/site-origin', () => ({
+	siteOrigin: () => 'https://app.example.test',
+	canonicalUrl: (url: URL, path: string) => `https://app.example.test${path}`,
+}));
 vi.mock('$lib/server/verification-token', () => ({
+	createVerificationToken: createVerificationTokenMock,
 	consumeVerificationToken: consumeVerificationTokenMock,
 }));
 vi.mock('$lib/server/db', () => {
@@ -34,8 +43,18 @@ vi.mock('$lib/server/db', () => {
 	return { db: { select, update } };
 });
 
+const { sendEmailMock } = vi.hoisted(() => ({
+	sendEmailMock: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('$lib/server/email', () => ({
+	sendEmail: sendEmailMock,
+	verifyEmailAddress: (email: string, url: string) => ({ to: email, subject: 'v', html: url }),
+}));
+
 import { load as verifyLoad, actions as verifyActions } from '../src/routes/verify-email/+page.server';
 import { actions as confirmActions } from '../src/routes/(app)/settings/confirm-email/+page.server';
+import { sendVerificationEmail } from '../src/lib/server/verification-email';
 
 function urlEvent(params: Record<string, string>, extra: Record<string, unknown> = {}) {
 	const url = new URL('https://app.example.test/verify-email');
@@ -45,8 +64,18 @@ function urlEvent(params: Record<string, string>, extra: Record<string, unknown>
 
 beforeEach(() => {
 	consumeVerificationTokenMock.mockReset().mockResolvedValue(true);
+	sendEmailMock.mockClear();
 	updatedRows.length = 0;
 	selectResult.rows = [];
+});
+
+describe('sendVerificationEmail', () => {
+	it('uses siteOrigin helper to prevent host header spoofing in link', async () => {
+		await sendVerificationEmail(new URL('https://evil-host.invalid/path'), 'chef@example.com');
+		expect(sendEmailMock).toHaveBeenCalledOnce();
+		const sentPayload = sendEmailMock.mock.calls[0]![0];
+		expect(sentPayload.html).not.toContain('evil-host.invalid');
+	});
 });
 
 describe('verify-email load (GET)', () => {
