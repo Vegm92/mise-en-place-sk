@@ -12,9 +12,9 @@ const SidebarBody = v.object({
 });
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-	if (!locals.user || !locals.restaurantId) return apiError(401, 'Unauthorized');
+	if (!locals.restaurantId) return apiError(401, 'Unauthorized');
 
-	if (!await rateLimitScoped({ scope: 'user', name: 'sidebar', max: 60 }, { userId: locals.user.id })) {
+	if (!await rateLimitScoped({ scope: 'tenant', name: 'sidebar', max: 60 }, { restaurantId: locals.restaurantId })) {
 		return apiError(429, 'Too many requests');
 	}
 
