@@ -47,7 +47,9 @@ export const { handle, signIn, signOut } = SvelteKitAuth(async () => ({
 			}
 			if (!token.sub) return token;
 
-			const claimed = typeof token.tokenVersion === 'number' ? token.tokenVersion : undefined;
+			const claimed = typeof token.tokenVersion === 'number'
+				? token.tokenVersion
+				: (user ? (user as { tokenVersion?: number }).tokenVersion ?? 0 : undefined);
 			const version = await checkTokenVersion(token.sub, claimed);
 			if (version === null) return null;
 

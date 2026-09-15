@@ -1,5 +1,8 @@
 import { encode } from '@auth/core/jwt';
 import type { Cookies } from '@sveltejs/kit';
+import { eq } from 'drizzle-orm';
+import { db } from './db';
+import { users } from './schema';
 import { SESSION_MAX_AGE_SECONDS } from './auth';
 
 const AUTH_SECRET = process.env.AUTH_SECRET ?? '';
@@ -9,11 +12,18 @@ type SessionUser = { id: string; email: string; name: string | null; image: stri
 export async function issueSessionCookie(cookies: Cookies, isHttps: boolean, user: SessionUser): Promise<void> {
 	const cookieName = `${isHttps ? '__Secure-' : ''}authjs.session-token`;
 
+	const [row] = await db.select({ tokenVersion: users.tokenVersion })
+		.from(users)
+		.where(eq(users.id, user.id))
+		.limit(1);
+
+	const tokenVersion = row?.tokenVersion ?? 0;
+
 	const token = await encode({
 		secret: AUTH_SECRET,
 		salt:   cookieName,
 		maxAge: SESSION_MAX_AGE_SECONDS,
-		token:  { sub: user.id, email: user.email, name: user.name, picture: user.image },
+		token:  { sub: user.id, email: user.email, name: user.name, picture: user.image, tokenVersion },
 	});
 
 	cookies.set(cookieName, token, {
