@@ -60,35 +60,36 @@ function labelForKey(key: string, granularity: string, spansMultipleYears: boole
 	return `${MONTH_ABBR[d.getMonth()]} ${d.getDate()}`;
 }
 
-function mergeTrendRows(groupedRows: { key: string; category: string | null; amount: number }[]): TrendRow[] {
-	const rows: TrendRow[] = [];
-	const byBucket = new Map<string, Map<string, TrendRow>>();
-	for (const row of groupedRows) {
+function indexTrendSegments(
+	groupedRows: { key: string; category: string | null; amount: number }[]
+): Map<string, Segment[]> {
+	const map = new Map<string, Map<string, number>>();
+	for (let i = 0; i < groupedRows.length; i++) {
+		const row = groupedRows[i]!;
 		const category = row.category ?? UNCATEGORIZED_CATEGORY;
-		let bucket = byBucket.get(row.key);
-		if (!bucket) {
-			bucket = new Map();
-			byBucket.set(row.key, bucket);
+		let categoryMap = map.get(row.key);
+		if (!categoryMap) {
+			categoryMap = new Map();
+			map.set(row.key, categoryMap);
 		}
-		const existing = bucket.get(category);
-		if (existing) {
-			existing.amount += Number(row.amount);
+		const amt = Number(row.amount);
+		const current = categoryMap.get(category);
+		if (current !== undefined) {
+			categoryMap.set(category, current + amt);
 		} else {
-			const merged: TrendRow = { key: row.key, category, amount: Number(row.amount) };
-			bucket.set(category, merged);
-			rows.push(merged);
+			categoryMap.set(category, amt);
 		}
 	}
-	return rows;
-}
 
-function buildSegments(
-	rows: { key: string; category: string | null; amount: number }[],
-	key: string,
-): Segment[] {
-	return rows
-		.filter(r => r.key === key)
-		.map(r => ({ category: r.category, amount: r.amount }));
+	const segmentsByKey = new Map<string, Segment[]>();
+	for (const [key, categoryMap] of map.entries()) {
+		const segments: Segment[] = [];
+		for (const [category, amount] of categoryMap.entries()) {
+			segments.push({ category, amount });
+		}
+		segmentsByKey.set(key, segments);
+	}
+	return segmentsByKey;
 }
 
 export function normalizeRange(raw: string | null): string {
@@ -140,15 +141,17 @@ export async function getTrendDataByRange(rid: string, rangeParam: string | null
 		.groupBy(keyExpr, categoryExpr)
 		.orderBy(keyExpr);
 
-	const rows = mergeTrendRows(groupedRows);
+	const segmentsByKey = indexTrendSegments(groupedRows);
 
 	const spansMultipleYears = startDate.getFullYear() !== today.getFullYear();
 	const currentKey = currentKeyFor(granularity, today);
 
 	const buckets: Bucket[] = keys.map(k => {
-		const segs = buildSegments(rows, k);
+		const segs = segmentsByKey.get(k) ?? [];
 		const label = labelForKey(k, granularity, spansMultipleYears);
-		return { label, total: segs.reduce((s, r) => s + r.amount, 0), pct: 0, is_current: k === currentKey, segments: segs };
+		let total = 0;
+		for (let i = 0; i < segs.length; i++) total += segs[i]!.amount;
+		return { label, total, pct: 0, is_current: k === currentKey, segments: segs };
 	});
 
 	const maxTotal = Math.max(...buckets.map(b => b.total), 1);
