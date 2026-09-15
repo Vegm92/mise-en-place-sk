@@ -3,6 +3,7 @@ import path from 'path';
 import { getItem } from '$lib/server/batch';
 import { getStorage } from '$lib/server/storage';
 import { contentDispositionHeader } from '$lib/server/content-disposition';
+import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import type { RequestHandler } from './$types';
 
 const MIME: Record<string, string> = {
@@ -14,6 +15,10 @@ const MIME: Record<string, string> = {
 
 export const GET: RequestHandler = async ({ params, locals }) => {
 	if (!locals.user || !locals.restaurantId) throw error(401, 'Unauthorized');
+
+	if (!(await rateLimitScoped({ scope: 'tenant', name: 'upload-file-download', max: 60 }, { restaurantId: locals.restaurantId }))) {
+		throw error(429, 'Too many requests');
+	}
 
 	const item = await getItem(params.id);
 	if (!item || item.restaurantId !== locals.restaurantId) throw error(404, 'Item not found');
