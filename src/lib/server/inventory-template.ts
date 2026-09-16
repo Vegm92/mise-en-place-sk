@@ -2,6 +2,7 @@ import ExcelJS from 'exceljs';
 import { renderTemplate, type Locale } from '$lib/i18n-messages';
 import { VALID_CATEGORIES, UNCATEGORIZED_CATEGORY, categorySlug } from '$lib/constants';
 import { HEADER_FILL, THIN_BORDER, styleHeaderRow } from './xlsx-style';
+import { sanitizeFormulaString } from '$lib/reports';
 import type { CatalogExportRow } from './products';
 
 const SUBTOTAL_FILL: ExcelJS.Fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F0F0' } };
@@ -60,9 +61,9 @@ export function buildInventoryWorkbook(
 		for (const item of items) {
 			const rowNumber = sheet.rowCount + 1;
 			sheet.addRow({
-				category: label,
-				product:  item.canonicalName,
-				unit:     item.canonicalUnit ?? '',
+				category: sanitizeFormulaString(label),
+				product:  sanitizeFormulaString(item.canonicalName),
+				unit:     sanitizeFormulaString(item.canonicalUnit ?? ''),
 				price:    item.unitPrice,
 				quantity: null,
 				total:    { formula: `D${rowNumber}*E${rowNumber}` },
@@ -72,7 +73,7 @@ export function buildInventoryWorkbook(
 		const lastDataRow = sheet.rowCount;
 		const subtotalRow = sheet.addRow({
 			category: '',
-			product:  `Subtotal ${label}`,
+			product:  `Subtotal ${sanitizeFormulaString(label)}`,
 			total:    { formula: `SUM(F${firstDataRow}:F${lastDataRow})` },
 		});
 		subtotalRow.eachCell((cell) => { cell.font = { bold: true }; cell.fill = SUBTOTAL_FILL; });

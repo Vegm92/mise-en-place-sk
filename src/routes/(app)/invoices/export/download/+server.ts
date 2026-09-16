@@ -13,6 +13,7 @@ import { getStorage } from '$lib/server/storage';
 import { contentDispositionHeader } from '$lib/server/content-disposition';
 import { buildInvoiceExportZip, zipEntryName } from '$lib/server/invoice-export-zip';
 import { styleHeaderRow, styleBandedRows } from '$lib/server/xlsx-style';
+import { sanitizeFormulaString } from '$lib/reports';
 
 const POSITIVE_INT = /^[1-9]\d*$/;
 const MAX_EXPORT_IDS = 500;
@@ -118,8 +119,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	for (const r of rows) {
 		sheet.addRow({
 			id:             r.id,
-			supplier:       r.supplier ?? '—',
-			invoice_number: r.invoice_number ?? '—',
+			supplier:       sanitizeFormulaString(r.supplier ?? '—'),
+			invoice_number: sanitizeFormulaString(r.invoice_number ?? '—'),
 			invoice_date:   r.invoice_date ?? '—',
 			due_date:       r.due_date ?? '—',
 			gross_amount:     moneyToNullableNumber(r.gross_amount),
@@ -128,7 +129,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			retention_rate:   r.retention_rate != null ? r.retention_rate * 100 : null,
 			retention_amount: moneyToNullableNumber(r.retention_amount),
 			total_amount:   moneyToNullableNumber(r.total_amount),
-			status:         REVIEW_STATE_LABELS[r.review_state ?? ''] ?? r.review_state ?? '—',
+			status:         sanitizeFormulaString(REVIEW_STATE_LABELS[r.review_state ?? ''] ?? r.review_state ?? '—'),
 			created_at:     r.created_at ? r.created_at.toISOString().replace('T', ' ').slice(0, 19) : '—',
 		});
 	}
