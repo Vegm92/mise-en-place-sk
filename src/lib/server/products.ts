@@ -8,7 +8,7 @@ import { normalizeProductKey, canonicalizeUnit } from './normalize';
 import { categoryGuideBlock } from './category-guide';
 import { parseJsonResponse } from './llm-json';
 import { UNCATEGORIZED_CATEGORY, resolveCategory } from '$lib/constants';
-import { resolveCategoryFor } from './categories';
+import { resolveCategoryFor } from './category-resolver';
 import { GEMINI_API_KEY } from './env';
 import { createGeminiProvider, Type, type Schema } from './llm-provider';
 import { recordLlmUsage } from './llm-quota';
