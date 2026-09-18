@@ -13,6 +13,7 @@ vi.mock('../src/lib/server/db', () => ({
 			values: mockInsert,
 		}),
 	},
+	runAsSystem: (fn: () => Promise<void>) => fn(),
 }));
 
 // Mock schema — value doesn't matter, just needs to be a reference

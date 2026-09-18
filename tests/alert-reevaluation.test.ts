@@ -24,7 +24,7 @@ import { isRedirect } from '@sveltejs/kit';
 vi.mock('../src/lib/server/db', async () => {
 	const helpers = await import('./helpers/test-db');
 	const tenant = await import('../src/lib/server/tenant');
-	return { db: helpers.testDb, forTenant: tenant.forTenant };
+	return { db: helpers.testDb, forTenant: tenant.forTenant, runAsSystem: <T>(fn: () => Promise<T>) => fn() };
 });
 
 import {

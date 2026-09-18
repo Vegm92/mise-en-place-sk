@@ -19,7 +19,7 @@ const { generateMock, rateLimitMock } = vi.hoisted(() => ({
 vi.mock('$lib/server/db', async () => {
 	const { testDb } = await import('./helpers/test-db');
 	const { forTenant } = await import('../src/lib/server/tenant');
-	return { db: testDb, forTenant };
+	return { db: testDb, forTenant, runAsSystem: <T>(fn: () => Promise<T>) => fn() };
 });
 
 vi.mock('$lib/server/env', async (importOriginal) => {

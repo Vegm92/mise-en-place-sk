@@ -12,12 +12,20 @@ export interface TenantContext {
 
 interface ActiveContext extends TenantContext {
 	reserved: ReservedSql;
+	released: boolean;
 }
 
 const als = new AsyncLocalStorage<ActiveContext>();
 
 export function activeTenantContext(): TenantContext | undefined {
-	return als.getStore();
+	const ctx = als.getStore();
+	if (ctx?.released) {
+		throw new Error(
+			'[tenant-context] query attempted after the tenant scope released its connection; ' +
+			'await the work inside the scope or start its own scope with runAsSystem/runWithTenantContext',
+		);
+	}
+	return ctx;
 }
 
 async function clearGucs(reserved: ReservedSql): Promise<void> {
@@ -30,6 +38,7 @@ async function withReservedContext<T>(
 	fn: () => Promise<T>,
 ): Promise<T> {
 	const reserved = await getClient().reserve();
+	let active: ActiveContext | undefined;
 	(reserved as unknown as { options?: unknown }).options ??= (getClient() as unknown as { options: unknown }).options;
 	type BeginFn = (fn: (sql: ReservedSql) => Promise<unknown>) => Promise<unknown>;
 	(reserved as unknown as { begin?: BeginFn }).begin ??= async (fn) => {
@@ -50,8 +59,10 @@ async function withReservedContext<T>(
 			await reserved`SELECT set_config('app.admin', 'true', false), set_config('app.restaurant_id', '', false)`;
 		}
 		const ctxDb = drizzle(reserved, { schema });
-		return await als.run({ mode, restaurantId, reserved, db: ctxDb }, fn);
+		active = { mode, restaurantId, reserved, db: ctxDb, released: false };
+		return await als.run(active, fn);
 	} finally {
+		if (active) active.released = true;
 		try {
 			await clearGucs(reserved);
 		} catch (err) {

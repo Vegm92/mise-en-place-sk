@@ -62,9 +62,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	for (const evt of accountEvents) {
-		recordAccountEvent(evt).catch(err =>
-			console.error('[whatsapp-webhook] account event error:', err),
-		);
+		try {
+			await recordAccountEvent(evt);
+		} catch (err) {
+			console.error('[whatsapp-webhook] account event error:', err);
+		}
 	}
 
 	return json({ ok: true });

@@ -26,7 +26,7 @@ import { getTableColumns } from 'drizzle-orm';
 vi.mock('../src/lib/server/db', async () => {
 	const { testDb } = await import('./helpers/test-db');
 	const { forTenant } = await import('../src/lib/server/tenant');
-	return { db: testDb, forTenant };
+	return { db: testDb, forTenant, runAsSystem: <T>(fn: () => Promise<T>) => fn() };
 });
 
 import {
