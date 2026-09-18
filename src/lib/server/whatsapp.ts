@@ -1,3 +1,4 @@
+import { maskPhoneNumber } from '$lib/phone';
 import { WHATSAPP_ACCESS_TOKEN, WHATSAPP_API_VERSION, WHATSAPP_PHONE_NUMBER_ID } from './env';
 import { MAX_FILE_BYTES, MediaTooLargeError } from './file-validation';
 
@@ -17,13 +18,9 @@ const MIME_TO_EXT: Record<string, string> = {
 
 export { MediaTooLargeError };
 
-function maskPhone(to: string): string {
-	return `***${to.slice(-4)}`;
-}
-
 export async function sendWhatsAppMessage(to: string, body: string): Promise<void> {
 	if (!WHATSAPP_ACCESS_TOKEN || !WHATSAPP_PHONE_NUMBER_ID) {
-		console.warn('[whatsapp] Missing credentials — skipping message send to', maskPhone(to));
+		console.warn('[whatsapp] Missing credentials — skipping message send to', maskPhoneNumber(to));
 		return;
 	}
 	const res = await fetch(`${GRAPH_API_BASE}/${WHATSAPP_PHONE_NUMBER_ID}/messages`, {
