@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { assertProductionEnv, addressHeaderWarning, validateAdminSeedConfig } from '../src/lib/server/config';
+import { assertProductionEnv, addressHeaderWarning, validateAdminSeedConfig, isProduction } from '../src/lib/server/config';
 
 const complete = {
 	NODE_ENV: 'production',
@@ -30,6 +30,46 @@ describe('assertProductionEnv', () => {
 			.toThrow('WHATSAPP_APP_SECRET');
 		expect(() => assertProductionEnv({ ...complete, WHATSAPP_ACCESS_TOKEN: 'x', WHATSAPP_APP_SECRET: 'y' }))
 			.not.toThrow();
+	});
+});
+
+describe('assertProductionEnv — trusted proxy (issue #1072, was a warning under #500)', () => {
+	it('refuses to boot in production when ADDRESS_HEADER is set with no trusted proxy in front, naming the remedy', () => {
+		expect(() => assertProductionEnv({ ...complete, ADDRESS_HEADER: 'x-forwarded-for' }))
+			.toThrow(/ADDRESS_HEADER.*refusing to start in production.*spoofable.*TRUSTED_PROXY=1/s);
+	});
+
+	it.each([
+		['RAILWAY_PROJECT_ID', 'proj_123'],
+		['RAILWAY_SERVICE_ID', 'svc_123'],
+		['RENDER', 'true'],
+		['FLY_APP_NAME', 'mise-en-place'],
+		['TRUSTED_PROXY', '1'],
+	])('boots with ADDRESS_HEADER when %s attests a proxy that rewrites the header', (key, value) => {
+		expect(() => assertProductionEnv({ ...complete, ADDRESS_HEADER: 'x-forwarded-for', [key]: value })).not.toThrow();
+	});
+
+	it('does not accept a TRUSTED_PROXY value other than 1', () => {
+		expect(() => assertProductionEnv({ ...complete, ADDRESS_HEADER: 'x-forwarded-for', TRUSTED_PROXY: 'yes' })).toThrow('TRUSTED_PROXY');
+	});
+
+	it('still boots in production with ADDRESS_HEADER unset (the collapsed-bucket case stays a warning)', () => {
+		expect(() => assertProductionEnv(complete)).not.toThrow();
+		expect(addressHeaderWarning(complete)).toContain('ADDRESS_HEADER is not set');
+	});
+
+	it('does nothing outside production', () => {
+		expect(() => assertProductionEnv({ NODE_ENV: 'development', ADDRESS_HEADER: 'x-forwarded-for' })).not.toThrow();
+		expect(() => assertProductionEnv({ NODE_ENV: 'test', ADDRESS_HEADER: 'x-forwarded-for' })).not.toThrow();
+	});
+});
+
+describe('isProduction', () => {
+	it('is true only for NODE_ENV=production', () => {
+		expect(isProduction({ NODE_ENV: 'production' })).toBe(true);
+		expect(isProduction({ NODE_ENV: 'development' })).toBe(false);
+		expect(isProduction({ NODE_ENV: 'test' })).toBe(false);
+		expect(isProduction({})).toBe(false);
 	});
 });
 
@@ -86,9 +126,8 @@ describe('addressHeaderWarning', () => {
 		expect(warning).toContain('ADDRESS_HEADER is not set');
 	});
 
-	it('warns in production when ADDRESS_HEADER is set but no known proxy platform is detected', () => {
-		const warning = addressHeaderWarning({ NODE_ENV: 'production', ADDRESS_HEADER: 'x-forwarded-for' });
-		expect(warning).toContain('no known managed-proxy platform');
+	it('no longer warns when ADDRESS_HEADER is set without a proxy — assertProductionEnv refuses to boot instead (issue #1072)', () => {
+		expect(addressHeaderWarning({ NODE_ENV: 'production', ADDRESS_HEADER: 'x-forwarded-for' })).toBeNull();
 	});
 
 	it('is silent when ADDRESS_HEADER is set on a known proxy platform', () => {

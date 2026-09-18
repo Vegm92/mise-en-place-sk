@@ -36,6 +36,7 @@
 		if (formError === 'terms_required') return t('signup.err.terms');
 		if (formError === 'generic') return t('signup.err.generic');
 		if (formError === 'rate_limited') return t('signup.err.rateLimited');
+		if (formError === 'service_unavailable') return t('signup.err.serviceUnavailable');
 		if (urlError === 'oauth') return t('signup.err.oauth');
 		return null;
 	});

@@ -1,8 +1,9 @@
 import { fail, type RequestEvent } from '@sveltejs/kit';
 import * as v from 'valibot';
-import { checkRateLimit } from '$lib/server/rate-limiter';
+import { checkRateLimit, RateLimitBackendUnavailableError } from '$lib/server/rate-limiter';
 import { logAuthEvent, hashIp, type AuthEventKind } from '$lib/server/auth-events';
 import { verifyTurnstileToken } from '$lib/server/turnstile';
+import { isProduction } from '$lib/server/config';
 
 export interface PublicFormContext {
 	event: RequestEvent;
@@ -86,14 +87,23 @@ export function publicFormAction<TSchema extends v.GenericSchema | undefined, T>
 
 		if (options.turnstile) {
 			const token = String(form.get('cf-turnstile-response') ?? '');
-			if (!(await verifyTurnstileToken(token, ip))) {
-				return fail(422, { error: 'bot_suspected', ...extra() });
+			const outcome = await verifyTurnstileToken(token, ip);
+			if (outcome === 'rejected') return fail(422, { error: 'bot_suspected', ...extra() });
+			if (outcome === 'unavailable' && isProduction()) {
+				return fail(503, { error: 'service_unavailable', ...extra() });
 			}
 		}
 
 		const rules = (options.limits?.(ctx) ?? []).slice().sort(byIpScopeFirst);
 		for (const rule of rules) {
-			if (await checkRateLimit(rule.key, rule.max)) continue;
+			let allowed: boolean;
+			try {
+				allowed = await checkRateLimit(rule.key, rule.max, undefined, { authCritical: true });
+			} catch (e) {
+				if (!(e instanceof RateLimitBackendUnavailableError)) throw e;
+				return fail(503, { error: 'service_unavailable', ...extra() });
+			}
+			if (allowed) continue;
 
 			if (options.rateLimitEvent) {
 				logAuthEvent(options.rateLimitEvent, {

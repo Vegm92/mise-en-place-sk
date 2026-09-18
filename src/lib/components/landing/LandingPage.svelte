@@ -160,6 +160,7 @@
     errInvalid:     t('waitlist.form.errInvalid'),
     errRateLimited: t('waitlist.form.errRateLimited'),
     errBot:         t('signup.err.bot'),
+    errUnavailable: t('signup.err.serviceUnavailable'),
     privacy:        t('waitlist.form.privacy'),
     privacyLink:    t('waitlist.form.privacyLink'),
     emailLabel:     t('waitlist.form.emailLabel'),

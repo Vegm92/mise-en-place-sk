@@ -5,6 +5,7 @@ import {
 	MAX_CONCURRENT_EXTRACTIONS,
 	GEMINI_TIMEOUT_MS,
 } from '$lib/server/env';
+import { isProduction } from '$lib/server/config';
 
 type UpstashLimiter = { limit(key: string): Promise<{ success: boolean }> };
 
@@ -14,8 +15,9 @@ let RatelimitClass: any = null;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let redisClient: any = null;
 const upstashLimiters = new Map<string, UpstashLimiter>();
+const upstashConfigured = Boolean(UPSTASH_REDIS_REST_URL && UPSTASH_REDIS_REST_TOKEN);
 
-if (UPSTASH_REDIS_REST_URL && UPSTASH_REDIS_REST_TOKEN) {
+if (upstashConfigured) {
 	try {
 		const [{ Redis }, { Ratelimit }] = await Promise.all([
 			import('@upstash/redis'),
@@ -83,10 +85,24 @@ function checkInMemory(key: string, max: number, windowSeconds: number): boolean
 	return true;
 }
 
+export class RateLimitBackendUnavailableError extends Error {
+	readonly code = 'RATE_LIMIT_BACKEND_UNAVAILABLE';
+
+	constructor() {
+		super('Rate-limit backend unavailable — denying an auth-critical request rather than counting per process');
+		this.name = 'RateLimitBackendUnavailableError';
+	}
+}
+
+export interface RateLimitOptions {
+	authCritical?: boolean;
+}
+
 export async function checkRateLimit(
 	key: string,
 	max: number,
 	windowSeconds: number = DEFAULT_WINDOW_SECONDS,
+	options: RateLimitOptions = {},
 ): Promise<boolean> {
 	if (upstashEnabled) {
 		try {
@@ -94,8 +110,12 @@ export async function checkRateLimit(
 			const { success } = await limiter.limit(key);
 			return success;
 		} catch (e) {
-			console.error('[rate-limiter] Upstash error, falling back to in-memory:', e);
+			console.error('[rate-limiter] Upstash error:', e);
 		}
+	}
+	if (upstashConfigured) {
+		if (options.authCritical && isProduction()) throw new RateLimitBackendUnavailableError();
+		console.error('[rate-limiter] Upstash configured but unavailable — counting in-memory for this process only');
 	}
 	return checkInMemory(key, max, windowSeconds);
 }

@@ -3,7 +3,7 @@ import { and, desc, eq, gt, isNull, sql } from 'drizzle-orm';
 import { db, forTenant } from './db';
 import { whatsappPairingCodes } from './schema';
 import { addContact } from './whatsapp-contacts';
-import { checkRateLimit } from './rate-limiter';
+import { checkRateLimit, RateLimitBackendUnavailableError } from './rate-limiter';
 import { rateLimitScoped } from './rate-limit-scope';
 import { normalizePhoneNumber } from '$lib/phone';
 
@@ -148,7 +148,12 @@ export async function redeemPairingCode(phone: string, rawCode: string): Promise
 	const code = normalizeCode(rawCode);
 	if (!code) return { ok: false, reason: 'invalid' };
 
-	if (!(await checkRateLimit(`whatsapp-pair:${phone}`, REDEEM_ATTEMPTS, REDEEM_WINDOW_S))) {
+	try {
+		if (!(await checkRateLimit(`whatsapp-pair:${phone}`, REDEEM_ATTEMPTS, REDEEM_WINDOW_S, { authCritical: true }))) {
+			return { ok: false, reason: 'rateLimited' };
+		}
+	} catch (e) {
+		if (!(e instanceof RateLimitBackendUnavailableError)) throw e;
 		return { ok: false, reason: 'rateLimited' };
 	}
 

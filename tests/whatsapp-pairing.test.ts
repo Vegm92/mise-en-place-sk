@@ -183,7 +183,7 @@ describe('redeemPairingCode', () => {
 		rateLimitMock.mockResolvedValue(false);
 		expect(await redeemPairingCode(PHONE, 'A2B3C4')).toEqual({ ok: false, reason: 'rateLimited' });
 		expect(dbMock.update).not.toHaveBeenCalled();
-		expect(rateLimitMock).toHaveBeenCalledWith(`whatsapp-pair:${PHONE}`, expect.any(Number), expect.any(Number));
+		expect(rateLimitMock).toHaveBeenCalledWith(`whatsapp-pair:${PHONE}`, expect.any(Number), expect.any(Number), { authCritical: true });
 	});
 
 	it('releases the code when the number belongs to another restaurant', async () => {

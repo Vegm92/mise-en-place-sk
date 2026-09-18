@@ -19,7 +19,7 @@ import { randomBytes } from 'node:crypto';
 
 const NODE_ENV: string = process.env.NODE_ENV ?? 'development';
 import { logAuthEvent, hashIp } from '$lib/server/auth-events';
-import { checkRateLimit } from '$lib/server/rate-limiter';
+import { checkRateLimit, RateLimitBackendUnavailableError } from '$lib/server/rate-limiter';
 import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import { verifyCredentials } from '$lib/server/auth-credentials';
 import { passwordPolicyError } from '$lib/server/password-policy';
@@ -208,11 +208,16 @@ export const actions: Actions = {
 			return fail(422, { section: 'email', error: 'set.profile.err.emailUnchanged' });
 		}
 
-		if (!(await checkRateLimit(`email-change:user:${locals.user!.id}`, 5))) {
-			return fail(429, { section: 'email', error: 'set.profile.err.rateLimited' });
-		}
-		if (!(await checkRateLimit(`email-change:address:${email}`, 5))) {
-			return fail(429, { section: 'email', error: 'set.profile.err.rateLimited' });
+		try {
+			if (!(await checkRateLimit(`email-change:user:${locals.user!.id}`, 5, undefined, { authCritical: true }))) {
+				return fail(429, { section: 'email', error: 'set.profile.err.rateLimited' });
+			}
+			if (!(await checkRateLimit(`email-change:address:${email}`, 5, undefined, { authCritical: true }))) {
+				return fail(429, { section: 'email', error: 'set.profile.err.rateLimited' });
+			}
+		} catch (e) {
+			if (!(e instanceof RateLimitBackendUnavailableError)) throw e;
+			return fail(503, { section: 'email', error: 'set.profile.err.serviceUnavailable' });
 		}
 
 		const [taken] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);

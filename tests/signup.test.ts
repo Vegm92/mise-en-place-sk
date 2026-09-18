@@ -216,7 +216,7 @@ describe('resend', () => {
 		const result = await actions.resend!(signupEvent(RESEND));
 		expect(result).toEqual({ success: true, email: RESEND.email, resent: false });
 		expect(sendEmailMock).not.toHaveBeenCalled();
-		expect(rateLimitMock).toHaveBeenCalledWith('signup:resend:203.0.113.7', 3);
+		expect(rateLimitMock).toHaveBeenCalledWith('signup:resend:203.0.113.7', 3, undefined, { authCritical: true });
 	});
 
 	it('sends nothing for a non-existent account but returns the same success shape', async () => {
