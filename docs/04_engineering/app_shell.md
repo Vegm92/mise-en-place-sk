@@ -396,6 +396,9 @@ the inventory template, issue #885) is a different route entirely.
 **`const normalizeAmountCache` / `const toCentsCache`**
 - Module-level bounded `Map` caches (max 2000 entries) for string normalization and exact cent parsing (`toCents`, `parseAmount`). Prevents redundant `RegExp` execution (`PLAIN_AMOUNT`, `ES_GROUPED_AMOUNT`, `US_GROUPED_AMOUNT`), string slicing, and numeric conversion steps across invoice totals, tax calculations, and line item sums (~8.9x speedup).
 
+**`function median`**
+- The one median (issue #1068): sorts a copy, returns the middle value, and on even length **averages the two middles** (`[1, 2, 3, 4]` → 2.5). Empty input returns 0, matching the two callers it replaced that already coalesced to 0. Three copies used to exist — `alerts.ts` took the lower middle (`[1, 2, 3, 4]` → 2), `price-deviations.ts` and `supplier-cadence.ts` (`medianOf`) averaged — so the price-shock alert and the deviation engine computed different reference prices from the same history; the lower-median form was drift, not a decision. Server code imports it through `server/money.ts`'s re-export. `tests/money-math-convergence.test.ts` fails on a second definition.
+
 ### `src/lib/formatters.ts`
 
 **`const numberFormatters` / `const dateTimeFormatters`**

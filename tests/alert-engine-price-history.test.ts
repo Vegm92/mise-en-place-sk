@@ -56,6 +56,12 @@ beforeAll(async () => {
 	await insertHistoryInvoice(sup!.id, '2026-07-08', 'Aceite de girasol', 0.98);
 	await insertHistoryInvoice(sup!.id, '2026-07-15', 'Aceite de girasol', 1.02);
 
+	// Issue #1068: an even-length history. Two prior purchases at 1.00 and 2.00 —
+	// the averaging median is 1.50; the lower-middle median this engine used to
+	// take would have been 1.00.
+	await insertHistoryInvoice(sup!.id, '2026-07-01', 'Harina de trigo', 1.00);
+	await insertHistoryInvoice(sup!.id, '2026-07-08', 'Harina de trigo', 2.00);
+
 	const [newInv] = await testSql`
 		INSERT INTO invoices (restaurant_id, supplier_id, invoice_date, status)
 		VALUES (${rid}, ${sup!.id}, '2026-07-22', 'pending') RETURNING id`;
@@ -81,5 +87,17 @@ describe.skipIf(!hasDbEnv)('runPriceShock — median history window (issue #308)
 		expect(alerts).toHaveLength(1);
 		expect(alerts[0]!.payload.oldPrice).toBeCloseTo(1.00, 2);
 		expect(alerts[0]!.payload.newPrice).toBe(1.50);
+	});
+});
+
+describe.skipIf(!hasDbEnv)('runPriceShock — reference price on an even-length history (issue #1068)', () => {
+	it('averages the two middle purchases, the same median the deviation engine uses', async () => {
+		// History [1.00, 2.00], new purchase at 3.00. Before #1068 the engine took
+		// the lower middle (1.00) and reported +200%; averaging gives 1.50 and +100%.
+		const alerts = await runPriceShock(newInvoiceId, SUPPLIER, [item('Harina de trigo', 3.00)], rid);
+		expect(alerts).toHaveLength(1);
+		expect(alerts[0]!.payload.oldPrice).toBeCloseTo(1.50, 2);
+		expect(alerts[0]!.payload.newPrice).toBe(3.00);
+		expect(alerts[0]!.payload.deviationPct).toBe(100);
 	});
 });

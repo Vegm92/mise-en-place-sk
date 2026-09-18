@@ -1,8 +1,8 @@
-import { toIsoDate } from '../dates';
+import { toIsoDate, monthKey } from '../dates';
 
 const MONTH_KEY = /^(\d{4})-(\d{2})$/;
 
-export { toIsoDate };
+export { toIsoDate, monthKey };
 
 export function isBlankOrIsoDate(value: unknown): boolean {
 	if (value === null || value === undefined) return true;
@@ -41,10 +41,6 @@ export function isoDate(d: Date): string {
 	const m = String(d.getMonth() + 1).padStart(2, '0');
 	const day = String(d.getDate()).padStart(2, '0');
 	return `${y}-${m}-${day}`;
-}
-
-export function monthKeyStr(d: Date): string {
-	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
 export function isoDateOffset(dateStr: string, days: number): string {

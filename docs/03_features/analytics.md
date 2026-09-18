@@ -216,7 +216,10 @@ Range/granularity normalization; tenant scope on every MV read.
 - Safety cap for pathological range+granularity combos (e.g. daily + all).
 
 **`function isoDate`**
-- Local-timezone key — never `toISOString()`: it converts through UTC and silently rolls the calendar date back a day for timezones ahead of UTC.
+- Local-timezone key for the daily/weekly buckets — never `toISOString()`: it converts through UTC and silently rolls the calendar date back a day for timezones ahead of UTC. `today` is anchored at UTC midnight (`setUTCHours`), which on a UTC or Europe/* host is the same calendar date.
+
+**`function bucketDatesFor`**
+- The monthly buckets are `monthRange(monthKey(startDate), monthKey(today))` (issue #1068) rendered as UTC-midnight first-of-month dates, so both the bucket keys and `is_current` come from the single UTC `monthKey` in `$lib/dates`. The previous local-midnight `firstOfMonth`/`addMonths` walk would have keyed every bucket to the month before on a positive-offset host once the key went UTC.
 
 **`function indexTrendSegments`**
 - Single-pass `O(N)` grouping helper replacing quadratic per-bucket linear array filtering (`buildSegments`), enabling O(1) segment lookups per bucket key (`segmentsByKey.get(k)`).

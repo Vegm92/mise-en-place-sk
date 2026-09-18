@@ -1,3 +1,5 @@
+export { monthKey } from './dates';
+
 export const HEALTHY_LTV_CAC_RATIO = 3;
 export const WARN_LTV_CAC_RATIO = 1;
 export const HEALTHY_PAYBACK_MONTHS = 12;
@@ -212,10 +214,6 @@ export function parseAmountCents(raw: string): number | null {
 	if (!Number.isFinite(value) || value <= 0) return null;
 	const cents = Math.round(value * 100);
 	return cents > MAX_ACQUISITION_AMOUNT_CENTS ? null : cents;
-}
-
-export function monthKey(date: Date): string {
-	return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
 export function addMonths(month: string, delta: number): string {

@@ -16,7 +16,8 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import {
 	testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
-import { toMonthStr, shiftMonth } from '../src/lib/formatters';
+import { shiftMonth } from '../src/lib/formatters';
+import { monthKey } from '../src/lib/dates';
 
 const describeDb = hasDbEnv ? describe : describe.skip;
 
@@ -41,7 +42,7 @@ describeDb('/dashboard load() — no data vs none this month (issue #539)', () =
 	let ridEmpty = '';
 	let ridOtherMonth = '';
 
-	const currentMonth = toMonthStr(new Date());
+	const currentMonth = monthKey(new Date());
 	const pastMonth = shiftMonth(currentMonth, -4);
 	const pastMonthDate = `${pastMonth}-10`;
 

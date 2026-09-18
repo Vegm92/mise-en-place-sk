@@ -3,7 +3,8 @@ import { invoiceLineItems, invoices, products, suppliers } from '$lib/server/sch
 import { sql, eq, and, isNull } from 'drizzle-orm';
 import { UNCATEGORIZED_CATEGORY } from '$lib/constants';
 import { describedLine, lineAmountExpr, lineCategoryExpr, lineProductJoinOn } from './category-spend';
-import { addDays, addMonths, monday, firstOfMonth, isoDate, monthKeyStr } from './dates';
+import { addDays, monday, isoDate, monthKey } from './dates';
+import { monthRange } from '$lib/revenue-math';
 
 const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const DAY_ABBR   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -33,7 +34,7 @@ function bucketDatesFor(granularity: string, startDate: Date, today: Date): Date
 	if (granularity === 'daily') {
 		for (let d = new Date(startDate); d <= today; d = addDays(d, 1)) dates.push(d);
 	} else if (granularity === 'monthly') {
-		for (let d = firstOfMonth(startDate); d <= firstOfMonth(today); d = addMonths(d, 1)) dates.push(d);
+		for (const month of monthRange(monthKey(startDate), monthKey(today))) dates.push(new Date(`${month}-01T00:00:00Z`));
 	} else {
 		for (let d = monday(startDate); d <= monday(today); d = addDays(d, 7)) dates.push(d);
 	}
@@ -42,7 +43,7 @@ function bucketDatesFor(granularity: string, startDate: Date, today: Date): Date
 
 function currentKeyFor(granularity: string, today: Date): string {
 	if (granularity === 'daily') return isoDate(today);
-	if (granularity === 'monthly') return monthKeyStr(today);
+	if (granularity === 'monthly') return monthKey(today);
 	return isoDate(monday(today));
 }
 
@@ -106,21 +107,21 @@ export async function getTrendDataByRange(rid: string, rangeParam: string | null
 	const granularity = normalizeGranularity(granularityParam);
 
 	const today = new Date();
-	today.setHours(0, 0, 0, 0);
+	today.setUTCHours(0, 0, 0, 0);
 
 	const startDate = await resolveStartDate(tdb, range, today);
 
 	const dayKey   = sql<string>`TO_CHAR(${invoices.invoiceDate}, 'YYYY-MM-DD')`;
 	const weekKey  = sql<string>`DATE_TRUNC('week', ${invoices.invoiceDate})::date::text`;
-	const monthKey = sql<string>`TO_CHAR(${invoices.invoiceDate}, 'YYYY-MM')`;
+	const monthExpr = sql<string>`TO_CHAR(${invoices.invoiceDate}, 'YYYY-MM')`;
 
 	const bucketDates = bucketDatesFor(granularity, startDate, today);
 	const clampedStart = bucketDates.length ? isoDate(bucketDates[0]!) : isoDate(startDate);
-	const keys = bucketDates.map(d => granularity === 'monthly' ? monthKeyStr(d) : isoDate(d));
+	const keys = bucketDates.map(d => granularity === 'monthly' ? monthKey(d) : isoDate(d));
 
 	let keyExpr = weekKey;
 	if (granularity === 'daily') keyExpr = dayKey;
-	else if (granularity === 'monthly') keyExpr = monthKey;
+	else if (granularity === 'monthly') keyExpr = monthExpr;
 	const categoryExpr = lineCategoryExpr();
 	const groupedRows = await db
 		.select({

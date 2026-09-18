@@ -2,12 +2,12 @@ import { and, eq, inArray, isNotNull, isNull, ne, sql, type SQL } from 'drizzle-
 import { db, forTenant } from './db';
 import { invoiceLineItems, invoices, products, suppliers, stockLevels, categoryBudgets, settings, systemNotifications } from './schema';
 import { renderTemplate } from '$lib/i18n-messages';
-import { toMonthStr } from '$lib/formatters';
+import { monthKey } from '$lib/dates';
 import { UNCATEGORIZED_CATEGORY } from '$lib/constants';
 import { visibleCategoryNames } from './categories';
 import { normalizeProductKey } from './normalize';
 import { parsePack, normalizedUnitPrice, type EnrichedLineItem } from './products';
-import { moneyToNumber, moneyToNullableNumber } from './money';
+import { moneyToNumber, moneyToNullableNumber, median } from './money';
 import { reconcileLineItems, type ReconLine, type LineReconciliation } from './line-reconciliation';
 import { describedLine, lineAmountExpr, lineCategoryExpr, lineProductJoinOn } from './category-spend';
 import { parseQrUrl, detectVerifactuMismatch } from './qr';
@@ -27,11 +27,6 @@ export interface Alert {
 }
 
 type PricePoint = { unitPrice: number; normalizedUnitPrice: number | null; baseUnit: string | null };
-
-function median(values: number[]): number {
-	const sorted = [...values].sort((a, b) => a - b);
-	return sorted[Math.floor((sorted.length - 1) / 2)] ?? 0;
-}
 
 function buildPriceHistory<K, R extends { unitPrice: string; normalizedUnitPrice: string | null; baseUnit: string | null }>(
 	rows: R[],
@@ -499,7 +494,7 @@ async function monthlyCategorySpend(
 }
 
 async function openOveragesThisMonth(tdb: ReturnType<typeof forTenant>): Promise<Set<string>> {
-	const monthPrefix = new Date().toISOString().slice(0, 7);
+	const monthPrefix = monthKey(new Date());
 	const rows = await notificationsForType(
 		tdb, 'budget_overage',
 		ne(systemNotifications.status, 'resolved'),
@@ -518,7 +513,7 @@ export async function runBudgetCheck(invoiceId: number, supplierId: number, rest
 	const categories = await invoiceLineCategories(tdb, invoiceId, supplierId);
 	if (categories.length === 0) return [];
 
-	const currentMonth = toMonthStr(new Date());
+	const currentMonth = monthKey(new Date());
 	const budgetRows = await db
 		.select({ category: categoryBudgets.category, monthlyBudget: categoryBudgets.monthlyBudget })
 		.from(categoryBudgets)
@@ -972,7 +967,7 @@ async function reevaluateBudgetAlerts(restaurantId: string, categories: string[]
 	});
 	if (relevant.length === 0) return;
 
-	const currentMonth = toMonthStr(new Date());
+	const currentMonth = monthKey(new Date());
 	const budgetRows = await db
 		.select({ category: categoryBudgets.category, monthlyBudget: categoryBudgets.monthlyBudget })
 		.from(categoryBudgets)

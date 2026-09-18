@@ -34,7 +34,7 @@ import {
 import { saveReviewedInvoice, type SaveOutcome } from '../src/lib/server/invoice-save';
 import { categoryBudgets, suppliers } from '../src/lib/server/schema';
 import { eq } from 'drizzle-orm';
-import { toMonthStr } from '../src/lib/formatters';
+import { monthKey } from '../src/lib/dates';
 import type { BatchItem } from '../src/lib/server/batch';
 import { fakeBatchItem } from './helpers/batch-item';
 
@@ -162,7 +162,7 @@ async function setupBudgetWarning(supplier: string, category: string, invoiceNum
 
 	const supplierId = await supplierIdByName(supplier);
 	await testDb.update(suppliers).set({ category }).where(eq(suppliers.id, supplierId));
-	await testDb.insert(categoryBudgets).values({ restaurantId: rid, category, month: toMonthStr(new Date()), monthlyBudget: '100.00' });
+	await testDb.insert(categoryBudgets).values({ restaurantId: rid, category, month: monthKey(new Date()), monthlyBudget: '100.00' });
 
 	const overBudget = await saveReviewedInvoice(
 		fakeItem(),

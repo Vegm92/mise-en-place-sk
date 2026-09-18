@@ -215,10 +215,6 @@ export function initials(name: string): string {
 	return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
 }
 
-export function toMonthStr(d: Date): string {
-	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-}
-
 export function shiftMonth(ym: string, delta: number): string {
 	let year = parseInt(ym.slice(0, 4), 10);
 	let month = parseInt(ym.slice(5, 7), 10) + delta;
