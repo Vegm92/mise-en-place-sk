@@ -148,8 +148,8 @@ These comments were deliberately left in the code because a tool reads them.
 | `src/lib/components/TrendChart.svelte` | 24 | `// svelte-ignore state_referenced_locally — intentional: seed once from props` |
 | `src/lib/components/TrendChart.svelte` | 26 | `// svelte-ignore state_referenced_locally — intentional: seed once from props` |
 | `src/lib/components/mep/NotificationBell.svelte` | 21 | `// svelte-ignore state_referenced_locally — intentional: seed once from prop` |
-| `src/lib/server/rate-limiter.ts` | 12 | `// eslint-disable-next-line @typescript-eslint/no-explicit-any` |
-| `src/lib/server/rate-limiter.ts` | 14 | `// eslint-disable-next-line @typescript-eslint/no-explicit-any` |
+| `src/lib/server/rate-limiter.ts` | 13 | `// eslint-disable-next-line @typescript-eslint/no-explicit-any` |
+| `src/lib/server/rate-limiter.ts` | 15 | `// eslint-disable-next-line @typescript-eslint/no-explicit-any` |
 | `src/routes/(app)/batch/[id]/+page.svelte` | 85 | `// svelte-ignore state_referenced_locally — reading the initial value is the point` |
 | `src/routes/(app)/batch/[id]/+page.svelte` | 93 | `// svelte-ignore state_referenced_locally — intentional: seed from server-loaded data once` |
 | `src/routes/(app)/batch/[id]/+page.svelte` | 95 | `// svelte-ignore state_referenced_locally — intentional: seed from server-loaded data once` |

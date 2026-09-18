@@ -14,7 +14,7 @@
 		initLocale();
 	});
 
-	const KNOWN_ERRORS = new Set(['missing', 'invalid', 'rate_limited', 'oauth', 'unverified']);
+	const KNOWN_ERRORS = new Set(['missing', 'invalid', 'rate_limited', 'service_unavailable', 'oauth', 'unverified']);
 	const rawError = $derived(form?.error ?? page.url.searchParams.get('error'));
 	const error = $derived(rawError && !KNOWN_ERRORS.has(rawError) ? 'oauth' : rawError);
 	const resetDone = $derived(page.url.searchParams.get('reset') === '1');

@@ -9,15 +9,20 @@
  * the rule that actually tripped decides the scope reported to auth
  * telemetry.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as v from 'valibot';
 
-const { rateLimitMock, logAuthEventMock } = vi.hoisted(() => ({
+const { rateLimitMock, logAuthEventMock, RateLimitBackendUnavailableError } = vi.hoisted(() => ({
 	rateLimitMock: vi.fn().mockResolvedValue(true),
 	logAuthEventMock: vi.fn(),
+	RateLimitBackendUnavailableError: class extends Error {},
 }));
 
-vi.mock('$lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock }));
+vi.mock('$lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock, RateLimitBackendUnavailableError }));
+vi.mock('$lib/server/env', async (importOriginal) => ({
+	...(await importOriginal<typeof import('../src/lib/server/env')>()),
+	TURNSTILE_SECRET_KEY: 'turnstile-secret',
+}));
 vi.mock('$lib/server/auth-events', () => ({
 	logAuthEvent: logAuthEventMock,
 	hashIp: () => 'iphash',
@@ -41,6 +46,12 @@ function formEventWithFile(fields: Record<string, string | File>) {
 beforeEach(() => {
 	rateLimitMock.mockReset().mockResolvedValue(true);
 	logAuthEventMock.mockClear();
+});
+
+afterEach(() => {
+	vi.unstubAllEnvs();
+	vi.restoreAllMocks();
+	vi.useRealTimers();
 });
 
 describe('publicFormAction', () => {
@@ -218,5 +229,79 @@ describe('parseForm (issue #844)', () => {
 		const Schema = v.object({ email: v.string() });
 		const result = parseForm(Schema, fileFormData({ email: maliciousFile() }));
 		expect(result.success).toBe(false);
+	});
+});
+
+describe('publicFormAction — fail closed in production (issue #1072)', () => {
+	const turnstileAction = () => {
+		const handler = vi.fn(async () => ({ ok: true }));
+		const action = publicFormAction({ turnstile: true }, handler);
+		return { handler, action };
+	};
+
+	// The real turnstile client runs here: env is mocked to configure a secret
+	// and fetch is stubbed so the siteverify endpoint itself errors.
+	async function submitWithSiteverifyDown(action: (event: never) => Promise<unknown>) {
+		vi.spyOn(console, 'error').mockImplementation(() => {});
+		vi.spyOn(console, 'warn').mockImplementation(() => {});
+		vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('ENOTFOUND challenges.cloudflare.com'));
+		vi.useFakeTimers();
+		const pending = action(formEvent({ 'cf-turnstile-response': 'tok', email: 'chef@example.com' }));
+		await vi.advanceTimersByTimeAsync(1000);
+		return pending;
+	}
+
+	it('refuses the submission with a 503 in production when the challenge endpoint is unreachable', async () => {
+		vi.stubEnv('NODE_ENV', 'production');
+		const { handler, action } = turnstileAction();
+		expect(await submitWithSiteverifyDown(action)).toMatchObject({ status: 503, data: { error: 'service_unavailable' } });
+		expect(handler).not.toHaveBeenCalled();
+		expect(rateLimitMock).not.toHaveBeenCalled();
+	});
+
+	it('lets the submission through in development when the challenge endpoint is unreachable', async () => {
+		vi.stubEnv('NODE_ENV', 'development');
+		const { handler, action } = turnstileAction();
+		expect(await submitWithSiteverifyDown(action)).toEqual({ ok: true });
+		expect(handler).toHaveBeenCalledTimes(1);
+	});
+
+	it('still rejects a token the challenge endpoint denies, in every environment', async () => {
+		vi.stubEnv('NODE_ENV', 'development');
+		vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true, json: async () => ({ success: false }) } as Response);
+		const { handler, action } = turnstileAction();
+		expect(await action(formEvent({ 'cf-turnstile-response': 'tok' }))).toMatchObject({ status: 422, data: { error: 'bot_suspected' } });
+		expect(handler).not.toHaveBeenCalled();
+	});
+
+	it('marks every public-form limit auth-critical so the limiter can fail closed', async () => {
+		const action = publicFormAction({ limits: ({ ip }) => [{ key: `signup:ip:${ip}`, max: 5 }] }, async () => ({ ok: true }));
+		await action(formEvent({}));
+		expect(rateLimitMock).toHaveBeenCalledWith('signup:ip:203.0.113.7', 5, undefined, { authCritical: true });
+	});
+
+	it('answers 503 — not 429, not the handler — when the rate-limit backend is unavailable', async () => {
+		rateLimitMock.mockRejectedValueOnce(new RateLimitBackendUnavailableError('down'));
+		const handler = vi.fn();
+		const action = publicFormAction(
+			{
+				rateLimitEvent: 'login_rate_limited',
+				failData: ({ form }) => ({ email: form.get('email') }),
+				limits: ({ ip }) => [{ key: `login:ip:${ip}`, max: 10, scope: 'ip' }],
+			},
+			handler,
+		);
+		expect(await action(formEvent({ email: 'chef@example.com' }))).toMatchObject({
+			status: 503,
+			data: { error: 'service_unavailable', email: 'chef@example.com' },
+		});
+		expect(handler).not.toHaveBeenCalled();
+		expect(logAuthEventMock).not.toHaveBeenCalled();
+	});
+
+	it('lets any other limiter failure propagate rather than masking it as an outage', async () => {
+		rateLimitMock.mockRejectedValueOnce(new TypeError('boom'));
+		const action = publicFormAction({ limits: () => [{ key: 'k', max: 1 }] }, async () => ({ ok: true }));
+		await expect(action(formEvent({}))).rejects.toThrow('boom');
 	});
 });

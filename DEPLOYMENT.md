@@ -176,7 +176,8 @@ Set the OAuth client's authorized redirect URI to `{your-origin}/auth/callback/g
 
 | Variable | Default | Notes |
 |---|---|---|
-| `ADDRESS_HEADER` | unset | Header carrying the real client IP (`x-forwarded-for`). **Only safe to set where a trusted proxy terminates TLS and overwrites this header on every request** — Railway's edge does this, as does a reverse proxy you run yourself (nginx/Caddy). Boot logs a warning if unset in production (issue #223) *and* if set without a known proxy platform in front (issue #500). |
+| `ADDRESS_HEADER` | unset | Header carrying the real client IP (`x-forwarded-for`). **Only safe to set where a trusted proxy terminates TLS and overwrites this header on every request** — Railway's edge does this, as does a reverse proxy you run yourself (nginx/Caddy). Boot logs a warning if unset in production (issue #223). Set without a known proxy platform in front (Railway/Render/Fly env vars) and without `TRUSTED_PROXY=1`, production **refuses to start** (issue #1072; was a warning under #500). |
+| `TRUSTED_PROXY` | unset | Set to `1` to attest that a reverse proxy you operate (nginx/Caddy) terminates TLS and rewrites `ADDRESS_HEADER` on every request, so the boot check above passes off a managed platform. Never set it where the Node process is directly reachable — that is the spoofable topology the check exists to refuse. |
 | `XFF_DEPTH` | `1` | Number of trusted proxies in front of the app; adapter-node reads the IP that many hops from the right of `x-forwarded-for`. Set it wrong and the value is client-spoofable. |
 
 Get this wrong in either direction and IP-keyed rate limits (login, signup,
@@ -194,9 +195,10 @@ recover, resend, waitlist) break:
 
 Set both **only** when deploying behind a trusted proxy: on Railway (its edge
 proxy rewrites `X-Forwarded-For` for every request), or behind your own
-nginx/Caddy in front of the compose services. Leave both unset for the stock
-`docker compose up` topology and for any deployment where the Node process is
-directly internet-facing.
+nginx/Caddy in front of the compose services — in that second case also set
+`TRUSTED_PROXY=1`, or the production boot check refuses to start. Leave all of
+them unset for the stock `docker compose up` topology and for any deployment
+where the Node process is directly internet-facing.
 
 ### Billing (Stripe)
 

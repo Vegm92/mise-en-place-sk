@@ -88,7 +88,17 @@ Immutable subset is in `docs/00_system/architectural_invariants.md`.
 ## Rate limiting
 
 - `rate-limiter.ts`: Upstash sliding window when configured, in-memory token
-  bucket otherwise (single-instance warning).
+  bucket otherwise (single-instance warning). Three backend states (ADR-043,
+  #1072): unconfigured → in-memory (a valid development state); configured
+  and healthy → Upstash; configured and failing → an **auth-critical** limit
+  (`{ authCritical: true }`: login, signup, recover, waitlist, verification
+  resend, email change, WhatsApp pairing redemption) throws
+  `RateLimitBackendUnavailableError` in production and its caller answers
+  503, while every other limit degrades to the per-process bucket.
+- Security controls fail closed in production and fail open only in
+  development (ADR-043): Turnstile denies when siteverify cannot be reached,
+  auth-critical limits deny when Upstash is configured but down, and
+  `ADDRESS_HEADER` set without a trusted proxy refuses to boot.
 - Key scoping is structural, not per-site judgment (ADR-029, #440):
   `rateLimitScoped()` (`rate-limit-scope.ts`) takes `scope: 'tenant' | 'user'`
   explicitly — tenant for paid/metered capacity and shared tenant resources
@@ -180,6 +190,12 @@ Immutable subset is in `docs/00_system/architectural_invariants.md`.
 **`type UpstashLimiter`**
 
 - Uses Upstash Redis when `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` are set (distributed / multi-instance safe), else an in-process token bucket (single-server only — documented constraint).
+- `upstashConfigured` (both env vars set) is tracked separately from `upstashEnabled` (client initialised) so `checkRateLimit` can tell "never configured" from "configured but broken" — an import failure at boot with the vars set is the second, not the first (#1072).
+
+**`class RateLimitBackendUnavailableError`**
+
+- Thrown by `checkRateLimit` for an auth-critical limit when Upstash is configured but the call failed (or the client never initialised) and `NODE_ENV=production` (#1072, ADR-043). Before, every failure fell through to the in-process bucket, so on N replicas the real ceiling was `max × N`, and an attacker who could make the Upstash call fail restored near-unlimited login/signup attempts. The message carries no key — keys embed IPs and emails and this error reaches Sentry via `handleError` if a caller forgets to map it.
+- Callers map it to a denial, never to the handler: `publicFormAction` and `resendVerificationAction` return `fail(503, { error: 'service_unavailable' })`, settings' `saveEmail` returns 503 with `set.profile.err.serviceUnavailable`, and `redeemPairingCode` reports `rateLimited` (the bot channel has no separate outage copy). 503 rather than 429 because the user did nothing wrong and an operator grepping for 429s would read an outage as an attack.
 
 **`interface Bucket`**
 
@@ -206,6 +222,7 @@ Immutable subset is in `docs/00_system/architectural_invariants.md`.
 **`function checkRateLimit`**
 
 - Public API: at most `max` events per `windowSeconds` for `key`; window defaults to a minute (every caller predating #322 is per-minute). Longer windows are cooldowns, not throughput caps — "reply to an unknown number at most once every six hours" is one event per 21600 s.
+- Fourth argument `{ authCritical?: boolean }` (#1072). Auth-critical is the set of limits whose job is to stop credential attacks or abuse of an unauthenticated entry point: `login:ip`/`login:email`, `signup:ip`, `recover:ip`/`recover:email`, `waitlist` (all through `publicFormAction`, which flags every rule), `login|signup:resend` (`resendVerificationAction`), `email-change:user`/`email-change:address` (sends a verification mail to an arbitrary address), `whatsapp-pair` (6-character single-redeem code, brute-forceable). Not flagged: the `/api/*` gateway cap, `health`, the digest-share views, the WhatsApp sender caps and every `rateLimitScoped()` throughput limit — including `upload`, which sits behind authentication and the monthly invoice quota; failing those closed would turn an Upstash blip into an outage of the whole authenticated app while the per-process bucket still bounds cost. Unconfigured Upstash is unaffected in every environment: the in-memory bucket is the documented single-instance state, not a failure.
 - **What the key identifies is the caller's choice, and the codebase is split (#440).** 18 authenticated call sites: some key by `locals.user.id` (`chat:`, `notifications:`, `stock-levels:`, `trend:`, `unit-conversions:`, `switch-restaurant:`, `password-change:`), some by `rid` (`upload:`, `bulk:`, `product-alias:`, `supplier-category:`, `product-create:`, `product-unlink:`, `product-delete:`).
 - Not cosmetic: user-keying a money-costing budget gives five staff accounts five times the spend (`chat:`, paid Gemini, worth revisiting first); tenant-keying a per-person action lets one user's bulk run exhaust the bucket for colleagues (intended for `bulk:`, wrong for `password-change:`). The "keyed on the authenticated user, not the client IP (#223)" rationale only rules out IP (behind a reverse proxy every request shares one IP) — it doesn't choose user vs tenant. Pick deliberately.
 
@@ -217,6 +234,30 @@ Immutable subset is in `docs/00_system/architectural_invariants.md`.
 
 - Public, provider-agnostic slot API (#454): waits for a global Gemini slot, returns a `release()`; the worker wraps the model call in acquire → try → finally release. Redis path first (distributed), in-process otherwise. A grant is idempotent to release — a `released` flag guards the timeout/finally double-release fixed in #455.
 - Redis semaphore = ZSET of live leases keyed by per-acquire token, scored by expiry; the acquire Lua script is atomic (sweep expired with ZREMRANGEBYSCORE, ZADD if ZCARD < max, else 0). Lease = GEMINI_TIMEOUT_MS + 60 s (floor 120 s), the dead-worker safety net. Caller polls with jitter up to SLOT_MAX_WAIT_MS, then proceeds slot-less rather than stalling past pg-boss expiry (fail-open; the lease still bounds the blast radius).
+### `src/lib/server/turnstile.ts`
+
+**`function verifyTurnstileToken`**
+
+- Returns `TurnstileOutcome` (`verified | rejected | unavailable`), not a boolean (#1072, ADR-043). The pre-#1072 client answered `true` on a non-2xx siteverify response or a network error, so signup and waitlist bot protection switched itself off whenever `challenges.cloudflare.com` was unreachable or rate-limiting this server — exactly when a bot operator would want it off. `rejected` means Cloudflare answered no (or the form sent no token); `unavailable` means no answer could be obtained. No secret configured is `verified`: the feature is off, the widget never rendered, and rejecting would block every signup.
+- One retry (`SITEVERIFY_ATTEMPTS = 2`, 300 ms apart) on a thrown fetch, a non-2xx status or an unparseable body — a single transient failure on Cloudflare's side is the common case and should not cost a real user their signup. A `success: false` body is not retried; it is an answer.
+- The policy for `unavailable` lives in the caller: `publicFormAction` returns `fail(503, { error: 'service_unavailable' })` in production and proceeds in development, so local work needs neither the keys nor the network.
+
+### `src/lib/server/config.ts`
+
+**`function isProduction`**
+
+- The one production-detection helper (`NODE_ENV === 'production'`, env injectable for tests). `hooks.server.ts` and `log.ts` predate it and inline the same comparison; new code reads it from here so the fail-closed switch in `rate-limiter.ts` and `public-form-action.ts` cannot drift from what boot validation calls production.
+
+**`function assertProductionEnv`**
+
+- The boot-validation seam (called at the top of `hooks.server.ts`, before any request): missing required vars, then the WhatsApp secret pairing, then the trusted-proxy check (#1072; the last was `addressHeaderWarning`'s second branch under #500). `ADDRESS_HEADER` set with no known managed-proxy platform (`RAILWAY_*`, `RENDER`, `FLY_APP_NAME`) and no `TRUSTED_PROXY=1` is a hard failure in production, because in that state `getClientAddress()` returns whatever the client wrote into the header and every `ip:`-keyed limit is spoofable; a warning was routinely lost in boot logs. `TRUSTED_PROXY=1` is the operator's attestation for a self-run nginx/Caddy that rewrites the header on every request — the case the old warning called a false positive. The unset case (limits collapse into one bucket) stays a warning: it degrades rate limiting without opening it.
+
+### `src/lib/server/public-form-action.ts`
+
+**`function publicFormAction`**
+
+- Every limit rule is checked with `{ authCritical: true }`: everything that goes through this wrapper is an unauthenticated entry point (login, signup, recover, waitlist). A `RateLimitBackendUnavailableError` or a Turnstile `unavailable` in production becomes `fail(503, { error: 'service_unavailable', ...failData })` before the handler runs; the four form pages map that code to `*.err.service_unavailable` / `*.err.serviceUnavailable` copy (login's `KNOWN_ERRORS`, signup's `errorMessage`, forgot's dynamic key, the waitlist `EmailForm` copy). Any other limiter error propagates — masking an unrelated bug as an outage would hide it.
+
 ### `src/lib/server/safe-redirect.ts`
 
 **`function safeRedirect`**

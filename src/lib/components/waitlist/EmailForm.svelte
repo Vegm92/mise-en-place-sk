@@ -22,6 +22,7 @@
       errInvalid: string;
       errRateLimited: string;
       errBot: string;
+      errUnavailable: string;
       privacy: string;
       privacyLink: string;
       emailLabel: string;
@@ -49,6 +50,7 @@
     if (err === 'invalid') return copy.errInvalid;
     if (err === 'rate_limited') return copy.errRateLimited;
     if (err === 'bot_suspected') return copy.errBot;
+    if (err === 'service_unavailable') return copy.errUnavailable;
     return '';
   }
 

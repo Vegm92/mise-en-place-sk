@@ -134,7 +134,7 @@ describe('saveEmail', () => {
 		rateLimitMock.mockResolvedValueOnce(false);
 		const result = await actions.saveEmail!(formEvent({ email: 'new@example.com' }));
 		expect(result).toMatchObject({ status: 429, data: { error: 'set.profile.err.rateLimited' } });
-		expect(rateLimitMock).toHaveBeenCalledWith('email-change:user:user-1', 5);
+		expect(rateLimitMock).toHaveBeenCalledWith('email-change:user:user-1', 5, undefined, { authCritical: true });
 		expect(sendEmailMock).not.toHaveBeenCalled();
 	});
 
@@ -142,7 +142,7 @@ describe('saveEmail', () => {
 		rateLimitMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
 		const result = await actions.saveEmail!(formEvent({ email: 'new@example.com' }));
 		expect(result).toMatchObject({ status: 429, data: { error: 'set.profile.err.rateLimited' } });
-		expect(rateLimitMock).toHaveBeenCalledWith('email-change:address:new@example.com', 5);
+		expect(rateLimitMock).toHaveBeenCalledWith('email-change:address:new@example.com', 5, undefined, { authCritical: true });
 		expect(sendEmailMock).not.toHaveBeenCalled();
 	});
 });
