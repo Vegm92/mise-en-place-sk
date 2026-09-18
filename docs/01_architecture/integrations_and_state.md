@@ -152,6 +152,7 @@ guard: only apply `subscription.updated/deleted/paused/resumed` when
 **`const QUOTA_WARNING_THRESHOLD`**
 
 - "Cuota próxima a agotarse" alert (issue #202): when a restaurant's monthly usage crosses `QUOTA_WARNING_THRESHOLD` of its plan quota, email the owner once per calendar month. Called fire-and-forget after invoice saves — must never throw into the save path.
+- Because it is fire-and-forget and runs several queries after the first `await`, `invoice-save.ts` starts it through `runDetached(rid, …)` (issue #1073): the request's reserved connection is released when the save's response resolves, and the check would otherwise query a connection already back in the pool. Its own `try/catch` still swallows failures inside; the `.catch` at the call site covers the reservation itself failing.
 - Reads `getMonthlyUsage` — documents processed, the meter the plan is actually sold on (ADR-036). It counted saved invoices until then, so it missed every extraction the user discarded and warned late, or never.
 
 **`function maybeSendQuotaWarning`**

@@ -16,9 +16,10 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { enqueueMock, accountEventMock } = vi.hoisted(() => ({
+const { enqueueMock, accountEventMock, runAsSystemMock } = vi.hoisted(() => ({
 	enqueueMock: vi.fn().mockResolvedValue(true),
 	accountEventMock: vi.fn().mockResolvedValue(undefined),
+	runAsSystemMock: vi.fn((fn: () => Promise<void>) => fn()),
 }));
 
 // WHATSAPP_APP_SECRET is intentionally empty here: with no secret the route
@@ -27,6 +28,11 @@ const { enqueueMock, accountEventMock } = vi.hoisted(() => ({
 vi.mock('$lib/server/env', () => ({ WHATSAPP_VERIFY_TOKEN: 'verify-me', WHATSAPP_APP_SECRET: '' }));
 vi.mock('$lib/server/queue', () => ({ enqueueWhatsAppInbound: enqueueMock }));
 vi.mock('$lib/server/whatsapp-health', () => ({ recordAccountEvent: accountEventMock }));
+// Issue #1073: account events are recorded fire-and-forget, after the 200 is
+// on its way, so they must run under their own system context rather than on
+// the request's reserved connection, which hooks.server.ts releases as soon
+// as the response resolves.
+vi.mock('$lib/server/db', () => ({ runAsSystem: runAsSystemMock }));
 
 import { GET, POST } from '../src/routes/api/whatsapp/webhook/+server';
 
@@ -49,6 +55,7 @@ beforeEach(() => {
 	enqueueMock.mockClear();
 	enqueueMock.mockResolvedValue(true);
 	accountEventMock.mockClear();
+	runAsSystemMock.mockClear();
 });
 
 describe('GET — verify-token handshake', () => {
@@ -177,6 +184,25 @@ describe('POST — account-level events (issue #321)', () => {
 		}));
 		expect(enqueueMock).toHaveBeenCalledTimes(1);
 		expect(accountEventMock).toHaveBeenCalledTimes(1);
+	});
+
+	it('records each account event under its own system context, outside the request scope (#1073)', async () => {
+		await POST(postEvent({
+			entry: [{
+				changes: [
+					{ field: 'account_update', value: { event: 'ACCOUNT_VIOLATION' } },
+					{ field: 'phone_number_quality_update', value: { current_quality_rating: 'YELLOW' } },
+				],
+			}],
+		}));
+		expect(runAsSystemMock).toHaveBeenCalledTimes(2);
+		expect(accountEventMock).toHaveBeenCalledTimes(2);
+	});
+
+	it('stays 200 when the system context itself cannot be entered', async () => {
+		runAsSystemMock.mockRejectedValueOnce(new Error('pool exhausted'));
+		const res = await POST(postEvent(accountPayload('account_update', { event: 'ACCOUNT_VIOLATION' })));
+		expect(res.status).toBe(200);
 	});
 
 	it('stays 200 when the health recorder rejects', async () => {

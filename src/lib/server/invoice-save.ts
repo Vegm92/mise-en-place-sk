@@ -11,6 +11,7 @@ import { runPriceShock, runStockForecast, runBudgetCheck, runCategorizationNudge
 import { getTierFeatures } from './billing';
 import { maybeSendQuotaWarning } from './quota-warning';
 import { trackEvent } from './events';
+import { runDetached } from './tenant-context';
 import { claimRequest, releaseRequest, isValidKey } from './idempotency';
 import { getOrCreateSupplierId, type SupplierContactInfo } from './supplier';
 import { UNCATEGORIZED_CATEGORY, isValidPaymentMethod } from '$lib/constants';
@@ -877,7 +878,8 @@ async function runPostSaveEffects(params: {
 
 	trackEvent('invoice_saved', rid, { confidence: confidenceRaw, line_count: lineInputs.length }, invoiceId);
 
-	void maybeSendQuotaWarning(rid);
+	runDetached(rid, () => maybeSendQuotaWarning(rid))
+		.catch((e) => console.error('[invoice-save] quota warning failed (non-fatal):', e));
 
 	await isolated('extraction correction logging', undefined, () => logExtractionCorrections(
 		invoiceId,
