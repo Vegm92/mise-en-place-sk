@@ -25,12 +25,14 @@ const { sendMock, createQueueMock, updateQueueMock, startMock } = vi.hoisted(() 
 }));
 
 vi.mock('pg-boss', () => ({
-	PgBoss: vi.fn().mockImplementation(() => ({
-		start: startMock,
-		createQueue: createQueueMock,
-		updateQueue: updateQueueMock,
-		send: sendMock,
-	})),
+	PgBoss: vi.fn(function () {
+		return {
+			start: startMock,
+			createQueue: createQueueMock,
+			updateQueue: updateQueueMock,
+			send: sendMock,
+		};
+	}),
 }));
 
 import {
