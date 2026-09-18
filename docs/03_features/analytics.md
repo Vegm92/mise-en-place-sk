@@ -218,10 +218,13 @@ Range/granularity normalization; tenant scope on every MV read.
 **`function isoDate`**
 - Local-timezone key — never `toISOString()`: it converts through UTC and silently rolls the calendar date back a day for timezones ahead of UTC.
 
+**`function indexTrendSegments`**
+- Single-pass `O(N)` grouping helper replacing quadratic per-bucket linear array filtering (`buildSegments`), enabling O(1) segment lookups per bucket key (`segmentsByKey.get(k)`).
+
 **`function getTrendDataByRange`**
 - Postgres date-key helpers for bucket boundaries; buckets span [startDate, today] at the requested granularity.
 - Segments come from the line, not the invoice: line items LEFT JOINed to products, grouped by `lineCategoryExpr()` (ADR-027). An invoice with no described line items therefore contributes nothing to the trend.
-- The 'Other' inside `lineCategoryExpr()` is a SQL literal, not a bound parameter: Drizzle binds a sentinel afresh on each occurrence, so a parameter renders differently in SELECT and GROUP BY and Postgres rejects it ("column suppliers.category must appear in the GROUP BY clause", 500ing the dashboard). `mergeTrendRows` still folds a NULL category in TS for the same reason it always did.
+- The 'Other' inside `lineCategoryExpr()` is a SQL literal, not a bound parameter: Drizzle binds a sentinel afresh on each occurrence, so a parameter renders differently in SELECT and GROUP BY and Postgres rejects it ("column suppliers.category must appear in the GROUP BY clause", 500ing the dashboard). `indexTrendSegments` still folds a NULL category in TS for the same reason it always did.
 - Buckets keyed by nested Map rather than a composite string — a category is free text, so any separator would need proving it can never appear inside one.
 
 **`type TrendRow`**
