@@ -534,6 +534,15 @@ export async function runOrphanSubscriptionsJob(): Promise<{ repaired: number }>
 	return await reconcileOrphanSubscriptions();
 }
 
+export async function stripeCustomerIdFor(restaurantId: string): Promise<string | null> {
+	const tdb = forTenant(restaurantId);
+	const [row] = await db.select({ stripeCustomerId: subscriptions.stripeCustomerId })
+		.from(subscriptions)
+		.where(tdb.scope(subscriptions.restaurantId))
+		.limit(1);
+	return row?.stripeCustomerId ?? null;
+}
+
 export async function getOrCreateCustomer(restaurantId: string, email: string, restaurantName: string, forceNew = false): Promise<string> {
 	if (!stripe) throw new Error('Stripe not configured');
 

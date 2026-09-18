@@ -180,8 +180,9 @@ describe('removeContact', () => {
 		expect(trackEventMock).toHaveBeenCalledWith(
 			'whatsapp_contact_released',
 			RESTAURANT_A,
-			expect.objectContaining({ contactId: 5, phoneNumber: '34612345678', releasedBy: 'owner-user', method: 'owner' }),
+			expect.objectContaining({ contactId: 5, phoneMasked: '***5678', releasedBy: 'owner-user', method: 'owner' }),
 		);
+		expect(JSON.stringify(trackEventMock.mock.calls)).not.toContain('34612345678');
 	});
 
 	it('reports failure and skips the audit event when nothing was deleted', async () => {
@@ -203,8 +204,9 @@ describe('releaseContactByPhone', () => {
 		expect(trackEventMock).toHaveBeenCalledWith(
 			'whatsapp_contact_released',
 			RESTAURANT_B,
-			expect.objectContaining({ contactId: 9, phoneNumber: '34612345678', releasedBy: 'support@mise.dev', method: 'support' }),
+			expect.objectContaining({ contactId: 9, phoneMasked: '***5678', releasedBy: 'support@mise.dev', method: 'support' }),
 		);
+		expect(JSON.stringify(trackEventMock.mock.calls)).not.toContain('34612345678');
 	});
 
 	it('frees the number for another tenant to bind via pairing', async () => {

@@ -35,6 +35,10 @@ export function normalizePhoneNumber(input: string): NormalizeResult {
 	return cached;
 }
 
+export function maskPhoneNumber(phone: string): string {
+	return `***${phone.slice(-4)}`;
+}
+
 export function waMeLink(phone: string): string {
 	return `https://wa.me/${phone.replace(/\D+/g, '')}`;
 }

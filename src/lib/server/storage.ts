@@ -15,6 +15,17 @@ const TRANSIENT_NAMES = new Set([
 	'ECONNRESET', 'ECONNREFUSED', 'EPIPE', 'ETIMEDOUT', 'EAI_AGAIN', 'ENOTFOUND',
 ]);
 
+function operationOf(label: string): string {
+	const space = label.indexOf(' ');
+	return space === -1 ? label : label.slice(0, space);
+}
+
+function describeStorageError(err: unknown): string {
+	const e = err as { name?: string; code?: string; $metadata?: { httpStatusCode?: number } };
+	const status = e?.$metadata?.httpStatusCode;
+	return [e?.name ?? 'Error', e?.code, status].filter(Boolean).join(' ');
+}
+
 export function isTransientStorageError(err: unknown): boolean {
 	if (err instanceof TimeoutError) return true;
 	const e = err as { name?: string; code?: string; $metadata?: { httpStatusCode?: number } };
@@ -37,7 +48,7 @@ export async function withStorageRetry<T>(
 		} catch (err) {
 			lastError = err;
 			if (!isTransientStorageError(err) || attempt === total - 1) throw err;
-			console.warn(`[storage] ${label} failed on attempt ${attempt + 1}/${total}, retrying:`, err);
+			console.warn(`[storage] ${operationOf(label)} failed on attempt ${attempt + 1}/${total}, retrying: ${describeStorageError(err)}`);
 			await new Promise((resolve) => setTimeout(resolve, RETRY_BASE_MS * 2 ** attempt));
 		}
 	}
