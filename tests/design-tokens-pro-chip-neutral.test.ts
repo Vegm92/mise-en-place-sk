@@ -20,13 +20,27 @@ const LAYOUT = path.join(ROOT, 'src/routes/(app)/+layout.svelte');
 const layout = readFileSync(LAYOUT, 'utf8');
 
 /** background: var(--mep-hover); color: var(--mep-fg-2); border: 1px solid var(--mep-border); */
-const NEUTRAL_CHIP =
+const NEUTRAL_CHIP_INLINE =
 	/background:var\(--mep-hover\);color:var\(--mep-fg-2\);border:1px solid var\(--mep-border\);/;
 
+/**
+ * #845 retired the inline token spelling for the `@theme inline` utilities that
+ * resolve to the same three tokens: bg-hover -> --mep-hover, text-fg-2 ->
+ * --mep-fg-2, border-border -> --mep-border. Either spelling is neutral.
+ */
+const NEUTRAL_CHIP_UTILITIES = ['bg-hover', 'text-fg-2', 'border-border'];
+
+function isNeutralChip(spelling: string): boolean {
+	if (NEUTRAL_CHIP_INLINE.test(spelling)) return true;
+	return NEUTRAL_CHIP_UTILITIES.every(cls =>
+		new RegExp(`(?:^|\\s)${cls}(?:\\s|$)`).test(spelling),
+	);
+}
+
 /** Every span rendering the PRO badge translation key, wherever it sits in the file. */
-const chipSpans = [...layout.matchAll(/<span\s+style="([^"]*)">\{t\('nav\.badge\.pro'\)\}<\/span>/g)].map(
-	m => m[1]!,
-);
+const chipSpans = [
+	...layout.matchAll(/<span\s+(?:style|class)="([^"]*)">\{t\('nav\.badge\.pro'\)\}<\/span>/g),
+].map(m => m[1]!);
 
 describe('PRO chip stays neutral (ADR-026)', () => {
 	it('finds the PRO chip in both the sidebar heading and the upgrade dialog', () => {
@@ -36,12 +50,12 @@ describe('PRO chip stays neutral (ADR-026)', () => {
 	});
 
 	it('never spells a PRO chip with --mep-acc', () => {
-		const offenders = chipSpans.filter(style => /--mep-acc/.test(style!));
+		const offenders = chipSpans.filter(style => /--mep-acc|(?:^|\s)(?:bg|text|border)-acc(?:\s|$)/.test(style!));
 		expect(offenders).toEqual([]);
 	});
 
 	it('every PRO chip uses the neutral background/color/border triple', () => {
-		const offenders = chipSpans.filter(style => !NEUTRAL_CHIP.test(style!));
+		const offenders = chipSpans.filter(style => !isNeutralChip(style!));
 		expect(offenders).toEqual([]);
 	});
 });

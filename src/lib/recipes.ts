@@ -81,10 +81,23 @@ export function toAllergenList(raw: unknown): Allergen[] {
 	return EU_ALLERGENS.filter((code) => seen.has(code));
 }
 
+const MAX_CACHE_SIZE = 2000;
+const unitKeyCache = new Map<string, string | null>();
+const qtyToNumberCache = new Map<string, number>();
+const parseQtyCache = new Map<string, string | null>();
+const parseDecimalCache = new Map<string, string | null>();
+
 export function unitKey(unit: string | null | undefined): string | null {
 	if (!unit) return null;
-	const key = String(unit).trim().toLowerCase();
-	return key in UNIT_FACTORS ? key : null;
+	const rawKey = String(unit);
+	const cached = unitKeyCache.get(rawKey);
+	if (cached !== undefined) return cached;
+
+	const key = rawKey.trim().toLowerCase();
+	const res = key in UNIT_FACTORS ? key : null;
+	if (unitKeyCache.size >= MAX_CACHE_SIZE) unitKeyCache.clear();
+	unitKeyCache.set(rawKey, res);
+	return res;
 }
 
 export function unitFamily(unit: string | null | undefined): UnitFamily | null {
@@ -127,23 +140,64 @@ function roundDecimalString(
 
 export function parseQty(raw: MoneyInput, maxIntDigits = 15): string | null {
 	if (raw === null || raw === undefined) return null;
-	const text = String(raw).trim();
-	if (text === '') return null;
-	const m = QTY_INPUT.exec(text);
-	if (!m) return null;
-	const [, intPart, fracPart = ''] = m;
-	const value = roundDecimalString(intPart ?? '', fracPart, 4, maxIntDigits);
-	return value !== null && Number(value) > 0 ? value : null;
+	if (maxIntDigits !== 15) {
+		const text = String(raw).trim();
+		if (text === '') return null;
+		const m = QTY_INPUT.exec(text);
+		if (!m) return null;
+		const [, intPart, fracPart = ''] = m;
+		const value = roundDecimalString(intPart ?? '', fracPart, 4, maxIntDigits);
+		return value !== null && Number(value) > 0 ? value : null;
+	}
+
+	const rawKey = String(raw);
+	const cached = parseQtyCache.get(rawKey);
+	if (cached !== undefined) return cached;
+
+	const text = rawKey.trim();
+	let res: string | null = null;
+	if (text !== '') {
+		const m = QTY_INPUT.exec(text);
+		if (m) {
+			const [, intPart, fracPart = ''] = m;
+			const value = roundDecimalString(intPart ?? '', fracPart, 4, maxIntDigits);
+			if (value !== null && Number(value) > 0) res = value;
+		}
+	}
+
+	if (parseQtyCache.size >= MAX_CACHE_SIZE) parseQtyCache.clear();
+	parseQtyCache.set(rawKey, res);
+	return res;
 }
 
 export function parseDecimal(raw: MoneyInput, scale = 2, maxIntDigits = 15): string | null {
 	if (raw === null || raw === undefined) return null;
-	const text = String(raw).trim();
-	if (text === '') return null;
-	const m = QTY_INPUT.exec(text);
-	if (!m) return null;
-	const [, intPart, fracPart = ''] = m;
-	return roundDecimalString(intPart ?? '', fracPart, scale, maxIntDigits);
+	if (scale !== 2 || maxIntDigits !== 15) {
+		const text = String(raw).trim();
+		if (text === '') return null;
+		const m = QTY_INPUT.exec(text);
+		if (!m) return null;
+		const [, intPart, fracPart = ''] = m;
+		return roundDecimalString(intPart ?? '', fracPart, scale, maxIntDigits);
+	}
+
+	const rawKey = String(raw);
+	const cached = parseDecimalCache.get(rawKey);
+	if (cached !== undefined) return cached;
+
+	const text = rawKey.trim();
+	let res: string | null = null;
+	if (text !== '') {
+		const m = QTY_INPUT.exec(text);
+		if (m) {
+			const [, intPart, fracPart = ''] = m;
+			res = roundDecimalString(intPart ?? '', fracPart, scale, maxIntDigits);
+		}
+	}
+
+	if (parseDecimalCache.size >= MAX_CACHE_SIZE) parseDecimalCache.clear();
+	parseDecimalCache.set(rawKey, res);
+	return res;
 }
 
 export function parsePercent(raw: MoneyInput, max: number): string | null {
@@ -155,8 +209,17 @@ export function parsePercent(raw: MoneyInput, max: number): string | null {
 
 export function qtyToNumber(raw: MoneyInput): number {
 	if (raw === null || raw === undefined) return 0;
-	const n = typeof raw === 'number' ? raw : Number(String(raw).trim().replace(',', '.'));
-	return Number.isFinite(n) ? n : 0;
+	if (typeof raw === 'number') return Number.isFinite(raw) ? raw : 0;
+
+	const rawKey = String(raw);
+	const cached = qtyToNumberCache.get(rawKey);
+	if (cached !== undefined) return cached;
+
+	const n = Number(rawKey.trim().replace(',', '.'));
+	const res = Number.isFinite(n) ? n : 0;
+	if (qtyToNumberCache.size >= MAX_CACHE_SIZE) qtyToNumberCache.clear();
+	qtyToNumberCache.set(rawKey, res);
+	return res;
 }
 
 export function toRate(value: MoneyInput): number | null {

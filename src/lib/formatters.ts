@@ -153,6 +153,12 @@ export function semColor(pct: number): string {
 	return 'var(--mep-neg)';
 }
 
+export function semColorClass(pct: number, prefix: 'text' | 'bg' = 'text'): string {
+	if (pct < BUDGET_WARN_PCT) return `${prefix}-pos`;
+	if (pct <= BUDGET_OVER_PCT) return `${prefix}-warn`;
+	return `${prefix}-neg`;
+}
+
 const DATE_CACHE_MAX = 2000;
 const fmtDateCache = new Map<string, string>();
 const fmtDateShortCache = new Map<string, string>();

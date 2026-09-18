@@ -36,15 +36,37 @@ describe('issue #747 — sidebar account-footer icon buttons are accessible', ()
 		}
 	});
 
+	// #845 moved these buttons off inline `style="width:40px;height:40px"` onto
+	// the Tailwind `w-10 h-10` utilities. Resolve either spelling to pixels so
+	// the >=40px invariant is still enforced rather than silently dropped: the
+	// default Tailwind spacing scale is 0.25rem per step, so w-10 is 40px.
+	const TAILWIND_SPACING_PX = 4;
+
+	function sizePx(spelling: string, axis: 'w' | 'h'): number {
+		const longhand = axis === 'w' ? 'width' : 'height';
+		const inline = spelling.match(new RegExp(`${longhand}:(\\d+)px`));
+		if (inline) return Number(inline[1]);
+
+		const arbitrary = spelling.match(new RegExp(`(?:^|\\s)${axis}-\\[(\\d+)px\\]`));
+		if (arbitrary) return Number(arbitrary[1]);
+
+		const scale = spelling.match(new RegExp(`(?:^|\\s)${axis}-(\\d+(?:\\.\\d+)?)(?:\\s|$)`));
+		if (scale) return Number(scale[1]) * TAILWIND_SPACING_PX;
+
+		return 0;
+	}
+
 	it('switch-account and logout buttons both size their hit area to at least 40px', () => {
-		const matches = [...footer.matchAll(/aria-label=\{t\('action\.(switchAccount|logout)'\)\}[\s\S]{0,200}?style="([^"]*)"/g)];
+		const matches = [
+			...footer.matchAll(
+				/aria-label=\{t\('action\.(switchAccount|logout)'\)\}[\s\S]{0,200}?(?:style|class)="([^"]*)"/g,
+			),
+		];
 		expect(matches).toHaveLength(2);
 		for (const m of matches) {
-			const classes = m[2]!;
-			const width = Number(classes.match(/width:(\d+)px/)?.[1] ?? 0);
-			const height = Number(classes.match(/height:(\d+)px/)?.[1] ?? 0);
-			expect(width, `${m[1]} button width`).toBeGreaterThanOrEqual(40);
-			expect(height, `${m[1]} button height`).toBeGreaterThanOrEqual(40);
+			const spelling = m[2]!;
+			expect(sizePx(spelling, 'w'), `${m[1]} button width`).toBeGreaterThanOrEqual(40);
+			expect(sizePx(spelling, 'h'), `${m[1]} button height`).toBeGreaterThanOrEqual(40);
 		}
 	});
 });

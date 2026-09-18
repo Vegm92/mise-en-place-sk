@@ -144,7 +144,10 @@ describe('the tour chrome is themed', () => {
 	it('floats every tour surface on the overlay ramp with the shared pop shadow', () => {
 		for (const source of [COACH, tourChrome]) {
 			expect(source).toContain('var(--mep-overlay)');
-			expect(source).toContain('var(--mep-shadow-pop)');
+			// #845 moved the shell's tour chrome onto the `shadow-pop` utility, which
+			// `@theme inline` in app.css maps to var(--mep-shadow-pop). CoachMark
+			// still spells the token directly, so accept either form.
+			expect(source).toMatch(/var\(--mep-shadow-pop\)|\bshadow-pop\b/);
 		}
 	});
 
