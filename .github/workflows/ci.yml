@@ -65,6 +65,18 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Audit — no high-severity advisory in the runtime dependency tree (issue #1076)
+        # --prod scopes the gate to what ships (dependencies, not devDependencies):
+        # a full-tree gate at this threshold would fail on build-time advisories
+        # and be muted within a week. Dev/build-time advisories still print in
+        # the informational step below, without failing the job. Clear a
+        # runtime advisory through pnpm.overrides in package.json — see
+        # docs/04_engineering/dependency_policy.md.
+        run: pnpm audit --prod --audit-level high
+
+      - name: Audit — full tree (informational, never fails)
+        run: pnpm audit || true
+
       - name: Lint — ban sql.raw
         run: pnpm lint:no-sql-raw
 
