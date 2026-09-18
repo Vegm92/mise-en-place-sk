@@ -95,14 +95,30 @@ function packFromCount(s: string): PackInfo | null {
 	return buildPackInfo(num(count[1] ?? ''), 1, 'ud');
 }
 
+const PACK_CACHE_MAX = 4000;
+const packCache = new Map<string, PackInfo | null>();
+
 export function parsePack(description: string | null | undefined, unit?: string | null): PackInfo | null {
+	const cacheKey = `${description ?? ''}\0${unit ?? ''}`;
+	let cached = packCache.get(cacheKey);
+	if (cached !== undefined) return cached;
+
+	let result: PackInfo | null = null;
 	for (const source of [description ?? '', unit ?? '']) {
 		const s = source.trim();
 		if (!s) continue;
 		const info = packFromMultipack(s) ?? packFromSingle(s) ?? packFromCount(s);
-		if (info) return info;
+		if (info) {
+			result = info;
+			break;
+		}
 	}
-	return null;
+
+	if (packCache.size >= PACK_CACHE_MAX) {
+		packCache.clear();
+	}
+	packCache.set(cacheKey, result);
+	return result;
 }
 
 export function normalizedUnitPrice(unitPrice: number | null | undefined, pack: PackInfo | null): number | null {
@@ -136,18 +152,36 @@ function expandToken(token: string): string {
 	return ABBREVIATIONS[key] ?? token;
 }
 
+const EXPAND_ABBREVIATIONS_CACHE_MAX = 4000;
+const expandAbbreviationsCache = new Map<string, string>();
+
 export function expandAbbreviations(raw: string): string {
-	let s = (raw ?? '').trim();
-	if (!s) return '';
+	const cacheKey = raw ?? '';
+	let cached = expandAbbreviationsCache.get(cacheKey);
+	if (cached !== undefined) return cached;
 
-	s = s.replace(SKU_PREFIX, '').replace(BARE_CODE, '').trim();
-	if (!s) return raw.trim();
+	let s = cacheKey.trim();
+	let result: string;
+	if (!s) {
+		result = '';
+	} else {
+		s = s.replace(SKU_PREFIX, '').replace(BARE_CODE, '').trim();
+		if (!s) {
+			result = cacheKey.trim();
+		} else {
+			result = s
+				.split(/\s+/)
+				.map(expandToken)
+				.join(' ')
+				.trim();
+		}
+	}
 
-	return s
-		.split(/\s+/)
-		.map(expandToken)
-		.join(' ')
-		.trim();
+	if (expandAbbreviationsCache.size >= EXPAND_ABBREVIATIONS_CACHE_MAX) {
+		expandAbbreviationsCache.clear();
+	}
+	expandAbbreviationsCache.set(cacheKey, result);
+	return result;
 }
 
 export function conversionKey(ingredient: string, purchaseUnit: string): string {
