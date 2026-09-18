@@ -4,6 +4,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { WHATSAPP_VERIFY_TOKEN, WHATSAPP_APP_SECRET } from '$lib/server/env';
 import type { WhatsAppInboundMessage } from '$lib/server/whatsapp-bot';
 import { enqueueWhatsAppInbound } from '$lib/server/queue';
+import { runAsSystem } from '$lib/server/db';
 import { recordAccountEvent, type AccountEventInput } from '$lib/server/whatsapp-health';
 
 const NODE_ENV = process.env.NODE_ENV ?? 'development';
@@ -62,7 +63,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	for (const evt of accountEvents) {
-		recordAccountEvent(evt).catch(err =>
+		runAsSystem(() => recordAccountEvent(evt)).catch(err =>
 			console.error('[whatsapp-webhook] account event error:', err),
 		);
 	}

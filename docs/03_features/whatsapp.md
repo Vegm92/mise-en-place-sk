@@ -289,6 +289,7 @@ before the handler sees it, because contacts are stored as digits (ADR-019).
 **`const POST`**
 
 - WhatsApp delivers message events here; return 200 immediately. Read the raw body first (HMAC over the exact bytes); process asynchronously — Meta expects a 200 within 5 s. Account-level events (#321) are delivered here too: ingest for every tenant runs through one shared number, so a downgrade or restriction must arrive this way rather than via support tickets.
+- Account events are recorded fire-and-forget, so each `recordAccountEvent` call is wrapped in `runAsSystem()` (issue #1073): `hooks.server.ts` runs this route under a system context whose reserved connection is released as soon as the response resolves, and a detached insert on that handle would otherwise land on a connection already back in the pool. `runAsSystem` reserves one of its own for the insert, which is tenant-less (`whatsapp_account_events` has no `restaurant_id`) and already in ADR-030's system-context table. The response is not delayed: the wrap is started, not awaited.
 
 **`function extractChanges`**
 

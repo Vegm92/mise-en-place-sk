@@ -59,7 +59,9 @@ import postgres from 'postgres';
 import { sql } from 'drizzle-orm';
 import { testSql, closeDb, hasDbEnv, retryOnDeadlock } from './helpers/test-db';
 import { resolveDbGate } from './helpers/db-gate';
-import { runWithTenantContext, runAsSystem, activeTenantContext } from '../src/lib/server/db';
+import { db, runWithTenantContext, runAsSystem, activeTenantContext } from '../src/lib/server/db';
+import { runDetached, TenantScopeReleasedError } from '../src/lib/server/tenant-context';
+import { trackEvent } from '../src/lib/server/events';
 
 const gate = resolveDbGate(process.env);
 const canRun = hasDbEnv;
@@ -497,6 +499,122 @@ describe.skipIf(!canRun)('tenant-context mechanism — GUC set/reset/isolation',
 			expect(activeTenantContext()?.mode).toBe('tenant');
 			expect(activeTenantContext()?.restaurantId).toBe(ridA);
 		});
+	});
+});
+
+/**
+ * Issue #1073. runWithTenantContext / runAsSystem release their reserved
+ * connection in a `finally` the moment `fn` settles, but AsyncLocalStorage
+ * keeps the store alive in any promise `fn` started and did not await. Such
+ * detached work would previously issue its query on a connection already
+ * back in the pool — today a stability bug, after the #975 role cutover a
+ * query filtered by whatever `app.restaurant_id` the connection's NEXT
+ * borrower set. The guard must refuse that query outright (in every
+ * environment — there is no safe connection to fall back to), and
+ * `runDetached` is the sanctioned way for fire-and-forget work to get a
+ * reservation of its own that outlives the scope it was started from.
+ */
+describe.skipIf(!canRun)('tenant-context mechanism — detached work cannot outlive its scope (#1073)', () => {
+	function deferred() {
+		let resolve!: () => void;
+		const promise = new Promise<void>((r) => { resolve = r; });
+		return { promise, resolve };
+	}
+
+	// drizzle wraps a driver-level throw in its own DrizzleQueryError; the
+	// guard's error is then the `cause`. A transaction is refused before any
+	// query is built, so there it is the rejection itself.
+	async function expectRefused(work: Promise<unknown> | undefined): Promise<void> {
+		const err: unknown = await work!.then(() => { throw new Error('detached query was not refused'); }, (e: unknown) => e);
+		const refusal = err instanceof TenantScopeReleasedError ? err : (err as { cause?: unknown }).cause;
+		expect(refusal).toBeInstanceOf(TenantScopeReleasedError);
+	}
+
+	it('refuses a query issued through db after the scope released its connection', async () => {
+		const scopeExited = deferred();
+		let detached: Promise<unknown> | undefined;
+		await runWithTenantContext(ridA, async () => {
+			detached = (async () => {
+				await scopeExited.promise;
+				return db.execute(sql`SELECT 1 AS one`);
+			})();
+		});
+		scopeExited.resolve();
+		await expectRefused(detached);
+	});
+
+	it('refuses a query on the context db captured before release, not only the proxy', async () => {
+		const scopeExited = deferred();
+		let detached: Promise<unknown> | undefined;
+		await runAsSystem(async () => {
+			const ctxDb = activeTenantContext()!.db;
+			detached = (async () => {
+				await scopeExited.promise;
+				return ctxDb.execute(sql`SELECT 1 AS one`);
+			})();
+		});
+		scopeExited.resolve();
+		await expectRefused(detached);
+	});
+
+	it('refuses a transaction opened after release before BEGIN reaches the recycled connection', async () => {
+		const scopeExited = deferred();
+		let detached: Promise<unknown> | undefined;
+		await runWithTenantContext(ridA, async () => {
+			detached = (async () => {
+				await scopeExited.promise;
+				return db.transaction((tx) => tx.execute(sql`SELECT 1 AS one`));
+			})();
+		});
+		scopeExited.resolve();
+		await expectRefused(detached);
+	});
+
+	it('runDetached gives the work its own reservation under the requested tenant, so it completes after the scope exits', async () => {
+		const scopeExited = deferred();
+		let detached: Promise<{ ctx: string | null | undefined; guc: string | null | undefined }> | undefined;
+		await runWithTenantContext(ridA, async () => {
+			detached = runDetached(ridB, async () => {
+				await scopeExited.promise;
+				const rows = await db.execute<{ v: string | null }>(sql`SELECT current_setting('app.restaurant_id', true) AS v`);
+				return { ctx: activeTenantContext()?.restaurantId, guc: rows[0]?.v };
+			});
+		});
+		scopeExited.resolve();
+		await expect(detached).resolves.toEqual({ ctx: ridB, guc: ridB });
+	});
+
+	it('runDetached with no tenant runs under a system context of its own', async () => {
+		const scopeExited = deferred();
+		let detached: Promise<string | undefined> | undefined;
+		await runWithTenantContext(ridA, async () => {
+			detached = runDetached(null, async () => {
+				await scopeExited.promise;
+				const rows = await db.execute<{ v: string | null }>(sql`SELECT current_setting('app.admin', true) AS v`);
+				return `${activeTenantContext()?.mode}:${rows[0]?.v}`;
+			});
+		});
+		scopeExited.resolve();
+		await expect(detached).resolves.toBe('admin:true');
+	});
+
+	it('runDetached outside any scope runs the work directly, with no reservation', async () => {
+		expect(activeTenantContext()).toBeUndefined();
+		const seen = await runDetached(ridA, async () => activeTenantContext());
+		expect(seen).toBeUndefined();
+	});
+
+	it('trackEvent started inside a scope lands its row after the scope has exited', async () => {
+		const marker = `rls-1073-${Date.now()}`;
+		let pending: Promise<void> | undefined;
+		await runWithTenantContext(ridA, async () => {
+			pending = trackEvent(marker, ridA, { via: 'detached' });
+		});
+		await pending;
+		const rows = await testSql`SELECT restaurant_id FROM system_notifications WHERE notification_type = ${marker}`;
+		expect(rows).toHaveLength(1);
+		expect(rows[0]!.restaurant_id).toBe(ridA);
+		await testSql`DELETE FROM system_notifications WHERE notification_type = ${marker}`;
 	});
 });
 
