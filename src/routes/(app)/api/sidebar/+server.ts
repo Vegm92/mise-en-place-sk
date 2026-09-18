@@ -19,6 +19,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		return apiError(429, 'Too many requests');
 	}
 
+	if (!await rateLimitScoped({ scope: 'tenant', name: 'sidebar', max: 60 }, { restaurantId: locals.restaurantId })) {
+		return apiError(429, 'Too many requests');
+	}
+
 	const parsed = await parseJson(SidebarBody, request);
 	if (!parsed.success) return invalidBody(parsed, 400, 'Invalid collapsed');
 
