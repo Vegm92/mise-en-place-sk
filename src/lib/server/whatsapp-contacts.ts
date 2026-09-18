@@ -1,7 +1,7 @@
 import { asc, eq } from 'drizzle-orm';
 import { db, forTenant } from './db';
 import { whatsappContacts } from './schema';
-import { normalizePhoneNumber } from '$lib/phone';
+import { maskPhoneNumber, normalizePhoneNumber } from '$lib/phone';
 import { trackEvent } from './events';
 
 export interface WhatsAppContact {
@@ -74,7 +74,7 @@ export async function removeContact(restaurantId: string, id: number, releasedBy
 
 	await trackEvent('whatsapp_contact_released', restaurantId, {
 		contactId: deleted[0]!.id,
-		phoneNumber: deleted[0]!.phoneNumber,
+		phoneMasked: maskPhoneNumber(deleted[0]!.phoneNumber),
 		releasedBy: releasedBy ?? null,
 		method: 'owner',
 	});
@@ -101,7 +101,7 @@ export async function releaseContactByPhone(rawPhone: string, releasedBy: string
 
 	await trackEvent('whatsapp_contact_released', deleted.restaurantId, {
 		contactId: deleted.id,
-		phoneNumber: deleted.phoneNumber,
+		phoneMasked: maskPhoneNumber(deleted.phoneNumber),
 		releasedBy,
 		method: 'support',
 	});

@@ -163,7 +163,8 @@ describe.skipIf(!hasDbEnv)('removeWhatsappContact releases and audits (issue #49
 			ORDER BY created_at DESC LIMIT 1
 		`;
 		expect(audit).toHaveLength(1);
-		expect(audit[0]!.payload).toMatchObject({ phoneNumber: phone, method: 'owner', releasedBy: ownerId });
+		expect(audit[0]!.payload).toMatchObject({ phoneMasked: `***${phone.slice(-4)}`, method: 'owner', releasedBy: ownerId });
+		expect(JSON.stringify(audit[0]!.payload)).not.toContain(phone);
 
 		const inviteBody = new FormData();
 		inviteBody.append('phone', phone);

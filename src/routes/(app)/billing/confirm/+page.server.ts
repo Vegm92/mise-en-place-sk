@@ -1,6 +1,18 @@
 import { redirect } from '@sveltejs/kit';
+import type Stripe from 'stripe';
 import type { PageServerLoad } from './$types';
-import { stripe, tierFromPriceId, TIERS } from '$lib/server/billing';
+import { stripe, stripeCustomerIdFor, tierFromPriceId, TIERS } from '$lib/server/billing';
+
+async function belongsToTenant(session: Stripe.Checkout.Session, restaurantId: string): Promise<boolean> {
+	const metaRid = session.metadata?.restaurantId ?? null;
+	if (metaRid) return metaRid === restaurantId;
+
+	const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id ?? null;
+	if (!customerId) return false;
+
+	const ownCustomerId = await stripeCustomerIdFor(restaurantId);
+	return ownCustomerId !== null && ownCustomerId === customerId;
+}
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	if (!locals.user || !locals.restaurantId) redirect(303, '/login');
@@ -24,14 +36,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		console.info('[billing/confirm] checkout session retrieved', {
 			sessionId,
 			payment_status: session.payment_status,
-			subscription: typeof session.subscription === 'string' ? session.subscription : session.subscription?.id ?? null,
-			metadata: session.metadata,
-			customer_email: session.customer_details?.email ?? session.customer_email ?? null,
-			price_ids: (session.line_items?.data ?? []).map((li) => li.price?.id ?? null),
 		});
 
-		const metaRid = session.metadata?.restaurantId;
-		if (metaRid && metaRid !== locals.restaurantId) return base;
+		if (!(await belongsToTenant(session, locals.restaurantId))) return base;
 
 		const priceId = session.line_items?.data?.[0]?.price?.id ?? null;
 		const tier = priceId ? tierFromPriceId(priceId) : null;
