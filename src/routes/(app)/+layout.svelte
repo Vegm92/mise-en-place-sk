@@ -300,9 +300,9 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
   const sectionActive = (section: NavSection) => section.items.some(itemActive);
 
   const navItemColor = (parentActive: boolean, locked: boolean) => {
-    if (parentActive) return 'var(--mep-acc)';
-    if (locked) return 'var(--mep-fg-3)';
-    return 'var(--mep-fg-2)';
+    if (parentActive) return 'text-acc';
+    if (locked) return 'text-fg-3';
+    return 'text-fg-2';
   };
 
   const sectionBadge = (section: NavSection) =>
@@ -339,8 +339,8 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
   let locationError = $state<string | null>(null);
 
   function locationColor(loc: { id: string; locked: boolean }): string {
-    if (loc.locked) return 'var(--mep-fg-4)';
-    return loc.id === data.restaurantId ? 'var(--mep-acc)' : 'var(--mep-fg)';
+    if (loc.locked) return 'text-fg-4';
+    return loc.id === data.restaurantId ? 'text-acc' : 'text-fg';
   }
   async function switchLocation(restaurantId: string) {
     if (!restaurantId || restaurantId === data.restaurantId || switchingLocation) return;
@@ -402,18 +402,9 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
   {#if mounted}
   <div style="position:relative;height:100%;flex-shrink:0;z-index:101;">
   <aside
-    style="
-      width:{collapsed ? '64px' : '232px'};
-      {sidebarHasInteracted ? 'transition:width 200ms ease;' : ''}
-      height:100%;
-      background:var(--mep-surface);
-      border-right:1px solid var(--mep-divider);
-      display:flex;flex-direction:column;
-      padding:{collapsed ? '20px 6px 16px' : '20px 12px 16px'};
-      overflow-y:auto;overflow-x:hidden;
-    "
+    style="width:{collapsed ? '64px' : '232px'};{sidebarHasInteracted ? 'transition:width 200ms ease;' : ''}padding:{collapsed ? '20px 6px 16px' : '20px 12px 16px'};"
     class="
-      fixed left-0 top-0 bottom-0 h-full z-100
+      fixed left-0 top-0 bottom-0 h-full z-100 bg-surface border-r border-divider flex flex-col overflow-y-auto overflow-x-hidden
       transition-transform duration-200
       md:static md:z-auto md:translate-x-0 md:transition-none
       {mobileOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -439,28 +430,21 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
 
     {#if !collapsed && data.locations && data.locations.length > 1}
       <div style="display:flex;align-items:center;gap:8px;padding:0 10px 14px;">
-        <label for="location-switch" style="flex-shrink:0;font-size:11px;color:var(--mep-fg-3);">
+        <label for="location-switch" class="shrink-0 text-[11px] text-fg-3">
           {t('nav.location')}
         </label>
         <div style="position:relative;flex:1;min-width:0;" bind:this={locationRef}>
           <button
             type="button"
             id="location-switch"
-            class="sidenav-item"
+            class="sidenav-item w-full text-[12.5px] text-left cursor-pointer rounded-input border border-border-strong bg-surface text-fg px-[10px] flex items-center justify-between gap-2 {locationOpen ? 'border-acc shadow-[0_0_0_3px_var(--mep-acc-ring)]' : ''}"
             disabled={switchingLocation}
             onclick={() => (locationOpen = !locationOpen)}
             aria-haspopup="listbox"
             aria-expanded={locationOpen}
-            style="
-              width:100%;font-size:12.5px;text-align:left;cursor:pointer;
-              border-radius:var(--mep-r-input);border:1px solid var(--mep-border-strong);
-              background:var(--mep-surface);color:var(--mep-fg);padding:0 10px;
-              display:flex;align-items:center;justify-content:space-between;gap:8px;
-              {locationOpen ? 'border-color:var(--mep-acc);box-shadow:0 0 0 3px var(--mep-acc-ring);' : ''}
-            "
           >
-            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{currentLocation}</span>
-            <svg width="12" height="12" viewBox="0 0 24 24" style="flex-shrink:0;color:var(--mep-fg-3);{locationOpen ? 'transform:rotate(180deg);' : ''}transition:transform 120ms;">
+            <span class="overflow-hidden text-ellipsis whitespace-nowrap">{currentLocation}</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" class="shrink-0 text-fg-3" style="{locationOpen ? 'transform:rotate(180deg);' : ''}transition:transform 120ms;">
               <path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </button>
@@ -468,12 +452,7 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
           {#if locationOpen}
             <div
               role="listbox"
-              style="
-                position:absolute;top:calc(100% + 4px);right:0;min-width:186px;z-index:120;
-                background:var(--mep-surface);border:1px solid var(--mep-border-strong);
-                border-radius:var(--mep-r-input);box-shadow:0 6px 20px rgba(0,0,0,0.15);
-                padding:4px;max-height:220px;overflow-y:auto;
-              "
+              class="absolute top-[calc(100%_+_4px)] right-0 min-w-[186px] z-[120] bg-surface border border-border-strong rounded-input shadow-[0_6px_20px_rgba(0,0,0,0.15)] p-1 max-h-[220px] overflow-y-auto"
             >
               {#each data.locations as loc}
                 <button
@@ -486,25 +465,18 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
                     locationOpen = false;
                     if (loc.id !== data.restaurantId) switchLocation(loc.id);
                   }}
-                  style="
-                    display:flex;align-items:center;justify-content:space-between;gap:8px;
-                    width:100%;text-align:left;cursor:{loc.locked ? 'not-allowed' : 'pointer'};
-                    padding:7px 10px;border:none;border-radius:6px;font-size:12.5px;
-                    background:{loc.id === data.restaurantId ? 'var(--mep-acc-soft)' : 'transparent'};
-                    color:{locationColor(loc)};
-                    font-weight:{loc.id === data.restaurantId ? 500 : 400};
-                  "
-                  onmouseenter={(e) => { if (!loc.locked && loc.id !== data.restaurantId) e.currentTarget.style.background = 'var(--mep-hover)'; }}
-                  onmouseleave={(e) => { if (!loc.locked && loc.id !== data.restaurantId) e.currentTarget.style.background = 'transparent'; }}
+                  class="flex items-center justify-between gap-2 w-full text-left py-[7px] px-[10px] border-none rounded-md text-[12.5px] {loc.id === data.restaurantId ? 'bg-acc-soft font-medium' : 'font-normal'} {locationColor(loc)} {loc.locked ? 'cursor-not-allowed' : 'cursor-pointer'}"
+                  onmouseenter={(e) => { if (!loc.locked && loc.id !== data.restaurantId) (e.currentTarget as HTMLElement).style.background = 'var(--mep-hover)'; }}
+                  onmouseleave={(e) => { if (!loc.locked && loc.id !== data.restaurantId) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
                 >
-                  <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{loc.name}</span>
+                  <span class="overflow-hidden text-ellipsis whitespace-nowrap">{loc.name}</span>
                   {#if loc.locked}
                     <Lock size={12} style="flex-shrink:0;" />
                   {/if}
                 </button>
               {/each}
               {#if data.locations.some((loc) => loc.locked)}
-                <div style="padding:6px 10px 4px;font-size:11px;line-height:1.4;color:var(--mep-fg-3);border-top:1px solid var(--mep-divider);margin-top:4px;">
+                <div class="px-[10px] pt-[6px] pb-1 text-[11px] leading-[1.4] text-fg-3 border-t border-divider mt-1">
                   {t('set.locations.lockedHint')}
                 </div>
               {/if}
@@ -512,7 +484,7 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
           {/if}
 
           {#if locationError}
-            <p class="body" style="font-size:11px;line-height:1.4;color:var(--mep-warn);margin:6px 0 0;">{t(locationError)}</p>
+            <p class="body text-[11px] leading-[1.4] text-warn mt-[6px] mb-0">{t(locationError)}</p>
           {/if}
         </div>
       </div>
@@ -543,27 +515,26 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
               aria-expanded={open}
               onclick={() => toggleSection(section.id)}
             >
-              <span style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:{!open && sectionActive(section) ? 'var(--mep-acc)' : 'var(--mep-fg-3)'};">{section.label}</span>
+              <span class="text-[11px] font-semibold tracking-[0.08em] uppercase {!open && sectionActive(section) ? 'text-acc' : 'text-fg-3'}">{section.label}</span>
               {#if locked}
-                <span style="display:inline-flex;align-items:center;font-size:11px;font-weight:700;letter-spacing:0.04em;padding:0 5px;border-radius:var(--mep-r-tag);background:var(--mep-hover);color:var(--mep-fg-2);border:1px solid var(--mep-border);">{t('nav.badge.pro')}</span>
+                <span class="inline-flex items-center text-[11px] font-bold tracking-[0.04em] px-[5px] rounded-tag bg-hover text-fg-2 border border-border">{t('nav.badge.pro')}</span>
               {/if}
-              <span style="flex:1;"></span>
+              <span class="flex-1"></span>
               {#if rolledBadge}
                 <span
-                  class="num"
-                  style="font-size:11px;font-weight:600;min-width:16px;height:16px;padding:0 5px;border-radius:var(--mep-r-pill);background:var(--mep-warn-soft);color:var(--mep-warn);display:inline-flex;align-items:center;justify-content:center;"
+                  class="num text-[11px] font-semibold min-w-4 h-4 px-[5px] rounded-pill bg-warn-soft text-warn inline-flex items-center justify-center"
                 >{rolledBadge}</span>
               {/if}
-              <ChevronDown size={12} style="flex-shrink:0;color:var(--mep-fg-3);transition:transform 150ms ease-out;transform:rotate({open ? '0deg' : '-90deg'});" />
+              <ChevronDown size={12} class="shrink-0 text-fg-3" style="transition:transform 150ms ease-out;transform:rotate({open ? '0deg' : '-90deg'});" />
             </button>
           {:else if section.label && collapsed && sectionIndex > 0}
             <div style="display:flex;align-items:center;justify-content:center;padding:0 0 8px;" aria-hidden="true">
               {#if section.pro}
-                <span style="height:1px;flex:1;background:var(--mep-border);margin-left:8px;"></span>
-                <Sparkles size={11} style="flex-shrink:0;margin:0 6px;color:var(--mep-fg-3);" />
-                <span style="height:1px;flex:1;background:var(--mep-border);margin-right:8px;"></span>
+                <span class="h-px flex-1 bg-border ml-2"></span>
+                <Sparkles size={11} class="shrink-0 mx-[6px] text-fg-3" />
+                <span class="h-px flex-1 bg-border mr-2"></span>
               {:else}
-                <span style="height:1px;flex:1;background:var(--mep-divider);margin:0 8px;"></span>
+                <span class="h-px flex-1 bg-divider mx-2"></span>
               {/if}
             </div>
           {/if}
@@ -573,71 +544,40 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
             {@const itemIsLocked = itemLocked(item)}
             <a
               href={periodLink(item.href)}
-              class="sidenav-item"
+              class="sidenav-item relative flex items-center gap-2.5 py-[7px] rounded-md cursor-pointer no-underline text-[13.5px] {collapsed ? 'justify-center px-[7px]' : 'justify-start px-[10px]'} {parentActive ? 'bg-acc-soft font-medium' : 'font-normal'} {navItemColor(parentActive, itemIsLocked)}"
               onclick={(e) => { handleNavClick(item, e); if (!e.defaultPrevented) mobileOpen = false; }}
               data-sveltekit-preload-data={item.proOnly ? 'off' : undefined}
               title={collapsed ? item.label : undefined}
-              style="
-                position:relative;
-                display:flex;align-items:center;gap:10px;
-                padding:{collapsed ? '7px' : '7px 10px'};
-                border-radius:6px;
-                cursor:pointer;text-decoration:none;
-                justify-content:{collapsed ? 'center' : 'flex-start'};
-                background:{parentActive ? 'var(--mep-acc-soft)' : 'transparent'};
-                color:{navItemColor(parentActive, itemIsLocked)};
-                font-size:13.5px;font-weight:{parentActive ? 500 : 400};
-              "
             >
               <item.icon size={16} style={itemIsLocked ? 'opacity:0.5;' : undefined} />
               {#if collapsed && itemIsLocked}
-                <span style="position:absolute;top:2px;right:2px;width:6px;height:6px;border-radius:50%;background:var(--mep-fg-3);" aria-hidden="true"></span>
+                <span class="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-fg-3" aria-hidden="true"></span>
               {:else if collapsed && item.badge}
                 <span
-                  class="num"
+                  class="num absolute -top-0.5 -right-0.5 text-[11px] font-semibold leading-none min-w-4 h-4 px-[3px] rounded-pill inline-flex items-center justify-center {parentActive ? 'bg-acc text-acc-fg' : 'bg-warn-soft text-warn'}"
                   aria-hidden="true"
-                  style="
-                    position:absolute;top:-2px;right:-2px;font-size:11px;font-weight:600;line-height:1;
-                    min-width:16px;height:16px;padding:0 3px;border-radius:var(--mep-r-pill);
-                    background:{parentActive ? 'var(--mep-acc)' : 'var(--mep-warn-soft)'};
-                    color:{parentActive ? 'var(--mep-acc-fg)' : 'var(--mep-warn)'};
-                    display:inline-flex;align-items:center;justify-content:center;
-                  "
                 >{item.badge > 9 ? '9+' : item.badge}</span>
               {/if}
               {#if !collapsed}
-                <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{item.label}</span>
+                <span class="flex-1 overflow-hidden text-ellipsis whitespace-nowrap">{item.label}</span>
                 {#if itemIsLocked}
-                  <Lock size={12} aria-label={t('nav.locked')} style="flex-shrink:0;color:var(--mep-fg-3);" />
+                  <Lock size={12} aria-label={t('nav.locked')} class="shrink-0 text-fg-3" />
                 {/if}
                 {#if item.badge}
                   <span
-                    class="num"
-                    style="
-                      font-size:11px;font-weight:600;min-width:16px;height:16px;
-                      padding:0 5px;border-radius:8px;
-                      background:{parentActive ? 'var(--mep-acc)' : 'var(--mep-warn-soft)'};
-                      color:{parentActive ? 'var(--mep-acc-fg)' : 'var(--mep-warn)'};
-                      display:inline-flex;align-items:center;justify-content:center;
-                    "
+                    class="num text-[11px] font-semibold min-w-4 h-4 px-[5px] rounded-lg inline-flex items-center justify-center {parentActive ? 'bg-acc text-acc-fg' : 'bg-warn-soft text-warn'}"
                   >{item.badge}</span>
                 {/if}
               {/if}
             </a>
 
             {#if !collapsed && item.sub && parentActive}
-              <div style="margin-left:32px;margin-top:1px;margin-bottom:4px;padding-left:10px;border-left:1px solid var(--mep-divider);display:flex;flex-direction:column;">
+              <div class="ml-8 mt-px mb-1 pl-[10px] border-l border-divider flex flex-col">
                 {#each item.sub as sub}
                   <a
                     href={periodLink(sub.href)}
                     onclick={() => mobileOpen = false}
-                    style="
-                      padding:5px 10px;border-radius:5px;text-decoration:none;
-                      font-size:12.5px;
-                      color:{is(sub.href) ? 'var(--mep-fg)' : 'var(--mep-fg-2)'};
-                      font-weight:{is(sub.href) ? 500 : 400};
-                      background:{is(sub.href) ? 'var(--mep-hover)' : 'transparent'};
-                    "
+                    class="py-[5px] px-[10px] rounded-[5px] no-underline text-[12.5px] {is(sub.href) ? 'text-fg font-medium bg-hover' : 'text-fg-2 font-normal'}"
                   >{sub.label}</a>
                 {/each}
               </div>
@@ -651,14 +591,14 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
 
     {#if !collapsed && revealAll}
     <a href="/billing" onclick={() => mobileOpen = false}
-      style="display:block;margin:0 4px 14px;padding:10px;border-radius:8px;background:{data.trialExpired ? 'var(--mep-neg-soft)' : 'var(--mep-surface-2)'};border:1px solid {data.trialExpired ? 'var(--mep-neg)' : 'var(--mep-divider)'};text-decoration:none;">
+      class="block mx-1 mb-[14px] p-[10px] rounded-lg no-underline border {data.trialExpired ? 'bg-neg-soft border-neg' : 'bg-surface-2 border-divider'}">
       {#if data.trialExpired}
-        <div style="font-size:11px;font-weight:500;color:var(--mep-neg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{t('sidebar.trialExpiredChip')}</div>
+        <div class="text-[11px] font-medium text-neg truncate">{t('sidebar.trialExpiredChip')}</div>
       {:else}
-        <div style="font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;{data.quotaLimit ? 'margin-bottom:7px;' : ''}"><span style="font-weight:500;color:var(--mep-fg-2);">{t(data.planNameKey)}</span><span style="color:var(--mep-fg-3);">&nbsp;·&nbsp;</span><span class="num" style="color:var(--mep-fg-3);">{data.quotaUsed}{#if data.quotaLimit}/{data.quotaLimit}{/if}</span><span style="color:var(--mep-fg-3);">&nbsp;{#if data.subscriptionStatus === 'canceled'}· {t('billing.canceled')}{:else}{t('shell.quota')}{/if}</span></div>
+        <div class="text-[11px] truncate {data.quotaLimit ? 'mb-[7px]' : ''}"><span class="font-medium text-fg-2">{t(data.planNameKey)}</span><span class="text-fg-3">&nbsp;·&nbsp;</span><span class="num text-fg-3">{data.quotaUsed}{#if data.quotaLimit}/{data.quotaLimit}{/if}</span><span class="text-fg-3">&nbsp;{#if data.subscriptionStatus === 'canceled'}· {t('billing.canceled')}{:else}{t('shell.quota')}{/if}</span></div>
         {#if data.quotaLimit}
-          <div style="height:4px;border-radius:2px;background:var(--mep-divider);overflow:hidden;">
-            <div style="width:{Math.min(100, Math.round(data.quotaUsed / data.quotaLimit * 100))}%;height:100%;background:var(--mep-acc);border-radius:2px;{data.quotaUsed > 0 ? 'min-width:3px;' : ''}"></div>
+          <div class="h-1 rounded-sm bg-divider overflow-hidden">
+            <div class="h-full bg-acc rounded-sm" style="width:{Math.min(100, Math.round(data.quotaUsed / data.quotaLimit * 100))}%;{data.quotaUsed > 0 ? 'min-width:3px;' : ''}"></div>
           </div>
         {/if}
       {/if}
@@ -670,7 +610,7 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
         <a
           href="/settings"
           onclick={() => mobileOpen = false}
-          style="display:flex;align-items:center;gap:10px;padding:6px 10px;height:30px;border-radius:6px;color:var(--mep-fg-3);font-size:13px;text-decoration:none;"
+          class="flex items-center gap-2.5 px-[10px] py-[6px] h-[30px] rounded-md text-fg-3 text-[13px] no-underline"
         >
           <Settings size={15} />
           <span>{t('nav.settings')}</span>
@@ -679,7 +619,7 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
         <a
           href="/help"
           onclick={() => mobileOpen = false}
-          style="display:flex;align-items:center;gap:10px;padding:6px 10px;height:30px;border-radius:6px;color:var(--mep-fg-3);font-size:13px;text-decoration:none;"
+          class="flex items-center gap-2.5 px-[10px] py-[6px] h-[30px] rounded-md text-fg-3 text-[13px] no-underline"
         >
           <CircleHelp size={15} />
           <span>{t('nav.help')}</span>
@@ -687,9 +627,8 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
 
         <button
           type="button"
-          class="md:hidden flex"
+          class="md:hidden flex items-center gap-2.5 px-[10px] py-[6px] h-[30px] rounded-md text-fg-3 text-[13px] bg-transparent border-none cursor-pointer text-left w-full"
           onclick={toggleLocale}
-          style="align-items:center;gap:10px;padding:6px 10px;height:30px;border-radius:6px;color:var(--mep-fg-3);font-size:13px;background:transparent;border:none;cursor:pointer;text-align:left;width:100%;"
         >
           <Languages size={15} />
           <span>{t('a11y.switchLanguage')}</span>
@@ -697,9 +636,8 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
 
         <button
           type="button"
-          class="md:hidden flex"
+          class="md:hidden flex items-center gap-2.5 px-[10px] py-[6px] h-[30px] rounded-md text-fg-3 text-[13px] bg-transparent border-none cursor-pointer text-left w-full"
           onclick={toggleTheme}
-          style="align-items:center;gap:10px;padding:6px 10px;height:30px;border-radius:6px;color:var(--mep-fg-3);font-size:13px;background:transparent;border:none;cursor:pointer;text-align:left;width:100%;"
         >
           {#if theme === 'dark'}<Sun size={15} />{:else}<Moon size={15} />{/if}
           <span>{t('a11y.switchTheme')}</span>
@@ -707,36 +645,36 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
       </div>
 
       <div style="display:flex;gap:10px;padding:8px 10px 0;flex-wrap:wrap;">
-        <a href="/privacy" style="font-size:11px;color:var(--mep-fg-3);text-decoration:none;white-space:nowrap;">{t('footer.privacy')}</a>
-        <a href="/terms"   style="font-size:11px;color:var(--mep-fg-3);text-decoration:none;white-space:nowrap;">{t('footer.terms')}</a>
+        <a href="/privacy" class="text-[11px] text-fg-3 no-underline whitespace-nowrap">{t('footer.privacy')}</a>
+        <a href="/terms"   class="text-[11px] text-fg-3 no-underline whitespace-nowrap">{t('footer.terms')}</a>
       </div>
 
       <div style="margin-top:10px;padding:8px;display:flex;align-items:center;gap:10px;border-radius:8px;">
-        <div style="width:28px;height:28px;border-radius:14px;flex-shrink:0;background:var(--mep-acc);color:var(--mep-acc-fg);font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;">
+        <div class="w-7 h-7 rounded-full shrink-0 bg-acc text-acc-fg text-[11px] font-semibold flex items-center justify-center">
           {userInitials}
         </div>
-        <div style="min-width:0;flex:1;">
-          <div style="font-size:12.5px;font-weight:500;color:var(--mep-fg);line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+        <div class="min-w-0 flex-1">
+          <div class="text-[12.5px] font-medium text-fg leading-[1.2] truncate">
             {userName}
           </div>
-          <div style="font-size:11px;color:var(--mep-fg-3);">{data.restaurantName}</div>
+          <div class="text-[11px] text-fg-3">{data.restaurantName}</div>
         </div>
-        <form method="POST" action="/logout" style="flex-shrink:0;" onsubmit={handleLogoutSubmit}>
+        <form method="POST" action="/logout" class="shrink-0" onsubmit={handleLogoutSubmit}>
           <button
             type="submit"
             title={t('action.switchAccount')}
             aria-label={t('action.switchAccount')}
-            style="width:40px;height:40px;background:transparent;border:none;cursor:pointer;color:var(--mep-fg-3);display:flex;align-items:center;justify-content:center;border-radius:6px;"
+            class="w-10 h-10 bg-transparent border-none cursor-pointer text-fg-3 flex items-center justify-center rounded-md"
           >
             <ArrowLeftRight size={13} />
           </button>
         </form>
-        <form method="POST" action="/logout" style="flex-shrink:0;" onsubmit={handleLogoutSubmit}>
+        <form method="POST" action="/logout" class="shrink-0" onsubmit={handleLogoutSubmit}>
           <button
             type="submit"
             title={t('action.logout')}
             aria-label={t('action.logout')}
-            style="width:40px;height:40px;background:transparent;border:none;cursor:pointer;color:var(--mep-fg-3);display:flex;align-items:center;justify-content:center;border-radius:6px;"
+            class="w-10 h-10 bg-transparent border-none cursor-pointer text-fg-3 flex items-center justify-center rounded-md"
           >
             <LogOut size={13} />
           </button>
@@ -783,7 +721,7 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
     <div style="width:232px;flex-shrink:0;display:flex;flex-direction:column;"></div>
   {/if}
 
-  <div style="flex:1;min-width:0;display:flex;flex-direction:column;background:var(--mep-bg);">
+  <div class="flex-1 min-w-0 flex flex-col bg-bg">
 
     <header class="app-header shell-header {headerScrolled ? 'is-condensed' : ''}">
 
@@ -877,7 +815,7 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
             <button type="button" class="acct-item" role="menuitem" onclick={toggleLocale}>
               <Languages size={15} />
               <span style="flex:1;">{t('a11y.switchLanguage')}</span>
-              <span style="font-size:11px;font-weight:600;letter-spacing:0.02em;color:var(--mep-fg-3);">
+              <span class="text-[11px] font-semibold tracking-[0.02em] text-fg-3">
                 {locale.current === 'es' ? 'EN' : 'ES'}
               </span>
             </button>
@@ -902,9 +840,9 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
     </header>
 
     {#if data.trialExpired && !is('/billing')}
-      <div style="flex-shrink:0;padding:10px 20px;background:var(--mep-neg-soft);border-bottom:1px solid var(--mep-neg);display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-        <span style="flex:1;min-width:200px;font-size:13px;color:var(--mep-neg);">{t('billing.trialExpiredMsg')}</span>
-        <a href="/billing?upgrade=trial" class="btn btn-primary" style="height:34px;padding:0 14px;text-decoration:none;flex-shrink:0;">
+      <div class="shrink-0 px-5 py-[10px] bg-neg-soft border-b border-neg flex items-center gap-3 flex-wrap">
+        <span class="flex-1 min-w-[200px] text-[13px] text-neg">{t('billing.trialExpiredMsg')}</span>
+        <a href="/billing?upgrade=trial" class="btn btn-primary shrink-0 no-underline" style="height:34px;padding:0 14px;">
           {t('billing.subscribeNow')}
         </a>
       </div>
@@ -941,16 +879,12 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
 
     {#if showComplete && !completeDismissed}
       <div
-        style="position:fixed;inset:0;z-index:110;background:var(--mep-scrim);display:flex;align-items:center;justify-content:center;padding:24px;"
+        class="fixed inset-0 z-[110] bg-[var(--mep-scrim)] flex items-center justify-center p-6"
         role="presentation"
         onclick={() => completeDismissed = true}
       >
         <div
-          style="
-            background:var(--mep-overlay);border:1px solid var(--mep-border-strong);
-            border-radius:var(--mep-r-card);padding:32px 28px;max-width:360px;width:100%;
-            box-shadow:var(--mep-shadow-pop);text-align:center;
-          "
+          class="bg-[var(--mep-overlay)] border border-border-strong rounded-card px-7 py-8 max-w-[360px] w-full shadow-pop text-center"
           role="dialog"
           tabindex="-1"
           aria-modal="true"
@@ -991,11 +925,7 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
 
     {#if showTourNudge}
       <div
-        style="
-          position:fixed;right:20px;bottom:20px;z-index:105;
-          width:300px;background:var(--mep-overlay);border:1px solid var(--mep-border-strong);
-          border-radius:var(--mep-r-card);padding:16px 16px 14px;box-shadow:var(--mep-shadow-pop);
-        "
+        class="fixed right-5 bottom-5 z-[105] w-[300px] bg-[var(--mep-overlay)] border border-border-strong rounded-card px-4 pt-4 pb-[14px] shadow-pop"
         role="complementary"
         aria-label={t('tour.nudge.title')}
       >
@@ -1028,16 +958,12 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
 
     {#if upgradeModalOpen}
       <div
-        style="position:fixed;inset:0;z-index:110;background:var(--mep-scrim);display:flex;align-items:center;justify-content:center;padding:24px;"
+        class="fixed inset-0 z-[110] bg-[var(--mep-scrim)] flex items-center justify-center p-6"
         role="presentation"
         onclick={() => upgradeModalOpen = false}
       >
         <div
-          style="
-            background:var(--mep-overlay);border:1px solid var(--mep-border-strong);
-            border-radius:var(--mep-r-card);padding:24px;max-width:380px;width:100%;
-            box-shadow:var(--mep-shadow-pop);
-          "
+          class="bg-[var(--mep-overlay)] border border-border-strong rounded-card p-6 max-w-[380px] w-full shadow-pop"
           role="dialog"
           tabindex="-1"
           aria-modal="true"
@@ -1047,11 +973,11 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
           onkeydown={(e) => { if (e.key === 'Escape') upgradeModalOpen = false; else e.stopPropagation(); }}
         >
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-            <Sparkles size={18} style="color:var(--mep-acc);flex-shrink:0;" />
-            <strong id="upgrade-modal-title" style="flex:1;font-size:16px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.01em;">
+            <Sparkles size={18} class="text-acc shrink-0" />
+            <strong id="upgrade-modal-title" class="flex-1 text-[16px] font-semibold text-fg tracking-[-0.01em]">
               {t('sidebar.upgradeToProTitle')}
             </strong>
-            <span style="display:inline-flex;align-items:center;font-size:11px;font-weight:700;letter-spacing:0.04em;padding:0 5px;border-radius:var(--mep-r-tag);background:var(--mep-hover);color:var(--mep-fg-2);border:1px solid var(--mep-border);">{t('nav.badge.pro')}</span>
+            <span class="inline-flex items-center text-[11px] font-bold tracking-[0.04em] px-[5px] rounded-tag bg-hover text-fg-2 border border-border">{t('nav.badge.pro')}</span>
           </div>
           <p class="body" style="line-height:1.6;margin:0 0 16px;">
             {t('sidebar.upgradeToProDesc')}
@@ -1059,8 +985,8 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
           <div style="display:flex;flex-direction:column;gap:2px;margin-bottom:20px;">
             {#each upgradeFeatures as feature}
               {@const Icon = feature.icon}
-              <div style="display:flex;align-items:center;gap:10px;height:var(--mep-row-h);padding:0 10px;border-radius:var(--mep-r-input);background:var(--mep-hover);">
-                <span style="width:28px;height:28px;flex-shrink:0;border-radius:var(--mep-r-input);background:var(--mep-acc-soft);color:var(--mep-acc);display:inline-flex;align-items:center;justify-content:center;">
+              <div class="flex items-center gap-2.5 h-[var(--mep-row-h)] px-[10px] rounded-input bg-hover">
+                <span class="w-7 h-7 shrink-0 rounded-input bg-acc-soft text-acc inline-flex items-center justify-center">
                   <Icon size={16} />
                 </span>
                 <span class="body-strong">{t(feature.key)}</span>

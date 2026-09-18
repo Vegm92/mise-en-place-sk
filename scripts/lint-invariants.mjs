@@ -373,10 +373,6 @@ function runActionAuthzGate() {
  * entry is budgeted at zero, so new inline token styles fail on arrival.
  */
 const INLINE_TOKEN_STYLE_BUDGET = new Map([
-	['src/routes/(app)/+layout.svelte', 56],
-	['src/routes/(app)/suppliers/[id]/+page.svelte', 53],
-	['src/routes/(app)/budgets/+page.svelte', 49],
-	['src/routes/(app)/analytics/extraction/+page.svelte', 48],
 	['src/lib/components/UploadPanel.svelte', 43],
 	['src/routes/(app)/analytics/prices/+page.svelte', 29],
 	['src/lib/components/mobile/MobileInvoiceDetail.svelte', 27],
