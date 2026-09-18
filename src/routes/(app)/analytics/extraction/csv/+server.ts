@@ -1,6 +1,7 @@
-import { redirect } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
+import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import { sql } from 'drizzle-orm';
 import { toCsv } from '$lib/reports';
 import { trackEvent } from '$lib/server/events';
@@ -22,6 +23,10 @@ interface CorrectionRow extends Record<string, unknown> {
 export const GET: RequestHandler = async ({ locals }) => {
 	const rid = locals.restaurantId;
 	if (!rid) redirect(303, '/');
+
+	if (!(await rateLimitScoped({ scope: 'tenant', name: 'export', max: 5 }, { restaurantId: rid }))) {
+		throw error(429, 'Too many requests — please wait a moment before trying again');
+	}
 
 	const rows = await db.execute<CorrectionRow>(sql`
 		SELECT

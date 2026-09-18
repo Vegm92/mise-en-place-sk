@@ -8,6 +8,7 @@ import { db } from '$lib/server/db';
 import { users } from '$lib/server/schema';
 import { createVerificationToken } from '$lib/server/verification-token';
 import { sendEmail, resetPasswordEmail } from '$lib/server/email';
+import { siteOrigin } from '$lib/server/site-origin';
 
 export const load: PageServerLoad = async () => ({});
 
@@ -39,7 +40,7 @@ export const actions: Actions = {
 			const [user] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
 			if (user) {
 				const token = await createVerificationToken(`reset-password:${email}`);
-				const resetUrl = `${event.url.origin}/reset-password?email=${encodeURIComponent(email)}&token=${token}`;
+				const resetUrl = `${siteOrigin(event.url)}/reset-password?email=${encodeURIComponent(email)}&token=${token}`;
 				await sendEmail(resetPasswordEmail(email, resetUrl));
 			}
 			logAuthEvent('password_reset_requested', { ipHash });

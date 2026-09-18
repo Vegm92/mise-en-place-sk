@@ -85,9 +85,16 @@ function numericCsvText(value: number): string {
 	return Number.isFinite(value) ? value.toFixed(2).replace('.', ',') : '';
 }
 
+export function sanitizeFormulaString<T extends string | null | undefined>(value: T): T {
+	if (typeof value === 'string' && /^[\t\r=+\-@]/.test(value)) {
+		return `'${value}` as T;
+	}
+	return value;
+}
+
 function csvField(value: string | number | null | undefined): string {
 	if (value === null || value === undefined) return '';
-	const text = typeof value === 'number' ? numericCsvText(value) : value;
+	const text = typeof value === 'number' ? numericCsvText(value) : sanitizeFormulaString(value);
 	if (/["\r\n;]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
 	return text;
 }

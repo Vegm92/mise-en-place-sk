@@ -9,6 +9,8 @@ import { moneyToNumber } from '$lib/server/money';
 import { detectMissingInvoices } from '$lib/server/supplier-cadence';
 import { priceDeviations } from '$lib/server/price-deviations';
 import { localToday, periodRange } from '$lib/server/period-range';
+import { rateLimitScoped } from '$lib/server/rate-limit-scope';
+import { requirePositiveIntId } from '$lib/server/route-params';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	const rid = locals.restaurantId!;
@@ -68,9 +70,13 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 export const actions: Actions = {
 	markReviewed: async ({ request, locals }) => {
+		const rid = locals.restaurantId!;
+		if (!(await rateLimitScoped({ scope: 'tenant', name: 'reminders-review', max: 30 }, { restaurantId: rid }))) {
+			redirect(303, '/reminders?rateLimited=1');
+		}
 		const data = await request.formData();
-		const id = Number(data.get('invoiceId'));
-		const ok = await markInvoiceReviewed(id, locals.restaurantId!);
+		const id = requirePositiveIntId(String(data.get('invoiceId') ?? ''), 'invoice');
+		const ok = await markInvoiceReviewed(id, rid);
 		redirect(303, ok ? '/reminders' : '/reminders?conflict=1');
 	},
 };
