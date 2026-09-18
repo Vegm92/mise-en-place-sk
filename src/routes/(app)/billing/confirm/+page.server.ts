@@ -41,11 +41,12 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		if (!(await belongsToTenant(session, locals.restaurantId))) return base;
 
 		const priceId = session.line_items?.data?.[0]?.price?.id ?? null;
-		const tier = priceId ? tierFromPriceId(priceId) : null;
+		const confirmed = session.payment_status === 'paid' || session.payment_status === 'no_payment_required';
+		const tier = priceId ? tierFromPriceId(priceId, { paid: session.payment_status === 'paid' }) : null;
 
 		return {
 			received: true,
-			confirmed: session.payment_status === 'paid' || session.payment_status === 'no_payment_required',
+			confirmed,
 			sessionId,
 			planNameKey: tier ? TIERS[tier].nameKey : null,
 			email: session.customer_details?.email ?? session.customer_email ?? null,

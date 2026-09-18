@@ -7,10 +7,7 @@ const NODE_ENV: string = process.env.NODE_ENV ?? 'development';
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY ?? '';
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET ?? '';
 const STRIPE_FOUNDER_COUPON_ID = process.env.STRIPE_FOUNDER_COUPON_ID ?? '';
-const STRIPE_PRICE_ID_STARTER = (process.env.STRIPE_PRICE_ID_STARTER ?? '').trim();
-const STRIPE_PRICE_ID_PRO = (process.env.STRIPE_PRICE_ID_PRO ?? '').trim();
-const STRIPE_PRICE_ID_BUSINESS = (process.env.STRIPE_PRICE_ID_BUSINESS ?? '').trim();
-const STRIPE_PRICE_ID = (process.env.STRIPE_PRICE_ID ?? '').trim();
+import { STRIPE_PRICE_ID, STRIPE_PRICE_ID_BUSINESS, STRIPE_PRICE_ID_PRO, STRIPE_PRICE_ID_STARTER } from './env';
 import { db, forTenant, runAsSystem } from './db';
 import type { BatchDb } from './batch';
 import { subscriptions, restaurants, settings, systemNotifications, userRestaurants } from './schema';
@@ -148,7 +145,14 @@ function configuredPriceIds(): [PlanTier, string][] {
 
 const reportedUnknownPriceIds = new Set<string>();
 
-export function tierFromPriceId(priceId: string | null | undefined): PlanTier {
+export class UnknownPriceIdError extends Error {
+	constructor(readonly priceId: string, message: string) {
+		super(message);
+		this.name = 'UnknownPriceIdError';
+	}
+}
+
+export function tierFromPriceId(priceId: string | null | undefined, opts?: { paid?: boolean }): PlanTier {
 	if (!priceId) return 'trial';
 	for (const [tier, config] of Object.entries(TIERS) as [PlanTier, TierConfig][]) {
 		if (config.stripePriceId && config.stripePriceId === priceId) return tier;
@@ -168,14 +172,23 @@ export function tierFromPriceId(priceId: string | null | undefined): PlanTier {
 		? ` The live price belongs to Stripe account …${liveAccount} but every configured price belongs to ${configuredAccountList} — STRIPE_SECRET_KEY and the price IDs are from different Stripe accounts.`
 		: '';
 
-	const message = `[billing] Stripe price ID ${priceId} matches no configured tier (configured: ${summary}).${hint} Falling back to 'starter'.`;
+	const outcome = opts?.paid
+		? ' Refusing to resolve a tier for a paying subscription.'
+		: " Falling back to 'starter'.";
+	const message = `[billing] Stripe price ID ${priceId} matches no configured tier (configured: ${summary}).${hint}${outcome}`;
 	console.error(message);
 	if (!reportedUnknownPriceIds.has(priceId)) {
 		reportedUnknownPriceIds.add(priceId);
 		Sentry.captureException(new Error(message), {
-			tags: { area: 'billing', priceId, billingConfig: wrongAccount ? 'stripe_account_mismatch' : 'price_id_unknown' },
+			tags: {
+				area: 'billing',
+				priceId,
+				billingConfig: wrongAccount ? 'stripe_account_mismatch' : 'price_id_unknown',
+				paidSubscription: String(Boolean(opts?.paid)),
+			},
 		});
 	}
+	if (opts?.paid) throw new UnknownPriceIdError(priceId, message);
 	return 'starter';
 }
 
@@ -756,9 +769,11 @@ async function dispatchEvent(event: Stripe.Event, eventCreatedAt: Date): Promise
 	}
 }
 
+const PAID_SUBSCRIPTION_STATUSES = new Set<string>(['active', 'past_due', 'unpaid']);
+
 function subscriptionFields(sub: Stripe.Subscription): { priceId: string | null; tier: PlanTier; periodEnd: Date | null } {
 	const priceId = sub.items.data[0]?.price?.id ?? null;
-	const tier = tierFromPriceId(priceId);
+	const tier = tierFromPriceId(priceId, { paid: PAID_SUBSCRIPTION_STATUSES.has(sub.status) });
 	const periodEnd = sub.items.data[0]?.current_period_end
 		? new Date(sub.items.data[0].current_period_end * 1000)
 		: null;

@@ -30,6 +30,7 @@ const PRO_PRICE = 'price_1U8UWuQvt7HEh0RXaT4eZjF8';
 const BUSINESS_PRICE = 'price_1U9QQbQvt7HEh0RXbK7fXmR2';
 const OTHER_ACCOUNT_PRICE = 'price_1U2AtnBzHhtWXhWLTZxwEx2L';
 
+const stripeMocks = vi.hoisted(() => ({ retrievePrice: vi.fn(), retrieveBalance: vi.fn() }));
 const sentryMocks = vi.hoisted(() => ({ captureException: vi.fn(), captureMessage: vi.fn() }));
 vi.mock('@sentry/sveltekit', () => sentryMocks);
 
@@ -43,9 +44,15 @@ vi.mock('../src/lib/server/db', () => {
 	return { db: { select: chain, update: chain, insert: chain }, forTenant: () => ({ scope: () => ({}) }) };
 });
 
-vi.mock('stripe', () => ({ default: class {} }));
+vi.mock('stripe', () => ({
+	default: class {
+		prices = { retrieve: stripeMocks.retrievePrice };
+		balance = { retrieve: stripeMocks.retrieveBalance };
+	},
+}));
 
-import { TIERS, tierFromPriceId, isTierAvailable } from '../src/lib/server/billing';
+import { TIERS, tierFromPriceId, isTierAvailable, UnknownPriceIdError } from '../src/lib/server/billing';
+import { probeStripe, resetProbeCache } from '../src/lib/server/external-probes';
 
 describe('STRIPE_PRICE_ID_* → TIERS', () => {
 	// `process.env.X ?? ''` is never nullish, so the documented `?? STRIPE_PRICE_ID`
@@ -91,6 +98,48 @@ describe('tierFromPriceId diagnosis', () => {
 		const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
 		tierFromPriceId(`price_1U9ZZz${ACCOUNT_A}Qq8vNe1P`);
 		expect(String(spy.mock.calls[0]![0])).not.toContain('different Stripe accounts');
+		spy.mockRestore();
+	});
+});
+
+// The admin probe used to read process.env.STRIPE_PRICE_ID_STARTER directly and untrimmed,
+// so a padded id made checkout work while the health dashboard reported Stripe broken.
+describe('admin Stripe probe', () => {
+	it('retrieves the same trimmed price id that checkout uses', async () => {
+		resetProbeCache();
+		stripeMocks.retrievePrice.mockClear();
+		stripeMocks.retrievePrice.mockResolvedValue({ unit_amount: 2900, currency: 'eur', livemode: false });
+
+		const result = await probeStripe();
+
+		expect(stripeMocks.retrievePrice).toHaveBeenCalledWith(STARTER_PRICE);
+		expect(result.state).toBe('ok');
+		expect(result.detail).toContain('29.00 EUR');
+	});
+});
+
+// A paying tenant silently served the cheaper tier's entitlements is the dangerous
+// half of the fallback — it must be loud instead.
+describe('unknown price id on a paying subscription', () => {
+	it('throws instead of falling back to starter', () => {
+		const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+		expect(() => tierFromPriceId(OTHER_ACCOUNT_PRICE, { paid: true })).toThrow(UnknownPriceIdError);
+		spy.mockRestore();
+	});
+
+	it('still falls back to starter when the subscription is not paying', () => {
+		const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+		expect(tierFromPriceId(OTHER_ACCOUNT_PRICE, { paid: false })).toBe('starter');
+		spy.mockRestore();
+	});
+
+	it('tags the paid case so it is filterable in Sentry', () => {
+		const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+		sentryMocks.captureException.mockClear();
+		expect(() => tierFromPriceId('price_1U7PpPBzHhtWXhWLMn3kTc9D', { paid: true })).toThrow(UnknownPriceIdError);
+		expect(sentryMocks.captureException.mock.calls[0]![1]).toMatchObject({
+			tags: { area: 'billing', paidSubscription: 'true' },
+		});
 		spy.mockRestore();
 	});
 });

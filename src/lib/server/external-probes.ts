@@ -1,8 +1,8 @@
 import { GoogleGenAI } from '@google/genai';
 import { Resend } from 'resend';
-import { stripe } from './billing';
+import { stripe, TIERS } from './billing';
 import {
-	GEMINI_API_KEY, GEMINI_MODEL, STRIPE_PRICE_ID_STARTER,
+	GEMINI_API_KEY, GEMINI_MODEL,
 	WHATSAPP_ACCESS_TOKEN, WHATSAPP_API_VERSION, WHATSAPP_PHONE_NUMBER_ID,
 } from './env';
 import { withTimeout } from './with-timeout';
@@ -67,11 +67,12 @@ export function probeGemini(): Promise<ProbeResult> {
 
 export function probeStripe(): Promise<ProbeResult> {
 	return probe('stripe', stripe !== null, async () => {
-		if (!STRIPE_PRICE_ID_STARTER) {
+		const starterPriceId = TIERS.starter.stripePriceId;
+		if (!starterPriceId) {
 			await stripe!.balance.retrieve();
 			return 'API reachable · STRIPE_PRICE_ID_STARTER unset';
 		}
-		const price = await stripe!.prices.retrieve(STRIPE_PRICE_ID_STARTER);
+		const price = await stripe!.prices.retrieve(starterPriceId);
 		const amount = price.unit_amount != null ? `${(price.unit_amount / 100).toFixed(2)} ${price.currency.toUpperCase()}` : 'no amount';
 		return `API reachable · starter price ${amount}${price.livemode ? ' (live)' : ' (test mode)'}`;
 	});
