@@ -9,7 +9,7 @@ export async function checkTokenVersion(userId: string, claimedVersion: number |
 		.limit(1);
 
 	if (!row) return null;
-	if (typeof claimedVersion === 'number' && claimedVersion !== row.tokenVersion) return null;
+	if (claimedVersion === undefined || claimedVersion !== row.tokenVersion) return null;
 
 	return row.tokenVersion;
 }

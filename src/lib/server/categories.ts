@@ -4,9 +4,10 @@ import type { BatchDb } from './batch';
 import { categories, categoryBudgets, suppliers } from './schema';
 import { renameProductsCategory } from './products';
 import {
-	MIN_CATEGORY_CONFIDENCE, UNCATEGORIZED_CATEGORY, VALID_CATEGORIES,
-	categoryKey, categorySlug, resolveCategory,
+	UNCATEGORIZED_CATEGORY, VALID_CATEGORIES,
+	categoryKey, categorySlug,
 } from '$lib/constants';
+export { resolveCategoryFor } from './category-resolver';
 
 export type CategoryRow = typeof categories.$inferSelect;
 
@@ -162,22 +163,3 @@ export async function selectableCategoryNames(rid: string, exec: BatchDb = db): 
 	return [...rows.map((c) => c.name), UNCATEGORIZED_CATEGORY];
 }
 
-export async function resolveCategoryFor(
-	rid: string,
-	proposed: unknown,
-	confidence?: number | null,
-	exec: BatchDb = db,
-): Promise<string> {
-	const visible = await listCategories(rid, { includeHidden: false }, exec);
-	const visibleByKey = new Map(visible.map((c) => [c.nameKey, c.name]));
-
-	const confident = !(typeof confidence === 'number' && !Number.isNaN(confidence) && confidence < MIN_CATEGORY_CONFIDENCE);
-	if (typeof proposed === 'string' && confident) {
-		const match = visibleByKey.get(categoryKey(proposed));
-		if (match) return match;
-	}
-
-	const fallback = resolveCategory(proposed, confidence);
-	if (fallback === UNCATEGORIZED_CATEGORY) return UNCATEGORIZED_CATEGORY;
-	return visibleByKey.has(categoryKey(fallback)) ? fallback : UNCATEGORIZED_CATEGORY;
-}

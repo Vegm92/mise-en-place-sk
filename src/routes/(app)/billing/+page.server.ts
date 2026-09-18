@@ -8,6 +8,7 @@ import { subscriptions, restaurants } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
 import { claimRequest, releaseRequest, isValidKey } from '$lib/server/idempotency';
 import { trackEvent } from '$lib/server/events';
+import { siteOrigin } from '$lib/server/site-origin';
 
 export const load: PageServerLoad = async ({ locals, url, parent }) => {
 	if (!locals.user || !locals.restaurantId) redirect(303, '/login');
@@ -182,11 +183,11 @@ export const actions: Actions = {
 			.limit(1);
 
 		if (existing && (existing.status === 'active' || existing.stripeSubscriptionId)) {
-			await redirectExistingSubscriber(rid, existing.stripeCustomerId, url.origin);
+			await redirectExistingSubscriber(rid, existing.stripeCustomerId, siteOrigin(url));
 		}
 
 		if (currentActive) {
-			redirect(303, await getPortalOrBillingUrl(currentActive.stripeCustomerId, url.origin));
+			redirect(303, await getPortalOrBillingUrl(currentActive.stripeCustomerId, siteOrigin(url)));
 		}
 
 		const idemKeyRaw = parsedForm.success ? parsedForm.output.idempotency_key : undefined;
@@ -209,8 +210,8 @@ export const actions: Actions = {
 					restaurantId: rid,
 					customerId,
 					tier,
-					successUrl: `${url.origin}/billing/confirm?session_id={CHECKOUT_SESSION_ID}`,
-					cancelUrl: `${url.origin}/billing`,
+					successUrl: `${siteOrigin(url)}/billing/confirm?session_id={CHECKOUT_SESSION_ID}`,
+					cancelUrl: `${siteOrigin(url)}/billing`,
 					...(idemKey != null ? { idempotencyKey: idemKey } : {}),
 					userId: locals.user.id,
 				});
@@ -222,8 +223,8 @@ export const actions: Actions = {
 					restaurantId: rid,
 					customerId,
 					tier,
-					successUrl: `${url.origin}/billing/confirm?session_id={CHECKOUT_SESSION_ID}`,
-					cancelUrl: `${url.origin}/billing`,
+					successUrl: `${siteOrigin(url)}/billing/confirm?session_id={CHECKOUT_SESSION_ID}`,
+					cancelUrl: `${siteOrigin(url)}/billing`,
 					userId: locals.user.id,
 				});
 			}
@@ -249,7 +250,7 @@ export const actions: Actions = {
 		if (!sub?.stripeCustomerId) error(400, 'No billing account found. Subscribe first.');
 
 		try {
-			redirect(303, await createPortalSession(sub.stripeCustomerId, `${url.origin}/billing`));
+			redirect(303, await createPortalSession(sub.stripeCustomerId, `${siteOrigin(url)}/billing`));
 		} catch (err) {
 			if (!(err instanceof StaleCustomerError)) throw err;
 			await db.update(subscriptions)
