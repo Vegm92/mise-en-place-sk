@@ -147,6 +147,7 @@ function configuredPriceIds(): [PlanTier, string][] {
 }
 
 const reportedUnknownPriceIds = new Set<string>();
+const reportedPaidTierMismatches = new Set<string>();
 
 const PAYING_SUBSCRIPTION_STATUSES: ReadonlySet<string> = new Set<Stripe.Subscription.Status>(['active', 'past_due']);
 
@@ -169,6 +170,9 @@ function reportPaidTierMismatch(priceId: string, subscription: SubscriptionTierC
 		fallbackTier: 'starter',
 	};
 	log.error('paying subscription price matches no configured tier — entitlements downgraded to starter', fields);
+	const dedupeKey = `${subscription.subscriptionId}:${priceId}`;
+	if (reportedPaidTierMismatches.has(dedupeKey)) return;
+	reportedPaidTierMismatches.add(dedupeKey);
 	Sentry.captureException(new Error(message), {
 		level: 'error',
 		tags: {

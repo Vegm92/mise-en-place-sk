@@ -176,6 +176,23 @@ describe('tierFromPriceId on a paying subscription (issue #1075)', () => {
 		spy.mockRestore();
 	});
 
+	// The reconcile in (app)/+layout.server.ts re-resolves the live subscription on
+	// every /billing load, so without a per-subscription dedupe a stale price id
+	// would emit one Sentry event per page view — the quota burn the price-id dedupe
+	// above was added for. The log line still marks every resolution.
+	it('reaches Sentry once per subscription and price, while the log line marks every resolution', () => {
+		const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+		sentryMocks.captureException.mockClear();
+		const ctx = { subscriptionId: 'sub_repeat', status: 'active' as const, restaurantId: 'rest_r' };
+		expect(tierFromPriceId(unknown, ctx)).toBe('starter');
+		expect(tierFromPriceId(unknown, ctx)).toBe('starter');
+		expect(tierFromPriceId(unknown, ctx)).toBe('starter');
+		expect(sentryMocks.captureException).toHaveBeenCalledTimes(1);
+		const logged = spy.mock.calls.map((c) => String(c[0])).filter((line) => line.includes('sub_repeat'));
+		expect(logged).toHaveLength(3);
+		spy.mockRestore();
+	});
+
 	it('keeps the account-mismatch diagnosis on the paying-state alert', () => {
 		const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
 		sentryMocks.captureException.mockClear();
