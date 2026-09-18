@@ -147,7 +147,7 @@ pnpm db:studio       # open Drizzle Studio browser UI
 
 **`const STRIPE_PRICE_ID_STARTER`**
 
-- Stripe price IDs per tier — set in your Stripe dashboard and env.
+- Stripe price IDs per tier — set in your Stripe dashboard and env. This module is the only reader of `STRIPE_PRICE_ID_STARTER` / `_PRO` / `_BUSINESS` and the legacy `STRIPE_PRICE_ID`, and it trims them at export (issue #1075): `billing.ts` builds `TIERS` from these exports instead of re-reading `process.env`, so checkout, the webhook and the admin Stripe probe all see one value. A trailing newline pasted into the deploy console used to be trimmed by `billing.ts` and not here, which made checkout work while the probe reported the integration broken.
 
 **`const WHATSAPP_ACCESS_TOKEN`**
 

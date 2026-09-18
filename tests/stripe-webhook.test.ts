@@ -61,6 +61,7 @@ vi.mock('../src/lib/server/db', async () => {
 });
 
 import { and, eq } from 'drizzle-orm';
+import * as Sentry from '@sentry/sveltekit';
 import { handleWebhookEvent, stripe, syncSubscriptionFromStripe, cancelDuplicateSubscriptionsForUser, applyTierSettings, WEBHOOK_SECRET as MODULE_SECRET } from '../src/lib/server/billing';
 import { subscriptions, settings, idempotencyKeys, userRestaurants } from '../src/lib/server/schema';
 import { users } from '../src/lib/server/schema';
@@ -146,6 +147,32 @@ describe.skipIf(!hasDbEnv)('Stripe webhook — signature verification gates plan
 		const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
 		expect(map.plan_name).toBe('Pro');
 		expect(map.plan_quota).toBe('300');
+	});
+
+	// Issue #1075: a paying subscription whose price matches no configured tier is
+	// still written down to starter (a thrown error here would 500 the webhook and
+	// leave the row stale instead), but the write is never silent — Sentry gets one
+	// event per subscription naming the tenant, the subscription and the price.
+	it('alerts loudly when an active subscription carries a price that matches no tier', async () => {
+		const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+		vi.mocked(Sentry.captureException).mockClear();
+		try {
+			const body = subscriptionUpdatedBody(rid, 'price_unconfigured_1075', 'active');
+			const sig = stripe!.webhooks.generateTestHeaderString({ payload: body, secret: MODULE_SECRET });
+			await handleWebhookEvent(body, sig);
+
+			const row = await planRow();
+			expect(row?.planTier).toBe('starter');
+			expect(row?.stripePriceId).toBe('price_unconfigured_1075');
+			expect(Sentry.captureException).toHaveBeenCalledTimes(1);
+			expect(vi.mocked(Sentry.captureException).mock.calls[0]![1]).toMatchObject({
+				level: 'error',
+				tags: { area: 'billing', op: 'paid_tier_mismatch', priceId: 'price_unconfigured_1075', subscriptionStatus: 'active' },
+				extra: { subscriptionId: 'sub_test_123', restaurantId: rid },
+			});
+		} finally {
+			errorSpy.mockRestore();
+		}
 	});
 });
 

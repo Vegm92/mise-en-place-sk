@@ -7,10 +7,7 @@ const NODE_ENV: string = process.env.NODE_ENV ?? 'development';
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY ?? '';
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET ?? '';
 const STRIPE_FOUNDER_COUPON_ID = process.env.STRIPE_FOUNDER_COUPON_ID ?? '';
-const STRIPE_PRICE_ID_STARTER = (process.env.STRIPE_PRICE_ID_STARTER ?? '').trim();
-const STRIPE_PRICE_ID_PRO = (process.env.STRIPE_PRICE_ID_PRO ?? '').trim();
-const STRIPE_PRICE_ID_BUSINESS = (process.env.STRIPE_PRICE_ID_BUSINESS ?? '').trim();
-const STRIPE_PRICE_ID = (process.env.STRIPE_PRICE_ID ?? '').trim();
+import { STRIPE_PRICE_ID, STRIPE_PRICE_ID_BUSINESS, STRIPE_PRICE_ID_PRO, STRIPE_PRICE_ID_STARTER } from './env';
 import { db, forTenant, runAsSystem } from './db';
 import type { BatchDb } from './batch';
 import { subscriptions, restaurants, settings, systemNotifications, userRestaurants } from './schema';
@@ -21,6 +18,9 @@ import { users } from './schema';
 import { PROVISIONAL_PRICE } from '$lib/billing-plans';
 import { renderTemplate } from '$lib/i18n-messages';
 import { DAY_MS } from '$lib/constants';
+import { createLogger } from './log';
+
+const log = createLogger('billing');
 
 const secretKey = STRIPE_SECRET_KEY;
 export const STRIPE_API_VERSION = '2026-06-24.dahlia';
@@ -148,7 +148,41 @@ function configuredPriceIds(): [PlanTier, string][] {
 
 const reportedUnknownPriceIds = new Set<string>();
 
-export function tierFromPriceId(priceId: string | null | undefined): PlanTier {
+const PAYING_SUBSCRIPTION_STATUSES: ReadonlySet<string> = new Set<Stripe.Subscription.Status>(['active', 'past_due']);
+
+export interface SubscriptionTierContext {
+	subscriptionId: string;
+	status: Stripe.Subscription.Status;
+	restaurantId?: string;
+}
+
+function isPayingSubscriptionStatus(status: string): boolean {
+	return PAYING_SUBSCRIPTION_STATUSES.has(status);
+}
+
+function reportPaidTierMismatch(priceId: string, subscription: SubscriptionTierContext, message: string, wrongAccount: boolean): void {
+	const fields = {
+		subscriptionId: subscription.subscriptionId,
+		restaurantId: subscription.restaurantId ?? null,
+		subscriptionStatus: subscription.status,
+		priceId,
+		fallbackTier: 'starter',
+	};
+	log.error('paying subscription price matches no configured tier — entitlements downgraded to starter', fields);
+	Sentry.captureException(new Error(message), {
+		level: 'error',
+		tags: {
+			area: 'billing',
+			op: 'paid_tier_mismatch',
+			priceId,
+			subscriptionStatus: subscription.status,
+			billingConfig: wrongAccount ? 'stripe_account_mismatch' : 'price_id_unknown',
+		},
+		extra: fields,
+	});
+}
+
+export function tierFromPriceId(priceId: string | null | undefined, subscription?: SubscriptionTierContext): PlanTier {
 	if (!priceId) return 'trial';
 	for (const [tier, config] of Object.entries(TIERS) as [PlanTier, TierConfig][]) {
 		if (config.stripePriceId && config.stripePriceId === priceId) return tier;
@@ -170,7 +204,9 @@ export function tierFromPriceId(priceId: string | null | undefined): PlanTier {
 
 	const message = `[billing] Stripe price ID ${priceId} matches no configured tier (configured: ${summary}).${hint} Falling back to 'starter'.`;
 	console.error(message);
-	if (!reportedUnknownPriceIds.has(priceId)) {
+	if (subscription && isPayingSubscriptionStatus(subscription.status)) {
+		reportPaidTierMismatch(priceId, subscription, message, wrongAccount);
+	} else if (!reportedUnknownPriceIds.has(priceId)) {
 		reportedUnknownPriceIds.add(priceId);
 		Sentry.captureException(new Error(message), {
 			tags: { area: 'billing', priceId, billingConfig: wrongAccount ? 'stripe_account_mismatch' : 'price_id_unknown' },
@@ -756,9 +792,9 @@ async function dispatchEvent(event: Stripe.Event, eventCreatedAt: Date): Promise
 	}
 }
 
-function subscriptionFields(sub: Stripe.Subscription): { priceId: string | null; tier: PlanTier; periodEnd: Date | null } {
+function subscriptionFields(sub: Stripe.Subscription, restaurantId: string): { priceId: string | null; tier: PlanTier; periodEnd: Date | null } {
 	const priceId = sub.items.data[0]?.price?.id ?? null;
-	const tier = tierFromPriceId(priceId);
+	const tier = tierFromPriceId(priceId, { subscriptionId: sub.id, status: sub.status, restaurantId });
 	const periodEnd = sub.items.data[0]?.current_period_end
 		? new Date(sub.items.data[0].current_period_end * 1000)
 		: null;
@@ -789,7 +825,7 @@ async function handleCheckoutCompleted(event: Stripe.Event, eventCreatedAt: Date
 	}
 
 	const sub = await stripe!.subscriptions.retrieve(subscriptionId);
-	const { priceId, tier, periodEnd } = subscriptionFields(sub);
+	const { priceId, tier, periodEnd } = subscriptionFields(sub, restaurantId);
 	const userId = typeof session.metadata?.userId === 'string' ? session.metadata.userId : null;
 	const stripeCustomerId = typeof session.customer === 'string' ? session.customer : session.customer?.id ?? '';
 
@@ -870,7 +906,7 @@ async function handleSubscriptionChanged(event: Stripe.Event, eventCreatedAt: Da
 	if (missingSubscriptionMetadata(event.type, sub.id, restaurantId)) return;
 	if (!restaurantId) return;
 
-	const { priceId, tier, periodEnd } = subscriptionFields(sub);
+	const { priceId, tier, periodEnd } = subscriptionFields(sub, restaurantId);
 	const applied = await db.update(subscriptions)
 		.set({
 			stripePriceId: priceId,
@@ -942,7 +978,7 @@ export async function syncSubscriptionFromStripe(restaurantId: string): Promise<
 		if (!resolved) return;
 
 		const { live, targetSubId: resolvedSubId } = resolved;
-		const { priceId, tier, periodEnd } = subscriptionFields(live);
+		const { priceId, tier, periodEnd } = subscriptionFields(live, rootRid);
 		const trialEndsAt = live.trial_end ? new Date(live.trial_end * 1000) : null;
 		const status = live.status as SubscriptionStatus;
 
