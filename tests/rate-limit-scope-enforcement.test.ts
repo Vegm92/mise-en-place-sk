@@ -100,6 +100,8 @@ describe('checkRateLimit() call sites go through rateLimitScoped() (issue #440)'
 	it('the authenticated call sites this issue fixed do route through rateLimitScoped() (sanity check against a silently-emptied scan)', () => {
 		const mustUseHelper = [
 			'src/routes/(app)/api/chat/+server.ts',
+			'src/routes/(app)/api/sidebar/+server.ts',
+			'src/routes/(app)/api/tutorial/+server.ts',
 			'src/routes/(app)/api/unit-conversions/+server.ts',
 			'src/routes/(app)/api/notifications/+server.ts',
 			'src/routes/(app)/api/product-aliases/+server.ts',
@@ -107,6 +109,7 @@ describe('checkRateLimit() call sites go through rateLimitScoped() (issue #440)'
 			'src/routes/(app)/api/stock-levels/+server.ts',
 			'src/routes/(app)/api/trend/+server.ts',
 			'src/routes/(app)/api/active-restaurant/+server.ts',
+			'src/routes/(app)/api/sidebar/+server.ts',
 			'src/routes/(app)/products/+page.server.ts',
 			'src/routes/(app)/products/[id]/+page.server.ts',
 			'src/routes/(app)/invoices/+page.server.ts',
@@ -115,6 +118,7 @@ describe('checkRateLimit() call sites go through rateLimitScoped() (issue #440)'
 			'src/routes/(app)/+page.server.ts',
 			'src/routes/api/user/delete/+server.ts',
 			'src/routes/api/user/export/+server.ts',
+			'src/routes/api/upload/[id]/[file]/+server.ts',
 			'src/lib/server/whatsapp-pairing.ts',
 			'src/routes/(app)/settings/+page.server.ts',
 		];

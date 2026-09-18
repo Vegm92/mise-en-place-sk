@@ -26,6 +26,7 @@ import { passwordPolicyError } from '$lib/server/password-policy';
 import { createVerificationToken } from '$lib/server/verification-token';
 import { issueSessionCookie } from '$lib/server/auth-session';
 import { sendEmail, changeEmailAddress } from '$lib/server/email';
+import { siteOrigin } from '$lib/server/site-origin';
 import { listContacts, removeContact } from '$lib/server/whatsapp-contacts';
 import { WHATSAPP_ACCESS_TOKEN, WHATSAPP_DISPLAY_NUMBER, WHATSAPP_PHONE_NUMBER_ID } from '$lib/server/env';
 import { formatPhoneNumber, normalizePhoneNumber, waMeLink } from '$lib/phone';
@@ -218,7 +219,7 @@ export const actions: Actions = {
 		if (taken) return fail(400, { section: 'email', error: 'set.profile.err.emailFailed' });
 
 		const token = await createVerificationToken(`change-email:${locals.user!.id}:${email}`);
-		const confirmUrl = `${url.origin}/settings/confirm-email?email=${encodeURIComponent(email)}&token=${token}`;
+		const confirmUrl = `${siteOrigin(url)}/settings/confirm-email?email=${encodeURIComponent(email)}&token=${token}`;
 		await sendEmail(changeEmailAddress(email, confirmUrl));
 
 		return { section: 'email', ok: 'set.profile.ok.email' };

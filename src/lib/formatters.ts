@@ -153,21 +153,56 @@ export function semColor(pct: number): string {
 	return 'var(--mep-neg)';
 }
 
+const DATE_CACHE_MAX = 2000;
+const fmtDateCache = new Map<string, string>();
+const fmtDateShortCache = new Map<string, string>();
+const fmtMonthShortCache = new Map<string, string>();
+
 export function fmtDate(d: string | null, locale: Locale = 'es'): string {
 	if (!d) return '—';
+	const key = `${locale}:${d}`;
+	let cached = fmtDateCache.get(key);
+	if (cached !== undefined) return cached;
+
 	const fmtInst = dateFormatters[locale] ?? dateFormatters.es;
-	return fmtInst.format(new Date(d));
+	cached = fmtInst.format(new Date(d));
+
+	if (fmtDateCache.size >= DATE_CACHE_MAX) {
+		fmtDateCache.clear();
+	}
+	fmtDateCache.set(key, cached);
+	return cached;
 }
 
 export function fmtDateShort(d: string | null, locale: Locale = 'es'): string {
 	if (!d) return '—';
+	const key = `${locale}:${d}`;
+	let cached = fmtDateShortCache.get(key);
+	if (cached !== undefined) return cached;
+
 	const fmtInst = dateShortFormatters[locale] ?? dateShortFormatters.es;
-	return fmtInst.format(new Date(d));
+	cached = fmtInst.format(new Date(d));
+
+	if (fmtDateShortCache.size >= DATE_CACHE_MAX) {
+		fmtDateShortCache.clear();
+	}
+	fmtDateShortCache.set(key, cached);
+	return cached;
 }
 
 export function fmtMonthShort(ym: string, locale: Locale = 'es'): string {
+	const key = `${locale}:${ym}`;
+	let cached = fmtMonthShortCache.get(key);
+	if (cached !== undefined) return cached;
+
 	const fmtInst = monthShortFormatters[locale] ?? monthShortFormatters.es;
-	return fmtInst.format(new Date(`${ym}-01T00:00:00`));
+	cached = fmtInst.format(new Date(`${ym}-01T00:00:00`));
+
+	if (fmtMonthShortCache.size >= DATE_CACHE_MAX) {
+		fmtMonthShortCache.clear();
+	}
+	fmtMonthShortCache.set(key, cached);
+	return cached;
 }
 
 export function initials(name: string): string {

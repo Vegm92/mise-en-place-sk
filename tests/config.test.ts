@@ -8,6 +8,7 @@ const complete = {
 	STRIPE_SECRET_KEY: 'c',
 	STRIPE_WEBHOOK_SECRET: 'd',
 	GEMINI_API_KEY: 'e',
+	APP_BASE_URL: 'https://app.example.com',
 };
 
 describe('assertProductionEnv', () => {
