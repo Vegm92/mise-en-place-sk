@@ -12,13 +12,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as v from 'valibot';
 
-const { rateLimitMock, logAuthEventMock, RateLimitBackendUnavailableError } = vi.hoisted(() => ({
+const { rateLimitMock, logAuthEventMock } = vi.hoisted(() => ({
 	rateLimitMock: vi.fn().mockResolvedValue(true),
 	logAuthEventMock: vi.fn(),
-	RateLimitBackendUnavailableError: class extends Error {},
 }));
 
-vi.mock('$lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock, RateLimitBackendUnavailableError }));
+vi.mock('$lib/server/rate-limiter', async (importOriginal) => ({
+	...(await importOriginal<typeof import('../src/lib/server/rate-limiter')>()),
+	checkRateLimit: rateLimitMock,
+}));
 vi.mock('$lib/server/env', async (importOriginal) => ({
 	...(await importOriginal<typeof import('../src/lib/server/env')>()),
 	TURNSTILE_SECRET_KEY: 'turnstile-secret',
@@ -29,6 +31,7 @@ vi.mock('$lib/server/auth-events', () => ({
 }));
 
 import { publicFormAction, formToRecord, parseForm } from '../src/lib/server/public-form-action';
+import { RateLimitBackendUnavailableError } from '../src/lib/server/rate-limiter';
 import { fileFormData, formDataEvent, maliciousFile } from './helpers/form-data';
 
 const EVENT_BASE = { url: new URL('https://app.example.test'), getClientAddress: () => '203.0.113.7' };
@@ -281,7 +284,7 @@ describe('publicFormAction — fail closed in production (issue #1072)', () => {
 	});
 
 	it('answers 503 — not 429, not the handler — when the rate-limit backend is unavailable', async () => {
-		rateLimitMock.mockRejectedValueOnce(new RateLimitBackendUnavailableError('down'));
+		rateLimitMock.mockRejectedValueOnce(new RateLimitBackendUnavailableError());
 		const handler = vi.fn();
 		const action = publicFormAction(
 			{
