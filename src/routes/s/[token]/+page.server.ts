@@ -4,6 +4,7 @@ import { buildPublicDigestPayload, resolveShareToken } from '$lib/server/digest-
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import { DIGEST_SHARE_VIEW_RATE_LIMIT_RPM } from '$lib/server/env';
 import { runAsSystem } from '$lib/server/db';
+import { canonicalUrl } from '$lib/server/site-origin';
 
 export const load: PageServerLoad = async ({ params, url, getClientAddress }) => {
 	const ip = getClientAddress();
@@ -20,7 +21,7 @@ export const load: PageServerLoad = async ({ params, url, getClientAddress }) =>
 
 	return {
 		token: params.token,
-		canonicalUrl: `${url.origin}/s/${params.token}`,
+		canonicalUrl: canonicalUrl(url, `/s/${params.token}`),
 		...payload,
 	};
 };
