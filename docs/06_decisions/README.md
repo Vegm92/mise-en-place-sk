@@ -128,12 +128,13 @@ For *how the code works*, see the per-subsystem `## Code notes` sections (`docs/
 |---|---|---|
 | [022](./conventions/ADR-022-invariants-enforced-in-ci.md) | Architectural invariants are CI gates, not conventions | Active |
 | [029](./conventions/ADR-029-rate-limit-identity-is-tenant-or-user-by-what-the-limit-protects.md) | Rate-limit identity is tenant or user, chosen by what the limit protects | Active |
+| [043](./conventions/ADR-043-security-controls-fail-closed-in-production.md) | Security controls fail closed in production, open only in dev | Active |
 
 ## Conventions
 
 **Numbering is global and sequential.** ADR-014 is ADR-014 wherever it lives, so
 a reference in code, a commit message or an issue resolves without a path. Next
-number: **041**.
+number: **044**.
 
 **Known collisions (parallel branches picked the same number before merging):**
 ADR-025 exists twice (`insights/`, `whatsapp/`), ADR-027 exists twice

@@ -8,6 +8,8 @@ import {
 
 type UpstashLimiter = { limit(key: string): Promise<{ success: boolean }> };
 
+const upstashConfigured = Boolean(UPSTASH_REDIS_REST_URL && UPSTASH_REDIS_REST_TOKEN);
+
 let upstashEnabled = false;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let RatelimitClass: any = null;
@@ -15,7 +17,11 @@ let RatelimitClass: any = null;
 let redisClient: any = null;
 const upstashLimiters = new Map<string, UpstashLimiter>();
 
-if (UPSTASH_REDIS_REST_URL && UPSTASH_REDIS_REST_TOKEN) {
+function upstashFailClosed(): boolean {
+	return upstashConfigured && process.env.NODE_ENV === 'production';
+}
+
+if (upstashConfigured) {
 	try {
 		const [{ Redis }, { Ratelimit }] = await Promise.all([
 			import('@upstash/redis'),
@@ -94,9 +100,10 @@ export async function checkRateLimit(
 			const { success } = await limiter.limit(key);
 			return success;
 		} catch (e) {
-			console.error('[rate-limiter] Upstash error, falling back to in-memory:', e);
+			console.error('[rate-limiter] Upstash error:', e);
 		}
 	}
+	if (upstashFailClosed()) return false;
 	return checkInMemory(key, max, windowSeconds);
 }
 

@@ -1,7 +1,12 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { verifyTurnstileToken } from '../src/lib/server/turnstile';
 
-afterEach(() => vi.restoreAllMocks());
+const ORIGINAL_NODE_ENV = process.env.NODE_ENV;
+
+afterEach(() => {
+	vi.restoreAllMocks();
+	process.env.NODE_ENV = ORIGINAL_NODE_ENV;
+});
 
 const okResponse = (success: boolean) =>
 	({ ok: true, json: async () => ({ success }) }) as Response;
@@ -29,15 +34,41 @@ describe('verifyTurnstileToken', () => {
 		await expect(verifyTurnstileToken('tok', '203.0.113.7', 'secret')).resolves.toBe(false);
 	});
 
-	it('fails open when siteverify is unreachable', async () => {
+	it('fails open outside production when siteverify is unreachable', async () => {
+		process.env.NODE_ENV = 'development';
 		vi.spyOn(console, 'error').mockImplementation(() => {});
 		vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('ENOTFOUND'));
 		await expect(verifyTurnstileToken('tok', '203.0.113.7', 'secret')).resolves.toBe(true);
 	});
 
-	it('fails open on a non-200 siteverify response', async () => {
+	it('fails open outside production on a non-200 siteverify response', async () => {
+		process.env.NODE_ENV = 'development';
 		vi.spyOn(console, 'error').mockImplementation(() => {});
 		vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: false, status: 503 } as Response);
 		await expect(verifyTurnstileToken('tok', '203.0.113.7', 'secret')).resolves.toBe(true);
+	});
+
+	it('fails closed in production when siteverify is unreachable (issue #1072)', async () => {
+		process.env.NODE_ENV = 'production';
+		vi.spyOn(console, 'error').mockImplementation(() => {});
+		vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('ENOTFOUND'));
+		await expect(verifyTurnstileToken('tok', '203.0.113.7', 'secret')).resolves.toBe(false);
+	});
+
+	it('fails closed in production on a non-200 siteverify response (issue #1072)', async () => {
+		process.env.NODE_ENV = 'production';
+		vi.spyOn(console, 'error').mockImplementation(() => {});
+		vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: false, status: 503 } as Response);
+		await expect(verifyTurnstileToken('tok', '203.0.113.7', 'secret')).resolves.toBe(false);
+	});
+
+	it('retries once before giving up, and accepts a token the retry confirms', async () => {
+		process.env.NODE_ENV = 'production';
+		vi.spyOn(console, 'error').mockImplementation(() => {});
+		const fetchSpy = vi.spyOn(globalThis, 'fetch')
+			.mockRejectedValueOnce(new Error('ENOTFOUND'))
+			.mockResolvedValueOnce(okResponse(true));
+		await expect(verifyTurnstileToken('tok', '203.0.113.7', 'secret')).resolves.toBe(true);
+		expect(fetchSpy).toHaveBeenCalledTimes(2);
 	});
 });

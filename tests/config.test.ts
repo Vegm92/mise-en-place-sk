@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { assertProductionEnv, addressHeaderWarning, validateAdminSeedConfig } from '../src/lib/server/config';
+import { assertProductionEnv, addressHeaderWarning, assertAddressHeaderTrust, validateAdminSeedConfig } from '../src/lib/server/config';
 
 const complete = {
 	NODE_ENV: 'production',
@@ -86,11 +86,6 @@ describe('addressHeaderWarning', () => {
 		expect(warning).toContain('ADDRESS_HEADER is not set');
 	});
 
-	it('warns in production when ADDRESS_HEADER is set but no known proxy platform is detected', () => {
-		const warning = addressHeaderWarning({ NODE_ENV: 'production', ADDRESS_HEADER: 'x-forwarded-for' });
-		expect(warning).toContain('no known managed-proxy platform');
-	});
-
 	it('is silent when ADDRESS_HEADER is set on a known proxy platform', () => {
 		expect(addressHeaderWarning({
 			NODE_ENV: 'production',
@@ -107,5 +102,33 @@ describe('addressHeaderWarning', () => {
 			ADDRESS_HEADER: 'x-forwarded-for',
 			FLY_APP_NAME: 'mise-en-place',
 		})).toBeNull();
+	});
+});
+
+describe('assertAddressHeaderTrust (issue #1072)', () => {
+	it('refuses to boot in production when ADDRESS_HEADER is set with no known proxy platform', () => {
+		expect(() => assertAddressHeaderTrust({ NODE_ENV: 'production', ADDRESS_HEADER: 'x-forwarded-for' }))
+			.toThrow('no known managed-proxy platform');
+		expect(() => assertProductionEnv({ ...complete, ADDRESS_HEADER: 'x-forwarded-for' }))
+			.toThrow('no known managed-proxy platform');
+	});
+
+	it('allows an operator-run proxy to acknowledge itself with TRUSTED_PROXY=1', () => {
+		expect(() => assertAddressHeaderTrust({
+			NODE_ENV: 'production',
+			ADDRESS_HEADER: 'x-forwarded-for',
+			TRUSTED_PROXY: '1',
+		})).not.toThrow();
+	});
+
+	it('allows a known managed-proxy platform, an unset header, and non-production', () => {
+		expect(() => assertAddressHeaderTrust({
+			NODE_ENV: 'production',
+			ADDRESS_HEADER: 'x-forwarded-for',
+			RAILWAY_PROJECT_ID: 'proj_123',
+		})).not.toThrow();
+		expect(() => assertAddressHeaderTrust({ NODE_ENV: 'production' })).not.toThrow();
+		expect(() => assertAddressHeaderTrust({ NODE_ENV: 'development', ADDRESS_HEADER: 'x-forwarded-for' }))
+			.not.toThrow();
 	});
 });

@@ -19,6 +19,8 @@ export function assertProductionEnv(env: NodeJS.ProcessEnv = process.env): void 
 	if (missing.length > 0) {
 		throw new Error(`Missing required environment variable(s) in production: ${missing.join(', ')}`);
 	}
+
+	assertAddressHeaderTrust(env);
 }
 
 export function validateAdminSeedConfig(env: NodeJS.ProcessEnv = process.env): void {
@@ -51,17 +53,21 @@ export function addressHeaderWarning(env: NodeJS.ProcessEnv = process.env): stri
 		);
 	}
 
-	const onKnownProxyPlatform = KNOWN_PROXY_PLATFORM_ENV_VARS.some(key => Boolean(env[key]));
-	if (!onKnownProxyPlatform) {
-		return (
-			'[hooks] ADDRESS_HEADER is set but no known managed-proxy platform (Railway/Render/Fly) was detected via env vars. ' +
-			'getClientAddress() trusts whatever the client sends in that header unless something in front of this process actually ' +
-			'terminates TLS and overwrites it on every request. If nothing does — e.g. the stock docker-compose.yml topology, which ' +
-			'publishes the port directly — unset ADDRESS_HEADER/XFF_DEPTH, or any client can spoof its IP and bypass the ' +
-			'login/signup/waitlist rate limits. If you have your own reverse proxy (nginx/Caddy) in front that does rewrite the ' +
-			'header, this warning is a false positive and can be ignored.'
-		);
-	}
-
 	return null;
+}
+
+export function assertAddressHeaderTrust(env: NodeJS.ProcessEnv = process.env): void {
+	if (env.NODE_ENV !== 'production') return;
+	if (!env.ADDRESS_HEADER) return;
+	if (env.TRUSTED_PROXY === '1') return;
+	if (KNOWN_PROXY_PLATFORM_ENV_VARS.some(key => Boolean(env[key]))) return;
+
+	throw new Error(
+		'[boot] ADDRESS_HEADER is set but no known managed-proxy platform (Railway/Render/Fly) was detected via env vars — ' +
+		'refusing to start in production. getClientAddress() would trust whatever the client sends in that header unless ' +
+		'something in front of this process terminates TLS and overwrites it on every request. If nothing does — e.g. the ' +
+		'stock docker-compose.yml topology, which publishes the port directly — any client can spoof its IP and bypass the ' +
+		'login/signup/waitlist rate limits. Unset ADDRESS_HEADER/XFF_DEPTH, or set TRUSTED_PROXY=1 to confirm your own ' +
+		'reverse proxy (nginx/Caddy) rewrites the header on every request.',
+	);
 }
