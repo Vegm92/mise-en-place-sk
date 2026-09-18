@@ -40,14 +40,14 @@ export function formatSummary(
 }
 
 export async function notifyWhatsAppSender(
-	{ itemId }: WhatsAppNotifyJobData,
+	{ itemId, restaurantId }: WhatsAppNotifyJobData,
 	ctx: WhatsAppMessageContext,
 ): Promise<void> {
 	const item = await getItem(itemId);
 	if (!item || item.source !== 'whatsapp' || !item.sourceRef) return;
 
 	if (item.status === 'failed') {
-		await setReviewStatus(itemId, 'to_review', [null, 'pending']);
+		await setReviewStatus(restaurantId, itemId, 'to_review', [null, 'pending']);
 		await ctx.sendText(
 			item.sourceRef,
 			`❌ No he podido leer esta factura. Súbela desde el panel web:\n${batchLink(item.batchId)}`,
@@ -57,6 +57,6 @@ export async function notifyWhatsAppSender(
 
 	if (item.status !== 'done') return;
 
-	await setReviewStatus(itemId, 'pending', [null]);
+	await setReviewStatus(restaurantId, itemId, 'pending', [null]);
 	await ctx.sendText(item.sourceRef, formatSummary(item.extractedData, item.jobCode));
 }

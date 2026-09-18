@@ -93,18 +93,19 @@ async function handlePairingAttempt(
 }
 
 async function resolveJob(
+	restaurantId: string,
 	from: string,
 	code: string | null,
 	ctx: WhatsAppMessageContext,
 ): Promise<WhatsAppJob | null> {
 	if (code) {
-		const byCode = await findJobByCode(from, code);
+		const byCode = await findJobByCode(restaurantId, from, code);
 		if (byCode) return byCode;
 		await ctx.sendText(from, `⚠️ No tengo ninguna factura con el código ${code} esperando confirmación.`);
 		return null;
 	}
 
-	const pending = await pendingJobsFor(from);
+	const pending = await pendingJobsFor(restaurantId, from);
 	if (pending.length === 1) return pending[0]!;
 	if (pending.length === 0) {
 		await ctx.sendText(from, 'No tengo ninguna factura esperando confirmación.');
@@ -119,6 +120,7 @@ async function resolveJob(
 }
 
 async function handleTextReply(
+	restaurantId: string,
 	from: string,
 	body: string,
 	ctx: WhatsAppMessageContext,
@@ -132,15 +134,15 @@ async function handleTextReply(
 		return;
 	}
 
-	const job = await resolveJob(from, parsed.code, ctx);
+	const job = await resolveJob(restaurantId, from, parsed.code, ctx);
 	if (!job) return;
 
-	if (!(await setReviewStatus(job.id, parsed.decision, ['pending']))) {
+	if (!(await setReviewStatus(restaurantId, job.id, parsed.decision, ['pending']))) {
 		await ctx.sendText(from, 'Esa factura ya estaba revisada.');
 		return;
 	}
 
-	await raiseReviewNotification(job, parsed.decision);
+	await raiseReviewNotification(restaurantId, job, parsed.decision);
 	await ctx.sendText(
 		from,
 		parsed.decision === 'reviewed'
@@ -162,7 +164,7 @@ async function dispatchMessage(
 	} else if (msg.type === 'document' && msg.document) {
 		await handleMediaUpload(from, restaurantId, msg.document, ctx, committed, requestId);
 	} else if (msg.type === 'text' && msg.text) {
-		await handleTextReply(from, msg.text.body, ctx);
+		await handleTextReply(restaurantId, from, msg.text.body, ctx);
 	} else {
 		await ctx.sendText(
 			from,
