@@ -303,8 +303,11 @@ describe('fg-3 vs fg-4 on --mep-surface — account-menu locale hint (#719)', ()
 		expect(menuEnd).toBeGreaterThan(menuStart);
 
 		const acctMenuMarkup = layout.slice(menuStart, menuEnd);
-		expect(acctMenuMarkup).not.toContain('mep-fg-4');
+		// #845 swapped var(--mep-fg-*) inline styles for the `@theme inline`
+		// utilities (text-fg-3 -> --mep-fg-3), so both spellings are checked:
+		// asserting only the old one would go vacuously green on the rewrite.
+		expect(acctMenuMarkup).not.toMatch(/mep-fg-4|(?:^|\s|")(?:text|bg|border)-fg-4(?:\s|")/);
 		expect(acctMenuMarkup).toContain("locale.current === 'es' ? 'EN' : 'ES'");
-		expect(acctMenuMarkup).toContain('mep-fg-3');
+		expect(acctMenuMarkup).toMatch(/mep-fg-3|(?:^|\s|")text-fg-3(?:\s|")/);
 	});
 });

@@ -57,12 +57,15 @@ describe('budgets mobile disclosure (issue #653)', () => {
 
 	it('the projection pill can shrink and the name has min-width:0', () => {
 		const mobile = mobileBlock();
-		const nameAt = mobile.indexOf('text-overflow:ellipsis');
+		// #845 replaced the inline declarations with the Tailwind equivalents
+		// (text-ellipsis, min-w-0, shrink-0). The invariant is unchanged: the
+		// category name truncates and the pill is allowed to shrink.
+		const nameAt = mobile.search(/text-overflow:ellipsis|\btext-ellipsis\b/);
 		expect(nameAt).toBeGreaterThan(-1);
-		expect(mobile.slice(0, mobile.indexOf('bud.closeShort'))).toMatch(/min-width:0/);
+		expect(mobile.slice(0, mobile.indexOf('bud.closeShort'))).toMatch(/min-width:0|\bmin-w-0\b/);
 		const pillAt = mobile.indexOf('bud.closeShort');
 		const pillStyle = mobile.slice(mobile.lastIndexOf('<span', pillAt), pillAt);
-		expect(pillStyle).not.toMatch(/flex-shrink:0/);
+		expect(pillStyle).not.toMatch(/flex-shrink:0|\bshrink-0\b/);
 	});
 
 	it('the desktop table still iterates the full rows list', () => {
