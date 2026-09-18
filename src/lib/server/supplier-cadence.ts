@@ -1,6 +1,7 @@
 import { db, forTenant } from './db';
 import { invoices, suppliers } from './schema';
 import { asc, eq, isNotNull, isNull, and } from 'drizzle-orm';
+import { median } from './money';
 
 const MIN_SUPPLIER_GAP_DAYS      = 3;
 const MISSING_INVOICE_MULTIPLIER = 1.5;
@@ -40,12 +41,6 @@ function groupDatesBySupplier(rows: SupplierInvoiceDate[]): Record<string, Suppl
 	return map;
 }
 
-function medianOf(nums: number[]): number {
-	const s = [...nums].sort((a, b) => a - b);
-	const n = s.length;
-	return n % 2 === 0 ? ((s[n / 2 - 1] ?? 0) + (s[n / 2] ?? 0)) / 2 : s[Math.floor(n / 2)] ?? 0;
-}
-
 function frequencyLabel(medianGap: number): string {
 	if (medianGap <= WEEKLY_THRESHOLD_DAYS) return 'weekly';
 	if (medianGap <= BIWEEKLY_THRESHOLD_DAYS) return 'biweekly';
@@ -58,7 +53,7 @@ function supplierCadence(name: string, supplierId: number | null, dateObjs: Date
 	const gaps = dateObjs.slice(1).map((d, i) =>
 		Math.round((d.getTime() - dateObjs[i]!.getTime()) / 86400000)
 	);
-	const medianGap = medianOf(gaps);
+	const medianGap = median(gaps);
 	if (medianGap < MIN_SUPPLIER_GAP_DAYS) return null;
 	const last = dateObjs[dateObjs.length - 1];
 	if (!last) return null;

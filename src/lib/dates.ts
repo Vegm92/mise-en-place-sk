@@ -39,3 +39,7 @@ export function toIsoDate(value: unknown): string | null {
 
 	return result;
 }
+
+export function monthKey(date: Date): string {
+	return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+}

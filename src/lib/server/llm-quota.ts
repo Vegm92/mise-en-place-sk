@@ -3,9 +3,10 @@ import { db, forTenant } from './db';
 import { llmUsageLog, monthlyUsage, tenantLlmQuotas, usageEvents } from './schema';
 import { estimateCostUsd, type LLMUsage } from './llm-provider';
 import { getMonthlyQuota } from './billing';
+import { monthKey } from '$lib/dates';
 
 function currentMonth(): string {
-	return new Date().toISOString().slice(0, 7);
+	return monthKey(new Date());
 }
 
 async function planQuotaLimit(restaurantId: string): Promise<number | null> {

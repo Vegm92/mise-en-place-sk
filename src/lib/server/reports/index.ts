@@ -3,6 +3,7 @@ import { toCsv } from '$lib/reports';
 import { translations } from '$lib/i18n-messages';
 import { categorySlug } from '$lib/constants';
 import { isoWeek } from '$lib/server/weekly-digest';
+import { monthKey } from '$lib/dates';
 import { buildWeekly } from './weekly';
 import { buildMonthly } from './monthly';
 import { buildPrices } from './prices';
@@ -12,10 +13,6 @@ import { shiftIsoWeek } from './shared';
 const CSV_LOCALE = 'es';
 const KEY_PREFIX = 'rep.';
 const PERIOD_CHOICES = 4;
-
-function monthKey(d: Date): string {
-	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-}
 
 function shiftMonthKey(month: string, delta: number): string {
 	let year = Number(month.slice(0, 4));

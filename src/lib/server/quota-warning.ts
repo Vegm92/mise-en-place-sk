@@ -5,6 +5,7 @@ import { users } from './schema';
 import { sendEmail, quotaWarningEmail } from './email';
 import { getMonthlyQuota } from './billing';
 import { getMonthlyUsage } from './llm-quota';
+import { monthKey } from '$lib/dates';
 
 export const QUOTA_WARNING_THRESHOLD = 0.8;
 
@@ -13,7 +14,7 @@ const SENT_FLAG_KEY = 'quota_warning_sent_month';
 export async function maybeSendQuotaWarning(restaurantId: string): Promise<void> {
 	try {
 		const tdb = forTenant(restaurantId);
-		const currentMonth = new Date().toISOString().slice(0, 7);
+		const currentMonth = monthKey(new Date());
 
 		const limit = await getMonthlyQuota(restaurantId);
 		if (limit === null) return;

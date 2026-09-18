@@ -39,7 +39,7 @@ import { getTrendDataByRange } from '../src/lib/server/trend';
 import { runBudgetCheck } from '../src/lib/server/alerts';
 import { categoryBudgets } from '../src/lib/server/schema';
 import { forTenant } from '../src/lib/server/db';
-import { toMonthStr } from '../src/lib/formatters';
+import { monthKey } from '../src/lib/dates';
 import { UNCATEGORIZED_CATEGORY } from '../src/lib/constants';
 
 const describeDb = hasDbEnv ? describe : describe.skip;
@@ -348,7 +348,7 @@ describeDb('runBudgetCheck — one budget per category on the delivery note', ()
 	let rid: string;
 	let supplierId: number;
 	let invoiceId: number;
-	const month = toMonthStr(new Date());
+	const month = monthKey(new Date());
 	const today = new Date().toISOString().slice(0, 10);
 
 	beforeAll(async () => {

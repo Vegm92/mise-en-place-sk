@@ -9,6 +9,7 @@ import { resolveSupplierCategoryAlerts } from '$lib/server/alerts';
 import { toCents, moneyToNumber, moneyToNullableNumber } from '$lib/server/money';
 import { requirePositiveIntId } from '$lib/server/route-params';
 import { normalizeIban } from '$lib/iban';
+import { monthKey } from '$lib/dates';
 
 const VALID_TABS = ['resumen', 'albaranes', 'productos', 'conversiones'] as const;
 type Tab = typeof VALID_TABS[number];
@@ -101,7 +102,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		const d = new Date();
 		d.setDate(1);
 		d.setMonth(d.getMonth() - i);
-		const ym = d.toISOString().slice(0, 7);
+		const ym = monthKey(d);
 		monthly.push({ key: ym, value: (monthlyCentsMap[ym] ?? 0) / 100, partial: i === 0 });
 	}
 

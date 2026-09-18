@@ -441,6 +441,11 @@ shapes, `low_confidence_ack` value.
 
 ### `src/lib/server/alerts.ts`
 
+**`function collapseHistory`**
+
+- The price-shock reference price is the `median` from `$lib/money` over the last `PRICE_HISTORY_WINDOW` purchases (issue #308), the same function `price-deviations.ts` uses, so the alert engine and the deviation engine can no longer disagree on identical history (issue #1068). The module used to carry its own lower-middle median: on `[1.00, 2.00]` it reported 1.00 as the old price, now 1.50 — `tests/alert-engine-price-history.test.ts` pins that. Thresholds are unchanged.
+- Month-scoped budget checks key on `monthKey(new Date())` from `$lib/dates` (UTC), the same key `category_budgets.month` is written with.
+
 **`function runPossibleDuplicatePurchase`**
 
 - Soft, non-blocking heuristic for issue #449, extended in #809 to a real factura↔albarán link. The dedup gates above only catch the same document uploaded twice (content hash) or a repeated supplier+invoice_number pair. Neither can tell that an albarán captured at delivery and the factura fiscal for that same delivery, arriving weeks later, are the same real-world purchase — they carry different numbers by construction, and fiscally both can legitimately exist.
@@ -498,3 +503,4 @@ shapes, `low_confidence_ack` value.
 **`toMonthKey`**
 
 - The `month` columns (`category_budgets`, `monthly_usage`, `mrr_snapshots`, `acquisition_costs`) stay `text` because they are genuinely `YYYY-MM` keys, not dates — but they now carry a `CHECK` constraint so the same class of malformed value can't land in them either.
+- Producing such a key from a `Date` is `monthKey` in `src/lib/dates.ts` (UTC), re-exported here like `toIsoDate`; this module's local-zone `monthKeyStr` was folded into it (issue #1068). The remaining `addDays`/`addMonths`/`monday`/`firstOfMonth`/`isoDate` helpers still read local calendar fields.

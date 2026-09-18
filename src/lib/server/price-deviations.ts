@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import { db } from './db';
 import { normalizeProductKey } from './normalize';
 import { addDaysIso } from '$lib/period';
+import { median } from './money';
 
 export interface DeviationLine {
 	productId: number | null;
@@ -69,12 +70,6 @@ export function comparablePrice(line: Pick<DeviationLine, 'unit' | 'unitPrice' |
 
 export function lineKey(line: Pick<DeviationLine, 'productId' | 'description'>): string {
 	return line.productId != null ? `p:${line.productId}` : `d:${normalizeProductKey(line.description)}`;
-}
-
-function median(values: number[]): number {
-	const s = [...values].sort((a, b) => a - b);
-	const mid = Math.floor(s.length / 2);
-	return s.length % 2 === 0 ? (s[mid - 1]! + s[mid]!) / 2 : s[mid]!;
 }
 
 export function overpaidOnLine(totalPrice: number, deviation: number): number {
