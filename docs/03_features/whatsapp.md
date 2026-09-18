@@ -242,6 +242,19 @@ that, 4 characters over a 30-character alphabet would start colliding at a few
 thousand invoices. `parseReview` caps at three words on purpose — a looser
 parser turns "pues no lo sé" into a rejection.
 
+`findJobByCode`, `pendingJobsFor` and `setReviewStatus` take the resolved
+`restaurantId` and scope on it through `forTenant().scope()`. They used to key
+on `source_ref` (the sender's number) and the item id alone, carried by a
+`tenant-scope-ok` comment arguing that a sender can only reach the jobs they
+themselves sent. That is true of the *sender* and says nothing about the
+*tenant*: release is a real path (`removeContact`, `releaseContactByPhone`),
+so the same number can be paired to another restaurant afterwards and the old
+rows still matched — a cross-tenant read from `pendingJobsFor` and a
+cross-tenant write from `setReviewStatus` (issue #1070). `raiseReviewNotification`
+likewise files against the tenant passed in rather than the tenant stored on
+the row. `generateJobCode` keeps its exemption: the index it probes is global,
+so the collision check has to be, and it returns only a boolean.
+
 **`notify.ts`** — reached only through pg-boss, so it holds no reference to a
 transport and takes the context as an argument. It re-checks `status` because
 pg-boss can deliver before `markDone` commits.

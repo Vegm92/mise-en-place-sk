@@ -111,8 +111,8 @@ describe('OK / NO from an authorised sender', () => {
 
 		await handleInboundMessage(reply('OK A7K2'), ctx);
 
-		expect(setReviewStatusMock).toHaveBeenCalledWith('item-1', 'reviewed', ['pending']);
-		expect(raiseReviewMock).toHaveBeenCalledWith(JOB, 'reviewed');
+		expect(setReviewStatusMock).toHaveBeenCalledWith('rest-1', 'item-1', 'reviewed', ['pending']);
+		expect(raiseReviewMock).toHaveBeenCalledWith('rest-1', JOB, 'reviewed');
 		expect(sent.join('\n')).toMatch(/marcada como revisada/i);
 		expect(sent.join('\n')).toContain('https://app.example.com/batch/batch-1');
 	});
@@ -123,7 +123,7 @@ describe('OK / NO from an authorised sender', () => {
 
 		await handleInboundMessage(reply('NO A7K2'), ctx);
 
-		expect(setReviewStatusMock).toHaveBeenCalledWith('item-1', 'to_review', ['pending']);
+		expect(setReviewStatusMock).toHaveBeenCalledWith('rest-1', 'item-1', 'to_review', ['pending']);
 		expect(sent.join('\n')).toMatch(/To Review/i);
 	});
 
@@ -133,7 +133,7 @@ describe('OK / NO from an authorised sender', () => {
 
 		await handleInboundMessage(reply('ok'), ctx);
 
-		expect(setReviewStatusMock).toHaveBeenCalledWith('item-1', 'reviewed', ['pending']);
+		expect(setReviewStatusMock).toHaveBeenCalledWith('rest-1', 'item-1', 'reviewed', ['pending']);
 	});
 
 	it('asks for a code rather than guessing when several jobs are waiting', async () => {
@@ -184,6 +184,16 @@ describe('OK / NO from an authorised sender', () => {
 
 		expect(setReviewStatusMock).not.toHaveBeenCalled();
 		expect(sent.join('\n')).toMatch(/Envíame una foto o PDF/i);
+	});
+
+	it('files the reminder against the tenant the sender is paired to now (issue #1070)', async () => {
+		findJobByCodeMock.mockResolvedValue({ ...JOB, restaurantId: 'rest-former' });
+		const { ctx } = fakeTransport();
+
+		await handleInboundMessage(reply('OK A7K2'), ctx);
+
+		expect(raiseReviewMock).toHaveBeenCalledWith('rest-1', expect.anything(), 'reviewed');
+		expect(setReviewStatusMock).toHaveBeenCalledWith('rest-1', 'item-1', 'reviewed', ['pending']);
 	});
 
 	it('never consults billing for a text reply', async () => {

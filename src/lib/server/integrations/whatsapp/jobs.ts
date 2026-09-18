@@ -1,6 +1,6 @@
 import { randomInt } from 'node:crypto';
 import { and, asc, eq, inArray, isNull, or } from 'drizzle-orm';
-import { db } from '../../db';
+import { db, forTenant } from '../../db';
 import { batchItems } from '../../schema';
 import { CODE_ALPHABET } from '../../whatsapp-pairing';
 import { APP_BASE_URL } from '../../env';
@@ -64,37 +64,38 @@ export async function generateJobCode(): Promise<string> {
 	throw new Error('[whatsapp-jobs] could not allocate a free job code');
 }
 
-export async function findJobByCode(phone: string, code: string): Promise<WhatsAppJob | null> {
+export async function findJobByCode(
+	restaurantId: string,
+	phone: string,
+	code: string,
+): Promise<WhatsAppJob | null> {
 	const normalized = normalizeJobCode(code);
 	if (!normalized) return null;
-	// tenant-scope-ok: keyed on source_ref, the sender's own number, which is
-	// what resolved the tenant in the first place — a sender can only ever
-	// reach the jobs they themselves sent.
+	const tdb = forTenant(restaurantId);
 	const rows = await db
 		.select(jobColumns)
 		.from(batchItems)
-		.where(and(
+		.where(tdb.scope(batchItems.restaurantId, and(
 			eq(batchItems.jobCode, normalized),
 			eq(batchItems.source, 'whatsapp'),
 			eq(batchItems.sourceRef, phone),
 			openJob(),
-		))
+		)))
 		.limit(1);
 	return rows.length ? (rows[0] as WhatsAppJob) : null;
 }
 
-export async function pendingJobsFor(phone: string): Promise<WhatsAppJob[]> {
-	// tenant-scope-ok: keyed on source_ref, the sender's own number — see
-	// findJobByCode above.
+export async function pendingJobsFor(restaurantId: string, phone: string): Promise<WhatsAppJob[]> {
+	const tdb = forTenant(restaurantId);
 	const rows = await db
 		.select(jobColumns)
 		.from(batchItems)
-		.where(and(
+		.where(tdb.scope(batchItems.restaurantId, and(
 			eq(batchItems.source, 'whatsapp'),
 			eq(batchItems.sourceRef, phone),
 			eq(batchItems.reviewStatus, 'pending'),
 			eq(batchItems.status, 'done'),
-		))
+		)))
 		.orderBy(asc(batchItems.createdAt));
 	return rows as WhatsAppJob[];
 }
@@ -107,19 +108,22 @@ function reviewStatusFilter(from: Array<BatchItemReviewStatus | null>) {
 }
 
 export async function setReviewStatus(
+	restaurantId: string,
 	itemId: string,
 	next: BatchItemReviewStatus,
 	from: Array<BatchItemReviewStatus | null>,
 ): Promise<boolean> {
 	const previous = reviewStatusFilter(from);
+	const tdb = forTenant(restaurantId);
 
-	// tenant-scope-ok: keyed on the item UUID the caller already resolved from
-	// the sender's own source_ref (findJobByCode / pendingJobsFor), the same
-	// justification the guarded transitions in batch.ts carry.
 	const rows = await db
 		.update(batchItems)
 		.set({ reviewStatus: next, updatedAt: new Date() })
-		.where(and(eq(batchItems.id, itemId), eq(batchItems.source, 'whatsapp'), previous))
+		.where(tdb.scope(batchItems.restaurantId, and(
+			eq(batchItems.id, itemId),
+			eq(batchItems.source, 'whatsapp'),
+			previous,
+		)))
 		.returning({ id: batchItems.id });
 	return rows.length > 0;
 }
@@ -169,11 +173,15 @@ export function supplierOf(job: WhatsAppJob): string {
 	return typeof supplier === 'string' && supplier.trim() ? supplier.trim() : job.displayName;
 }
 
-export async function raiseReviewNotification(job: WhatsAppJob, decision: ReviewDecision): Promise<void> {
+export async function raiseReviewNotification(
+	restaurantId: string,
+	job: WhatsAppJob,
+	decision: ReviewDecision,
+): Promise<void> {
 	const notificationType = decision === 'reviewed' ? 'whatsapp_pending_save' : 'whatsapp_needs_review';
 	const messageKey = `notif.msg.${decision === 'reviewed' ? 'whatsappPendingSave' : 'whatsappNeedsReview'}`;
 	const messageVars = { supplier: supplierOf(job), code: job.jobCode ?? '' };
-	await saveAlerts(null, job.restaurantId, [{
+	await saveAlerts(null, restaurantId, [{
 		notificationType,
 		message: renderTemplate('es', messageKey, messageVars),
 		payload: {

@@ -34,6 +34,8 @@ function fakeTransport() {
 	return { ctx, sent };
 }
 
+const RID = 'rest-1';
+
 const DONE_ITEM = {
 	id: 'item-1',
 	batchId: 'batch-1',
@@ -90,14 +92,14 @@ describe('notifyWhatsAppSender', () => {
 		expect(sent).toHaveLength(1);
 		expect(sent[0]!.to).toBe('34600111222');
 		expect(sent[0]!.body).toContain('Frutas Paco');
-		expect(setReviewStatusMock).toHaveBeenCalledWith('item-1', 'pending', [null]);
+		expect(setReviewStatusMock).toHaveBeenCalledWith(RID, 'item-1', 'pending', [null]);
 	});
 
 	it('points a failed extraction at the web panel and flags it To Review', async () => {
 		const sent = await runNotify({ ...DONE_ITEM, status: 'failed', extractedData: null });
 		expect(sent[0]!.body).toMatch(/No he podido leer esta factura/i);
 		expect(sent[0]!.body).toContain('https://app.example.com/batch/batch-1');
-		expect(setReviewStatusMock).toHaveBeenCalledWith('item-1', 'to_review', [null, 'pending']);
+		expect(setReviewStatusMock).toHaveBeenCalledWith(RID, 'item-1', 'to_review', [null, 'pending']);
 	});
 
 	it('says nothing about an item that did not come from WhatsApp', async () => {

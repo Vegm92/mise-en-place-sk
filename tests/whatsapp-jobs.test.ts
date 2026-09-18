@@ -38,7 +38,10 @@ const { dbMock, selectQueue, updateQueue } = vi.hoisted(() => {
 	};
 });
 
-vi.mock('../src/lib/server/db', () => ({ db: dbMock }));
+vi.mock('../src/lib/server/db', async () => {
+	const { forTenant } = await import('../src/lib/server/tenant');
+	return { db: dbMock, forTenant };
+});
 vi.mock('../src/lib/server/env', async (importActual) => ({
 	...(await importActual<typeof import('../src/lib/server/env')>()),
 	APP_BASE_URL: 'https://app.example.com',
@@ -49,6 +52,8 @@ import {
 	randomJobCode, setReviewStatus,
 } from '../src/lib/server/integrations/whatsapp/jobs';
 import { CODE_ALPHABET } from '../src/lib/server/whatsapp-pairing';
+
+const RID = '11111111-1111-1111-1111-111111111111';
 
 beforeEach(() => {
 	vi.clearAllMocks();
@@ -111,36 +116,36 @@ describe('job lookup', () => {
 
 	it('finds an open job by its code for the number that sent it', async () => {
 		selectQueue.push([JOB]);
-		expect(await findJobByCode('34600', 'a7k2')).toEqual(JOB);
+		expect(await findJobByCode(RID, '34600', 'a7k2')).toEqual(JOB);
 	});
 
 	it('does not hit the database for a code-shaped-but-invalid reply', async () => {
-		expect(await findJobByCode('34600', 'nope!')).toBeNull();
+		expect(await findJobByCode(RID, '34600', 'nope!')).toBeNull();
 		expect(dbMock.select).not.toHaveBeenCalled();
 	});
 
 	it('returns null when the code belongs to nobody', async () => {
 		selectQueue.push([]);
-		expect(await findJobByCode('34600', 'A7K2')).toBeNull();
+		expect(await findJobByCode(RID, '34600', 'A7K2')).toBeNull();
 	});
 
 	it('lists the sender\'s jobs still waiting for an answer', async () => {
 		selectQueue.push([JOB, { ...JOB, id: 'item-2', jobCode: 'B3M9' }]);
-		expect(await pendingJobsFor('34600')).toHaveLength(2);
+		expect(await pendingJobsFor(RID, '34600')).toHaveLength(2);
 	});
 });
 
 describe('review-status transition', () => {
 	it('reports the move when a row actually changed', async () => {
 		updateQueue.push([{ id: 'item-1' }]);
-		expect(await setReviewStatus('item-1', 'reviewed', ['pending'])).toBe(true);
+		expect(await setReviewStatus(RID, 'item-1', 'reviewed', ['pending'])).toBe(true);
 	});
 
 	it('reports no move when the job was already answered', async () => {
 		// The guarded UPDATE is what makes a duplicate OK idempotent: the second
 		// one matches no row, so no second notification is raised.
 		updateQueue.push([]);
-		expect(await setReviewStatus('item-1', 'reviewed', ['pending'])).toBe(false);
+		expect(await setReviewStatus(RID, 'item-1', 'reviewed', ['pending'])).toBe(false);
 	});
 });
 
