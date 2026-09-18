@@ -29,6 +29,7 @@ vi.mock('$lib/server/env', async (importOriginal) => {
 
 vi.mock('$lib/server/rate-limiter', () => ({
 	checkRateLimit: rateLimitMock,
+	checkAuthRateLimit: rateLimitMock,
 }));
 
 vi.mock('$lib/server/llm-provider', async (importOriginal) => {

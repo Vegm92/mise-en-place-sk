@@ -20,7 +20,7 @@ import { sortProducts } from '../src/lib/product-filters';
 import { memoizeEntitlements } from '../src/lib/server/billing';
 
 const { rateLimitMock } = vi.hoisted(() => ({ rateLimitMock: vi.fn().mockResolvedValue(true) }));
-vi.mock('$lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock }));
+vi.mock('$lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock, checkAuthRateLimit: rateLimitMock }));
 vi.mock('$lib/server/locale', () => ({ currentLocale: () => ({ locale: 'es', explicit: false }) }));
 vi.mock('$lib/server/db', async () => {
 	const { testDb } = await import('./helpers/test-db');

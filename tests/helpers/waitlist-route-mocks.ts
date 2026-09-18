@@ -19,7 +19,10 @@ export const waitlistDbMock = {
 	countWaitlistEmails: countWaitlistEmailsMock,
 };
 export const eventsMock = { trackAnonymousEvent: trackAnonymousEventMock };
-export const rateLimiterMock = { checkRateLimit: vi.fn().mockResolvedValue(true) };
+export const rateLimiterMock = {
+	checkRateLimit: vi.fn().mockResolvedValue(true),
+	checkAuthRateLimit: vi.fn().mockResolvedValue(true),
+};
 
 export function resetWaitlistRouteMocks() {
 	insertWaitlistEmailMock.mockClear().mockResolvedValue(true);

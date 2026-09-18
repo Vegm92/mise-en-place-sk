@@ -1,6 +1,6 @@
 import { fail, type RequestEvent } from '@sveltejs/kit';
 import * as v from 'valibot';
-import { checkRateLimit } from '$lib/server/rate-limiter';
+import { checkAuthRateLimit } from '$lib/server/rate-limiter';
 import { logAuthEvent, hashIp, type AuthEventKind } from '$lib/server/auth-events';
 import { verifyTurnstileToken } from '$lib/server/turnstile';
 
@@ -93,7 +93,7 @@ export function publicFormAction<TSchema extends v.GenericSchema | undefined, T>
 
 		const rules = (options.limits?.(ctx) ?? []).slice().sort(byIpScopeFirst);
 		for (const rule of rules) {
-			if (await checkRateLimit(rule.key, rule.max)) continue;
+			if (await checkAuthRateLimit(rule.key, rule.max)) continue;
 
 			if (options.rateLimitEvent) {
 				logAuthEvent(options.rateLimitEvent, {

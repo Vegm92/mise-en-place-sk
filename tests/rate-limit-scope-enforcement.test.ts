@@ -1,5 +1,6 @@
 /**
- * Issue #440 — audit-enforcement scan. Every authenticated checkRateLimit()
+ * Issue #440 — audit-enforcement scan. Every authenticated checkRateLimit() /
+ * checkAuthRateLimit() (issue #1072, the fail-closed auth variant)
  * call site must go through rateLimitScoped() (src/lib/server/rate-limit-scope.ts)
  * so its identity choice ('tenant' vs 'user') is explicit and reviewable,
  * instead of a hand-written key prefix that silently picks one.
@@ -35,6 +36,8 @@ import path from 'node:path';
 const SRC_DIR = path.join(process.cwd(), 'src');
 
 const DEFINITION_FILE = 'src/lib/server/rate-limiter.ts';
+
+const DIRECT_CALL = /check(?:Auth)?RateLimit\(/;
 
 const ALLOWED_DIRECT_CALL_FILES = new Set([
 	'src/lib/server/rate-limit-scope.ts',
@@ -72,7 +75,7 @@ describe('checkRateLimit() call sites go through rateLimitScoped() (issue #440)'
 	for (const file of sourceFiles) {
 		const relPath = path.relative(process.cwd(), file).split(path.sep).join('/');
 		const src = fs.readFileSync(file, 'utf8');
-		if (!src.includes('checkRateLimit(')) continue;
+		if (!DIRECT_CALL.test(src)) continue;
 		if (relPath === DEFINITION_FILE) continue;
 
 		it(`${relPath} only calls checkRateLimit() directly if it is a documented exception`, () => {
@@ -91,7 +94,7 @@ describe('checkRateLimit() call sites go through rateLimitScoped() (issue #440)'
 		for (const relFile of ALLOWED_DIRECT_CALL_FILES) {
 			const src = fs.readFileSync(path.join(process.cwd(), relFile), 'utf8');
 			expect(
-				src.includes('checkRateLimit('),
+				DIRECT_CALL.test(src),
 				`${relFile} no longer calls checkRateLimit() directly — remove it from ALLOWED_DIRECT_CALL_FILES`,
 			).toBe(true);
 		}

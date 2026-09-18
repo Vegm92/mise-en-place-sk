@@ -49,9 +49,9 @@ Concretely, as of #1072:
 - `verifyTurnstileToken()` retries siteverify once (250ms apart) and then returns
   `false` in production, `true` otherwise. An unset `TURNSTILE_SECRET_KEY` is
   still a no-op — that is "not configured", not "failing".
-- `checkRateLimit()` returns `false` — a 429 at every call site — when Upstash is
-  *configured* and the call errors in production. The in-memory token bucket
-  remains only for the genuinely-unconfigured case, which is dev.
+- `checkAuthRateLimit()` returns `false` when Upstash is *configured* and the
+  call errors in production. `checkRateLimit()` keeps the in-memory fallback.
+  The split is deliberate and is the second half of this decision, below.
 - `assertAddressHeaderTrust()` throws at boot when `ADDRESS_HEADER` is set in
   production with no managed-proxy platform detected. `TRUSTED_PROXY=1` is the
   explicit acknowledgement for an operator-run nginx/Caddy that rewrites the
@@ -61,12 +61,44 @@ Concretely, as of #1072:
 distinguished by every future control: the first denies, the second may be a
 no-op in dev.
 
+### Auth-critical vs availability-critical
+
+Fail-closed is scoped, not global. A rate limit protects one of two things, and
+the right answer differs:
+
+- **Auth-critical** — credential and abuse gates, where the limit *is* the
+  control: login, signup, password recovery, waitlist and verification resends
+  (all of which route through `publicFormAction`), email-change, and WhatsApp
+  pairing redemption. These call `checkAuthRateLimit()` and deny on a failing
+  Upstash in production. Letting these degrade to a per-process bucket hands an
+  attacker `max × replicas` attempts, which is the hole this ADR closes.
+- **Availability-critical** — limits that exist to keep the service polite under
+  load, not to stop an attacker: the `api-global:*` guard in `hooks.server.ts`
+  and `health:*` in `/api/health`. These stay on `checkRateLimit()`. Failing
+  these closed would turn an Upstash blip into a total API outage, and a 429 on
+  the health endpoint would have Railway restart-looping the service at the exact
+  moment Redis is down — trading a bounded security exposure for an unbounded
+  availability one. Digest-share views and the WhatsApp inbound-message limits
+  sit here too: no credential is behind them.
+
+The default for a new limit is `checkRateLimit()`. Opting into
+`checkAuthRateLimit()` is an explicit act, taken when a credential or an
+abuse-sensitive gate is what the limit defends.
+
 ## Consequences
 
-- An Upstash or Cloudflare outage now degrades availability instead of security:
-  production signup and login return 429/422 rather than running unprotected.
-  That is the trade this ADR deliberately picks, and it is the cost to weigh
-  before adding a new dependency to a request path.
+- An Upstash or Cloudflare outage now degrades availability instead of security
+  *on the auth paths*: production signup and login return 429/422 rather than
+  running unprotected. That is the trade this ADR deliberately picks, and it is
+  the cost to weigh before adding a new dependency to a request path.
+- The rest of the API — including `/api/health` — stays up on the in-memory
+  bucket during the same outage. The accepted exposure there is the known
+  `max × replicas` ceiling from [#833](https://github.com/Vegm92/mise-en-place-sk/issues/833),
+  for limits where no credential is at stake.
+- The split is a judgement call per limit, and a limit filed on the wrong side is
+  invisible until an outage. Anyone adding a rate limit has to answer "is this
+  the control, or is this politeness?" — there is no lint gate that answers it
+  for them.
 - A production deploy that sets `ADDRESS_HEADER` without a recognised platform no
   longer starts. Operators behind their own proxy must set `TRUSTED_PROXY=1`.
   This is a breaking change for any such deploy, and intentionally loud.

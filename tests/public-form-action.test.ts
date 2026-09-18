@@ -17,7 +17,7 @@ const { rateLimitMock, logAuthEventMock } = vi.hoisted(() => ({
 	logAuthEventMock: vi.fn(),
 }));
 
-vi.mock('$lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock }));
+vi.mock('$lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock, checkAuthRateLimit: rateLimitMock }));
 vi.mock('$lib/server/auth-events', () => ({
 	logAuthEvent: logAuthEventMock,
 	hashIp: () => 'iphash',

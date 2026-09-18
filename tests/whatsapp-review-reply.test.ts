@@ -53,7 +53,7 @@ vi.mock('../src/lib/server/idempotency', () => ({
 	claimIdempotencyKey: claimMock,
 	releaseIdempotencyKey: releaseMock,
 }));
-vi.mock('../src/lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock }));
+vi.mock('../src/lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock, checkAuthRateLimit: rateLimitMock }));
 vi.mock('../src/lib/server/billing', () => ({
 	getAccessState: accessMock,
 	ORPHAN_SUBSCRIPTIONS_QUEUE: 'scheduled-orphan-subscriptions',

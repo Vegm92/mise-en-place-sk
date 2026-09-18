@@ -3,7 +3,7 @@ import { and, desc, eq, gt, isNull, sql } from 'drizzle-orm';
 import { db, forTenant } from './db';
 import { whatsappPairingCodes } from './schema';
 import { addContact } from './whatsapp-contacts';
-import { checkRateLimit } from './rate-limiter';
+import { checkAuthRateLimit } from './rate-limiter';
 import { rateLimitScoped } from './rate-limit-scope';
 import { normalizePhoneNumber } from '$lib/phone';
 
@@ -148,7 +148,7 @@ export async function redeemPairingCode(phone: string, rawCode: string): Promise
 	const code = normalizeCode(rawCode);
 	if (!code) return { ok: false, reason: 'invalid' };
 
-	if (!(await checkRateLimit(`whatsapp-pair:${phone}`, REDEEM_ATTEMPTS, REDEEM_WINDOW_S))) {
+	if (!(await checkAuthRateLimit(`whatsapp-pair:${phone}`, REDEEM_ATTEMPTS, REDEEM_WINDOW_S))) {
 		return { ok: false, reason: 'rateLimited' };
 	}
 

@@ -32,6 +32,7 @@ vi.mock('$lib/server/db', () => ({
 }));
 vi.mock('$lib/server/rate-limiter', () => ({
 	checkRateLimit: rateLimitMock,
+	checkAuthRateLimit: rateLimitMock,
 	getExtractionSemaphoreStatus: vi.fn().mockReturnValue({ active: 1, waiting: 0 }),
 }));
 vi.mock('$lib/server/admin', () => ({ isAdminUser: isAdminUserMock }));

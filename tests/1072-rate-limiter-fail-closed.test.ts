@@ -1,7 +1,9 @@
 /**
  * Issue #1072 — a configured-but-failing Upstash must not degrade to the
- * per-process in-memory bucket in production (ADR-043). The module reads its
- * Upstash config at import time, so each case re-imports it with a mocked env.
+ * per-process in-memory bucket for auth-critical limits in production, while
+ * availability-critical limits (api-global, health) must keep degrading rather
+ * than take the API down with Redis (ADR-043). The module reads its Upstash
+ * config at import time, so each case re-imports it with a mocked env.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
@@ -30,10 +32,9 @@ vi.mock('@upstash/ratelimit', () => {
 
 const ORIGINAL_NODE_ENV = process.env.NODE_ENV;
 
-async function loadCheckRateLimit() {
+async function loadRateLimiter() {
 	vi.resetModules();
-	const mod = await import('../src/lib/server/rate-limiter');
-	return mod.checkRateLimit;
+	return import('../src/lib/server/rate-limiter');
 }
 
 beforeEach(() => {
@@ -47,29 +48,47 @@ afterEach(() => {
 	process.env.NODE_ENV = ORIGINAL_NODE_ENV;
 });
 
-describe('checkRateLimit with Upstash configured', () => {
+describe('checkAuthRateLimit with Upstash configured', () => {
 	it('denies in production when the Upstash call throws', async () => {
 		process.env.NODE_ENV = 'production';
 		upstash.limit.mockRejectedValue(new Error('ECONNREFUSED'));
-		const checkRateLimit = await loadCheckRateLimit();
-		expect(await checkRateLimit('login:ip:203.0.113.7', 5)).toBe(false);
-		expect(await checkRateLimit('login:ip:203.0.113.7', 5)).toBe(false);
+		const { checkAuthRateLimit } = await loadRateLimiter();
+		expect(await checkAuthRateLimit('login:ip:203.0.113.7', 5)).toBe(false);
+		expect(await checkAuthRateLimit('login:ip:203.0.113.7', 5)).toBe(false);
 	});
 
 	it('falls back to the in-memory bucket outside production', async () => {
 		process.env.NODE_ENV = 'development';
 		upstash.limit.mockRejectedValue(new Error('ECONNREFUSED'));
-		const checkRateLimit = await loadCheckRateLimit();
-		expect(await checkRateLimit('dev:ip:203.0.113.7', 2)).toBe(true);
-		expect(await checkRateLimit('dev:ip:203.0.113.7', 2)).toBe(true);
-		expect(await checkRateLimit('dev:ip:203.0.113.7', 2)).toBe(false);
+		const { checkAuthRateLimit } = await loadRateLimiter();
+		expect(await checkAuthRateLimit('dev:ip:203.0.113.7', 2)).toBe(true);
+		expect(await checkAuthRateLimit('dev:ip:203.0.113.7', 2)).toBe(true);
+		expect(await checkAuthRateLimit('dev:ip:203.0.113.7', 2)).toBe(false);
 	});
 
 	it('still honours a healthy Upstash verdict in production', async () => {
 		process.env.NODE_ENV = 'production';
 		upstash.limit.mockResolvedValueOnce({ success: true }).mockResolvedValueOnce({ success: false });
-		const checkRateLimit = await loadCheckRateLimit();
-		expect(await checkRateLimit('ok:ip:203.0.113.7', 5)).toBe(true);
-		expect(await checkRateLimit('ok:ip:203.0.113.7', 5)).toBe(false);
+		const { checkAuthRateLimit } = await loadRateLimiter();
+		expect(await checkAuthRateLimit('ok:ip:203.0.113.7', 5)).toBe(true);
+		expect(await checkAuthRateLimit('ok:ip:203.0.113.7', 5)).toBe(false);
+	});
+});
+
+describe('checkRateLimit stays available-first when Upstash fails', () => {
+	it('keeps api-global on the in-memory bucket in production instead of 429ing the whole API', async () => {
+		process.env.NODE_ENV = 'production';
+		upstash.limit.mockRejectedValue(new Error('ECONNREFUSED'));
+		const { checkRateLimit } = await loadRateLimiter();
+		expect(await checkRateLimit('api-global:ip:203.0.113.7', 2)).toBe(true);
+		expect(await checkRateLimit('api-global:ip:203.0.113.7', 2)).toBe(true);
+		expect(await checkRateLimit('api-global:ip:203.0.113.7', 2)).toBe(false);
+	});
+
+	it('keeps the health endpoint answering in production so the platform does not restart-loop', async () => {
+		process.env.NODE_ENV = 'production';
+		upstash.limit.mockRejectedValue(new Error('ECONNREFUSED'));
+		const { checkRateLimit } = await loadRateLimiter();
+		expect(await checkRateLimit('health:203.0.113.7', 5)).toBe(true);
 	});
 });

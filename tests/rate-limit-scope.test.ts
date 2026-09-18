@@ -11,7 +11,7 @@ const { checkRateLimitMock } = vi.hoisted(() => ({
 	checkRateLimitMock: vi.fn().mockResolvedValue(true),
 }));
 
-vi.mock('$lib/server/rate-limiter', () => ({ checkRateLimit: checkRateLimitMock }));
+vi.mock('$lib/server/rate-limiter', () => ({ checkRateLimit: checkRateLimitMock, checkAuthRateLimit: checkRateLimitMock }));
 
 import { rateLimitScoped, scopedRateLimitKey } from '../src/lib/server/rate-limit-scope';
 

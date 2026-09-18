@@ -33,7 +33,7 @@ const { rateLimitMock, verifyCredentialsMock, enqueueAccountCleanupMock, state }
 	state: { failMidTransaction: false },
 }));
 
-vi.mock('$lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock }));
+vi.mock('$lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock, checkAuthRateLimit: rateLimitMock }));
 vi.mock('$lib/server/auth-credentials', () => ({ verifyCredentials: verifyCredentialsMock }));
 vi.mock('$lib/server/queue', () => ({ enqueueAccountCleanup: enqueueAccountCleanupMock }));
 

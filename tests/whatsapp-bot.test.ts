@@ -73,7 +73,7 @@ vi.mock('../src/lib/server/whatsapp', () => ({
 	downloadWhatsAppMedia: downloadMock,
 }));
 vi.mock('../src/lib/server/storage', () => ({ getStorage: () => ({ save: vi.fn() }) }));
-vi.mock('../src/lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock }));
+vi.mock('../src/lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock, checkAuthRateLimit: rateLimitMock }));
 vi.mock('../src/lib/server/billing', () => ({
 	getAccessState: accessMock,
 	ORPHAN_SUBSCRIPTIONS_QUEUE: 'scheduled-orphan-subscriptions',

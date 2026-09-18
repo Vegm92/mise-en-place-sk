@@ -89,10 +89,11 @@ function checkInMemory(key: string, max: number, windowSeconds: number): boolean
 	return true;
 }
 
-export async function checkRateLimit(
+async function check(
 	key: string,
 	max: number,
-	windowSeconds: number = DEFAULT_WINDOW_SECONDS,
+	windowSeconds: number,
+	failClosed: boolean,
 ): Promise<boolean> {
 	if (upstashEnabled) {
 		try {
@@ -103,8 +104,24 @@ export async function checkRateLimit(
 			console.error('[rate-limiter] Upstash error:', e);
 		}
 	}
-	if (upstashFailClosed()) return false;
+	if (failClosed && upstashFailClosed()) return false;
 	return checkInMemory(key, max, windowSeconds);
+}
+
+export function checkRateLimit(
+	key: string,
+	max: number,
+	windowSeconds: number = DEFAULT_WINDOW_SECONDS,
+): Promise<boolean> {
+	return check(key, max, windowSeconds, false);
+}
+
+export function checkAuthRateLimit(
+	key: string,
+	max: number,
+	windowSeconds: number = DEFAULT_WINDOW_SECONDS,
+): Promise<boolean> {
+	return check(key, max, windowSeconds, true);
 }
 
 export class ExtractionSlotUnavailableError extends Error {

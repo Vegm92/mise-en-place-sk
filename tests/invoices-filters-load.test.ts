@@ -50,7 +50,7 @@ vi.mock('$lib/server/db', async () => {
 });
 
 vi.mock('$lib/server/events', () => ({ trackEvent: vi.fn() }));
-vi.mock('$lib/server/rate-limiter', () => ({ checkRateLimit: vi.fn(async () => true) }));
+vi.mock('$lib/server/rate-limiter', () => ({ checkRateLimit: vi.fn, checkAuthRateLimit: vi.fn(async () => true) }));
 vi.mock('$lib/server/invoice-status', async (importOriginal) => ({
 	...(await importOriginal<typeof import('../src/lib/server/invoice-status')>()),
 	markInvoiceReviewed: vi.fn(),

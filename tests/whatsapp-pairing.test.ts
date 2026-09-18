@@ -54,7 +54,7 @@ vi.mock('../src/lib/server/db', async () => {
 	return { db: dbMock, forTenant };
 });
 vi.mock('../src/lib/server/whatsapp-contacts', () => ({ addContact: addContactMock }));
-vi.mock('../src/lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock }));
+vi.mock('../src/lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock, checkAuthRateLimit: rateLimitMock }));
 
 import {
 	generatePairingCode,

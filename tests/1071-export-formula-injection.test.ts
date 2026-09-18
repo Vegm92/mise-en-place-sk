@@ -31,7 +31,7 @@ const ORDINARY_INVOICE_NUMBER = 'INV-1071-OK';
 const DDE_FIELD = 'supplier_name_1071_dde';
 const ORDINARY_FIELD = 'supplier_name_1071_ok';
 
-vi.mock('$lib/server/rate-limiter', () => ({ checkRateLimit: vi.fn().mockResolvedValue(true) }));
+vi.mock('$lib/server/rate-limiter', () => ({ checkRateLimit: vi.fn().mockResolvedValue(true), checkAuthRateLimit: vi.fn().mockResolvedValue(true) }));
 
 vi.mock('$lib/server/db', async () => {
 	const { testDb } = await import('./helpers/test-db');

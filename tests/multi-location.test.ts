@@ -30,7 +30,7 @@ const { state, rateLimitMock, applyTierSettingsMock } = vi.hoisted(() => ({
 	applyTierSettingsMock: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock('$lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock }));
+vi.mock('$lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock, checkAuthRateLimit: rateLimitMock }));
 vi.mock('$lib/server/db', () => {
 	const resolving = (rows: () => unknown[]) => {
 		const p: Record<string, unknown> = {};

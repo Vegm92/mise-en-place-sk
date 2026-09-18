@@ -81,7 +81,7 @@ vi.mock('../src/lib/server/llm-quota', () => ({
 	claimMonthlyExtraction: vi.fn().mockResolvedValue({ claimed: true }),
 	releaseMonthlyExtraction: vi.fn().mockResolvedValue(undefined),
 }));
-vi.mock('../src/lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock }));
+vi.mock('../src/lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock, checkAuthRateLimit: rateLimitMock }));
 vi.mock('../src/lib/server/billing', () => ({
 	getAccessState: vi.fn().mockResolvedValue({
 		allowed: true, status: 'active', trialEndsAt: null, trialExpired: false,

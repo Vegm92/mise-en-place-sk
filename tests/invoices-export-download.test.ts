@@ -24,7 +24,7 @@ const { rateLimitMock } = vi.hoisted(() => ({
 	rateLimitMock: vi.fn().mockResolvedValue(true),
 }));
 
-vi.mock('$lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock }));
+vi.mock('$lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock, checkAuthRateLimit: rateLimitMock }));
 
 vi.mock('$lib/server/db', async () => {
 	const { testDb } = await import('./helpers/test-db');

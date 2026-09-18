@@ -34,7 +34,7 @@ const {
 	updatedRows: [] as Array<Record<string, unknown>>,
 }));
 
-vi.mock('$lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock }));
+vi.mock('$lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock, checkAuthRateLimit: rateLimitMock }));
 vi.mock('$lib/server/auth-events', () => ({ logAuthEvent: logAuthEventMock, hashIp: () => 'iphash' }));
 vi.mock('$lib/server/consent', () => ({ recordConsent: recordConsentMock }));
 vi.mock('$lib/server/verification-token', () => ({ createVerificationToken: createVerificationTokenMock }));
