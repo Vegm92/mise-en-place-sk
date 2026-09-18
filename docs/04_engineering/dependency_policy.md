@@ -116,6 +116,27 @@ When the gate goes red:
 Run the same command locally before opening a PR that touches
 `package.json` or `pnpm-lock.yaml`.
 
+## Automated updates
+
+Dependabot, configured in `.github/dependabot.yml` (issue #1076). Chosen
+over Renovate because it needs no app install or org-level permission
+grant — the config file is the whole setup — and over "none" because
+`pnpm audit` only catches advisories already published against the pinned
+versions; routine bumps are what keep the tree on ranges upstream still
+patches. Kept quiet on purpose:
+
+- monthly cadence, `npm` and `github-actions` ecosystems only;
+- one grouped PR per ecosystem for minor + patch bumps, majors excluded
+  (Svelte/SvelteKit/Stripe majors are a deliberate decision, see
+  Upgrading above);
+- a small open-PR limit, so a month's worth of updates is one review, not
+  twenty.
+
+Dependabot *security* updates are a repository setting (Settings →
+Code security), not something this file turns on; when enabled they follow
+the grouping in the same config. The audit gate above does not depend on
+either: it fails CI on a runtime advisory whether or not a bot opened a PR.
+
 ## Verification
 
 - CI installs with `--frozen-lockfile`.
