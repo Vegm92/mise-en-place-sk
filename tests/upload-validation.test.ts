@@ -224,4 +224,15 @@ describe('upload endpoint security — GET /api/upload/[id]/[file]', () => {
 		};
 		await expect(uploadGetHandler(mockEventNoRestaurant as any)).rejects.toMatchObject({ status: 401 });
 	});
+
+	it('enforces rate limiting (429 Too Many Requests) when threshold is exceeded', async () => {
+		const mockEvent = {
+			params: { id: '00000000-0000-0000-0000-000000000001', file: 'test.pdf' },
+			locals: { user: { id: 'u_rl' }, restaurantId: 'rest_rl_test' },
+		};
+		for (let i = 0; i < 60; i++) {
+			await expect(uploadGetHandler(mockEvent as any)).rejects.toThrow();
+		}
+		await expect(uploadGetHandler(mockEvent as any)).rejects.toMatchObject({ status: 429 });
+	});
 });
