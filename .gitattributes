@@ -3,3 +3,10 @@
 # and `generate` diffs schema.ts against the latest snapshot. Collapse them in
 # PR diffs instead of deleting them.
 drizzle/meta/*.json linguist-generated=true -diff
+
+# `.jules/bolt.md` is an index that concurrent Bolt runs have historically
+# appended to, producing the same conflict on every overlapping PR. Entries now
+# live one-per-file in `.jules/bolt/`, but the agent that writes them is
+# configured outside this repo, so union-merge this file as a fallback: if two
+# runs do append here, git keeps both sides instead of blocking the merge.
+.jules/bolt.md merge=union

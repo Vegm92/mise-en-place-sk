@@ -1,322 +1,36 @@
 # Bolt Performance Journal ⚡
 
-## 2026-09-09 - Fast spend trend segment indexing in `src/lib/server/trend.ts`
-
-### 🔍 Bottleneck Analysis
-During a systematic audit of database aggregation routines and trend processing in `src/lib/server/trend.ts`, we identified that `getTrendDataByRange` executed quadratic linear searches (`O(keys * rows)`) when constructing spend trend buckets:
-- For every bucket key `k` in `keys` (up to 400 keys for daily/weekly/monthly ranges), `buildSegments(rows, k)` executed `rows.filter(r => r.key === k)`.
-- Across 365 daily keys and ~8,700 category spend rows, this resulted in over 1.3 million iterations and thousands of intermediate array allocations per trend request.
-
-### ⚡ Optimization
-Replaced `mergeTrendRows` and `buildSegments` with a single-pass `indexTrendSegments` helper:
-- `indexTrendSegments` pre-indexes `groupedRows` into a `Map<string, Segment[]>` in `O(N)` time.
-- In `getTrendDataByRange`, segment lookups per bucket key `k` are now direct `O(1)` Map reads (`segmentsByKey.get(k) ?? []`), and segment totals are calculated with simple sum loops.
-
-### 📊 Performance Impact
-- Benchmark (1,000 iterations over 365 daily keys and 8,760 category spend rows):
-  - Execution time: **18,257.11ms ➔ 685.89ms** (**26.62x speedup**, 96.2% CPU time reduction)
-- Zero breaking changes, 100% test compatibility.
-
----
-
-## 2026-09-08 - Memoize recipe quantity parsing and unit key resolution in `src/lib/recipes.ts`
-
-### 🔍 Bottleneck Analysis
-During a systematic audit of formatters and pure helpers in `src/lib/recipes.ts`, we identified that `unitKey`, `qtyToNumber`, `parseQty`, and `parseDecimal` executed un-memoized string trimming, case conversions (`toLowerCase()`), regex pattern matching (`QTY_INPUT`), and string rounding operations (`roundDecimalString`) on every invocation.
-
-Because recipe costing, sheet calculations, and unit conversions execute these functions repeatedly across ingredient lists and sub-recipe trees, these operations created unnecessary CPU cycles and string allocations on hot paths.
-
-### ⚡ Optimization
-Added bounded Map caches (`unitKeyCache`, `qtyToNumberCache`, `parseQtyCache`, `parseDecimalCache` max 2000 entries each) in `src/lib/recipes.ts`:
-- `unitKeyCache` memoizes `unitKey(unit)` results.
-- `qtyToNumberCache` memoizes `qtyToNumber(raw)` string parsing.
-- `parseQtyCache` memoizes `parseQty(raw)` decimal string rounding.
-- `parseDecimalCache` memoizes `parseDecimal(raw)` formatting.
-
-When cache capacity limits are reached, entries are cleared to prevent unbounded memory growth while maintaining O(1) lookups.
-
-### 📊 Performance Impact
-- Benchmark (200,000 iterations across `parseQty`, `parseDecimal`, `qtyToNumber`, `toRate`, `fromRate`, `unitKey`, `convertQty`, and `recipeTotals`):
-  - Execution time: **1,194.74ms ➔ 407.17ms** (**2.93x speedup**, 65.9% CPU time reduction)
-- Zero breaking changes, 100% test compatibility.
-
----
-
-## 2026-09-08 - Memoize `parsePack` and `expandAbbreviations` in `src/lib/server/products.ts`
-
-### 🔍 Bottleneck Analysis
-During a systematic audit of formatters and pure helpers in `src/lib/server/products.ts`, we identified that `parsePack` and `expandAbbreviations` executed un-memoized string parsing, RegExp executions (`MULTIPACK`, `SINGLE`, `COUNT`, `SKU_PREFIX`, `BARE_CODE`, lookbehinds `/(?<!\.)\.+$/`), token array mapping, and unit canonicalization on every call.
-
-Because `parsePack` and `expandAbbreviations` are called repeatedly across invoice line item parsing, unit price normalization, product alias matching (`resolveLineProducts`, `previewLineProducts`), price deviation detection, and background backfills, these redundant regex evaluations and string operations introduced unnecessary CPU cycles and garbage collection pressure on hot paths.
-
-### ⚡ Optimization
-Added bounded Map caches (`packCache` max 4000, `expandAbbreviationsCache` max 4000) in `src/lib/server/products.ts`:
-- `packCache` memoizes `parsePack(description, unit)` results.
-- `expandAbbreviationsCache` memoizes `expandAbbreviations(raw)` results.
-
-When cache capacities are reached, entries are cleared to prevent unbounded memory growth while keeping cache lookups O(1).
-
-### 📊 Performance Impact
-- Benchmark (500,000 iterations across realistic sample pack descriptions, container units, SKU prefixes, and abbreviation tokens):
-  - Execution time: **1,026.42ms ➔ 190.41ms** (**5.39x speedup**, 81.4% execution time reduction)
-- Zero breaking changes, 100% test compatibility.
-
----
-
-## 2026-09-08 - Memoize `percentToFraction` and `fractionToPercent` in `src/lib/tax.ts`
-
-### 🔍 Bottleneck Analysis
-During a systematic audit of formatters and pure helpers in `src/lib/tax.ts`, we identified that `percentToFraction` and `fractionToPercent` executed un-memoized string parsing, regex operations (`PERCENT_INPUT`), string replacements (`replace(/%$/, '')`, `replace(',', '.')`), and numeric rounding calculations on every call.
-
-Because tax rate conversions are executed repeatedly across invoice line parsing (`bandsFromLines`), tax breakdown rendering, recipe costing, and total mismatch detection, these operations introduced unnecessary CPU cycles and string allocations on hot paths.
-
-### ⚡ Optimization
-Added bounded Map caches (`percentToFractionCache` max 2000, `fractionToPercentCache` max 2000) in `src/lib/tax.ts`:
-- `percentToFractionCache` memoizes `percentToFraction(value)` results.
-- `fractionToPercentCache` memoizes `fractionToPercent(rate)` results.
-
-When cache capacities are reached, entries are cleared to prevent unbounded memory growth while keeping lookups O(1).
-
-### 📊 Performance Impact
-- Benchmark (1,000,000 iterations for tax rate conversions and 10,000 line grouping iterations):
-  - Tax operations (1M iterations): **348.63ms ➔ 79.03ms** (**4.41x speedup**, 77.3% CPU time reduction)
-  - `bandsFromLines` (10k iterations): **183.75ms ➔ 91.61ms** (**2.01x speedup**, 50.2% execution time reduction)
-- Zero breaking changes, 100% test compatibility.
-
----
-
-## 2026-09-03 - Memoize `parseSupplierName` and `canonicalizeUnit` in `src/lib/server/normalize.ts`
-
-### 🔍 Bottleneck Analysis
-During a systematic audit of string normalizers and formatters in `src/lib/server/normalize.ts`, we identified that `parseSupplierName` and `canonicalizeUnit` executed expensive RegExp operations on every invocation:
-- `parseSupplierName` compiled and executed `SPANISH_LEGAL_FORM_RE` (a complex regex with 10 alternations of legal forms) repeatedly via `.match()` and `.replace()` calls, alongside multiple punctuation and whitespace cleanup replacements.
-- `canonicalizeUnit` executed lookbehind regex `TRAILING_DOTS_RE` (`/(?<!\.)\.+$/`) and string transformations on every unit string during line processing and extraction.
-
-Both functions were invoked repeatedly without result memoization, incurring unnecessary CPU cycles during invoice extraction, supplier matching, and product line processing.
-
-### ⚡ Optimization
-Added bounded Map caches (`supplierNameCache` max 4000, `unitCache` max 1000) in `src/lib/server/normalize.ts`:
-- `supplierNameCache` memoizes `parseSupplierName(raw)` results.
-- `unitCache` memoizes `canonicalizeUnit(raw)` results.
-
-When cache capacities are reached, entries are cleared to prevent unbounded memory growth while keeping cache hits fast and O(1).
-
-### 📊 Performance Impact
-- Benchmark (300,000 iterations for `parseSupplierName`, 400,000 iterations for `canonicalizeUnit`):
-  - `parseSupplierName`: **1,263.82ms ➔ 9.65ms** (**130.93x speedup**)
-  - `canonicalizeUnit`: **175.40ms ➔ 19.14ms** (**9.16x speedup**)
-- Zero breaking changes, 100% test compatibility.
-
----
-
-## 2026-09-03 - Eliminating `JSON.stringify` overhead in `src/lib/formatters.ts`
-
-### 🔍 Bottleneck Analysis
-During a systematic audit of pure helpers and formatters in `src/lib/formatters.ts`, we identified that helper functions (`fmtEur`, `fmtEurCompact`, `fmtEurSigned`, `formatYoyPct`, `fmtSize`, `fmtDate`, `fmtDateShort`, `fmtMonthShort`) called `getNumberFormatter` or `getDateTimeFormatter` with freshly allocated option object literals.
-On every call, `getNumberFormatter` and `getDateTimeFormatter` ran `JSON.stringify(options)` to construct a string lookup key for Map caching (`numberFormatters.get(key)`).
-
-Across list views, dashboard metrics, invoice tables, and reports, this incurred significant CPU overhead and garbage collection pressure due to thousands of repeated stringifications.
-
-### ⚡ Optimization
-Pre-instantiated static `Intl.NumberFormat` and `Intl.DateTimeFormat` instances indexed directly by supported locales (`es` and `en`) for standard options:
-- `eurFormatters`
-- `eurCompactFormatters`
-- `yoyFormatters`
-- `integerFormatters`
-- `oneDecimalFormatters`
-- `dateFormatters`
-- `dateShortFormatters`
-- `monthShortFormatters`
-
-This completely eliminates option object allocations and `JSON.stringify` serialization overhead on hot paths.
-
-### 📊 Performance Impact
-- Benchmark (1,000,000 iterations):
-  - `fmtEur`: **1.472s ➔ 714.8ms** (**2.06x speedup**, >50% CPU time reduction)
-- Zero breaking changes, 100% test compatibility.
-
----
-
-## 2026-09-03 - Optimizing line reconciliation key matching from O(N*M) to O(N+M) in `src/lib/server/line-reconciliation.ts`
-
-### 🔍 Bottleneck Analysis
-During systematic audit of background processing and document reconciliation in `src/lib/server/line-reconciliation.ts`, we identified that `greedyMatch` executed quadratic scans (`O(N * M)`) when matching line items between linked documents (e.g., invoice vs. delivery note):
-- For each line `a` in `aLines`, `bLines.findIndex` was called, re-evaluating `keyOf(b)` on every candidate line `b`.
-- In the description matching pass, `keyOf(b)` executed string normalization (`normalizeProductKey`), leading to thousands of repeated function calls and cache queries per reconciliation.
-
-### ⚡ Optimization
-Pre-indexed target lines `bLines` by key into a `bKeyMap` (`Map<string, number[]>`) prior to iterating through `aLines`. This reduces key matching complexity from `O(N * M)` to `O(N + M)` amortized lookup time and eliminates redundant `keyOf(b)` calculations.
-
-### 📊 Performance Impact
-- Benchmark (2,000 reconciliations of 150-line documents):
-  - Reconciliation execution time: **3,751.86ms ➔ 127.01ms** (**29.54x speedup**)
-  - Per call: **1.8759ms ➔ 0.0635ms**
-- Zero breaking changes, 100% test compatibility.
-
----
-
-## 2026-09-06 - Optimizing `toIsoDate` validation and memoization in `src/lib/dates.ts`
-
-### 🔍 Bottleneck Analysis
-During systematic audit of formatters and pure helpers in `src/lib/dates.ts`, we identified that `toIsoDate` constructed full `Date` instances in UTC (`new Date(Date.UTC(year, month - 1, day))`) and invoked getters (`.getUTCFullYear()`, `.getUTCMonth()`, `.getUTCDate()`) on every string to validate day boundaries for valid YYYY-MM-DD inputs.
-
-Because `toIsoDate` is used heavily across URL query param parsing, invoice field parsing, filter validation, and data extraction pipelines without result memoization, this constructor instantiation and object allocation introduced unnecessary garbage collection and CPU overhead.
-
-### ⚡ Optimization
-1. Replaced `Date` constructor instantiation with direct calendar boundary checking (`DAYS_IN_MONTH` lookup table and leap year calculation).
-2. Introduced a bounded `Map` cache (`isoDateCache`, max 2000 entries) to memoize valid and invalid `toIsoDate` results, eliminating regex execution and string conversions on repeated invocations.
-
-### 📊 Performance Impact
-- Benchmark (2,200,000 iterations across valid, invalid, leap year, and non-string date inputs):
-  - Execution time: **800.31ms ➔ 104.46ms** (**7.66x speedup**)
-- Zero breaking changes, 100% test compatibility.
-
----
-
-## 2026-09-07 - Memoize `normalizeTaxId` and `isValidSpanishTaxId` in `src/lib/tax-id.ts`
-
-### 🔍 Bottleneck Analysis
-During a systematic audit of formatters and pure helpers in `src/lib/tax-id.ts`, we identified that `normalizeTaxId` and `isValidSpanishTaxId` executed repeated string upper-casing, character replacement, regex testing (`DNI_RE`, `NIE_RE`, `CIF_RE`), string slicing, and control digit algorithms (`cifControlDigit` / `personalControlLetter`) on every invocation without result memoization.
-
-Because Spanish tax IDs (CIF, NIF, NIE, DNI) are repeatedly validated and normalized across document extraction pipelines, supplier deduplication, party resolution, and settings validation, these unmemoized calculations introduced unnecessary CPU cycles and string allocations.
-
-### ⚡ Optimization
-Added bounded Map caches (`normalizeCache` max 2000, `validTaxIdCache` max 2000) in `src/lib/tax-id.ts`:
-- `normalizeCache` memoizes `normalizeTaxId(raw)` results.
-- `validTaxIdCache` memoizes `isValidSpanishTaxId(value)` results.
-
-When cache capacities are reached, entries are cleared to prevent unbounded memory growth while keeping cache lookups fast and O(1).
-
-### 📊 Performance Impact
-- Benchmark (1,000,000 iterations across valid, invalid, formatted, and unformatted Spanish tax IDs):
-  - `normalizeTaxId` + `isValidSpanishTaxId`: **788.05ms ➔ 83.54ms** (**9.43x speedup**, 89.4% CPU time reduction)
-- Zero breaking changes, 100% test compatibility.
-
----
-
-## 2026-09-07 - Memoize `normalizeIban` and `isValidIban` in `src/lib/iban.ts`
-
-### 🔍 Bottleneck Analysis
-During a systematic audit of pure helpers and validators in `src/lib/iban.ts`, we identified that `normalizeIban` and `isValidIban` executed regex tests (`IBAN_RE`), non-alphanumeric strip replacements (`replace(/[^0-9A-Z]/g, '')`), character code transformations, string slicing, and character-by-character mod-97 calculations on every call without result memoization.
-
-Because bank account IBANs are validated and normalized across supplier profiles, invoice payment details, setting inputs, and invoice extraction pipelines, these repeated operations introduced unnecessary CPU cycles and string allocations.
-
-### ⚡ Optimization
-Added bounded Map caches (`normalizeCache` max 2000, `validIbanCache` max 2000) in `src/lib/iban.ts`:
-- `normalizeCache` memoizes `normalizeIban(raw)` results.
-- `validIbanCache` memoizes `isValidIban(value)` results.
-
-When cache capacities are reached, entries are cleared to prevent unbounded memory growth while maintaining O(1) cache hits.
-
-### 📊 Performance Impact
-- Benchmark (1,000,000 iterations across valid, invalid, formatted, and unformatted IBAN inputs):
-  - `normalizeIban` + `isValidIban`: **1,198.48ms ➔ 72.27ms** (**16.58x speedup**, 94.0% CPU time reduction)
-- Zero breaking changes, 100% test compatibility.
-
----
-
-## 2026-09-07 - Memoize `normalizePhoneNumber` and `formatPhoneNumber` in `src/lib/phone.ts`
-
-### 🔍 Bottleneck Analysis
-During a systematic audit of pure helpers and formatters in `src/lib/phone.ts`, we identified that `normalizePhoneNumber` and `formatPhoneNumber` executed non-digit regex replacements (`/\D+/g`), prefix checks (`startsWith('00')`), length validations, and string slicing on every call without result memoization.
-
-Because phone numbers are processed repeatedly across WhatsApp bot message handling, contact resolution, pairing flows, settings validation, and party resolution during document ingestion, these unmemoized string allocations and regex executions incurred unnecessary CPU overhead.
-
-### ⚡ Optimization
-Added bounded Map caches (`normalizePhoneCache` max 2000, `formatPhoneCache` max 2000) in `src/lib/phone.ts`:
-- `normalizePhoneCache` memoizes `normalizePhoneNumber(input)` results.
-- `formatPhoneCache` memoizes `formatPhoneNumber(phone)` results.
-
-When cache capacities are reached, entries are cleared to prevent unbounded memory growth while keeping cache lookups fast and O(1).
-
-### 📊 Performance Impact
-- Benchmark (1,000,000 iterations across valid Spanish national/international numbers, invalid inputs, and blank strings):
-  - `normalizePhoneNumber` + `formatPhoneNumber`: **334.17ms ➔ 34.38ms** (**9.72x speedup**, 89.7% CPU time reduction)
-- Zero breaking changes, 100% test compatibility.
-
----
-
-## 2026-09-08 - Memoize period and date range calculations in `src/lib/period.ts`
-
-### 🔍 Bottleneck Analysis
-During a systematic audit of formatters and pure helpers in `src/lib/period.ts`, we identified that period calculation helpers `monthBounds`, `addDaysIso`, `daysBetween`, and `previousRange` executed un-memoized date parsing, `Date` object instantiation (`new Date(...)`, `Date.UTC(...)`), string slicing, and ISO conversions on every invocation.
-
-Because period range math is called repeatedly across dashboard loads, analytics routes, budget calculators, report generators, and URL parameter builders, these redundant date operations introduced unnecessary CPU cycles and object allocation overhead.
-
-### ⚡ Optimization
-Added bounded Map caches (`monthBoundsCache`, `addDaysIsoCache`, `daysBetweenCache`, `previousRangeCache`, max 2000 entries each) in `src/lib/period.ts`:
-- `monthBoundsCache` memoizes `monthBounds(month)` results.
-- `addDaysIsoCache` memoizes `addDaysIso(dateStr, days)` results.
-- `daysBetweenCache` memoizes `daysBetween(rangeFrom, rangeTo)` results.
-- `previousRangeCache` memoizes `previousRange(rangeFrom, rangeTo)` results.
-
-When cache capacity is reached, entries are cleared to prevent unbounded memory growth while keeping lookups O(1).
-
-### 📊 Performance Impact
-- Benchmark (1,000,000 iterations across `monthBounds`, `daysBetween`, `addDaysIso`, `previousRange`, and `isFullMonth`):
-  - Execution time: **4,480.33ms ➔ 511.59ms** (**8.76x speedup**, 88.6% CPU time reduction)
-- Zero breaking changes, 100% test compatibility.
-
----
-
-## 2026-09-07 - Memoize money string normalization and parsing in `src/lib/money.ts`
-
-### 🔍 Bottleneck Analysis
-During a systematic audit of pure helpers and formatters in `src/lib/money.ts`, we identified that `normalizeAmountString` and `toCents` executed un-memoized regex matching (`PLAIN_AMOUNT`, `ES_GROUPED_AMOUNT`, `US_GROUPED_AMOUNT`), whitespace stripping, string slicing, and numeric conversion routines on every monetary parsing, sum aggregation (`sumCents`, `sumMoney`), money equality check (`moneyEquals`), display formatting (`toMoneyString`), and number conversions (`moneyToNumber`, `moneyToNullableNumber`).
-
-Because `toCents` and `parseAmount` are invoked repeatedly across invoice line total processing, tax breakdown calculations, recipe costing calculations, supplier analytics, and report aggregations, these unmemoized calculations introduced unnecessary CPU cycles and string allocations on hot paths.
-
-### ⚡ Optimization
-Added bounded Map caches (`normalizeAmountCache` max 2000, `toCentsCache` max 2000) in `src/lib/money.ts`:
-- `normalizeAmountCache` memoizes `normalizeAmountString(value)` results.
-- `toCentsCache` memoizes `toCents(raw)` results.
-
-When cache capacities are reached, entries are cleared to prevent unbounded memory growth while keeping cache lookups fast and O(1).
-
-### 📊 Performance Impact
-- Benchmark (1,000,000 iterations across valid, invalid, grouped ES/US, integer, decimal, and string/numeric money inputs):
-  - `toCents` + `parseAmount`: **597.27ms ➔ 66.58ms** (**8.97x speedup**, 88.9% CPU time reduction)
-- Zero breaking changes, 100% test compatibility.
-
----
-
-## 2026-09-08 - Memoize category key and slug normalization in `src/lib/constants.ts`
-
-### 🔍 Bottleneck Analysis
-During a systematic audit of formatters and pure helpers in `src/lib/constants.ts`, we identified that `categoryKey` and `categorySlug` executed un-memoized Unicode normalization (`.normalize('NFD')`), diacritic stripping regex replacements (`/[\u0300-\u036f]/g`), whitespace trimming, lowercasing, and slug sanitization regexes (`/[^a-z0-9]+/g`) on every invocation.
-
-Because `categoryKey`, `categorySlug`, and `resolveCategory` are invoked repeatedly across document extraction, line item categorisation, supplier resolution, product cataloging, and taxonomy filters, these unmemoized operations created significant CPU and string allocation overhead on hot paths.
-
-### ⚡ Optimization
-Added bounded Map caches (`categoryKeyCache` max 2000, `categorySlugCache` max 2000) in `src/lib/constants.ts`:
-- `categoryKeyCache` memoizes `categoryKey(value)` results.
-- `categorySlugCache` memoizes `categorySlug(value)` results.
-
-When cache capacities are reached, entries are cleared to prevent unbounded memory growth while keeping cache lookups O(1).
-
-### 📊 Performance Impact
-- Benchmark (1,000,000 iterations across valid, custom, accented, and unformatted category inputs):
-  - `categoryKey` + `categorySlug` + `resolveCategory`: **1,745.52ms ➔ 94.89ms** (**18.39x speedup**, 94.6% CPU time reduction)
-- Zero breaking changes, 100% test compatibility.
-
----
-
-## 2026-09-08 - Memoize `fmtDate`, `fmtDateShort`, and `fmtMonthShort` in `src/lib/formatters.ts`
-
-### 🔍 Bottleneck Analysis
-During a systematic audit of formatters and pure helpers in `src/lib/formatters.ts`, we identified that `fmtDate`, `fmtDateShort`, and `fmtMonthShort` executed un-memoized date parsing (`new Date(d)`, `new Date(`${ym}-01T00:00:00`)`), object allocations, and localized `Intl.DateTimeFormat.prototype.format(...)` operations on every call.
-
-Because `fmtDate`, `fmtDateShort`, and `fmtMonthShort` are called repeatedly across invoice lists, supplier views, dashboard charts, analytics, reminders, and alerts, these redundant `Date` object instantiations and formatting routines created unnecessary CPU cycles and garbage collection pressure on hot render paths.
-
-### ⚡ Optimization
-Added bounded Map caches (`fmtDateCache` max 2000, `fmtDateShortCache` max 2000, `fmtMonthShortCache` max 2000) in `src/lib/formatters.ts`:
-- `fmtDateCache` memoizes `fmtDate(d, locale)` results.
-- `fmtDateShortCache` memoizes `fmtDateShort(d, locale)` results.
-- `fmtMonthShortCache` memoizes `fmtMonthShort(ym, locale)` results.
-
-When cache capacities are reached, entries are cleared to prevent unbounded memory growth while keeping cache lookups fast and O(1).
-
-### 📊 Performance Impact
-- Benchmark (1,000,000 iterations across valid dates, year-month strings, nulls, and locales):
-  - Execution time: **4,258.35ms ➔ 612.62ms** (**6.95x speedup**, 85.6% CPU time reduction)
-- Zero breaking changes, 100% test compatibility.
+One file per optimization, under `bolt/`. **Do not add entries to this file.**
+
+Entries used to be prepended to the top of this file, which made every pair of
+concurrent Bolt PRs conflict here by construction — the same hunk, every time,
+even though the two changes touched unrelated source files. Three separate
+conflict resolutions on a single PR (#1093) came from this file alone and
+nothing else.
+
+## Adding an entry
+
+Create `bolt/<date>-<module>-<what-changed>.md`, e.g.
+`bolt/2026-09-09-trend-fast-spend-trend-segment-indexing.md`, and add a line to
+the list below. A new file cannot conflict with another run's new file.
+
+Keep the existing entry shape: an `## <date> - <title>` heading, then
+`### 🔍 Bottleneck Analysis`, `### ⚡ Optimization`, `### 📊 Performance Impact`.
+
+## Entries
+
+- `2026-09-09` — [Fast spend trend segment indexing in `src/lib/server/trend.ts`](bolt/2026-09-09-trend-fast-spend-trend-segment-indexing.md)
+- `2026-09-08` — [Memoize recipe quantity parsing and unit key resolution in `src/lib/recipes.ts`](bolt/2026-09-08-recipes-memoize-recipe-quantity-parsing-and-unit-key-resolution.md)
+- `2026-09-08` — [Memoize `parsePack` and `expandAbbreviations` in `src/lib/server/products.ts`](bolt/2026-09-08-products-memoize-parsepack-and-expandabbreviations.md)
+- `2026-09-08` — [Memoize `percentToFraction` and `fractionToPercent` in `src/lib/tax.ts`](bolt/2026-09-08-tax-memoize-percenttofraction-and-fractiontopercent.md)
+- `2026-09-08` — [Memoize period and date range calculations in `src/lib/period.ts`](bolt/2026-09-08-period-memoize-period-and-date-range-calculations.md)
+- `2026-09-08` — [Memoize category key and slug normalization in `src/lib/constants.ts`](bolt/2026-09-08-constants-memoize-category-key-and-slug-normalization.md)
+- `2026-09-08` — [Memoize `fmtDate`, `fmtDateShort`, and `fmtMonthShort` in `src/lib/formatters.ts`](bolt/2026-09-08-formatters-memoize-fmtdate-fmtdateshort-and-fmtmonthshort.md)
+- `2026-09-07` — [Memoize `normalizeTaxId` and `isValidSpanishTaxId` in `src/lib/tax-id.ts`](bolt/2026-09-07-tax-id-memoize-normalizetaxid-and-isvalidspanishtaxid.md)
+- `2026-09-07` — [Memoize `normalizeIban` and `isValidIban` in `src/lib/iban.ts`](bolt/2026-09-07-iban-memoize-normalizeiban-and-isvalidiban.md)
+- `2026-09-07` — [Memoize `normalizePhoneNumber` and `formatPhoneNumber` in `src/lib/phone.ts`](bolt/2026-09-07-phone-memoize-normalizephonenumber-and-formatphonenumber.md)
+- `2026-09-07` — [Memoize money string normalization and parsing in `src/lib/money.ts`](bolt/2026-09-07-money-memoize-money-string-normalization-and-parsing.md)
+- `2026-09-06` — [Optimizing `toIsoDate` validation and memoization in `src/lib/dates.ts`](bolt/2026-09-06-dates-optimizing-toisodate-validation-and-memoization.md)
+- `2026-09-03` — [Memoize `parseSupplierName` and `canonicalizeUnit` in `src/lib/server/normalize.ts`](bolt/2026-09-03-normalize-memoize-parsesuppliername-and-canonicalizeunit.md)
+- `2026-09-03` — [Eliminating `JSON.stringify` overhead in `src/lib/formatters.ts`](bolt/2026-09-03-formatters-eliminating-json-stringify-overhead.md)
+- `2026-09-03` — [Optimizing line reconciliation key matching from O(N*M) to O(N+M) in `src/lib/server/line-reconciliation.ts`](bolt/2026-09-03-line-reconciliation-optimizing-line-reconciliation-key-matching-from-o.md)
