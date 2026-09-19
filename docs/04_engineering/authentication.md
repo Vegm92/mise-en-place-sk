@@ -92,6 +92,7 @@ Auth.js / SvelteKitAuth (`@auth/sveltekit`) with JWT sessions and the `DrizzleAd
 
 **`function hashIp`**
 - Short, non-reversible fingerprint of an IP for correlating attempts without storing it.
+- HMAC-SHA256 keyed with `AUTH_SECRET`, not a plain hash (#1083) — IPv4 is only 2^32 values, so an unsalted digest is brute-forceable in seconds; keying it makes the stored hash unrecoverable without the secret. Rotating `AUTH_SECRET` makes prior stored hashes unmatchable, which is fine for an audit log.
 
 **`function logAuthEvent`**
 - Tagged Sentry event so alert rules catch a spike; breadcrumb for context on any error later in the same request.

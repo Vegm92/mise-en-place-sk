@@ -442,6 +442,7 @@ export type ParsedEinvoice = ExtractedInvoice & {
 };
 
 export function parseEinvoice(xml: string): ParsedEinvoice | null {
+	if (/<!DOCTYPE/i.test(xml)) return null;
 	const format = detectEinvoiceFormat(xml);
 	if (format === 'facturae_322') return parseFacturae322(xml);
 	if (format === 'ubl_21') return parseUbl21Invoice(xml);

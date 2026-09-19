@@ -295,6 +295,7 @@ Quota, access, classification, JSON shape, error classification.
 **`function parseEinvoice`**
 
 - Auto-detects the XML format and delegates; null if not recognised.
+- Rejects any document containing `<!DOCTYPE` before parsing (#1083) — custom XML entities (a billion-laughs expansion) can only be declared inside a DOCTYPE, so refusing one there is the actual control; entity decoding itself is left on the default, since disabling it also breaks the built-in `&amp;`/`&lt;`/etc. escapes real supplier names and addresses use.
 
 ### `src/lib/server/extract-batch.ts`
 

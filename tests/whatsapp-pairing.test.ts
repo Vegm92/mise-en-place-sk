@@ -186,6 +186,13 @@ describe('redeemPairingCode', () => {
 		expect(rateLimitMock).toHaveBeenCalledWith(`whatsapp-pair:${PHONE}`, expect.any(Number), expect.any(Number), { authCritical: true });
 	});
 
+	it('rate-limits redemption globally across senders, independent of the per-sender bucket (#1083)', async () => {
+		rateLimitMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+		expect(await redeemPairingCode(PHONE, 'A2B3C4')).toEqual({ ok: false, reason: 'rateLimited' });
+		expect(dbMock.update).not.toHaveBeenCalled();
+		expect(rateLimitMock).toHaveBeenLastCalledWith('whatsapp-pair-redeem', expect.any(Number), expect.any(Number), { authCritical: true });
+	});
+
 	it('releases the code when the number belongs to another restaurant', async () => {
 		updateReturning.push([{ id: 7, restaurantId: RESTAURANT_A, displayName: null }]); // claim
 		addContactMock.mockResolvedValue({ ok: false, reason: 'taken' });

@@ -14,6 +14,7 @@ export const CODE_TTL_MS = 15 * 60 * 1000;
 
 const REDEEM_ATTEMPTS = 5;
 const REDEEM_WINDOW_S = 60 * 60;
+const REDEEM_GLOBAL_LIMIT = 100;
 
 const GENERATE_LIMIT = 10;
 const GENERATE_WINDOW_S = 60 * 60;
@@ -150,6 +151,9 @@ export async function redeemPairingCode(phone: string, rawCode: string): Promise
 
 	try {
 		if (!(await checkRateLimit(`whatsapp-pair:${phone}`, REDEEM_ATTEMPTS, REDEEM_WINDOW_S, { authCritical: true }))) {
+			return { ok: false, reason: 'rateLimited' };
+		}
+		if (!(await checkRateLimit('whatsapp-pair-redeem', REDEEM_GLOBAL_LIMIT, REDEEM_WINDOW_S, { authCritical: true }))) {
 			return { ok: false, reason: 'rateLimited' };
 		}
 	} catch (e) {

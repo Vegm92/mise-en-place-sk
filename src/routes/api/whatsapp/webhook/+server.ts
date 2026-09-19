@@ -26,12 +26,19 @@ function verifySignature(rawBody: string, header: string | null): boolean {
 	return a.length === b.length && timingSafeEqual(a, b);
 }
 
+function verifyToken(token: string | null): boolean {
+	if (!token || !WHATSAPP_VERIFY_TOKEN) return false;
+	const a = Buffer.from(token);
+	const b = Buffer.from(WHATSAPP_VERIFY_TOKEN);
+	return a.length === b.length && timingSafeEqual(a, b);
+}
+
 export const GET: RequestHandler = async ({ url }) => {
 	const mode      = url.searchParams.get('hub.mode');
 	const token     = url.searchParams.get('hub.verify_token');
 	const challenge = url.searchParams.get('hub.challenge');
 
-	if (mode === 'subscribe' && WHATSAPP_VERIFY_TOKEN && token === WHATSAPP_VERIFY_TOKEN) {
+	if (mode === 'subscribe' && verifyToken(token)) {
 		return new Response(challenge ?? '', { status: 200 });
 	}
 	return new Response('Forbidden', { status: 403 });
