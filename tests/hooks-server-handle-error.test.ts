@@ -81,16 +81,30 @@ describe('hooks.server.ts handleError', () => {
 		spy.mockRestore();
 	});
 
-	it('enforces Content-Security-Policy header in HTTP security headers', async () => {
+	it("keeps SvelteKit's hash-mode Content-Security-Policy instead of overriding it with 'unsafe-inline'", async () => {
 		const { applySecurityHeaders } = await import('../src/hooks.server');
-		const initialRes = new Response('OK', { status: 200 });
+		const kitCsp = "default-src 'self'; script-src 'self' 'sha256-abc123' https://challenges.cloudflare.com; form-action 'self' https://checkout.stripe.com";
+		const initialRes = new Response('OK', { status: 200, headers: { 'Content-Security-Policy': kitCsp } });
 		const mockEvent = {
 			route: { id: '/dashboard' },
 			locals: { requestId: 'test-req' },
 		} as unknown as RequestEvent;
 
 		const response = applySecurityHeaders('/dashboard', initialRes, mockEvent);
-		expect(response.headers.get('Content-Security-Policy')).toContain("default-src 'self'");
+		expect(response.headers.get('Content-Security-Policy')).toBe(kitCsp);
+		expect(response.headers.get('Content-Security-Policy')).not.toContain("'unsafe-inline'");
 		expect(response.headers.get('X-Frame-Options')).toBe('DENY');
+	});
+
+	it('does not invent a Content-Security-Policy on responses SvelteKit left without one', async () => {
+		const { applySecurityHeaders } = await import('../src/hooks.server');
+		const initialRes = new Response('{}', { status: 200 });
+		const mockEvent = {
+			route: { id: '/api/health' },
+			locals: { requestId: 'test-req' },
+		} as unknown as RequestEvent;
+
+		const response = applySecurityHeaders('/api/health', initialRes, mockEvent);
+		expect(response.headers.get('Content-Security-Policy')).toBeNull();
 	});
 });
