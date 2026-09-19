@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { t, ti } from '$lib/i18n';
+  import { fmtMinutes, fmtPercent } from '$lib/formatters';
   import AdminPageHead from '$lib/components/admin/AdminPageHead.svelte';
   import HudPanel from '$lib/components/admin/HudPanel.svelte';
 
@@ -8,14 +9,6 @@
 
   const ttv = $derived(data.timeToValue);
   const retention = $derived(data.weekFourRetention);
-
-  function minutes(n: number | null): string {
-    return n === null ? '—' : n < 60 ? `${n.toFixed(1)} min` : `${(n / 60).toFixed(1)} h`;
-  }
-
-  function pct(n: number | null): string {
-    return n === null ? '—' : `${(n * 100).toFixed(1)}%`;
-  }
 </script>
 
 <AdminPageHead
@@ -32,7 +25,7 @@
         <div class="hud-kpi-row">
           <div class="hud-kpi">
             <span class="hud-kpi-label">{t('admin.activation.ttv.title')}</span>
-            <span class="hud-kpi-value">{minutes(ttv.medianMinutes)} / {minutes(ttv.p90Minutes)}</span>
+            <span class="hud-kpi-value">{fmtMinutes(ttv.medianMinutes)} / {fmtMinutes(ttv.p90Minutes)}</span>
           </div>
         </div>
       {/if}
@@ -45,7 +38,7 @@
         <div class="hud-kpi-row">
           <div class="hud-kpi">
             <span class="hud-kpi-label">{t('admin.activation.retention.title')}</span>
-            <span class="hud-kpi-value">{pct(retention.retentionRate)}</span>
+            <span class="hud-kpi-value">{fmtPercent(retention.retentionRate)}</span>
           </div>
         </div>
       {/if}
