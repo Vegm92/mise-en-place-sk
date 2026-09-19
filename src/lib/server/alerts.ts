@@ -2,7 +2,7 @@ import { and, eq, inArray, isNotNull, isNull, ne, sql, type SQL } from 'drizzle-
 import { db, forTenant } from './db';
 import { invoiceLineItems, invoices, products, suppliers, stockLevels, categoryBudgets, settings, systemNotifications } from './schema';
 import { renderTemplate } from '$lib/i18n-messages';
-import { monthKey } from '$lib/dates';
+import { currentCalendarMonth } from './period-range';
 import { UNCATEGORIZED_CATEGORY } from '$lib/constants';
 import { visibleCategoryNames } from './categories';
 import { normalizeProductKey } from './normalize';
@@ -494,7 +494,7 @@ async function monthlyCategorySpend(
 }
 
 async function openOveragesThisMonth(tdb: ReturnType<typeof forTenant>): Promise<Set<string>> {
-	const monthPrefix = monthKey(new Date());
+	const monthPrefix = currentCalendarMonth();
 	const rows = await notificationsForType(
 		tdb, 'budget_overage',
 		ne(systemNotifications.status, 'resolved'),
@@ -513,7 +513,7 @@ export async function runBudgetCheck(invoiceId: number, supplierId: number, rest
 	const categories = await invoiceLineCategories(tdb, invoiceId, supplierId);
 	if (categories.length === 0) return [];
 
-	const currentMonth = monthKey(new Date());
+	const currentMonth = currentCalendarMonth();
 	const budgetRows = await db
 		.select({ category: categoryBudgets.category, monthlyBudget: categoryBudgets.monthlyBudget })
 		.from(categoryBudgets)
@@ -967,7 +967,7 @@ async function reevaluateBudgetAlerts(restaurantId: string, categories: string[]
 	});
 	if (relevant.length === 0) return;
 
-	const currentMonth = monthKey(new Date());
+	const currentMonth = currentCalendarMonth();
 	const budgetRows = await db
 		.select({ category: categoryBudgets.category, monthlyBudget: categoryBudgets.monthlyBudget })
 		.from(categoryBudgets)

@@ -1,14 +1,13 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { handleLoad } from '$lib/server/load-guard';
 import type { Actions, PageServerLoad } from './$types';
-import { localToday, monthRange } from '$lib/server/period-range';
+import { currentCalendarMonth, localToday, monthRange } from '$lib/server/period-range';
 import { daysBetween } from '$lib/period';
 import { db, forTenant } from '$lib/server/db';
 import { categoryBudgets } from '$lib/server/schema';
 import { and, eq, sql } from 'drizzle-orm';
 import { selectableCategoryNames } from '$lib/server/categories';
 import { trackEvent } from '$lib/server/events';
-import { monthKey } from '$lib/dates';
 import { toMoneyString, moneyToNumber } from '$lib/server/money';
 import { describedLine, lineAmountExpr, lineCategoryExpr, lineProductJoin } from '$lib/server/category-spend';
 
@@ -77,7 +76,7 @@ export const actions: Actions = {
 		const tdb = forTenant(rid);
 		const data = await request.formData();
 
-		const currentMonth = monthKey(new Date());
+		const currentMonth = currentCalendarMonth();
 		const submittedMonth = String(data.get('_month') ?? '');
 		if (submittedMonth !== currentMonth) {
 			return fail(403, { error: 'Only the current month can be edited.' });

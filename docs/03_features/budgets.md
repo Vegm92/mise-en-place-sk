@@ -174,7 +174,7 @@ Toggle from `/admin/feature-flags`.
 
 **`property save`**
 
-- Only the current month is editable — a past-month submission (e.g. a stale tab left open across a month boundary) is rejected here, never trusted from the client, which only hides the Save button.
+- Only the current month is editable — a past-month submission (e.g. a stale tab left open across a month boundary) is rejected here, never trusted from the client, which only hides the Save button. The current-month check and `category_budgets.month` reads/writes use `currentCalendarMonth` (`server/period-range.ts`, `APP_TIMEZONE`), the same helper the page load calls via `monthRange` — not the UTC `monthKey` — so the two never disagree during the first hour(s) of a month (issue #1117). The budget alert engine (`alerts.ts`) keys its month lookups the same way.
 - Categories list is passed from the form so new custom ones are included; a malformed/absent `_categories` payload falls back to the restaurant's own `selectableCategoryNames(rid)` rather than the fixed list.
 
 ### `src/routes/(app)/budgets/+page.svelte`

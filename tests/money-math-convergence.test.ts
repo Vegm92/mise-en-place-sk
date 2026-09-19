@@ -26,6 +26,7 @@ import { median } from '../src/lib/money';
 import { monthKey as revenueMonthKey } from '../src/lib/revenue-math';
 import { monthKey as serverMonthKey } from '../src/lib/server/dates';
 import { median as serverMedian } from '../src/lib/server/money';
+import { currentCalendarMonth, monthRange } from '../src/lib/server/period-range';
 
 const ROOT = path.resolve(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
@@ -54,6 +55,10 @@ const MONTH_KEY_TEMPLATE = /get(UTC)?FullYear\(\)\}-\$\{String\([^)]*get(UTC)?Mo
 const ISO_MONTH_SLICE = /toISOString\(\)\s*\.\s*(slice|substring|substr)\(\s*0\s*,\s*7\s*\)/;
 const MEDIAN_DEFINITION = /\b(function\s+median\w*\s*\(|const\s+median\w*\s*=\s*(\([^)]*\)|\w+)\s*=>)/;
 const SORTED_MIDDLE = /\.sort\(\(\w+, \w+\) => \w+ - \w+\)[\s\S]{0,240}?length(\s*-\s*1\))?\s*\/\s*2/;
+
+const CALENDAR_MONTH_HOME = 'src/lib/server/period-range.ts';
+// `monthOf(localToday(...))` — the app-timezone calendar-month derivation (issue #1117).
+const CALENDAR_MONTH_DERIVATION = /monthOf\(\s*localToday\(/;
 
 describe('monthKey — one UTC month key (issue #1068)', () => {
 	it('buckets by UTC calendar fields, not the host zone', () => {
@@ -110,6 +115,21 @@ describe('median — one averaging median (issue #1068)', () => {
 	});
 });
 
+describe('currentCalendarMonth — one calendar-month key for budgets (issue #1117)', () => {
+	it('follows the app timezone, not UTC, across a month boundary', () => {
+		// 00:30 on 1 October in Madrid (UTC+2 in summer) is still 30 September in UTC.
+		const madridJustAfterMidnight = new Date('2026-10-01T00:30:00+02:00');
+		expect(currentCalendarMonth(madridJustAfterMidnight)).toBe('2026-10');
+		expect(monthKey(madridJustAfterMidnight)).toBe('2026-09');
+	});
+
+	it('is the same key the budgets page load (monthRange) resolves to', () => {
+		const madridJustAfterMidnight = new Date('2026-10-01T00:30:00+02:00');
+		const page = monthRange(new URL('http://localhost/budgets'), madridJustAfterMidnight);
+		expect(page.currentMonth).toBe(currentCalendarMonth(madridJustAfterMidnight));
+	});
+});
+
 describe('source sweep — no second implementation may come back', () => {
 	it('scanned a non-trivial number of source files', () => {
 		expect(sources.length).toBeGreaterThan(200);
@@ -134,6 +154,19 @@ describe('source sweep — no second implementation may come back', () => {
 	it('no other source sorts numbers and picks the middle index', () => {
 		const offenders = sources.filter((s) => SORTED_MIDDLE.test(s.text)).map((s) => s.rel);
 		expect(offenders).toEqual([MEDIAN_HOME]);
+	});
+
+	it(`${CALENDAR_MONTH_HOME} holds the only monthOf(localToday(...)) derivation`, () => {
+		const offenders = sources.filter((s) => CALENDAR_MONTH_DERIVATION.test(s.text)).map((s) => s.rel);
+		expect(offenders).toEqual([CALENDAR_MONTH_HOME]);
+	});
+
+	it.each([
+		'src/routes/(app)/budgets/+page.server.ts',
+		'src/lib/server/alerts.ts',
+	])('%s does not key the current calendar month off the UTC monthKey(new Date()) again', (rel) => {
+		const text = sources.find((s) => s.rel === rel)?.text ?? '';
+		expect(text).not.toMatch(/monthKey\(new Date\(\)\)/);
 	});
 
 	it.each([

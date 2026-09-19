@@ -41,8 +41,12 @@ export interface MonthResult {
 	currentMonth: string;
 }
 
+export function currentCalendarMonth(now: Date = new Date()): string {
+	return monthOf(localToday(now));
+}
+
 export function monthRange(urlOrMonth: URL | string | null, now: Date = new Date()): MonthResult {
-	const currentMonth = monthOf(localToday(now));
+	const currentMonth = currentCalendarMonth(now);
 	const raw = typeof urlOrMonth === 'string' ? urlOrMonth : urlOrMonth?.searchParams.get('month') ?? null;
 	const activeMonth = resolveMonth(raw, currentMonth);
 	return { ...monthBounds(activeMonth), activeMonth, currentMonth };

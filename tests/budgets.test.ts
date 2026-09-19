@@ -13,9 +13,11 @@ import {
 	testDb, testSql, closeDb,
 	createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
+import { runFormAction } from './helpers/action-result';
 import { categoryBudgets } from '../src/lib/server/schema';
 import { VALID_CATEGORIES } from '../src/lib/constants';
 import { createCategory } from '../src/lib/server/categories';
+import { monthRange } from '../src/lib/server/period-range';
 
 const MONTH = '2026-01';
 
@@ -176,6 +178,39 @@ describe.skipIf(!hasDbEnv)('budgets load() — merges a restaurant\'s own catego
 			expect(result.categories).toContain('Marketing');
 			expect(result.categories).toContain('Bebidas');
 			expect(result.categories).toContain('Other');
+		} finally {
+			await cleanupTestRestaurant(r.id);
+		}
+	});
+});
+
+// ── save action month key (issue #1117) ─────────────────────────────────────
+
+describe.skipIf(!hasDbEnv)('budgets save action — calendar month agrees with the page (issue #1117)', () => {
+	it('accepts the month the page load computed, and the saved row is readable on the same load', async () => {
+		const r = await createTestRestaurant('budgets-month-agreement');
+		try {
+			const { actions, load } = await import('../src/routes/(app)/budgets/+page.server');
+			const url = new URL('http://localhost/budgets');
+			const currentMonth = monthRange(url).currentMonth;
+
+			const cat = VALID_CATEGORIES[0]!;
+			const body = new FormData();
+			body.append('_month', currentMonth);
+			body.append('_categories', JSON.stringify([cat]));
+			body.append(cat, '250');
+			const request = new Request('http://localhost/budgets?/save', { method: 'POST', body });
+
+			const result = await runFormAction(actions.save as (e: unknown) => Promise<unknown>, {
+				request, locals: { restaurantId: r.id },
+			});
+			expect(result).toMatchObject({ kind: 'redirect', status: 303 });
+
+			const loaded = await load({ url, locals: { restaurantId: r.id } } as never) as unknown as {
+				selectedMonth: string; budgets: Record<string, number>;
+			};
+			expect(loaded.selectedMonth).toBe(currentMonth);
+			expect(loaded.budgets[cat]).toBe(250);
 		} finally {
 			await cleanupTestRestaurant(r.id);
 		}
