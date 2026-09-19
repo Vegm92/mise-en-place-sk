@@ -10,6 +10,13 @@ Copy `.env.example` to `.env` and fill in every value before starting the server
 
 ## Required environment variables
 
+### Application
+
+| Variable | Required | Notes |
+|---|---|---|
+| `APP_BASE_URL` | **Yes (prod, web + worker)** | The canonical public origin (`https://mise-place.com`, no trailing slash). Every absolute URL the app emits is built from it: links in transactional emails and WhatsApp replies (sent by the **worker**), `rel=canonical`, `sitemap.xml`, `robots.txt`. `assertProductionEnv()` refuses to boot the web service without it (`src/lib/server/config.ts`). |
+| `APP_TIMEZONE` | No | IANA zone that "today" / "this month" / the period pickers resolve against. Default `Europe/Madrid`. |
+
 ### Database (Railway Postgres)
 
 | Variable | Required | Notes |
@@ -19,6 +26,8 @@ Copy `.env.example` to `.env` and fill in every value before starting the server
 | `DATABASE_POOL_URL` | No | Separate pooled connection string for the runtime Drizzle ORM queries. Falls back to `DATABASE_URL` when unset. Recommended for multi-replica / HA deployments. Use the scoped runtime role here too. |
 | `DATABASE_SSL_MODE` | No | `require` (default — encrypted, certificate **not** verified) or `verify-full` (certificate chain verified). Applies to both the web pool and the worker's pg-boss connection. Production logs a warning while it is `require`. |
 | `DATABASE_CA_CERT` | No | CA certificate used when `DATABASE_SSL_MODE=verify-full` — either the PEM itself or a path to a `.crt` file — **not** a mode name; setting it to `verify-full` is the swap that takes both services down at startup. Omit to use the system trust store. **Confirming `verify-full` against Railway's cert chain is an open acceptance criterion of #367** — until it is settled, `require` is the working default. |
+| `DB_POOL_MAX` / `DB_POOL_IDLE_TIMEOUT_MS` / `DB_POOL_MAX_LIFETIME_MS` | No | postgres.js pool for the Drizzle runtime client (`src/lib/server/db-client.ts`): max connections per process (`20`), idle keep-alive (`30000` ms), hard connection lifetime (`600000` ms). Web + worker pools plus pg-boss (2 web / 3 worker) must stay under the Postgres `max_connections`. Same values on both services. |
+| `DB_CONNECT_TIMEOUT_SECONDS` / `DB_STATEMENT_TIMEOUT_MS` | No | Connect timeout (`10` s) and per-statement server-side cap (`15000` ms). |
 
 #### Runtime vs. migration database roles
 
@@ -139,7 +148,7 @@ Set the OAuth client's authorized redirect URI to `{your-origin}/auth/callback/g
 | Variable | Required | Notes |
 |---|---|---|
 | `GEMINI_API_KEY` | Yes | From [Google AI Studio](https://aistudio.google.com/app/apikey). Boot logs a warning if missing; extraction fails without it. |
-| `GEMINI_MODEL` | Optional | Defaults to `gemini-3.1-flash-lite`. Update when Google deprecates the model. |
+| `GEMINI_MODEL` | Optional (web + worker, same value) | Defaults to `gemini-3.1-flash-lite`, which Google has scheduled for **shutdown on 2027-05-07** (deprecated 2026-05-07; successor `gemini-3.5-flash-lite`, $0.30 in / $2.50 out per 1M tokens vs $0.25 / $1.50 — [deprecations page](https://ai.google.dev/gemini-api/docs/deprecations)). Swap procedure: run `pnpm eval:gate` with the new model, `pnpm eval:accept-baseline`, make sure `COST_PER_MILLION` in `src/lib/server/llm-provider.ts` has a row for it, then set the variable on **both** services. |
 
 ### File storage
 
@@ -209,6 +218,8 @@ where the Node process is directly internet-facing.
 | `STRIPE_PRICE_ID_PRO` | Recommended | Monthly price ID for the Pro tier (€99). Without it, Pro checkout returns "this plan is not available" (issue #286). |
 | `STRIPE_PRICE_ID_BUSINESS` | Recommended | Monthly price ID for the Business tier (€199). |
 | `STRIPE_PRICE_ID` | Legacy | Fallback for `STRIPE_PRICE_ID_STARTER` only. Prefer the per-tier variables. |
+| `STRIPE_FOUNDER_COUPON_ID` | Optional | Coupon applied automatically at checkout for private-beta founders approved from `/admin/access`. Unset: founders keep the longer trial, no discount. |
+| `STRIPE_FOUNDER_PROMO_CODE` | Optional | The customer-facing promotion code for that coupon (Stripe → Coupons → Promotion codes), shown on `/admin/access` approvals so a founder can redeem it themselves. |
 | `STRIPE_WEBHOOK_SECRET` | Recommended | `whsec_…`. Configure the endpoint `{your-origin}/api/stripe-webhook` in Stripe Dashboard → Webhooks; send: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`. |
 
 > **Keep the price IDs in sync with Stripe.** A subscription whose price ID
@@ -232,6 +243,7 @@ where the Node process is directly internet-facing.
 |---|---|---|
 | `RESEND_API_KEY` | Recommended | `re_…` from [Resend Dashboard](https://resend.com). If absent, emails are no-ops (logged to console). |
 | `EMAIL_FROM` | Optional | Sender address. Defaults to `Mise en Place <noreply@mise-place.com>`. Must match a verified domain in Resend. |
+| `COMPANY_LEGAL_NAME` / `COMPANY_ADDRESS` / `COMPANY_NIF` | Optional (web + worker) | Legal footer on outgoing emails (razón social, dirección fiscal, NIF). Blank = the footer line is omitted. Set once the company exists (#779). |
 
 ### Observability
 
@@ -268,12 +280,20 @@ where the Node process is directly internet-facing.
 
 Setup checklist in [WhatsApp bot setup](#whatsapp-bot-setup) below. Leave `WHATSAPP_ACCESS_TOKEN` and `WHATSAPP_PHONE_NUMBER_ID` unset to disable the Cloud API path (the Settings card hides itself too), and `WHATSAPP_BOT_ENABLED` unset to disable the Baileys path.
 
+### Bot protection (Cloudflare Turnstile)
+
+| Variable | Required | Notes |
+|---|---|---|
+| `TURNSTILE_SECRET_KEY` | Optional | Server-side verification secret for the CAPTCHA on `/signup` and `/waitlist`, on top of the always-on honeypot and IP limits. Set **both** keys or neither: a secret without a site key rejects every signup (no widget ever renders). If Cloudflare's siteverify is unreachable after one retry, production rejects the submission with 503. Keys: dash.cloudflare.com → Turnstile. |
+| `PUBLIC_TURNSTILE_SITE_KEY` | Optional | The widget's site key; `PUBLIC_` prefix because it ships to the browser by design. Read at runtime through `$env/dynamic/public`, so changing it needs a redeploy but no rebuild. The CSP in `svelte.config.js` already allows `challenges.cloudflare.com`. |
+
 ### Rate limiting (Upstash Redis)
 
 | Variable | Required | Notes |
 |---|---|---|
 | `UPSTASH_REDIS_REST_URL` | For >1 replica | Upstash REST URL. Without it the limiter falls back to an in-memory token bucket that is **per process** — effective limits become `limit × replica_count` (`rate-limiter.ts` logs a warning at boot). |
 | `UPSTASH_REDIS_REST_TOKEN` | For >1 replica | Upstash REST token. |
+| `API_GLOBAL_RATE_LIMIT` | No | Backstop for every `/api/*` route without its own limit: requests per minute per user (per IP when anonymous) before `hooks.server.ts` answers 429. Default `300`; `0` disables it. `/api/health` and the signature-verified webhooks are exempt. |
 
 ### Tuning
 
@@ -281,6 +301,12 @@ Setup checklist in [WhatsApp bot setup](#whatsapp-bot-setup) below. Leave `WHATS
 |---|---|---|
 | `CHAT_RATE_LIMIT_RPM` | `20` | Chat requests/minute per user |
 | `MAX_CONCURRENT_EXTRACTIONS` | `3` | Parallel Gemini extraction cap, **per worker process** (in-process semaphore) |
+| `EXPORT_ROW_CAP` / `LIST_ROW_CAP` | `10000` / `500` | Row caps for CSV/XLSX exports and the invoice list page |
+| `MEMBERSHIP_TIMEOUT_MS` | `5000` | Web: membership lookup in `hooks.server.ts`; past it the request proceeds tenantless and Sentry gets a `hooks/memberships` degraded event |
+| `LOAD_BLOCK_TIMEOUT_MS` | `8000` | Web: ceiling for a page `load` (`src/lib/server/load-guard.ts`) before it answers 503 instead of hanging the navigation |
+| `METRIC_FLUSH_INTERVAL_MS` | `60000` | How often in-process latency/queue metrics are flushed to `metric_samples` |
+| `WORKER_LIVENESS_CHECK_MS` | `60000` | Web: how often the worker heartbeat is re-read to raise/resolve the "worker stale" Sentry alert |
+| `MIGRATION_WAIT_TIMEOUT_MS` / `MIGRATION_WAIT_POLL_MS` | `600000` / `5000` | Worker pre-deploy (`build/wait-for-migrations.js`): how long to wait for the web's migration, and how often to re-read the ledger |
 | `SCHEDULED_FANOUT_CONCURRENCY` | `5` | Tenants processed at once from the per-tenant scheduled-job queues (digest / reminders / trial notices), **per worker process**. Bounded by Gemini and Resend rate limits, not by throughput (ADR-025) |
 | `EXTRACTION_STALL_WARN_MS` | `120000` | How long a queued item may sit before `/batch/[id]` swaps the spinner for a "taking longer than expected" card with a Retry action |
 | `EXTRACTION_STALL_TIMEOUT_MS` | `900000` | Hard timeout: the **web** process marks an item still queued/extracting past this as `failed` / `extract.err.stalled`. Keep it above the worst legitimate run (pg-boss retries × `GEMINI_TIMEOUT_MS`) or a working extraction gets reaped |
