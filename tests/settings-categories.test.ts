@@ -13,12 +13,10 @@
  * i18n error key, and `load` exposes the restaurant's own rows (default and
  * custom, visible and hidden) plus `canManageCategories`.
  *
- * DB-backed: the db singleton is swapped for the test client. Skipped
+ * DB-backed: runs against the real db singleton. Skipped
  * without DATABASE_URL.
  */
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-
-vi.mock('../src/lib/server/db', async () => (await import('./helpers/db-suite')).testDbModule());
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
 import { testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv } from './helpers/test-db';
 import { runFormAction, type ActionResult } from './helpers/action-result';

@@ -17,9 +17,7 @@
  * DB-backed; skipped without a local Postgres (see tests/helpers/test-db.ts).
  */
 import { randomUUID } from 'node:crypto';
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-
-vi.mock('../src/lib/server/db', async () => (await import('./helpers/db-suite')).testDbModule());
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
 import { testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv } from './helpers/test-db';
 import { saveReviewedInvoice } from '../src/lib/server/invoice-save';

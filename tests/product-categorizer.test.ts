@@ -23,12 +23,6 @@
  */
 import { describe, it, expect, beforeAll, afterEach, afterAll, vi } from 'vitest';
 
-vi.mock('../src/lib/server/db', async () => {
-	const { testDb } = await import('./helpers/test-db');
-	const { forTenant } = await import('../src/lib/server/tenant');
-	return { db: testDb, forTenant };
-});
-
 import {
 	buildCategorizePrompt, parseCategorizeResponse, processCategorizeJob, renameProductsCategory,
 } from '../src/lib/server/products';

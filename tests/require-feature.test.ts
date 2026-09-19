@@ -7,7 +7,7 @@
 import { describe, it, expect, vi } from 'vitest';
 
 const { subscriptionRow } = vi.hoisted(() => ({ subscriptionRow: { value: null as unknown } }));
-vi.mock('../src/lib/server/db', () => {
+vi.mock('$lib/server/db', () => {
 	const chain = () => {
 		const p: Record<string, unknown> = {};
 		for (const m of ['from', 'leftJoin', 'where', 'limit']) p[m] = () => p;

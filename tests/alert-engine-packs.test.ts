@@ -5,12 +5,10 @@
  * a shock, but a real €/kg move still fires. Falls back to raw unit price when
  * no pack/product grouping is available.
  *
- * DB-backed (needs migrations through 0020 + mep_norm_key); the db singleton is
- * swapped for the test client. Skipped without DATABASE_URL.
+ * DB-backed (needs migrations through 0020 + mep_norm_key); runs against the
+ * real db singleton. Skipped without DATABASE_URL.
  */
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-
-vi.mock('../src/lib/server/db', () => import('./helpers/mock-db'));
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
 import { runPriceShock, hasDbEnv, testSql, closeDb, createTestRestaurant, cleanupTestRestaurant } from './helpers/alert-engine-fixtures';
 import { parsePack, normalizedUnitPrice, type EnrichedLineItem } from '../src/lib/server/products';

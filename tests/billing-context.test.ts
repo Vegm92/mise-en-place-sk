@@ -16,7 +16,7 @@ const { queries, row } = vi.hoisted(() => ({
 	row: { value: null as Record<string, unknown> | null },
 }));
 
-vi.mock('../src/lib/server/db', () => {
+vi.mock('$lib/server/db', () => {
 	const chain = () => {
 		const p: Record<string, unknown> = {};
 		for (const m of ['from', 'where', 'limit']) p[m] = () => p;

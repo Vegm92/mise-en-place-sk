@@ -12,9 +12,7 @@
  * The DB-backed half skips without DATABASE_URL, like the other DB suites.
  */
 import { randomUUID } from 'node:crypto';
-import { describe, it, expect, vi } from 'vitest';
-
-vi.mock('../src/lib/server/db', async () => (await import('./helpers/db-suite')).testDbModule());
+import { describe, it, expect } from 'vitest';
 
 import { testSql, hasDbEnv } from './helpers/test-db';
 import { useTestRestaurant } from './helpers/test-restaurant';

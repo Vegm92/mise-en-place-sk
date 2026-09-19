@@ -14,9 +14,7 @@
  * DB-backed because the defect lives in the WHERE clause: a mocked db cannot
  * tell a scoped query from an unscoped one. Skipped without DATABASE_URL.
  */
-import { describe, it, expect, beforeAll, vi } from 'vitest';
-
-vi.mock('../src/lib/server/db', async () => (await import('./helpers/db-suite')).testDbModule());
+import { describe, it, expect, beforeAll } from 'vitest';
 
 import { testSql, hasDbEnv } from './helpers/test-db';
 import { useTestRestaurant } from './helpers/test-restaurant';

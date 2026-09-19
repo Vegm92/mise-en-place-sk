@@ -29,7 +29,7 @@ const { state } = vi.hoisted(() => ({
 	},
 }));
 
-vi.mock('../src/lib/server/db', () => {
+vi.mock('$lib/server/db', () => {
 	const db = {
 		select: () => ({
 			from: (table: never) => ({

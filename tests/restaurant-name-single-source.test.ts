@@ -14,17 +14,10 @@
  * that show the restaurant name — read that same column and agree,
  * immediately after a rename, with no settings row created in the process.
  *
- * DB-backed: the db singleton is swapped for the real test client so the
- * real load functions and the real action run against Postgres. Skipped
- * without DATABASE_URL.
+ * DB-backed: runs against the real db singleton, so the real load functions
+ * and the real action run against Postgres. Skipped without DATABASE_URL.
  */
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-
-vi.mock('../src/lib/server/db', async () => {
-	const { testDb } = await import('./helpers/test-db');
-	const { forTenant } = await import('../src/lib/server/tenant');
-	return { db: testDb, forTenant, runAsSystem: (fn: () => unknown) => fn(), runWithTenantContext: (_rid: unknown, fn: () => unknown) => fn() };
-});
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
 import { testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv } from './helpers/test-db';
 import { memoizeEntitlements } from '../src/lib/server/billing';

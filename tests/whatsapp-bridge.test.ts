@@ -60,7 +60,7 @@ const {
 	};
 });
 
-vi.mock('../src/lib/server/db', () => ({
+vi.mock('$lib/server/db', () => ({
 	db: dbMock,
 	runAsSystem: (fn: () => unknown) => fn(),
 	runWithTenantContext: (_rid: unknown, fn: () => unknown) => fn(),

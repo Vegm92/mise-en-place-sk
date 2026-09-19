@@ -13,16 +13,10 @@
  * one of those settings-derived fields (issue #515) — it comes solely from
  * restaurants.name via the locations list.
  *
- * DB-backed for the load; the db singleton is swapped for the test client.
+ * DB-backed for the load; runs against the real db singleton.
  * Skipped without DATABASE_URL.
  */
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-
-vi.mock('../src/lib/server/db', async () => {
-	const { testDb } = await import('./helpers/test-db');
-	const { forTenant } = await import('../src/lib/server/tenant');
-	return { db: testDb, forTenant, runAsSystem: (fn: () => unknown) => fn(), runWithTenantContext: (_rid: unknown, fn: () => unknown) => fn() };
-});
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
 import {
 	testSql, closeDb,

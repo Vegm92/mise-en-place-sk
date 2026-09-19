@@ -5,13 +5,11 @@
  * inside that same transaction) must land its own 'confirm' row — so neither
  * can diverge from the write it describes.
  *
- * DB-backed; the db singleton is swapped for the test client. Skipped without
+ * DB-backed; runs against the real db singleton. Skipped without
  * DATABASE_URL.
  */
 import { randomUUID } from 'node:crypto';
-import { describe, it, expect, vi } from 'vitest';
-
-vi.mock('../src/lib/server/db', () => import('./helpers/mock-db'));
+import { describe, it, expect } from 'vitest';
 
 import { testSql, hasDbEnv } from './helpers/test-db';
 import { useTestRestaurant } from './helpers/test-restaurant';

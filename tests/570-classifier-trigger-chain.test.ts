@@ -19,7 +19,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
 
-vi.mock('../src/lib/server/db', async () => (await import('./helpers/db-suite')).testDbModule());
+vi.mock('$lib/server/db', async () => (await import('./helpers/db-suite')).testDbModule());
 
 const { enqueueNormalizeMock, enqueueCategorizeMock } = vi.hoisted(() => ({
 	enqueueNormalizeMock: vi.fn().mockResolvedValue(true),

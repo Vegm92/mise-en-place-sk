@@ -11,7 +11,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 const { sendEmailMock } = vi.hoisted(() => ({ sendEmailMock: vi.fn().mockResolvedValue(undefined) }));
 
-vi.mock('../src/lib/server/db', async () => (await import('./helpers/db-suite')).testDbModule());
+vi.mock('$lib/server/db', async () => (await import('./helpers/db-suite')).testDbModule());
 
 vi.mock('../src/lib/server/email', async (importOriginal) => {
 	const actual = await importOriginal<typeof import('../src/lib/server/email')>();

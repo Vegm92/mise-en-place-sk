@@ -13,7 +13,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('../src/lib/server/db', () => ({ db: {} }));
+vi.mock('$lib/server/db', () => ({ db: {} }));
 vi.mock('@sentry/sveltekit', () => ({ captureMessage: vi.fn() }));
 
 import { parseAccountEvent } from '../src/lib/server/whatsapp-health';

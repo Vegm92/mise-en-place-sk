@@ -8,9 +8,7 @@
  * Runs against a live Postgres with migrations applied; skipped when
  * DATABASE_URL is absent (same pattern as alert-engine-normalized.test.ts).
  */
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-
-vi.mock('../src/lib/server/db', () => import('./helpers/mock-db'));
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
 import { testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv, runPriceShock } from './helpers/alert-engine-fixtures';
 import type { EnrichedLineItem } from '../src/lib/server/products';

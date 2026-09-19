@@ -50,7 +50,7 @@ const { dbMock, insertReturning, selectRows, deleteReturning, insertedValues, tr
 	};
 });
 
-vi.mock('../src/lib/server/db', async () => {
+vi.mock('$lib/server/db', async () => {
 	const { forTenant } = await import('../src/lib/server/tenant');
 	return { db: dbMock, forTenant };
 });
