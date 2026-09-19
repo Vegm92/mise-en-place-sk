@@ -13,14 +13,11 @@
  * civil time, not a claim about where the company is.
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
 import { LEGAL_ENTITY } from '../src/lib/legal-entity';
+import { termsSections } from '../src/lib/content/legal/terms';
 
-const ROOT = path.resolve(__dirname, '..');
-const TERMS = readFileSync(path.join(ROOT, 'src/routes/terms/+page.svelte'), 'utf8');
-
-const CLAUSE_12 = [...TERMS.matchAll(/^\s*p12:\s*'(.+)',$/gm)].map((m) => m[1]);
+const GOVERNING_LAW = termsSections.find((s) => s.id === 'governingLaw');
+const CLAUSE_12 = GOVERNING_LAW && 'text' in GOVERNING_LAW ? [GOVERNING_LAW.text.es, GOVERNING_LAW.text.en] : [];
 
 describe('governing-law clause names the city the business actually sits in', () => {
 	it('finds the clause in both locales', () => {
