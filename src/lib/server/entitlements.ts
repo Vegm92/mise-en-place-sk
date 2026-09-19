@@ -93,6 +93,8 @@ export const ROUTE_POLICY = {
 	'/api':                              'open',
 	'/api/batch-status':                 'open',
 	'/api/batch-status/[id]':            'open',
+	'/api/email-ingest':                 'open',
+	'/api/email-ingest/webhook':         'open',
 	'/api/health':                       'open',
 	'/api/stripe-webhook':               'open',
 	'/api/upload':                       'open',

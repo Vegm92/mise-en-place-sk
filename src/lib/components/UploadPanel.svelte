@@ -46,6 +46,7 @@
       saved: boolean; duplicate: boolean; error: string | null;
       errorVars?: ErrorVars | undefined; hasCompletedOnboarding: boolean; upgradeUrl?: string | null | undefined;
       trialExpired?: boolean | undefined; existingFilenames?: string[] | undefined;
+      emailIngestAddress?: string | null | undefined;
     };
     form: { error?: string; errorVars?: ErrorVars; upgradeUrl?: string } | null | undefined;
   }
@@ -67,6 +68,19 @@
     if (localErrorTimer) clearTimeout(localErrorTimer);
     localErrorTimer = null;
     localError = null;
+  }
+
+  let emailCopied = $state(false);
+  let emailCopyTimer: ReturnType<typeof setTimeout> | undefined;
+  async function copyEmailAddress() {
+    if (!data.emailIngestAddress) return;
+    try {
+      await navigator.clipboard.writeText(data.emailIngestAddress);
+      emailCopied = true;
+      clearTimeout(emailCopyTimer);
+      emailCopyTimer = setTimeout(() => (emailCopied = false), 2000);
+    } catch {
+    }
   }
 
   const serverError = $derived.by(() => {
@@ -482,6 +496,21 @@
           </div>
         {/if}
 
+        {#if data.emailIngestAddress}
+          <div class="border-t border-divider" style="margin-top:12px;padding-top:12px;width:100%;max-width:320px;text-align:center;">
+            <div class="text-fg-3" style="font-size:11px;margin-bottom:6px;">{t('upload.emailForward')}</div>
+            <div style="display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;">
+              <span class="num text-fg-2" style="font-size:11px;word-break:break-all;">{data.emailIngestAddress}</span>
+              <button
+                type="button"
+                class="btn btn-ghost"
+                style="height:24px;padding:0 8px;font-size:11px;pointer-events:auto;flex-shrink:0;"
+                onclick={(e) => { e.stopPropagation(); copyEmailAddress(); }}
+              >{emailCopied ? t('upload.copied') : t('upload.copy')}</button>
+            </div>
+          </div>
+        {/if}
+
       </div>
       {/if}
     </div>
@@ -675,6 +704,21 @@
         {#if !canPickFolder}
           <div style="font-size:11px;color:var(--mep-fg-3);margin-top:10px;text-align:center;max-width:300px;line-height:1.45;">
             {t('upload.folderZipHint')}
+          </div>
+        {/if}
+
+        {#if data.emailIngestAddress}
+          <div class="border-t border-divider" style="margin-top:12px;padding-top:12px;width:100%;max-width:320px;text-align:center;">
+            <div class="text-fg-3" style="font-size:11px;margin-bottom:6px;">{t('upload.emailForward')}</div>
+            <div style="display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;">
+              <span class="num text-fg-2" style="font-size:11px;word-break:break-all;">{data.emailIngestAddress}</span>
+              <button
+                type="button"
+                class="btn btn-ghost"
+                style="height:24px;padding:0 8px;font-size:11px;pointer-events:auto;flex-shrink:0;"
+                onclick={(e) => { e.stopPropagation(); copyEmailAddress(); }}
+              >{emailCopied ? t('upload.copied') : t('upload.copy')}</button>
+            </div>
           </div>
         {/if}
 
