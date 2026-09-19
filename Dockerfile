@@ -15,6 +15,20 @@ ARG VITE_SENTRY_DSN
 ARG VITE_SENTRY_RELEASE
 ENV VITE_SENTRY_DSN=$VITE_SENTRY_DSN
 ENV VITE_SENTRY_RELEASE=$VITE_SENTRY_RELEASE
+# The Sentry vite plugin uploads source maps and creates the release during
+# `pnpm build`, so these four must also reach the build stage — without them
+# it logs "No auth token provided" and every production stack trace stays
+# minified, while the generated .map files ship publicly under build/client.
+# They live only in this stage; the runtime image below starts from a fresh
+# base and never sees the token.
+ARG SENTRY_AUTH_TOKEN
+ARG SENTRY_ORG
+ARG SENTRY_PROJECT
+ARG SENTRY_RELEASE
+ENV SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN
+ENV SENTRY_ORG=$SENTRY_ORG
+ENV SENTRY_PROJECT=$SENTRY_PROJECT
+ENV SENTRY_RELEASE=$SENTRY_RELEASE
 RUN pnpm build
 RUN pnpm prune --prod
 

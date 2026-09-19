@@ -11,7 +11,7 @@ Sentry.init({
 	release: SENTRY_RELEASE,
 	environment: IS_PRODUCTION ? 'production' : 'development',
 	tracesSampleRate: resolveTracesSampleRate(import.meta.env['VITE_SENTRY_TRACES_SAMPLE_RATE'], IS_PRODUCTION),
-	replaysSessionSampleRate: 1.0,
+	replaysSessionSampleRate: 0.05,
 	replaysOnErrorSampleRate: 1.0,
 	integrations: [Sentry.replayIntegration()],
 	sendDefaultPii: false,
