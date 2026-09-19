@@ -5,6 +5,8 @@ import { isAdminUser } from '$lib/server/admin';
 import { db } from '$lib/server/db';
 import { systemNotifications } from '$lib/server/schema';
 import { eq, sql, type SQL } from 'drizzle-orm';
+import * as v from 'valibot';
+import { sqlRows } from '$lib/server/sql-rows';
 
 const PAGE_SIZE = 50;
 
@@ -21,6 +23,17 @@ function eventFilters(type: string, status: string, q: string): SQL {
 	if (q) conds.push(sql`sn.message ILIKE ${'%' + escapeIlike(q) + '%'}`);
 	return conds.length ? sql.join(conds, sql` AND `) : sql`1=1`;
 }
+
+const CountRow = v.object({ cnt: v.string() });
+const EventRow = v.object({
+	id: v.number(),
+	notification_type: v.string(),
+	message: v.string(),
+	status: v.string(),
+	created_at: v.string(),
+	restaurant_name: v.nullable(v.string()),
+});
+const TypeCountRow = v.object({ notification_type: v.string(), cnt: v.string() });
 
 export const load: PageServerLoad = async ({ url }) => {
 	const pageParam = parseInt(url.searchParams.get('page') ?? '1', 10);
@@ -64,26 +77,19 @@ export const load: PageServerLoad = async ({ url }) => {
 			`),
 		]);
 
-		const total = Number((totalRows as unknown as Array<{ cnt: string }>)[0]?.cnt ?? 0);
+		const total = Number(sqlRows(totalRows, CountRow)[0]?.cnt ?? 0);
 		const totalPages = Math.ceil(total / PAGE_SIZE);
 
 		return {
 			title: 'admin.events',
-			events: rows as unknown as Array<{
-				id: number;
-				notification_type: string;
-				message: string;
-				status: string;
-				created_at: string;
-				restaurant_name: string | null;
-			}>,
+			events: sqlRows(rows, EventRow),
 			typeFilter,
 			statusFilter,
 			q,
 			page,
 			totalPages,
 			total,
-			availableTypes: (typeRows as unknown as Array<{ notification_type: string; cnt: number }>)
+			availableTypes: sqlRows(typeRows, TypeCountRow)
 				.map(r => ({ type: r.notification_type, count: Number(r.cnt) })),
 		};
 	});
@@ -121,6 +127,6 @@ export const actions: Actions = {
 			WHERE ${eventFilters(type, 'pending', q)}
 			RETURNING sn.id
 		`);
-		return { success: true, resolved: (rows as unknown as unknown[]).length };
+		return { success: true, resolved: sqlRows(rows, v.object({ id: v.number() })).length };
 	},
 };

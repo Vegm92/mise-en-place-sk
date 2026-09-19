@@ -3,6 +3,8 @@ import { db } from './db';
 import { normalizeProductKey } from './normalize';
 import { addDaysIso } from '$lib/period';
 import { median } from './money';
+import * as v from 'valibot';
+import { sqlRows } from './sql-rows';
 
 export interface DeviationLine {
 	productId: number | null;
@@ -186,9 +188,20 @@ export function computePriceDeviations(
 	return out.sort((a, b) => b.extraPaid - a.extraPaid || b.deviationPct - a.deviationPct);
 }
 
-type LineRow = Record<string, unknown>;
+const LineSqlRow = v.object({
+	product_id: v.nullable(v.number()),
+	description: v.nullable(v.string()),
+	supplier_id: v.nullable(v.number()),
+	supplier_name: v.string(),
+	invoice_date: v.string(),
+	unit: v.nullable(v.string()),
+	unit_price: v.nullable(v.number()),
+	normalized_unit_price: v.nullable(v.number()),
+	base_unit: v.nullable(v.string()),
+	total_price: v.number(),
+});
 
-function toLine(r: LineRow): DeviationLine {
+function toLine(r: v.InferOutput<typeof LineSqlRow>): DeviationLine {
 	return {
 		productId: r.product_id == null ? null : Number(r.product_id),
 		description: String(r.description ?? ''),
@@ -221,7 +234,7 @@ export async function loadDeviationLines(rid: string, rangeFrom: string, rangeTo
 			AND ili.description IS NOT NULL
 		ORDER BY i.invoice_date ASC, i.id ASC, ili.id ASC
 	`);
-	return (rows as unknown as LineRow[]).map(toLine);
+	return sqlRows(rows, LineSqlRow).map(toLine);
 }
 
 export async function priceDeviations(
@@ -272,5 +285,5 @@ export async function productSupplierPrices(rid: string, productId: number, toda
 			AND i.invoice_date >= ${since}::date
 		ORDER BY i.invoice_date ASC, i.id ASC, ili.id ASC
 	`);
-	return rankSupplierPrices((rows as unknown as LineRow[]).map(toLine));
+	return rankSupplierPrices(sqlRows(rows, LineSqlRow).map(toLine));
 }

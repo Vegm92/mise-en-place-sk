@@ -3,6 +3,8 @@ import type { RequestHandler } from './$types';
 import { db, runAsSystem } from '$lib/server/db';
 import { sql, gt, and, inArray } from 'drizzle-orm';
 import { batchItems } from '$lib/server/schema';
+import * as v from 'valibot';
+import { sqlRows } from '$lib/server/sql-rows';
 import { STORAGE_DRIVER, UPLOADS_DIR, HEALTH_CHECK_TOKEN, HEALTH_RATE_LIMIT_RPM } from '$lib/server/env';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -34,16 +36,19 @@ function hasValidHealthToken(request: Request): boolean {
 	return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
 
+const DbSizeRow = v.object({ size: v.union([v.string(), v.number()]) });
+const QueuePendingRow = v.object({ pending: v.number() });
+
 async function computeHealthDetail() {
 	let dbReachable = false;
 	let dbSizeMb = 0;
 	try {
-		const [, sizeRows] = await Promise.all([
+		const [, sizeRowsRaw] = await Promise.all([
 			db.execute(sql`SELECT 1`),
 			db.execute(sql`SELECT pg_database_size(current_database()) AS size`),
 		]);
 		dbReachable = true;
-		const raw = (sizeRows as unknown as Array<{ size: string | number }>)[0]?.size;
+		const raw = sqlRows(sizeRowsRaw, DbSizeRow)[0]?.size;
 		dbSizeMb = Math.round(Number(raw ?? 0) / (1024 * 1024));
 	} catch (e) {
 		log.warn('health probe failed', { probe: 'db', err: e });
@@ -51,11 +56,11 @@ async function computeHealthDetail() {
 
 	let queue: { reachable: boolean; pending: number } = { reachable: false, pending: 0 };
 	try {
-		const rows = await db.execute(
+		const rows = sqlRows(await db.execute(
 			sql`SELECT COUNT(*)::int AS pending FROM pgboss.job
 			    WHERE name = 'extract-invoice' AND state IN ('created', 'active', 'retry')`
-		);
-		const pending = (rows as unknown as Array<{ pending: number }>)[0]?.pending ?? 0;
+		), QueuePendingRow);
+		const pending = rows[0]?.pending ?? 0;
 		queue = { reachable: true, pending: Number(pending) };
 	} catch (e) {
 		log.warn('health probe failed', { probe: 'queue', err: e });

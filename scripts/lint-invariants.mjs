@@ -491,6 +491,86 @@ function runInlineTokenStyleGate() {
 }
 
 /**
+ * Ratcheting per-file budget for issue #1082: `as unknown as` casts left in
+ * `src/lib/server` and `src/routes` after the analytics/health `db.execute()`
+ * rows were converted to `sqlRows(rows, rowSchema)` (`src/lib/server/
+ * sql-rows.ts`) — a valibot parse that throws naming the offending column
+ * instead of a cast the compiler never checks, so a renamed column fails
+ * loudly instead of rendering NaN on an admin dashboard. Not every remaining
+ * cast is a row-shape assertion (`tenant-context.ts` patches a client handle,
+ * `batch.ts`/`extraction-improve.ts` recast an already-known value) — the
+ * budget just tracks the raw count so a new unchecked cast can't creep back
+ * in unnoticed, the same discipline as `INLINE_TOKEN_STYLE_BUDGET` (#845).
+ *
+ * The numbers may go down, never up. Convert a `db.execute()` cast to
+ * `sqlRows(...)` and lower its entry (or delete it at zero) in the same
+ * commit; the gate fails on a count above its budget *and* below it, since a
+ * stale budget would let the drift climb back to the old number. A file with
+ * no entry is budgeted at zero, so a new cast fails on arrival.
+ */
+const SQL_ROW_CAST_BUDGET = new Map([
+	['src/lib/server/tenant-context.ts', 3],
+	['src/routes/(admin)/admin/+page.server.ts', 2],
+	['src/routes/(admin)/admin/access/+page.server.ts', 2],
+	['src/routes/(app)/analytics/prices/+page.server.ts', 2],
+	['src/lib/server/batch.ts', 1],
+	['src/lib/server/db-role.ts', 1],
+	['src/lib/server/extraction-improve.ts', 1],
+	['src/lib/server/migration-state.ts', 1],
+	['src/lib/server/whatsapp-health.ts', 1],
+	['src/routes/(app)/dashboard/+page.server.ts', 1],
+	['src/routes/(app)/invoices/export/download/+server.ts', 1],
+	['src/routes/api/health/+server.ts', 1],
+]);
+
+function countSqlRowCasts(src) {
+	return (src.match(/as unknown as/g) ?? []).length;
+}
+
+function runSqlRowCastGate() {
+	const roots = ['src/lib/server', 'src/routes'];
+	const over = [];
+	const stale = [];
+	const seen = new Set();
+	for (const root of roots) {
+		const absRoot = path.join(ROOT, root);
+		if (!fs.existsSync(absRoot)) continue;
+		for (const file of walk(absRoot, ['.ts'])) {
+			const rel = path.relative(ROOT, file).split(path.sep).join('/');
+			const budget = SQL_ROW_CAST_BUDGET.get(rel) ?? 0;
+			if (budget > 0) seen.add(rel);
+			const count = countSqlRowCasts(fs.readFileSync(file, 'utf8'));
+			if (count > budget) over.push(`${rel}: ${count} \`as unknown as\` casts, budget ${budget}`);
+			else if (count < budget)
+				stale.push(
+					`${rel}: ${count} \`as unknown as\` casts, budget ${budget} — ` +
+						(count === 0 ? 'fully converted, delete its entry' : `lower the entry to ${count}`)
+				);
+		}
+	}
+	for (const rel of SQL_ROW_CAST_BUDGET.keys()) {
+		if (!seen.has(rel)) stale.push(`${rel}: no longer exists — drop its entry`);
+	}
+
+	if (over.length > 0) {
+		console.error(
+			'Error: `as unknown as` above the recorded budget — a raw SQL result row should be parsed with\n' +
+				'  sqlRows(rows, rowSchema) (src/lib/server/sql-rows.ts) instead of asserted, so a renamed\n' +
+				'  column throws naming it instead of rendering NaN on an admin dashboard (issue #1082).'
+		);
+		for (const v of over) console.error(`  ${v}`);
+	}
+	if (stale.length > 0) {
+		console.error(
+			'Error: SQL_ROW_CAST_BUDGET is stale — a budget above the real count would let the drift climb\n' +
+				'  back to the old number. Lower the entries below in the same commit that converted them.'
+		);
+		for (const v of stale) console.error(`  ${v}`);
+	}
+	return over.length === 0 && stale.length === 0;
+}
+
+/**
  * Expand/contract gate (issue #1009): flags a PR that lands a destructive
  * migration in the same diff as the `src/` change it belongs to.
  *
@@ -621,7 +701,7 @@ function runGate(name, gate) {
 const requested = process.argv[2]?.startsWith('--') ? undefined : process.argv[2];
 const names = requested
 	? [requested]
-	: [...Object.keys(GATES), 'unscoped-tenant-query', 'action-authz', 'inline-token-style', 'migration-expand-contract'];
+	: [...Object.keys(GATES), 'unscoped-tenant-query', 'action-authz', 'inline-token-style', 'sql-row-cast', 'migration-expand-contract'];
 
 let ok = true;
 for (const name of names) {
@@ -635,6 +715,10 @@ for (const name of names) {
 	}
 	if (name === 'inline-token-style') {
 		if (!runInlineTokenStyleGate()) ok = false;
+		continue;
+	}
+	if (name === 'sql-row-cast') {
+		if (!runSqlRowCastGate()) ok = false;
 		continue;
 	}
 	if (name === 'migration-expand-contract') {

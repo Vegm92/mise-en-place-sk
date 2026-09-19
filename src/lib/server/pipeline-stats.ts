@@ -2,16 +2,18 @@ import { sql } from 'drizzle-orm';
 import { db } from './db';
 import { EXTRACTION_QUEUE } from './contracts/extraction-contract.js';
 import { STRIPE_WEBHOOK_SCOPE } from './idempotency';
+import * as v from 'valibot';
+import { sqlRows } from './sql-rows';
 
 type Row = Record<string, unknown>;
+const AnyRow = v.record(v.string(), v.unknown());
 
-const num = (v: unknown): number => Number(v ?? 0);
-const iso = (v: unknown): string | null => (v ? new Date(String(v)).toISOString() : null);
-const maybe = (v: unknown): number | null => (v == null ? null : Number(v));
+const num = (x: unknown): number => Number(x ?? 0);
+const iso = (x: unknown): string | null => (x ? new Date(String(x)).toISOString() : null);
+const maybe = (x: unknown): number | null => (x == null ? null : Number(x));
 
 async function one(query: ReturnType<typeof sql>): Promise<Row> {
-	const rows = await db.execute(query);
-	return (rows as unknown as Row[])[0] ?? {};
+	return sqlRows(await db.execute(query), AnyRow)[0] ?? {};
 }
 
 export interface ExtractionStats {
@@ -205,8 +207,19 @@ export interface RestaurantActivity {
 	lastActivityAt: string | null;
 }
 
+const RestaurantActivityRow = v.object({
+	id: v.string(),
+	name: v.string(),
+	created_at: v.nullable(v.string()),
+	invoices: v.number(),
+	suppliers: v.number(),
+	invoices_7d: v.number(),
+	uploads_7d: v.number(),
+	last_activity_at: v.nullable(v.string()),
+});
+
 export async function restaurantActivity(limit = 12): Promise<RestaurantActivity[]> {
-	const rows = await db.execute(sql`
+	const rows = sqlRows(await db.execute(sql`
 		SELECT r.id, r.name, r.created_at,
 			(SELECT COUNT(*) FROM invoices i WHERE i.restaurant_id = r.id)::int AS invoices,
 			(SELECT COUNT(*) FROM suppliers s WHERE s.restaurant_id = r.id)::int AS suppliers,
@@ -224,8 +237,8 @@ export async function restaurantActivity(limit = 12): Promise<RestaurantActivity
 			(SELECT MAX(b.created_at) FROM batch_items b WHERE b.restaurant_id = r.id)
 		), r.created_at) DESC
 		LIMIT ${limit}
-	`);
-	return (rows as unknown as Row[]).map((r) => ({
+	`), RestaurantActivityRow);
+	return rows.map((r) => ({
 		id: String(r.id),
 		name: String(r.name ?? ''),
 		createdAt: iso(r.created_at) ?? new Date(0).toISOString(),

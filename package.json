@@ -36,6 +36,7 @@
 		"lint:action-authz": "node scripts/lint-invariants.mjs action-authz",
 		"lint:form-get-cast": "node scripts/lint-invariants.mjs form-get-cast",
 		"lint:json-body-schema": "node scripts/lint-invariants.mjs json-body-schema",
+		"lint:sql-row-cast": "node scripts/lint-invariants.mjs sql-row-cast",
 		"lint:inline-styles": "node scripts/lint-invariants.mjs inline-token-style",
 		"lint:migration-ordering": "node scripts/lint-invariants.mjs migration-expand-contract",
 		"lint:no-comments": "node scripts/check-no-comments.mjs",
