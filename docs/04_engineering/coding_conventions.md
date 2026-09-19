@@ -118,9 +118,10 @@ wired into CI as its own step, ahead of the type check, so a PR fails fast in
 the `ci` job instead of waiting on the separate SonarCloud check to come back
 red.
 
-Two things about the real gate are easy to get wrong, and this script has to
-match them rather than assume them (issue #1121 — a prior, jscpd-based
-version of this script got both wrong and passed PRs SonarCloud failed):
+Three things about the real gate are easy to get wrong, and this script has to
+match them rather than assume them (issue #1121 and PR #1126 — earlier
+versions of this script got them wrong in both directions, passing PRs
+SonarCloud failed and failing PRs SonarCloud passed):
 
 - **SonarCloud DOES compute duplication on test files.** There is no
   "test code is exempt" rule for `Duplication on New Code` — it covers
@@ -135,6 +136,14 @@ version of this script got both wrong and passed PRs SonarCloud failed):
   same: every string/template-literal token is replaced with a single `LIT`
   placeholder (by TypeScript scanner token kind, not by matching string
   content) before sequences are compared.
+- **SonarCloud collapses runs of identical lines before it looks for
+  clones.** It does not hash raw token windows: it folds each file's tokens
+  into one fragment per source line, then reduces every run of consecutive
+  identical fragments to its first and last — `PmdBlockChunker.chunk` in
+  `sonar-duplications`, the chunker every non-Java language goes through —
+  before building a single block. A file left with fewer fragments than the
+  10-line block size produces no duplication blocks at all. This script
+  applies the same collapse to its token stream before matching.
 
 It will not agree with SonarCloud's exact percentage — it scans `.ts` (and
 `.tsx`/`.js`/`.mjs`) files only and does not parse `.svelte`; on a real
@@ -143,17 +152,29 @@ measurement (PR #1120's `47fd9db`) it read 2.7% against SonarCloud's reported
 pass as "very likely fine", not a guarantee; a fail is real work to do, not a
 tool quirk to route around.
 
-`src/lib/messages/en.ts` and `es.ts` are mutual clones under literal
-anonymisation: `lint:i18n` requires every key to exist in both locale
-tables, so a run of ~10 or more added keys reads as `en.ts`/`es.ts`
-duplicating each other once their string values become `LIT` — a bulk key
-addition to both files can read near-100% duplicated. This is not a
-local-script artifact; `.sonarcloud.properties`'s own exclusion comment
-describes the same effect on the design-canvas artboards ("`Oscuro.dc.html`
-is `Main.dc.html`... four lines apart once the colour literals are
-stripped"), so SonarCloud reads a parallel locale-key addition the same way.
-Scattered key additions (fewer than ~10 contiguous lines per file) stay under
-the 10-line minimum and are unaffected.
+Adding i18n keys does not count as duplication, and an earlier version of this
+section said the opposite. `src/lib/messages/en.ts` and `es.ts` are
+token-identical to each other once literals are anonymised — `lint:i18n`
+requires every key in both, so each file is ~2700 consecutive lines of the
+same fragment, `LIT:LIT,` — but that run is exactly what the collapse above
+removes. Sonar reduces it to two fragments, drops under the 10-line block
+size, and indexes both files with **zero** duplication blocks; the live
+project reports `duplicated_blocks=0` on each at `ncloc≈2688`. Measured on
+PR #1126's `61a18eb`: SonarCloud 0.0% and the gate green, against 2.6% (and
+3.9% one commit earlier, CI red) from this script before the collapse was
+added. Bulk parallel key additions are fine — do not reshape UI copy to get
+under the limit, which is what that PR ended up doing.
+
+The collapse is applied to every file rather than by excluding
+`src/lib/messages/**`, which was tried first and is worse: an exclusion hides
+a genuine clone that happens to sit in a locale file, covers only the paths
+someone remembered to list, and makes this script disagree with the gate in
+the other direction. `.sonarcloud.properties` sets out the same tradeoff on
+the Sonar side — `sonar.exclusions` also turns off secret scanning on what it
+excludes, so an exclusion there is a call for the owner, not a default. Files
+whose consecutive lines differ do not collapse and are still reported:
+`src/lib/landing-variants.ts` (`headline: LIT,` then `sub: LIT,`) reads 110
+duplicated lines here, the same 110 SonarCloud reports.
 
 The two lessons PR #832 actually cost:
 
