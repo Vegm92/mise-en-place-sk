@@ -26,6 +26,7 @@ export const ROUTE_POLICY = {
 	'/(admin)':                          'open',
 	'/(admin)/admin':                    'open',
 	'/(admin)/admin/access':             'open',
+	'/(admin)/admin/activation':         'open',
 	'/(admin)/admin/dead-letters':       'open',
 	'/(admin)/admin/errors':             'open',
 	'/(admin)/admin/events':             'open',

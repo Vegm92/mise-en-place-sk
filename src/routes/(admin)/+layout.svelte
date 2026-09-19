@@ -34,6 +34,7 @@
     { href: '/admin',         label: t('admin.overview') },
     { href: '/admin/access',  label: t('admin.access.nav') },
     { href: '/admin/revenue', label: t('admin.revenue') },
+    { href: '/admin/activation', label: t('admin.activation.nav') },
     { href: '/admin/feature-flags', label: t('admin.featureFlags.nav') },
     { href: '/admin/events',  label: t('admin.events') },
     { href: '/admin/whatsapp', label: t('admin.whatsapp.nav') },
