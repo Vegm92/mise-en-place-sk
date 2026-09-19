@@ -16,8 +16,8 @@
  *   action (issue #844; used by signup and login) is ip-keyed inside a publicFormAction
  *   handler, same as the wrapper above
  * - src/routes/api/health/+server.ts — health:ip, an unauthenticated public endpoint
- * - src/hooks.server.ts — api-global falls back between user and ip identity; a blanket
- *   gateway guard, not a single tenant/user business action
+ * - src/lib/server/request-policy.ts — api-global falls back between user and ip identity;
+ *   a blanket gateway guard, not a single tenant/user business action
  * - src/lib/server/integrations/whatsapp/message-handler.ts — keyed by WhatsApp phone
  *   number, a channel identity with no Auth.js session
  * - src/lib/server/whatsapp-pairing.ts — redeemPairingCode() is phone-keyed (the
@@ -41,7 +41,7 @@ const ALLOWED_DIRECT_CALL_FILES = new Set([
 	'src/lib/server/public-form-action.ts',
 	'src/lib/server/resend-verification-action.ts',
 	'src/routes/api/health/+server.ts',
-	'src/hooks.server.ts',
+	'src/lib/server/request-policy.ts',
 	'src/lib/server/integrations/whatsapp/message-handler.ts',
 	'src/lib/server/whatsapp-pairing.ts',
 	'src/routes/(app)/settings/+page.server.ts',

@@ -319,14 +319,5 @@ Immutable subset is in `docs/00_system/architectural_invariants.md`.
 
 **`const handle`**
 
-- Route latency (#1003). `appHandle` wraps the request in a timer and calls `observe(METRIC_ROUTE_LATENCY, …)` in a `finally`, so a slow request still counts when it ends in the redirect or error throws SvelteKit uses for control flow. The label is `event.route.id`, never the raw path: a path label opens a new time series per URL a scanner invents, so unmatched requests share one `(unmatched)` bucket. Railway reports one service-wide p95, so without this the audit's measured 566 ms p99 cannot be attributed to a route, and the read-replica trigger in #1004 has no series to fire on. Bypass paths are excluded before the timer starts, as they are from everything else in `appHandle`.
+- Issue #1048: the per-request policy itself (auth, tenant/access gates, rate limiting, feature flags, security headers, route-latency metric) moved to `src/lib/server/request-policy.ts`'s `createAppHandle()` — see its Code notes in `app_shell.md`. This file keeps Sentry init, boot validation/side effects, `handleError`, and assembling the final `sequence(...)`.
 - adapter-node resolves getClientAddress() from the socket peer unless ADDRESS_HEADER names the proxy header — behind nginx/Caddy every visitor shares one rate-limit bucket, so the IP-keyed login/signup/waitlist limits collapse into one global (#223).
-- Auth.js session: signed JWT cookie, verified locally, no round-trip (unlike the Supabase client this replaced). Build the request-scoped user; resolve the active restaurant (cookie preference if valid, else first). Request-level admin guard for the (admin) layout load, which doesn't rerun on child navigation. Anonymous apex hit → landing page, not the login wall (#291); deep links keep the redirectTo round-trip.
-
-**`const handle`**
-
-- Two routes are embedded in a same-origin <iframe> by the app — batch review PDF preview (/api/upload/[id]/[file]) and saved invoice PDF preview (/invoice/[id]/file); DENY would block the app's own preview.
-
-**`function isPublicPath`**
-
-- Password recovery (#284): /reset-password is reached with a recovery session, but a used/expired link renders its own "request a new one" page rather than bouncing to login.
