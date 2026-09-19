@@ -23,7 +23,7 @@ const log = createLogger('hooks');
 
 const MEMBERSHIP_TIMEOUT_MS = parseInt(process.env.MEMBERSHIP_TIMEOUT_MS ?? '5000', 10);
 const API_GLOBAL_RATE_LIMIT = parseInt(process.env.API_GLOBAL_RATE_LIMIT ?? '300', 10);
-const API_RATE_LIMIT_EXEMPT = new Set(['/api/health', '/api/stripe-webhook', '/api/whatsapp/webhook']);
+const API_RATE_LIMIT_EXEMPT = new Set(['/api/health', '/api/stripe-webhook', '/api/whatsapp/webhook', '/api/email-ingest/webhook']);
 const SYSTEM_CONTEXT_PATHS = new Set(['/api/stripe-webhook', '/api/whatsapp/webhook']);
 
 export const REQUEST_POLICY_STEPS = [
@@ -289,6 +289,7 @@ function isPublicPath(path: string): boolean {
 		path === '/verify-email'                ||
 		path === '/api/stripe-webhook'          ||
 		path === '/api/whatsapp/webhook'        ||
+		path === '/api/email-ingest/webhook'    ||
 		isAlwaysReadablePath(path)
 	);
 }

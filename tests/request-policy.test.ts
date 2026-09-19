@@ -176,6 +176,20 @@ describe('webhook / system path', () => {
 		expect(systemCalls.length).toBe(1);
 		expect((outcome as Response).status).toBe(200);
 	});
+
+	it('lets an anonymous Resend POST reach /api/email-ingest/webhook without the 401 wall or the api backstop (#1139)', async () => {
+		const event = makeEvent({ path: '/api/email-ingest/webhook', routeId: '/api/email-ingest/webhook', user: null });
+		const resolve = vi.fn(async () => new Response('{"ok":true}', { status: 200 }));
+		const rateLimitKeys: string[] = [];
+
+		const outcome = await run(event, resolve, {
+			checkRateLimit: async (key) => { rateLimitKeys.push(key); return false; },
+		});
+
+		expect(resolve).toHaveBeenCalled();
+		expect(rateLimitKeys).toEqual([]);
+		expect((outcome as Response).status).toBe(200);
+	});
 });
 
 describe('rate-limited api route', () => {
