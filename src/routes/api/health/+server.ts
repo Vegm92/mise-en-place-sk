@@ -14,6 +14,7 @@ import { readWorkerHeartbeat, workerLiveness } from '$lib/server/worker-heartbea
 import { isAdminUser } from '$lib/server/admin';
 import { checkRateLimit, getExtractionSemaphoreStatus } from '$lib/server/rate-limiter';
 import { createLogger } from '$lib/server/log';
+import { withTimeout } from '$lib/server/with-timeout';
 
 const START_TIME = Date.now();
 const HEALTH_TOKEN_HEADER = 'x-health-token';
@@ -21,7 +22,7 @@ const log = createLogger('health');
 
 async function isDbReachable(): Promise<boolean> {
 	try {
-		await db.execute(sql`SELECT 1`);
+		await withTimeout('health-db-ping', 2000, () => db.execute(sql`SELECT 1`));
 		return true;
 	} catch {
 		return false;
@@ -51,7 +52,7 @@ async function computeHealthDetail() {
 		const raw = sqlRows(sizeRowsRaw, DbSizeRow)[0]?.size;
 		dbSizeMb = Math.round(Number(raw ?? 0) / (1024 * 1024));
 	} catch (e) {
-		log.warn('health probe failed', { probe: 'db', err: e });
+		log.warn('health probe failed', { probe: 'db', err: e instanceof Error ? e.message : String(e) });
 	}
 
 	let queue: { reachable: boolean; pending: number } = { reachable: false, pending: 0 };
@@ -63,14 +64,14 @@ async function computeHealthDetail() {
 		const pending = rows[0]?.pending ?? 0;
 		queue = { reachable: true, pending: Number(pending) };
 	} catch (e) {
-		log.warn('health probe failed', { probe: 'queue', err: e });
+		log.warn('health probe failed', { probe: 'queue', err: e instanceof Error ? e.message : String(e) });
 	}
 
 	let liveness = workerLiveness(null);
 	try {
 		liveness = workerLiveness(await readWorkerHeartbeat());
 	} catch (e) {
-		log.warn('health probe failed', { probe: 'worker-heartbeat', err: e });
+		log.warn('health probe failed', { probe: 'worker-heartbeat', err: e instanceof Error ? e.message : String(e) });
 	}
 
 	let activeCount = 0;
@@ -88,7 +89,7 @@ async function computeHealthDetail() {
 			return Number(rows[0]?.cnt ?? 0);
 		});
 	} catch (e) {
-		log.warn('health probe failed', { probe: 'sessions', err: e });
+		log.warn('health probe failed', { probe: 'sessions', err: e instanceof Error ? e.message : String(e) });
 	}
 
 	let uploadsDir: { writable: boolean; free_mb: number } | null = null;
@@ -100,14 +101,14 @@ async function computeHealthDetail() {
 			fs.accessSync(dir, fs.constants.W_OK);
 			writable = true;
 		} catch (e) {
-			log.warn('health probe failed', { probe: 'uploads-writable', err: e });
+			log.warn('health probe failed', { probe: 'uploads-writable', err: e instanceof Error ? e.message : String(e) });
 		}
 		try {
 			const stat = (fs as unknown as { statfsSync?: (p: string) => { bfree: number; bsize: number } })
 				.statfsSync?.(dir);
 			if (stat) freeMb = Math.round((stat.bfree * stat.bsize) / (1024 * 1024));
 		} catch (e) {
-			log.warn('health probe failed', { probe: 'uploads-free-space', err: e });
+			log.warn('health probe failed', { probe: 'uploads-free-space', err: e instanceof Error ? e.message : String(e) });
 		}
 		uploadsDir = { writable, free_mb: freeMb };
 	}
@@ -134,19 +135,19 @@ async function computeHealthDetail() {
 }
 
 export const GET: RequestHandler = async ({ request, locals, getClientAddress }) => {
-	let ip = 'unknown';
-	try {
-		ip = getClientAddress();
-	} catch (e) {
-		log.debug('client address unavailable', { err: e });
-	}
-	if (!(await checkRateLimit(`health:${ip}`, HEALTH_RATE_LIMIT_RPM))) {
-		return json({ error: 'Too many requests' }, { status: 429, headers: { 'Retry-After': '60' } });
-	}
-
 	const wantsDetail = isAdminUser(locals.user) || hasValidHealthToken(request);
 
 	if (!wantsDetail) {
+		let ip = 'unknown';
+		try {
+			ip = getClientAddress();
+		} catch (e) {
+			log.debug('client address unavailable', { err: e instanceof Error ? e.message : String(e) });
+		}
+		if (!(await checkRateLimit(`health:${ip}`, HEALTH_RATE_LIMIT_RPM))) {
+			return json({ error: 'Too many requests' }, { status: 429, headers: { 'Retry-After': '60' } });
+		}
+
 		const dbReachable = await isDbReachable();
 		return json(
 			{ status: dbReachable ? 'ok' as const : 'degraded' as const },
