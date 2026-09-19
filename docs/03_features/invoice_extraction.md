@@ -239,12 +239,6 @@ Quota, access, classification, JSON shape, error classification.
 
 ## Code notes
 
-### `src/routes/(app)/confirm/[id]/+page.server.ts`
-
-**`const load`**
-
-- Legacy route — superseded by /batch/[batchId]; old links carry an item id, resolve to the batch when possible, else home. Inert by design: only pre-ADR-002 survivor, a pure redirect for old email/bookmark links. #441 tracks confirming it's quiet and deleting both — no expiry date otherwise.
-
 ### `src/lib/server/einvoice-parser.ts`
 
 **`type EinvoiceFormat`**

@@ -50,8 +50,7 @@ Spanish-first, bilingual (es/en). Product definition:
 ## Application routes (grouped)
 
 - `(app)` — authenticated app shell: `dashboard`, `invoices`, `invoice/[id]` +
-  `edit`, `batch/[id]`, `confirm/[id]` (legacy redirect stub), `extract/[id]`
-  (legacy redirect stub), `suppliers[/id]`, `products[/id]`, `budgets`,
+  `edit`, `batch/[id]`, `suppliers[/id]`, `products[/id]`, `budgets`,
   `reminders`, `analytics/{spend,prices,extraction}`, `digest`, `chat`,
   `billing`, `settings`, `help`, plus `(app)/api/*` endpoints.
 - `(admin)` — `/admin` dashboard, `events`, `errors`, `health`, `revenue`,

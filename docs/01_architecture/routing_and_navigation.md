@@ -27,8 +27,6 @@ src/routes/
 │   ├── invoice/[id]/                  # detail (+ file/+server.ts preview PDF)
 │   │   ├── edit/                      # edit + status actions (version-optimistic-locked)
 │   ├── batch/[id]/                    # review/confirm; save/discard/queue actions
-│   ├── confirm/[id]/                  # legacy redirect stub → /batch/[batchId]
-│   ├── extract/[id]/                  # legacy redirect stub → /batch/[batchId]
 │   ├── suppliers/                     # list + detail [id] (spend, reliability)
 │   ├── products/                      # list + detail [id] (aliases, merge, conversions)
 │   ├── recipes/                       # escandallos: list, sheet editor, A4 sheet, CSV, email (beta flag: recipes)
@@ -249,8 +247,8 @@ Sidebar links go through `withPeriodParam()`, so a range page keeps its
   load also runs a coarse same-supplier + same-invoice-number pre-check
   (`duplicateOfId`) as an earlier, cheaper signal than the exact content-hash
   gate on submit — surfaced as an inline warning before review, with a discard
-  action on the block modal. `/pending/` is gone and `/extract/[id]` is now a
-  legacy 303-redirect stub to `/batch/[batchId]`.
+  action on the block modal. `/pending/`, `/extract/[id]`, and `/confirm/[id]`
+  are gone — `/batch/[id]` is the only review/confirm route (issue #441).
 - **`waitlist/`**: pre-launch landing page. Two-column hero on desktop (copy
   left, an `AppDashboardMock` styled after the real
   `DesktopDashboard`/`KpiCard` on the right, hidden on phone); "how it works"

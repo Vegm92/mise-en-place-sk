@@ -110,7 +110,7 @@ number-duplicate). `api/batch-status/[id]` for status.
 `duplicateOfId` exact pre-warning, `similarInvoiceId` fuzzy pre-warning,
 per-line product match + reassignment).
 Its three-pane workspace shape lives in the `.rev-*` component classes in
-`src/app.css`. Legacy `confirm/[id]`/`extract/[id]` redirect here.
+`src/app.css`.
 
 ## Background dependencies
 
@@ -346,12 +346,6 @@ shapes, `low_confidence_ack` value.
 - Line-item inputs are bound to `lineItems` state. They were previously one-way `value={…}`, so `lineTotal`, `totalCalc` and the discrepancy indicator never moved when a reviewer corrected a price — the footer reported on the extraction, not on what was about to be saved.
 - A warning banner (`totalMismatch`, issue #808) shows whenever `extracted_data.total_mismatch` is set — independent of the live `hasDiscrepancy` check on the total field above, since the extraction-time flag reflects what Gemini originally handed back and doesn't clear as the reviewer edits.
 - `fieldVisible` (issue #880), derived from the server-loaded `fieldVisibility` map, gates the due-date and notes rows the same way the albarán branch already gated due-date: when a restaurant hid a field from Settings, its visible row is replaced by a single `type="hidden"` input carrying the same value the visible control would have posted, so the form still submits it unchanged and `flagged`/`uncertainHeaderFields` skip a hidden field rather than badge a warning the reviewer cannot act on.
-
-### `src/routes/(app)/confirm/[id]/+page.server.ts`
-
-**`const load`**
-
-- Legacy route superseded by /batch/[batchId]: old links carry an item id, resolved to the batch when possible, otherwise home.
 
 ### `src/lib/server/rehash.ts`
 
