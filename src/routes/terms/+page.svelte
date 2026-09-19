@@ -1,240 +1,77 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { locale, initLocale, toggleLocale } from '$lib/i18n';
+  import { termsMeta, termsSections } from '$lib/content/legal/terms';
 
   onMount(() => { initLocale(); });
 
-
-  const copy = {
-    es: {
-      pageTitle:  'Términos de Servicio · Mise en Place',
-      back:       '← Volver',
-      title:      'Términos de Servicio',
-      meta:       'Última actualización: 1 de junio de 2026',
-      prevails:   'La versión en español prevalece sobre cualquier traducción.',
-
-      h1:         '1. Aceptación',
-      p1:         'Al registrarte o usar Mise en Place (el "Servicio"), aceptas estos Términos en su totalidad. Si no estás de acuerdo, no uses el Servicio.',
-
-      h2:         '2. Descripción del Servicio',
-      p2:         'Mise en Place es una plataforma SaaS de gestión de albaranes y control de costes para el sector de la hostelería. Proporciona extracción automática de albaranes mediante inteligencia artificial, análisis de gasto por proveedor, presupuestos por categoría y alertas de precio.',
-
-      h3:         '3. Cuentas y seguridad',
-      d3a:        'Debes proporcionar información veraz y mantenerla actualizada.',
-      d3b:        'Eres responsable de mantener la confidencialidad de tu contraseña.',
-      d3c:        'Notifícanos inmediatamente si sospechas de acceso no autorizado a tu cuenta.',
-      d3d:        'Puedes invitar a miembros adicionales a tu restaurante; eres responsable de su uso del Servicio.',
-
-      h4:         '4. Uso aceptable',
-      p4:         'Queda prohibido:',
-      d4a:        'Usar el Servicio para actividades ilegales o fraudulentas.',
-      d4b:        'Intentar acceder a datos de otros usuarios.',
-      d4c:        'Realizar ingeniería inversa o reproducir el software.',
-      d4d:        'Sobrecargar la infraestructura mediante ataques automatizados (scraping masivo, DoS).',
-
-      h5:         '5. Propiedad intelectual',
-      p5:         'Todo el software, diseño y marca son propiedad de Mise en Place SL. Tus datos (albaranes, proveedores, etc.) son y permanecen de tu propiedad; nos otorgas una licencia para procesarlos únicamente con el fin de prestar el Servicio.',
-
-      h6:         '6. Pagos y suscripción',
-      d6a:        'El Servicio se ofrece con un periodo de prueba gratuito de 30 días.',
-      d6b:        'Los planes de pago se cobran mensualmente mediante Stripe.',
-      d6c:        'Las cancelaciones surten efecto al final del período de pago en curso.',
-      d6d:        'No se realizan reembolsos parciales por períodos no utilizados, salvo exigencia legal o en los supuestos recogidos en la Política de Reembolsos.',
-      d6e1:       'El detalle de cancelaciones y reembolsos figura en la ',
-      d6eLink:    'Política de Reembolsos',
-      d6e2:       '.',
-
-      h7:         '7. Disponibilidad y SLA',
-      p7:         'Nos esforzamos por mantener una disponibilidad del 99,5% mensual. No garantizamos disponibilidad ininterrumpida. Los mantenimientos planificados se anunciarán con al menos 24 horas de antelación.',
-
-      h8:         '8. Limitación de responsabilidad',
-      p8:         'En la máxima medida permitida por la ley, nuestra responsabilidad total ante ti no superará el importe abonado en los 12 meses anteriores al hecho causante. No somos responsables de pérdidas de datos causadas por errores del usuario, interrupciones de terceros o causas de fuerza mayor.',
-
-      h9:         '9. Privacidad',
-      p9a:        'El tratamiento de datos personales se rige por nuestra ',
-      p9Link:     'Política de Privacidad',
-      p9b:        ', que forma parte integrante de estos Términos.',
-
-      h10:        '10. Modificaciones',
-      p10:        'Podemos modificar estos Términos con un preaviso de 30 días por correo electrónico. El uso continuado del Servicio tras dicho plazo implica la aceptación de los nuevos Términos.',
-
-      h11:        '11. Rescisión',
-      p11a:       'Puedes cancelar tu cuenta en cualquier momento desde ',
-      p11Em:      'Ajustes → Eliminar cuenta',
-      p11b:       '. Nos reservamos el derecho de suspender cuentas que incumplan estos Términos.',
-
-      h12:        '12. Ley aplicable y jurisdicción',
-      p12:        'Estos Términos se rigen por la ley española. Las partes se someten a la jurisdicción de los Juzgados y Tribunales de Barcelona, con renuncia expresa a cualquier otro fuero que pudiera corresponderles.',
-
-      h13:        '13. Contacto',
-      p13:        'Para cualquier consulta sobre estos Términos: ',
-
-      flPrivacy:  'Política de Privacidad',
-      flCookies:  'Política de Cookies',
-      flRefunds:  'Reembolsos',
-      flLegal:    'Aviso Legal',
-      flHome:     'Inicio',
-    },
-    en: {
-      pageTitle:  'Terms of Service · Mise en Place',
-      back:       '← Back',
-      title:      'Terms of Service',
-      meta:       'Last updated: June 1, 2026',
-      prevails:   'The Spanish version prevails over any translation.',
-
-      h1:         '1. Acceptance',
-      p1:         'By registering for or using Mise en Place (the "Service"), you accept these Terms in their entirety. If you do not agree, do not use the Service.',
-
-      h2:         '2. Description of the Service',
-      p2:         'Mise en Place is a SaaS platform for invoice management and cost control for the hospitality sector. It provides automatic invoice extraction using artificial intelligence, spend analysis by supplier, category budgets and price alerts.',
-
-      h3:         '3. Accounts and security',
-      d3a:        'You must provide truthful information and keep it up to date.',
-      d3b:        'You are responsible for keeping your password confidential.',
-      d3c:        'Notify us immediately if you suspect unauthorized access to your account.',
-      d3d:        'You may invite additional members to your restaurant; you are responsible for their use of the Service.',
-
-      h4:         '4. Acceptable use',
-      p4:         'The following is prohibited:',
-      d4a:        'Using the Service for illegal or fraudulent activities.',
-      d4b:        'Attempting to access other users’ data.',
-      d4c:        'Reverse-engineering or reproducing the software.',
-      d4d:        'Overloading the infrastructure through automated attacks (mass scraping, DoS).',
-
-      h5:         '5. Intellectual property',
-      p5:         'All software, design and branding are the property of Mise en Place SL. Your data (invoices, suppliers, etc.) is and remains your property; you grant us a license to process it solely for the purpose of providing the Service.',
-
-      h6:         '6. Billing and payments',
-      d6a:        'The Service is offered with a 30-day free trial period.',
-      d6b:        'Paid plans are billed monthly through Stripe.',
-      d6c:        'Cancellations take effect at the end of the current billing period.',
-      d6d:        'No partial refunds are made for unused periods, unless required by law or under the cases set out in the Refund Policy.',
-      d6e1:       'Cancellations and refunds are detailed in the ',
-      d6eLink:    'Refund Policy',
-      d6e2:       '.',
-
-      h7:         '7. Availability and SLA',
-      p7:         'We strive to maintain 99.5% monthly availability. We do not guarantee uninterrupted availability. Planned maintenance will be announced at least 24 hours in advance.',
-
-      h8:         '8. Limitation of liability',
-      p8:         'To the maximum extent permitted by law, our total liability to you shall not exceed the amount paid in the 12 months prior to the triggering event. We are not liable for data loss caused by user error, third-party interruptions or force majeure.',
-
-      h9:         '9. Privacy',
-      p9a:        'The processing of personal data is governed by our ',
-      p9Link:     'Privacy Policy',
-      p9b:        ', which forms an integral part of these Terms.',
-
-      h10:        '10. Modifications',
-      p10:        'We may modify these Terms with 30 days’ prior notice by email. Continued use of the Service after that period implies acceptance of the new Terms.',
-
-      h11:        '11. Termination',
-      p11a:       'You may cancel your account at any time from ',
-      p11Em:      'Settings → Delete account',
-      p11b:       '. We reserve the right to suspend accounts that breach these Terms.',
-
-      h12:        '12. Governing law and jurisdiction',
-      p12:        'These Terms are governed by Spanish law. The parties submit to the jurisdiction of the Courts and Tribunals of Barcelona, expressly waiving any other jurisdiction that might apply to them.',
-
-      h13:        '13. Contact',
-      p13:        'For any query regarding these Terms: ',
-
-      flPrivacy:  'Privacy Policy',
-      flCookies:  'Cookie Policy',
-      flRefunds:  'Refunds',
-      flLegal:    'Legal Notice',
-      flHome:     'Home',
-    },
-  } as const;
-
-  const c = $derived(copy[locale.current]);
+  const m = $derived(termsMeta);
+  const loc = $derived(locale.current);
 </script>
 
 <svelte:head>
-  <title>{c.pageTitle}</title>
+  <title>{m.pageTitle[loc]}</title>
 </svelte:head>
 
 <div class="mep legal" data-accent="tinta" data-density="default">
   <article>
     <div class="topbar">
-      <a class="back" href="/">{c.back}</a>
-      <button type="button" class="lang-toggle" onclick={toggleLocale}>{locale.current === 'es' ? 'EN' : 'ES'}</button>
+      <a class="back" href="/">{m.back[loc]}</a>
+      <button type="button" class="lang-toggle" onclick={toggleLocale}>{m.toggleLabel[loc]}</button>
     </div>
 
-    <h1>{c.title}</h1>
-    <p class="meta">{c.meta}</p>
-    <p class="meta">{c.prevails}</p>
+    <h1>{m.title[loc]}</h1>
+    <p class="meta">{m.dateLine[loc]}</p>
+    <p class="meta">{m.prevails[loc]}</p>
 
     <hr />
 
-    <h2>{c.h1}</h2>
-    <p>{c.p1}</p>
-
-    <h2>{c.h2}</h2>
-    <p>{c.p2}</p>
-
-    <h2>{c.h3}</h2>
-    <ul>
-      <li>{c.d3a}</li>
-      <li>{c.d3b}</li>
-      <li>{c.d3c}</li>
-      <li>{c.d3d}</li>
-    </ul>
-
-    <h2>{c.h4}</h2>
-    <p>{c.p4}</p>
-    <ul>
-      <li>{c.d4a}</li>
-      <li>{c.d4b}</li>
-      <li>{c.d4c}</li>
-      <li>{c.d4d}</li>
-    </ul>
-
-    <h2>{c.h5}</h2>
-    <p>{c.p5}</p>
-
-    <h2>{c.h6}</h2>
-    <ul>
-      <li>{c.d6a}</li>
-      <li>{c.d6b}</li>
-      <li>{c.d6c}</li>
-      <li>{c.d6d}</li>
-    </ul>
-    <p>{c.d6e1}<a href="/refunds">{c.d6eLink}</a>{c.d6e2}</p>
-
-    <h2>{c.h7}</h2>
-    <p>{c.p7}</p>
-
-    <h2>{c.h8}</h2>
-    <p>{c.p8}</p>
-
-    <h2>{c.h9}</h2>
-    <p>
-      {c.p9a}<a href="/privacy">{c.p9Link}</a>{c.p9b}
-    </p>
-
-    <h2>{c.h10}</h2>
-    <p>{c.p10}</p>
-
-    <h2>{c.h11}</h2>
-    <p>
-      {c.p11a}<em>{c.p11Em}</em>{c.p11b}
-    </p>
-
-    <h2>{c.h12}</h2>
-    <p>{c.p12}</p>
-
-    <h2>{c.h13}</h2>
-    <p>
-      {c.p13}<a href="mailto:legal@mise-place.com">legal@mise-place.com</a>
-    </p>
+    {#each termsSections as section (section.id)}
+      <h2>{section.heading[loc]}</h2>
+      {#if section.id === 'accounts'}
+        <ul>
+          {#each section.items as item}
+            <li>{item[loc]}</li>
+          {/each}
+        </ul>
+      {:else if section.id === 'acceptableUse'}
+        <p>{section.intro[loc]}</p>
+        <ul>
+          {#each section.items as item}
+            <li>{item[loc]}</li>
+          {/each}
+        </ul>
+      {:else if section.id === 'billing'}
+        <ul>
+          {#each section.items as item}
+            <li>{item[loc]}</li>
+          {/each}
+        </ul>
+        <p>{section.linkPre[loc]}<a href="/refunds">{section.linkText[loc]}</a>{section.linkPost[loc]}</p>
+      {:else if section.id === 'privacy'}
+        <p>
+          {section.textPre[loc]}<a href="/privacy">{section.linkText[loc]}</a>{section.textPost[loc]}
+        </p>
+      {:else if section.id === 'termination'}
+        <p>
+          {section.textPre[loc]}<em>{section.emphasis[loc]}</em>{section.textPost[loc]}
+        </p>
+      {:else if section.id === 'contact'}
+        <p>
+          {section.textPre[loc]}<a href="mailto:{termsMeta.contactEmail}">{termsMeta.contactEmail}</a>
+        </p>
+      {:else}
+        <p>{section.text[loc]}</p>
+      {/if}
+    {/each}
 
     <hr />
     <p class="footer-links">
-      <a href="/privacy">{c.flPrivacy}</a> ·
-      <a href="/cookies">{c.flCookies}</a> ·
-      <a href="/refunds">{c.flRefunds}</a> ·
-      <a href="/legal">{c.flLegal}</a> ·
-      <a href="/">{c.flHome}</a>
+      <a href="/privacy">{m.footer.privacy[loc]}</a> ·
+      <a href="/cookies">{m.footer.cookies[loc]}</a> ·
+      <a href="/refunds">{m.footer.refunds[loc]}</a> ·
+      <a href="/legal">{m.footer.legal[loc]}</a> ·
+      <a href="/">{m.footer.home[loc]}</a>
     </p>
   </article>
 </div>

@@ -16,20 +16,10 @@
  * The verbs are read off the route files rather than listed here, so adding a
  * POST to a gated GET-only endpoint extends the table automatically.
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { isRedirect } from '@sveltejs/kit';
-
-vi.mock('../src/lib/server/db', () => {
-	const chain = () => {
-		const p: Record<string, unknown> = {};
-		for (const m of ['from', 'where', 'limit']) p[m] = () => p;
-		p.then = (res: (v: unknown) => unknown) => Promise.resolve([]).then(res);
-		return p;
-	};
-	return { db: { select: chain }, forTenant: () => ({ scope: () => ({}) }) };
-});
 
 import { ROUTE_POLICY, UPGRADE_SLUG, entitlementHandle, type RoutePolicy } from '../src/lib/server/entitlements';
 import { TIERS, type PlanTier } from '../src/lib/server/billing';

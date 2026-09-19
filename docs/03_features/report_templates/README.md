@@ -6,6 +6,10 @@ related: "[[CONTEXT]]"
 # Plantillas de informe
 
 Fuentes de diseño de la pantalla `/reports` y de los cuatro informes que genera.
+La pantalla lista tres por defecto; **Vencimientos por proveedor** (`payables`)
+se mantiene accesible por URL pero fuera de esa lista — es la excepción
+opcional sancionada en #1122, porque ordenar por `due_date` es lo único que
+queda del modelo de pagos que #565 retiró del resto de la app.
 Cada `.dc.html` es una lámina (artboard) y `canvas.json` las coloca en el lienzo.
 
 ## Qué hay
@@ -54,7 +58,9 @@ informe de tendencia.
 - **Cierre semanal** — `weekly_digest` más los albaranes de la semana ISO
 - **Cierre mensual** — `mv_category_monthly_spend` contra `budgets`
 - **Variación de precios** — `mv_price_snapshots` y el umbral de alerta
-- **Cuentas a pagar** — `invoices` con `due_date`, por tramos de antigüedad
+- **Vencimientos por proveedor** — `invoices` con `due_date`, por tramos de
+  antigüedad. Su copy dice explícitamente que la app no sigue el estado de
+  pago, para que nadie lea el informe como "pagada / no pagada" (#1122).
 
 Las cifras de las láminas son de ejemplo, pero cuadran entre sí: los totales,
 los porcentajes y los desvíos suman, y la semana 31 encaja dentro de julio.

@@ -144,6 +144,16 @@ export function formatYoyPct(pct: number | null, locale: Locale = 'es'): string 
 	return fmtInst.format(pct) + ' %';
 }
 
+export function fmtMinutes(n: number | null): string {
+	if (n === null || !Number.isFinite(n)) return '—';
+	return n < 60 ? `${n.toFixed(1)} min` : `${(n / 60).toFixed(1)} h`;
+}
+
+export function fmtPercent(ratio: number | null): string {
+	if (ratio === null || !Number.isFinite(ratio)) return '—';
+	return `${(ratio * 100).toFixed(1)}%`;
+}
+
 const BUDGET_WARN_PCT = 80;
 const BUDGET_OVER_PCT = 100;
 

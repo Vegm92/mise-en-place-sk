@@ -14,18 +14,12 @@
  * the categorisation nudge/suggestion the same way accepting it from the
  * bell would.
  *
- * DB-backed; the db singleton is swapped for the test client. Skipped
+ * DB-backed; runs against the real db singleton. Skipped
  * without DATABASE_URL.
  */
 import { randomUUID } from 'node:crypto';
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { isRedirect } from '@sveltejs/kit';
-
-vi.mock('../src/lib/server/db', async () => {
-	const helpers = await import('./helpers/test-db');
-	const tenant = await import('../src/lib/server/tenant');
-	return { db: helpers.testDb, forTenant: tenant.forTenant };
-});
 
 import {
 	testDb, testSql, closeDb,

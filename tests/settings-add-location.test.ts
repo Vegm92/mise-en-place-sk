@@ -10,13 +10,11 @@
  *   3. No owner check — any member of a Business-tier restaurant could
  *      create new locations billed to the parent and make themselves owner.
  *
- * DB-backed: the db singleton is swapped for the real test client so the
- * transaction + pg_advisory_xact_lock path runs against real Postgres.
+ * DB-backed: runs against the real db singleton, so the transaction +
+ * pg_advisory_xact_lock path runs against real Postgres.
  * Skipped without DATABASE_URL.
  */
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-
-vi.mock('../src/lib/server/db', async () => (await import('./helpers/db-suite')).testDbModule());
 
 import { testSql, closeDb, cleanupTestRestaurant, hasDbEnv } from './helpers/test-db';
 import { runFormAction } from './helpers/action-result';

@@ -15,7 +15,7 @@ import { describe, it, expect, beforeAll, afterEach, afterAll, vi } from 'vitest
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 
-vi.mock('../src/lib/server/db', async () => {
+vi.mock('$lib/server/db', async () => {
 	const { testDb } = await import('./helpers/test-db');
 	const { forTenant } = await import('../src/lib/server/tenant');
 	const actual = await vi.importActual<typeof import('../src/lib/server/db')>('../src/lib/server/db');

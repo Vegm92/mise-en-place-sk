@@ -15,9 +15,15 @@
  *      runtime cannot be resolved statically and are skipped, not guessed at.
  *
  * Language-neutral tokens (brand, currency codes, units, date formats) are
- * allowlisted below. Legal pages keep their own locale-keyed copy and are
- * skipped wholesale (issue #408); the waitlist mock illustrations are
- * fixture-like demo data, skipped for the same reason (issue #407).
+ * allowlisted below. `cookies`/`refunds`/`legal` keep their own locale-keyed
+ * copy and are skipped wholesale (issue #408); the waitlist mock illustrations
+ * are fixture-like demo data, skipped for the same reason (issue #407).
+ *
+ * `privacy`/`terms` source their copy from `src/lib/content/legal/*` instead
+ * (issue #835 — too much paragraph prose for the shared table). They are not
+ * skipped: `checkLegalContentOnly` runs the normal template scan plus an
+ * import allowlist and a zero-tolerance ban on script string literals, so a
+ * regression back to inline copy fails the same as anywhere else.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -29,8 +35,6 @@ import { localeKeyTables, keyReferences, missingKeyRefs } from './i18n-keys.mjs'
 const ROOT = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
 
 const SKIP_FILES = [
-	'src/routes/privacy/+page.svelte',
-	'src/routes/terms/+page.svelte',
 	'src/routes/cookies/+page.svelte',
 	'src/routes/refunds/+page.svelte',
 	'src/routes/legal/+page.svelte',
@@ -44,6 +48,13 @@ const SKIP_FILES = [
 	// Same fixture-like invoice illustration, reused as the proof panel on /login.
 	'src/lib/components/auth/TicketMock.svelte'
 ];
+
+const LEGAL_CONTENT_FILES = [
+	'src/routes/privacy/+page.svelte',
+	'src/routes/terms/+page.svelte'
+];
+
+const LEGAL_ALLOWED_IMPORTS = new Set(['svelte', '$lib/i18n']);
 
 const TEXT_ATTRS = new Set(['placeholder', 'title', 'aria-label', 'alt']);
 
@@ -207,10 +218,44 @@ function checkScript(src, rel) {
 	}
 }
 
+function checkLegalContentOnly(file, src, rel) {
+	checkTemplate(file, src, rel);
+	for (const block of src.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)) {
+		const code = block[1];
+		const offset = block.index + block[0].indexOf(code);
+		const sf = ts.createSourceFile('x.ts', code, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+
+		const visit = (node) => {
+			if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
+				const spec = node.moduleSpecifier.text;
+				const allowed = LEGAL_ALLOWED_IMPORTS.has(spec) || spec.startsWith('$lib/content/legal/');
+				if (!allowed) {
+					violations.push({
+						rel,
+						line: lineOf(src, offset + node.getStart(sf)),
+						kind: 'legal-import',
+						text: spec
+					});
+				}
+				return;
+			}
+			if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+				violations.push({ rel, line: lineOf(src, offset + node.getStart(sf)), kind: 'legal-literal', text: node.text });
+			}
+			ts.forEachChild(node, visit);
+		};
+		visit(sf);
+	}
+}
+
 for (const file of walk(path.join(ROOT, 'src')).sort()) {
 	const rel = path.relative(ROOT, file).split(path.sep).join('/');
 	if (SKIP_FILES.includes(rel)) continue;
 	const src = fs.readFileSync(file, 'utf8');
+	if (LEGAL_CONTENT_FILES.includes(rel)) {
+		checkLegalContentOnly(file, src, rel);
+		continue;
+	}
 	checkTemplate(file, src, rel);
 	checkScript(src, rel);
 	checkKeys(src, rel);

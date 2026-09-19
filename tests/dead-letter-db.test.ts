@@ -6,23 +6,11 @@
  * up, the row count does not), resolving an entry lets the next failure open a
  * fresh one, and the retention purge only reaps what it should.
  *
- * `$lib/server/db` is redirected at the shared test connection, so the module
- * under test runs its real queries. Skipped when the DB gate is closed.
+ * The module under test runs its real queries against the real db singleton
+ * (DATABASE_URL). Skipped when the DB gate is closed.
  */
-import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
 import { testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv } from './helpers/test-db';
-
-vi.mock('$lib/server/db', async () => {
-	const { testDb } = await import('./helpers/test-db');
-	const { forTenant } = await import('../src/lib/server/tenant');
-	return {
-		db: testDb,
-		getDb: () => testDb,
-		forTenant,
-		runAsSystem: (fn: () => unknown) => fn(),
-		runWithTenantContext: (_rid: unknown, fn: () => unknown) => fn(),
-	};
-});
 
 const {
 	countDeadLetters,

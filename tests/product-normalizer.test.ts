@@ -2,16 +2,10 @@
  * Tests for LLM product normalization (issue #300, Phase 4).
  *
  * Pure prompt/parse tests run anywhere; the orchestration test is DB-backed
- * (db swapped for the test client) and injects a fake LLM provider so no real
+ * (runs against the real db singleton) and injects a fake LLM provider so no real
  * Gemini call is made. Skipped without DATABASE_URL.
  */
 import { describe, it, expect, beforeAll, afterEach, afterAll, vi } from 'vitest';
-
-vi.mock('../src/lib/server/db', async () => {
-	const { testDb } = await import('./helpers/test-db');
-	const { forTenant } = await import('../src/lib/server/tenant');
-	return { db: testDb, forTenant };
-});
 
 import {
 	buildNormalizePrompt, parseNormalizeResponse, processNormalizeJob, LLM_MATCH_THRESHOLD,

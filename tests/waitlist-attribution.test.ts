@@ -6,14 +6,9 @@
  * attribution is never overwritten) are proven against actual constraint
  * behaviour, not a mock. Skipped without DATABASE_URL/DATABASE_TEST_URL.
  */
-import { describe, it, expect, vi, afterEach, afterAll } from 'vitest';
+import { describe, it, expect, afterEach, afterAll } from 'vitest';
 import { hasDbEnv, testSql, closeDb } from './helpers/test-db';
 import type { Attribution } from '../src/lib/attribution';
-
-vi.mock('$lib/server/db', async () => {
-	const { testDb } = await import('./helpers/test-db');
-	return { db: testDb };
-});
 
 import { insertWaitlistEmail } from '../src/lib/server/waitlist-db';
 

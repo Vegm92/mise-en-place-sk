@@ -14,20 +14,14 @@
  * `invoice_line_items` that is neither an identity column nor typed into the
  * edit form. Adding a column to the table therefore adds it to this test.
  *
- * DB-backed; the db singleton is swapped for the test client. Skipped without
+ * DB-backed; runs against the real db singleton. Skipped without
  * DATABASE_URL.
  */
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { getTableColumns } from 'drizzle-orm';
-
-vi.mock('../src/lib/server/db', async () => {
-	const { testDb } = await import('./helpers/test-db');
-	const { forTenant } = await import('../src/lib/server/tenant');
-	return { db: testDb, forTenant };
-});
 
 import {
 	testSql, closeDb,

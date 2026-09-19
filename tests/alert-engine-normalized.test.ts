@@ -9,9 +9,7 @@
  * with the test client because src/lib/server/db.ts forces ssl:'require',
  * which local/CI Postgres does not speak.
  */
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-
-vi.mock('../src/lib/server/db', () => import('./helpers/mock-db'));
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
 import { testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv, runPriceShock, runStockForecast } from './helpers/alert-engine-fixtures';
 import type { EnrichedLineItem } from '../src/lib/server/products';

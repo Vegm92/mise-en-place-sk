@@ -17,7 +17,7 @@
 import { randomUUID } from 'node:crypto';
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('../src/lib/server/db', async () => (await import('./helpers/db-suite')).testDbModule());
+vi.mock('$lib/server/db', async () => (await import('./helpers/db-suite')).testDbModule());
 
 vi.mock('../src/lib/server/alerts', async () => {
 	const actual = await vi.importActual<typeof import('../src/lib/server/alerts')>('../src/lib/server/alerts');

@@ -13,7 +13,7 @@ const dbMocks = vi.hoisted(() => ({
 	insert: vi.fn(() => ({ values: dbMocks.values })),
 	values: vi.fn(async () => undefined),
 }));
-vi.mock('../src/lib/server/db', () => ({ db: { insert: dbMocks.insert } }));
+vi.mock('$lib/server/db', () => ({ db: { insert: dbMocks.insert } }));
 
 const {
 	METRIC_QUEUE_DEPTH, METRIC_ROUTE_LATENCY,

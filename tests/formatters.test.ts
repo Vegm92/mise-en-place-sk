@@ -3,7 +3,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import {
 	fmt, truncate, fmtSize, str, fmtEur, fmtEurCompact, fmtEurSigned, formatYoyPct, semColor,
-	fmtDate, fmtDateShort, fmtMonthShort, toIntlLocale,
+	fmtDate, fmtDateShort, fmtMonthShort, toIntlLocale, fmtMinutes, fmtPercent,
 } from '../src/lib/formatters';
 
 describe('fmt', () => {
@@ -284,4 +284,25 @@ describe('no hardcoded es-ES locale outside formatters.ts', () => {
     const content = readFileSync(ALLOWED_FILE, 'utf-8');
     expect(content).toContain('es-ES');
   });
+});
+
+describe('fmtMinutes and fmtPercent (issue #1078 — moved out of the activation page)', () => {
+	const MINUTE_CASES: [number | null, string][] = [
+		[0, '0.0 min'], [12.34, '12.3 min'], [59.9, '59.9 min'],
+		[60, '1.0 h'], [150, '2.5 h'], [null, '—'], [NaN, '—'], [Infinity, '—'],
+	];
+	for (const [input, expected] of MINUTE_CASES) {
+		it(`fmtMinutes(${String(input)}) is ${expected}`, () => {
+			expect(fmtMinutes(input)).toBe(expected);
+		});
+	}
+
+	const PERCENT_CASES: [number | null, string][] = [
+		[0, '0.0%'], [0.4237, '42.4%'], [1, '100.0%'], [null, '—'], [NaN, '—'],
+	];
+	for (const [input, expected] of PERCENT_CASES) {
+		it(`fmtPercent(${String(input)}) is ${expected}`, () => {
+			expect(fmtPercent(input)).toBe(expected);
+		});
+	}
 });

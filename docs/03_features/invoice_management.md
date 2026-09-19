@@ -376,26 +376,16 @@ Tenant scope on every read; version check on edit; status-transition guards.
   Sanitizing replaces every character outside `[A-Za-z0-9._-]` with `_`,
   collapses runs of `_`, trims the ends, and caps the result at 80 chars.
 
-### `src/lib/server/working-days.ts`
+### E-invoice acceptance deadline (not implemented)
 
-**`const FIXED_HOLIDAYS`**
-- Spanish working-day calculator for the 4-day invoice acceptance clock mandated by RD 238/2026 (Ley Crea y Crece B2B e-invoicing). "Días hábiles" = calendar days minus Saturdays, Sundays and Spanish national holidays; regional/local holidays NOT included.
-- Fixed national holidays keyed (month, day): Año Nuevo, Reyes Magos, Fiesta del Trabajo, Asunción, Fiesta Nacional, Todos los Santos, Constitución, Inmaculada, Navidad.
-
-**`const GOOD_FRIDAY`**
-- Viernes Santo dates 2024–2030 (Easter − 2 days) — the only moveable national holiday.
-
-**`function isSpanishWorkingDay`**
-- 0=Sun, 6=Sat are not working days.
-
-**`function countSpanishWorkingDaysUntil`**
-- Spanish working days strictly between `from` (exclusive) and `to` (inclusive) — matches the legal meaning (a 4-day clock started Monday counts Tue–Fri).
-
-**`function addSpanishWorkingDays`**
-- Acceptance deadline is `addSpanishWorkingDays(invoiceReceivedAt, 4)`.
-
-**`function workingDaysUntilDeadline`**
-- Spanish working days left until the 4-day deadline; negative once passed (negative overrun count).
+RD 238/2026 (Ley Crea y Crece B2B e-invoicing) mandates a 4 "día hábil"
+(working day — calendar days minus Saturdays, Sundays and Spanish national
+holidays) acceptance deadline. This product does not compute or surface that
+deadline: a prior `src/lib/server/working-days.ts` calculator existed but was
+never wired into the Reminders hub or the e-invoice acceptance path, and its
+holiday table covered only the nine national holidays (no regional/local
+observances), so it was removed as dead code rather than connected as-is
+(issue #1123).
 
 ## UI components
 

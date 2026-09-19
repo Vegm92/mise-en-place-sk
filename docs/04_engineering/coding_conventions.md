@@ -110,18 +110,52 @@ out on PR #832, once for the actual gate finding and repeatedly for
 mis-diagnosing which lines it meant.
 
 `pnpm lint:duplication` (`scripts/check-duplication.mjs`) catches the common
-case before that round trip: it shells out to `jscpd` (an independent clone
-detector — not SonarSource's proprietary one) over `src/` and `tests/`, then
-intersects the reported clones with the lines the current branch actually
-added versus `--base` (default `origin/main`), the same "new code" definition
-SonarCloud uses. It's wired into CI as its own step, ahead of the type check,
-so a PR fails fast in the `ci` job instead of waiting on the separate
-SonarCloud check to come back red.
+case before that round trip: it tokenizes `src/` and `tests/` with
+TypeScript's own scanner (the one `tsc` uses), then intersects the clones it
+finds with the lines the current branch actually added versus `--base`
+(default `origin/main`), the same "new code" definition SonarCloud uses. It's
+wired into CI as its own step, ahead of the type check, so a PR fails fast in
+the `ci` job instead of waiting on the separate SonarCloud check to come back
+red.
 
-It will not agree with SonarCloud's exact percentage — different detector,
-and it does not parse `.svelte` files the way it does `.ts`/`.js`. Treat a
+Two things about the real gate are easy to get wrong, and this script has to
+match them rather than assume them (issue #1121 — a prior, jscpd-based
+version of this script got both wrong and passed PRs SonarCloud failed):
+
+- **SonarCloud DOES compute duplication on test files.** There is no
+  "test code is exempt" rule for `Duplication on New Code` — it covers
+  everything the analysis indexes, `tests/*.test.ts` included. Scanning
+  `tests/` here is required to see what the gate sees, not a stricter
+  option.
+- **SonarCloud's tokenizer anonymises string and template literals**
+  before comparing token sequences — every literal becomes one placeholder
+  token, so two blocks that differ only in their string contents (two
+  near-identical test cases, two object literals with the same shape and
+  different values) are the same sequence to Sonar. This script does the
+  same: every string/template-literal token is replaced with a single `LIT`
+  placeholder (by TypeScript scanner token kind, not by matching string
+  content) before sequences are compared.
+
+It will not agree with SonarCloud's exact percentage — it scans `.ts` (and
+`.tsx`/`.js`/`.mjs`) files only and does not parse `.svelte`; on a real
+measurement (PR #1120's `47fd9db`) it read 2.7% against SonarCloud's reported
+1.8%, about a point stricter, which is the safe direction to err in. Treat a
 pass as "very likely fine", not a guarantee; a fail is real work to do, not a
-tool quirk to route around. The two lessons PR #832 actually cost:
+tool quirk to route around.
+
+`src/lib/messages/en.ts` and `es.ts` are mutual clones under literal
+anonymisation: `lint:i18n` requires every key to exist in both locale
+tables, so a run of ~10 or more added keys reads as `en.ts`/`es.ts`
+duplicating each other once their string values become `LIT` — a bulk key
+addition to both files can read near-100% duplicated. This is not a
+local-script artifact; `.sonarcloud.properties`'s own exclusion comment
+describes the same effect on the design-canvas artboards ("`Oscuro.dc.html`
+is `Main.dc.html`... four lines apart once the colour literals are
+stripped"), so SonarCloud reads a parallel locale-key addition the same way.
+Scattered key additions (fewer than ~10 contiguous lines per file) stay under
+the 10-line minimum and are unaffected.
+
+The two lessons PR #832 actually cost:
 
 - **A brand-new test file duplicates whatever fixture boilerplate it
   re-derives**, even from a file it never imports. `tests/` already carries
@@ -296,7 +330,7 @@ Everything below describes the per-locale loading design, which the runes move d
 
 **`const tiv`**
 
-- `ti` plus category awareness: interpolates as usual, but routes a var named `category` through `tcat` first. Notification and alert payloads (`messageVars`) carry the canonical category so the stored row stays language-neutral; rendering sites (NotificationBell, AlertRow) use `tiv` instead of `ti` so this cannot be forgotten per message type.
+- `ti` plus category awareness: interpolates as usual, but routes a var named `category` through `tcat` first. Notification and alert payloads (`messageVars`) carry the canonical category so the stored row stays language-neutral; rendering sites (NotificationBell) use `tiv` instead of `ti` so this cannot be forgotten per message type.
 
 **`const tp`**
 

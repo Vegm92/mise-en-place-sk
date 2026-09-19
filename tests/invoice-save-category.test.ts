@@ -4,13 +4,10 @@
  * the uncategorised bucket when there is genuinely no signal, and never
  * overwrite a category a human already set on an existing supplier.
  *
- * DB-backed; the db singleton is swapped for the test client (ssl:'require'
- * in db.ts does not speak to local Postgres). Skipped without DATABASE_URL.
+ * DB-backed; runs against the real db singleton. Skipped without DATABASE_URL.
  */
 import { randomUUID } from 'node:crypto';
-import { describe, it, expect, vi } from 'vitest';
-
-vi.mock('../src/lib/server/db', async () => (await import('./helpers/db-suite')).testDbModule());
+import { describe, it, expect } from 'vitest';
 
 import { testDb, testSql, hasDbEnv } from './helpers/test-db';
 import { useTestRestaurant } from './helpers/test-restaurant';

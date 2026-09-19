@@ -12,7 +12,7 @@ import type { EnrichedLineItem } from '../src/lib/server/products';
 // ── DB mock ───────────────────────────────────────────────────────────────────
 // vi.mock is hoisted before module evaluation, so helpers live inside the factory.
 
-vi.mock('../src/lib/server/db', () => {
+vi.mock('$lib/server/db', () => {
 	/** Returns a chainable drizzle-style builder that resolves to `rows` on await. */
 	function makeBuilder(rows: unknown[] = []) {
 		const b: Record<string, unknown> = {};

@@ -23,18 +23,42 @@ missing. A change is "verified" when the relevant tests + the gates below pass.
 | E2E-ish | manual via `.claude/skills/verify/SKILL.md` | local Postgres + Auth.js credentials login flow |
 | Browser sweep | `pnpm qa:sweep` (`scripts/qa-browser-sweep.mjs`) | headless Chromium pass over every route: load health, security headers, a11y, i18n key leakage, responsive, malformed route params — see [browser_qa_sweep.md](browser_qa_sweep.md) |
 
+`vite.config.ts`'s `coverage.include` stays `src/**/*.ts` — `.svelte` files
+are deliberately not in it, and no component-test runner has been added to
+put them there. The fix for untested logic hiding in a `.svelte` file is not
+a bigger coverage net; it's not writing that logic in a `.svelte` file at
+all. Business logic belongs in a `src/lib/*.ts` module, where `pnpm test` and
+this coverage threshold can already see it, and `pnpm lint:svelte-logic`
+(`scripts/lint-invariants.mjs`'s `SVELTE_BUSINESS_LOGIC_BUDGET`, issue
+#1078) is what keeps it there: a per-file ratchet, in the same shape as
+`INLINE_TOKEN_STYLE_BUDGET`, over named functions in a `.svelte` `<script>`
+block that compute and return a value rather than wire up an event or drive
+the page. It cannot grow — a new one fails CI on arrival — only shrink as
+existing offenders are extracted.
+
 ## What CI runs (`.github/workflows/ci.yml`)
 
 Job `ci` (postgres:18 service, `REQUIRE_DB_TESTS=1`):
 
 0. `pnpm audit --prod --audit-level high` (issue #1076) — fails on a
    high-severity advisory in the runtime dependency tree only; the full-tree
-   `pnpm audit` is printed afterwards but never fails (see
+   `pnpm audit` is printed afterwards but never fails. On `pull_request` this
+   blocking step itself only runs when the diff touches `package.json` or
+   `pnpm-lock.yaml`; it always runs on a push to `main` (issue #1118, see
    [dependency_policy.md](dependency_policy.md))
 1. `lint:no-sql-raw` → 2. `lint:tenant-scope` → 3. `lint:unscoped-query`
    → 4. `lint:i18n` → 5. `lint:no-comments` → 6. `lint:duplication`
    → 7. `pnpm check` → 8. `db:check-sync` (ADR-003) → 9. `db:migrate`
    → 10. unit tests → 11. build.
+
+A separate workflow, `.github/workflows/audit.yml`, runs daily on a
+`schedule` trigger (plus `workflow_dispatch` for an on-demand check) and does
+nothing but the blocking audit step above — install included, nothing else
+— so a runtime advisory published against something already on `main` still
+fails within 24h even on a day nobody pushes (issue #1118). It's a separate
+file rather than a job in `ci.yml` so the cron trigger never touches
+`secret-scan`, `ci` or `eval-gate`, none of which have anything to check on
+a schedule.
 
 Step 10 runs the **full** `pnpm test` suite on every PR, not a `--changed`-filtered
 subset: many suites (`tests/*.test.ts` grepping a `.svelte`/`.ts` source with
@@ -43,9 +67,26 @@ source-only change is invisible to `vitest --changed` and such a regression
 could merge through a green PR.
 
 A separate `eval-gate` job (`pnpm eval:gate`) re-runs extraction against
-`tests/golden/` when the extraction pipeline changes, but `tests/golden/cases/`
-is gitignored (real invoices), so in CI that corpus is empty and the gate only
-has teeth run locally against a populated one (issue #1078).
+`tests/golden/` when the extraction pipeline changes. `pnpm eval:gate`
+refuses to treat a zero-case corpus as a pass: with nothing in
+`tests/golden/index.json` it exits non-zero naming `tests/golden/index.json`
+and `tests/golden/inbox/`, rather than reporting a silent, unearned green the
+way it did before issue #1078.
+
+`tests/golden/cases/*` is gitignored — real supplier documents (staged under
+`tests/golden/inbox/`, itself gitignored) are local/dev-eyes-only and can
+never be committed, `git add -f` included. One path is negated on purpose:
+`tests/golden/cases/synthetic-*/` is trackable, for a hand-authored XML
+e-invoice (Facturae 3.2.x or UBL 2.1) that holds no real customer data.
+`extractWithProvider` (`src/lib/server/extract.ts`) scores `.xml` input
+through the deterministic `einvoice-parser.ts` rather than a Gemini call, so
+a synthetic case arms the gate for real without spending budget or holding
+anyone's private data. `tests/golden/cases/synthetic-facturae-001/` is one,
+with `tests/golden/baseline-report.json` recording its accepted baseline —
+so a fresh checkout, CI included, already has a real, passing, zero-cost
+gate rather than an empty one. Add more synthetic cases the same way; a real
+invoice run stays a local-only `pnpm eval:gate` you run yourself, never
+something CI can see.
 
 ## When to run what
 

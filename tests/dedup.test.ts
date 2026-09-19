@@ -14,7 +14,7 @@
  * hash-stability seams.
  */
 import { randomUUID } from 'node:crypto';
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -22,12 +22,6 @@ import {
 	computeInvoiceContentHash, computeFileHash,
 	amountsAreSimilar, isoDateOffset, findSimilarInvoice,
 } from '../src/lib/server/dedup';
-
-vi.mock('../src/lib/server/db', async () => {
-	const { testDb } = await import('./helpers/test-db');
-	const { forTenant } = await import('../src/lib/server/tenant');
-	return { db: testDb, forTenant };
-});
 
 import { computeFormContentHash, saveReviewedInvoice } from '../src/lib/server/invoice-save';
 import type { BatchItem } from '../src/lib/server/batch';

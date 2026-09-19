@@ -42,7 +42,7 @@ vi.mock('../src/lib/server/email', () => ({
 // Give billing.ts a real, locality-aware DB client. Mirrors db.ts but avoids
 // its hardcoded ssl:'require', which fails against CI's SSL-less ephemeral
 // Postgres; the handler's writes then hit the same DB the test asserts against.
-vi.mock('../src/lib/server/db', async () => {
+vi.mock('$lib/server/db', async () => {
 	const { default: postgres } = await import('postgres');
 	const { drizzle } = await import('drizzle-orm/postgres-js');
 	const schema = await import('../src/lib/server/schema');

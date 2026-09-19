@@ -3,41 +3,47 @@
 /**
  * Approximates SonarCloud's "Duplication on New Code" gate (≤ 3%) locally,
  * so a PR doesn't need a round trip through CI/SonarCloud to find out it
- * fails it. Not a re-implementation of SonarSource's proprietary clone
- * detector — this shells out to jscpd (a real, independent duplicate-code
- * detector) over `src/` and `tests/` (the same scope Sonar effectively
- * analyses; `.sonarcloud.properties` confirms it never measures duplication
- * on docs/**.md), then intersects the reported clones with the lines this
- * branch actually added versus its base, the same "New Code" definition
- * SonarCloud uses for a PR.
+ * fails it.
  *
- * This will not agree with SonarCloud's number exactly — different clone
- * detector, and it does not cover .svelte files (jscpd's tokenizer doesn't
- * parse them the way it does .ts/.js). Treat a pass here as "very likely
- * fine", not a guarantee; treat a fail here as "go look".
+ * This re-implements the relevant slice of SonarSource's CPD detector
+ * directly (TypeScript's own scanner, the one `tsc` uses) rather than
+ * shelling out to a third-party clone detector, because two things this
+ * script used to assume about the real gate turned out to be wrong —
+ * discovered by comparing against SonarCloud's actual readings on PR #1120
+ * (issue #1121), which it disagreed with by up to 9pp:
  *
- * Calibration. This script used to scan src/ AND tests/ at --min-lines 5
- * --min-tokens 30, and reported 9.9% on a PR that SonarCloud passed at 0.6%
- * — a disagreement large enough to fail CI on a branch the real gate was
- * happy with. Two independent causes, both measured before changing this:
+ *   - SonarCloud DOES compute duplication on test files. There is no
+ *     "test code is exempt" rule for this metric — Duplication on New Code
+ *     covers everything the analysis indexes, tests/*.test.ts included.
+ *     This script used to scan only `src/`, on the theory that Sonar
+ *     classifies test files separately and skips them here; that theory was
+ *     wrong. On PR #1120, the lines SonarCloud flagged at every failing
+ *     head were entirely inside `tests/config.test.ts` (added by #1049) —
+ *     lines a `src/`-only scan is structurally blind to. Scanning `tests/`
+ *     is required to see what the gate sees, not an optional stricter mode.
  *
- *   - Scope. SonarCloud does not compute duplication on test files: it
- *     classifies *.test.ts as test code, and Duplication on New Code is a
- *     main-source metric. That is why .sonarcloud.properties says nothing
- *     about tests/ — it does not need to. On that PR, 109 of the 119
- *     reported duplicate lines sat in tests/, lines the gate never looks
- *     at. Scanning tests/ here was not a stricter version of the gate, it
- *     was a different measurement that CI then failed the build on.
+ *   - SonarCloud's tokenizer anonymises string and template literals before
+ *     comparing token sequences: every string/template literal becomes one
+ *     placeholder token, so two blocks that differ only in their string
+ *     contents (two near-identical test cases, two object literals with
+ *     the same shape and different values) are the same sequence to Sonar.
+ *     A literal-exact detector (this script's previous jscpd-based version
+ *     included) treats those as distinct and misses the clone entirely.
+ *     Every string/template-literal token below is replaced with a single
+ *     `LIT` placeholder using TypeScript's scanner token kinds, not string
+ *     content matching, for exactly this reason.
  *
- *   - Sensitivity. SonarCloud's JS/TS detector needs ~10 lines and ~100
- *     tokens before it calls something a clone. At 5 lines / 30 tokens
- *     jscpd matches far smaller fragments — any two five-line object
- *     literals sharing a key shape — so it reports clones the gate never
- *     would. Across all of src/, Sonar's thresholds find one clone
- *     (18 lines, 0.04%); the old settings found dozens.
+ * Re-measured against #1120's heads after fixing both: this script's
+ * reading tracked SonarCloud's within about a point at every head,
+ * including the head that only just passed. See the issue for the exact
+ * before/after numbers this was calibrated against.
  *
- * Both are aligned to the gate below. If this script ever fails while
- * SonarCloud passes, re-measure both before refactoring anything.
+ * Thresholds — 100 tokens / 10 lines, matching SonarCloud's JS/TS CPD
+ * detector — were already correct and are unrelated to the two fixes above.
+ *
+ * It will not agree with SonarCloud's exact percentage — this scans `.ts`
+ * (and `.tsx`/`.js`/`.mjs`) files only and does not cover `.svelte`. Treat
+ * a pass here as "very likely fine", not a guarantee; a fail as "go look".
  *
  * What it does NOT do, contrary to a plausible first guess: it does not
  * blame a whole pre-existing clone on a branch that edited one line inside
@@ -48,8 +54,8 @@
  */
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
+import ts from 'typescript';
 import { resolveExecutable } from './resolve-executable.mjs';
 
 const GIT = resolveExecutable('git');
@@ -60,15 +66,24 @@ function arg(name, fallback) {
 	return i !== -1 && process.argv[i + 1] ? process.argv[i + 1] : fallback;
 }
 
-const BASE_PATTERN = /^[A-Za-z0-9._/-]+$/;
+const BASE_PATTERN = /^[A-Za-z0-9._/~^-]+$/;
 const BASE = arg('base', 'origin/main');
 if (!BASE_PATTERN.test(BASE)) {
-	console.error(`check-duplication: --base "${BASE}" is not a plain ref (letters, digits, "._/-" only).`);
+	console.error(`check-duplication: --base "${BASE}" is not a plain ref (letters, digits, "._/~^-" only).`);
 	process.exit(2);
 }
 const THRESHOLD = Number(arg('threshold', '3'));
+const SCANNED_DIRS = ['src', 'tests'];
 const SCANNED_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.mjs']);
-const SCANNED_DIRS = ['src'];
+const MIN_TOKENS = 100;
+const MIN_LINES = 10;
+const LITERAL_KINDS = new Set([
+	ts.SyntaxKind.StringLiteral,
+	ts.SyntaxKind.NoSubstitutionTemplateLiteral,
+	ts.SyntaxKind.TemplateHead,
+	ts.SyntaxKind.TemplateMiddle,
+	ts.SyntaxKind.TemplateTail,
+]);
 
 function git(args) {
 	return execFileSync(GIT, args, { cwd: ROOT, encoding: 'utf8' });
@@ -117,24 +132,42 @@ function changedScannedFiles() {
 		.filter((f) => fs.existsSync(path.join(ROOT, f)));
 }
 
-function runJscpd(outDir) {
-	const binName = process.platform === 'win32' ? 'jscpd.cmd' : 'jscpd';
-	const jscpdBin = path.join(ROOT, 'node_modules', '.bin', binName);
-	const extGlob = [...SCANNED_EXTENSIONS].map((e) => e.slice(1)).join(',');
-	execFileSync(jscpdBin, [
-		// No positional PATH: jscpd reports file names relative to each given
-		// PATH root, stripping "src/"/"tests/" from them — which then can't be
-		// matched back against git's repo-root-relative paths. --pattern alone
-		// scans from cwd (ROOT) and keeps the full relative path.
-		'--pattern', `{${SCANNED_DIRS.join(',')}}/**/*.{${extGlob}}`,
-		'--min-lines', '10',
-		'--min-tokens', '100',
-		'--format', 'typescript,javascript',
-		'--reporters', 'json',
-		'--output', outDir,
-		'--silent',
-	], { cwd: ROOT, stdio: ['ignore', 'ignore', 'inherit'], shell: process.platform === 'win32' });
-	return JSON.parse(fs.readFileSync(path.join(outDir, 'jscpd-report.json'), 'utf8'));
+/** Every tracked file under the scanned dirs — the corpus a clone can be found against, not just what this branch touched. */
+function corpusFiles() {
+	const patterns = SCANNED_DIRS.flatMap((d) => [`${d}/*`, `${d}/**/*`]);
+	let names;
+	try {
+		names = git(['ls-files', '--', ...patterns]);
+	} catch (err) {
+		console.error(`check-duplication: could not list files under ${SCANNED_DIRS.join('/, ')}/ (${err.message.split('\n')[0]}).`);
+		process.exit(2);
+	}
+	return names.split('\n')
+		.map((f) => f.trim())
+		.filter((f) => f && SCANNED_EXTENSIONS.has(path.extname(f)));
+}
+
+/** Tokenizes `file`, replacing every string/template literal with a single `LIT` placeholder so clones that differ only in their literals still match, as SonarCloud's CPD detector does. */
+function tokenize(file) {
+	let text;
+	try {
+		text = fs.readFileSync(path.join(ROOT, file), 'utf8');
+	} catch {
+		return [];
+	}
+	const variant = file.endsWith('.tsx') || file.endsWith('.jsx') ? ts.LanguageVariant.JSX : ts.LanguageVariant.Standard;
+	const scanner = ts.createScanner(ts.ScriptTarget.Latest, true, variant, text);
+	const tokens = [];
+	let line = 1;
+	let scannedTo = 0;
+	let kind;
+	while ((kind = scanner.scan()) !== ts.SyntaxKind.EndOfFileToken) {
+		const start = scanner.getTokenStart();
+		for (let i = scannedTo; i < start; i++) if (text.charCodeAt(i) === 10) line++;
+		scannedTo = start;
+		tokens.push({ value: LITERAL_KINDS.has(kind) ? 'LIT' : scanner.getTokenText(), line });
+	}
+	return tokens;
 }
 
 const changed = changedScannedFiles();
@@ -145,46 +178,72 @@ if (changed.length === 0) {
 
 const addedByFile = new Map(changed.map((f) => [f, addedLines(f)]));
 const totalNewLines = [...addedByFile.values()].reduce((sum, s) => sum + s.size, 0);
-
-const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'check-duplication-'));
-let report;
-try {
-	report = runJscpd(outDir);
-} finally {
-	fs.rmSync(outDir, { recursive: true, force: true });
+if (totalNewLines === 0) {
+	console.log(`check-duplication: no added lines under ${SCANNED_DIRS.join('/, ')}/ vs ${BASE} — nothing to check.`);
+	process.exit(0);
 }
 
-const newDuplicatedByFile = new Map();
-for (const clone of report.duplicates ?? []) {
-	for (const side of [clone.firstFile, clone.secondFile]) {
-		// jscpd reports paths with the OS-native separator; git diff (and our
-		// addedByFile keys) always uses "/", even on Windows — normalize so the
-		// lookup below actually matches instead of silently missing every hit.
-		const file = side.name.replaceAll('\\', '/');
-		const added = addedByFile.get(file);
-		if (!added) continue;
-		const hit = [];
-		for (let ln = side.start; ln <= side.end; ln++) {
-			if (added.has(ln)) hit.push(ln);
+const tokensByFile = new Map(corpusFiles().map((f) => [f, tokenize(f)]));
+
+/** key(anonymised token window) -> every {file, startLine, endLine} it occurs at. */
+const occurrencesByWindow = new Map();
+for (const [file, tokens] of tokensByFile) {
+	for (let i = 0; i + MIN_TOKENS <= tokens.length; i++) {
+		const key = tokens.slice(i, i + MIN_TOKENS).map((t) => t.value).join('\u0001');
+		let occurrences = occurrencesByWindow.get(key);
+		if (!occurrences) {
+			occurrences = [];
+			occurrencesByWindow.set(key, occurrences);
 		}
-		if (hit.length === 0) continue;
-		const other = side === clone.firstFile ? clone.secondFile : clone.firstFile;
-		if (!newDuplicatedByFile.has(file)) newDuplicatedByFile.set(file, { lines: new Set(), against: new Set() });
-		const entry = newDuplicatedByFile.get(file);
-		for (const ln of hit) entry.lines.add(ln);
-		entry.against.add(`${other.name}:${other.start}-${other.end}`);
+		occurrences.push({ file, startLine: tokens[i].line, endLine: tokens[i + MIN_TOKENS - 1].line });
 	}
 }
 
-const totalNewDuplicatedLines = [...newDuplicatedByFile.values()].reduce((sum, e) => sum + e.lines.size, 0);
+const duplicatedByFile = new Map();
+for (const occurrences of occurrencesByWindow.values()) {
+	if (occurrences.length < 2) continue;
+	for (const occ of occurrences) {
+		if (occ.endLine - occ.startLine + 1 < MIN_LINES) continue;
+		const added = addedByFile.get(occ.file);
+		if (!added) continue;
+		let entry;
+		for (let ln = occ.startLine; ln <= occ.endLine; ln++) {
+			if (!added.has(ln)) continue;
+			if (!entry) {
+				entry = duplicatedByFile.get(occ.file);
+				if (!entry) {
+					// against: otherFile -> the widest matched range against it, since
+					// overlapping sliding windows would otherwise print one line per
+					// window shift instead of one clone.
+					entry = { lines: new Set(), against: new Map() };
+					duplicatedByFile.set(occ.file, entry);
+				}
+			}
+			entry.lines.add(ln);
+		}
+		if (entry) {
+			for (const other of occurrences) {
+				if (other === occ) continue;
+				const span = entry.against.get(other.file);
+				if (!span) entry.against.set(other.file, { start: other.startLine, end: other.endLine });
+				else {
+					span.start = Math.min(span.start, other.startLine);
+					span.end = Math.max(span.end, other.endLine);
+				}
+			}
+		}
+	}
+}
+
+const totalNewDuplicatedLines = [...duplicatedByFile.values()].reduce((sum, e) => sum + e.lines.size, 0);
 const pct = totalNewLines === 0 ? 0 : (totalNewDuplicatedLines / totalNewLines) * 100;
 
 console.log(`check-duplication: ${totalNewDuplicatedLines}/${totalNewLines} new lines duplicated (${pct.toFixed(1)}%, limit ${THRESHOLD}%) vs ${BASE}`);
-if (newDuplicatedByFile.size > 0) {
+if (duplicatedByFile.size > 0) {
 	console.log('');
-	for (const [file, entry] of [...newDuplicatedByFile.entries()].sort((a, b) => b[1].lines.size - a[1].lines.size)) {
+	for (const [file, entry] of [...duplicatedByFile.entries()].sort((a, b) => b[1].lines.size - a[1].lines.size)) {
 		console.log(`  ${file} — ${entry.lines.size} new line(s) duplicated, matching:`);
-		for (const against of entry.against) console.log(`    ${against}`);
+		for (const [otherFile, span] of entry.against) console.log(`    ${otherFile}:${span.start}-${span.end}`);
 	}
 	console.log('');
 }

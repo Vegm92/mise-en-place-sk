@@ -7,7 +7,7 @@ vi.mock('@sentry/sveltekit', () => ({
 
 // Mock the DB module
 const mockInsert = vi.fn();
-vi.mock('../src/lib/server/db', () => ({
+vi.mock('$lib/server/db', () => ({
 	db: {
 		insert: () => ({
 			values: mockInsert,

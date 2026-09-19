@@ -19,13 +19,11 @@
  * paired clears the stale partner's back-reference, so no invoice is left
  * pointing at a document that no longer points back.
  *
- * DB-backed; the db singleton is swapped for the test client. Skipped without
+ * DB-backed; runs against the real db singleton. Skipped without
  * DATABASE_URL.
  */
 import { randomUUID } from 'node:crypto';
-import { describe, it, expect, vi } from 'vitest';
-
-vi.mock('../src/lib/server/db', async () => (await import('./helpers/db-suite')).testDbModule());
+import { describe, it, expect } from 'vitest';
 
 import { testSql, hasDbEnv } from './helpers/test-db';
 import { useTestRestaurant } from './helpers/test-restaurant';

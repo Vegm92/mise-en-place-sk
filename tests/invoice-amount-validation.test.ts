@@ -15,14 +15,12 @@
  * (`computeFormContentHash`) can no longer diverge from what is actually
  * inserted for a comma-decimal amount (issue #494's follow-up concern).
  *
- * DB-backed; the db singleton is swapped for the test client. Skipped
+ * DB-backed; runs against the real db singleton. Skipped
  * without DATABASE_URL.
  */
 import { randomUUID } from 'node:crypto';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { isRedirect } from '@sveltejs/kit';
-
-vi.mock('../src/lib/server/db', async () => (await import('./helpers/db-suite')).testDbModule());
 
 import { testDb, testSql, hasDbEnv } from './helpers/test-db';
 import { useTestRestaurant } from './helpers/test-restaurant';

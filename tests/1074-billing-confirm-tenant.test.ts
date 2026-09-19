@@ -35,7 +35,7 @@ const { subscriptionRow, scopedTo } = vi.hoisted(() => ({
 	subscriptionRow: { value: null as unknown },
 	scopedTo: { value: [] as string[] },
 }));
-vi.mock('../src/lib/server/db', () => {
+vi.mock('$lib/server/db', () => {
 	const chain = () => {
 		const p: Record<string, unknown> = {};
 		for (const m of ['from', 'where', 'limit', 'update', 'set', 'insert', 'values', 'returning']) p[m] = () => p;

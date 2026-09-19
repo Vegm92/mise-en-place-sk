@@ -1,1 +1,3 @@
-[]
+[
+	{ "id": "synthetic-facturae-001", "input": "invoice.xml" }
+]

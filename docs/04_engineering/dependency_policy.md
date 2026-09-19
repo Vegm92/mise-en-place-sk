@@ -93,6 +93,31 @@ advisories (vitest, the babel/browserslist chain under `vite-plugin-pwa`,
 full-tree gate at this threshold fails on tooling advisories the app never
 ships and gets muted within a week.
 
+**Where the blocking step runs (issue #1118, decided: option 2).** The gate
+reads the live advisory database, not the PR's diff, so running it
+identically on every trigger meant a newly published advisory turned every
+open PR red at once, on a change none of them made, until someone landed
+the fix:
+
+- **Pull request**: the blocking step only runs when the PR's diff touches
+  `package.json` or `pnpm-lock.yaml` (`git diff --name-only` against the PR
+  base — the same pattern the `eval-gate` job uses to scope itself to
+  extraction-pipeline changes). A PR that doesn't touch dependencies cannot
+  go red from an advisory published after it opened.
+- **Push to `main`**: the blocking step always runs.
+- **Daily `schedule`**: a separate workflow, `.github/workflows/audit.yml`
+  (also runnable on demand via `workflow_dispatch`), runs only the blocking
+  audit once a day — kept out of `ci.yml` so a cron trigger never touches
+  jobs that have nothing to do with it. An advisory against something
+  already on `main` still fails within 24h and names itself in the Actions
+  tab, instead of surfacing on the next unrelated PR to touch anything.
+
+The audit step's failure output points back at this section. The other half
+of option 2 — Dependabot *security* updates, so the override PR opens
+itself instead of waiting for whoever notices the red schedule run first —
+is a GitHub repository setting (Settings → Code security), not something
+this repo's files can turn on; see Automated updates below.
+
 When the gate goes red:
 
 1. Prefer bumping the direct dependency that pulls the vulnerable version,
@@ -136,6 +161,9 @@ Dependabot *security* updates are a repository setting (Settings →
 Code security), not something this file turns on; when enabled they follow
 the grouping in the same config. The audit gate above does not depend on
 either: it fails CI on a runtime advisory whether or not a bot opened a PR.
+Issue #1118's decision calls for turning this setting on, as the other half
+of moving the blocking audit off unrelated PRs — it is still an owner
+action outstanding in the GitHub UI, not done by this doc.
 
 ## Verification
 

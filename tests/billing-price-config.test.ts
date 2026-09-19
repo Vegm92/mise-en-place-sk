@@ -34,13 +34,9 @@ const OTHER_ACCOUNT_PRICE = 'price_1U2AtnBzHhtWXhWLTZxwEx2L';
 const sentryMocks = vi.hoisted(() => ({ captureException: vi.fn(), captureMessage: vi.fn() }));
 vi.mock('@sentry/sveltekit', () => sentryMocks);
 
-vi.mock('../src/lib/server/db', () => {
-	const chain = () => {
-		const p: Record<string, unknown> = {};
-		for (const m of ['from', 'leftJoin', 'where', 'limit', 'update', 'set', 'insert', 'values', 'onConflictDoUpdate', 'returning']) p[m] = () => p;
-		p.then = (res: (v: unknown) => unknown) => Promise.resolve([]).then(res);
-		return p;
-	};
+vi.mock('$lib/server/db', async () => {
+	const { chainableQuery } = await import('./helpers/mock-chain');
+	const chain = chainableQuery();
 	return { db: { select: chain, update: chain, insert: chain }, forTenant: () => ({ scope: () => ({}) }) };
 });
 

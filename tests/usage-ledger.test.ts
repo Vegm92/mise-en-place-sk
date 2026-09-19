@@ -12,7 +12,7 @@
  */
 import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
 
-vi.mock('../src/lib/server/db', async () => (await import('./helpers/db-suite')).testDbModule());
+vi.mock('$lib/server/db', async () => (await import('./helpers/db-suite')).testDbModule());
 
 // The plan limit is the one thing these tests vary; billing itself is covered
 // by tests/billing.test.ts.

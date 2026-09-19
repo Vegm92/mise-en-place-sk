@@ -19,17 +19,11 @@
  * and notes can be hidden per restaurant without touching extraction: the AI
  * keeps detecting the field, only what `/batch/[id]` renders changes.
  *
- * DB-backed for the load/action; the db singleton is swapped for the test
- * client. Skipped without DATABASE_URL.
+ * DB-backed for the load/action; runs against the real db singleton.
+ * Skipped without DATABASE_URL.
  */
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { readFileSync } from 'node:fs';
-
-vi.mock('../src/lib/server/db', async () => {
-	const { testDb } = await import('./helpers/test-db');
-	const { forTenant } = await import('../src/lib/server/tenant');
-	return { db: testDb, forTenant, runAsSystem: (fn: () => unknown) => fn(), runWithTenantContext: (_rid: unknown, fn: () => unknown) => fn() };
-});
 
 import {
 	testSql, closeDb,

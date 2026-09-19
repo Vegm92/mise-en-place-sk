@@ -14,15 +14,10 @@
  * and no source file compares `invoices.reviewState` (or the legacy
  * `invoices.status`) against a word outside its set.
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { PgDialect } from 'drizzle-orm/pg-core';
-
-vi.mock('../src/lib/server/db', () => ({
-	db: {},
-	forTenant: () => ({ scope: () => ({}) }),
-}));
 
 import {
 	REVIEW_STATES,

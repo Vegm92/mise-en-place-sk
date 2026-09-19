@@ -4,20 +4,14 @@
  * (SUM of line-item total price) and units purchased (SUM of line-item
  * quantity), and both mobile and desktop variants render them as columns.
  *
- * DB-backed; the db singleton is swapped for the test client. Skipped without
+ * DB-backed; runs against the real db singleton. Skipped without
  * a local Postgres (see tests/helpers/test-db.ts).
  */
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { setLocale, t as tStore, loadAllMessages } from '../src/lib/i18n';
 
 await loadAllMessages();
-
-vi.mock('../src/lib/server/db', async () => {
-	const { testDb } = await import('./helpers/test-db');
-	const { forTenant } = await import('../src/lib/server/tenant');
-	return { db: testDb, forTenant };
-});
 
 import {
 	testSql, closeDb,

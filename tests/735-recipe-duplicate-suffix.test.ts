@@ -5,18 +5,11 @@
  * "(copia 2)", "(copia 3)" … bounded by a small retry count, 409 only when
  * that genuinely runs out.
  *
- * DB-backed: the db singleton is swapped for the real test client so the
- * unique-index retries run against real Postgres. Skipped without
- * DATABASE_URL.
+ * DB-backed: runs against the real db singleton, so the unique-index
+ * retries run against real Postgres. Skipped without DATABASE_URL.
  */
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { isRedirect } from '@sveltejs/kit';
-
-vi.mock('../src/lib/server/db', async () => {
-	const { testDb } = await import('./helpers/test-db');
-	const { forTenant } = await import('../src/lib/server/tenant');
-	return { db: testDb, forTenant, runAsSystem: (fn: () => unknown) => fn(), runWithTenantContext: (_rid: unknown, fn: () => unknown) => fn() };
-});
 
 import { testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv } from './helpers/test-db';
 import { normalizeProductKey } from '../src/lib/server/normalize';

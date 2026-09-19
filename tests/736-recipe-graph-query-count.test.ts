@@ -27,16 +27,10 @@
  * addItem/updateItem POST issued loadRecipeGraph twice (linkTargetError,
  * then `load`) instead of once.
  *
- * DB-backed: the db singleton is swapped for the real test client. Skipped
+ * DB-backed: runs against the real db singleton. Skipped
  * without DATABASE_URL.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
-
-vi.mock('../src/lib/server/db', async () => {
-	const { testDb } = await import('./helpers/test-db');
-	const { forTenant } = await import('../src/lib/server/tenant');
-	return { db: testDb, forTenant, runAsSystem: (fn: () => unknown) => fn(), runWithTenantContext: (_rid: unknown, fn: () => unknown) => fn() };
-});
 
 import { testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv } from './helpers/test-db';
 import { normalizeProductKey } from '../src/lib/server/normalize';

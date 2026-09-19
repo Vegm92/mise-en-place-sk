@@ -58,7 +58,9 @@ two on-tint gaps #720 left open
 ## Context
 
 The colour system had drifted into two conflicting jobs for the same hues.
-`--mep-info` (blue) carried "low severity" in `AlertRow`, while `--mep-acc`
+`--mep-info` (blue) carried "low severity" in `AlertRow` (removed as dead
+code, issue #1123 — the pattern below now lives in the alert-rendering
+components that remain), while `--mep-acc`
 (amber) carried "this is clickable" on every primary button. Any surface that
 showed both — a list of work items each with its own action — put a blue
 *state* next to an amber *action* and asked the reader to keep the two
@@ -66,8 +68,9 @@ vocabularies apart from context alone.
 
 The dashboard rebuild made it worse before it made it better: it coloured work
 items by *kind* (price, budget, payment, review, …), inventing a six-hue
-taxonomy on top of a system whose rule, visible in `AlertRow`, is that colour
-encodes severity and the icon encodes kind.
+taxonomy on top of a system whose rule, visible in `AlertRow` (removed as
+dead code, issue #1123), is that colour encodes severity and the icon
+encodes kind.
 
 Alternatives considered:
 
@@ -127,7 +130,8 @@ theme: every route root now sets `data-accent="slate"`.
 Components take their colour from severity, never from the kind of thing:
 `WorkItem` carries a `severity: 'high' | 'med' | 'low'` field
 (`src/lib/dashboard-turno.ts`) and `WorkCard` maps that, not `kind`, to a tone.
-`AlertRow`'s `low` rung moves from `--mep-info` to `--mep-caution`.
+`AlertRow`'s `low` rung moved from `--mep-info` to `--mep-caution`; the
+component was later removed as dead code (issue #1123).
 
 ## Consequences
 

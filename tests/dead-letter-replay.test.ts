@@ -31,7 +31,7 @@ const batchMocks = vi.hoisted(() => ({ markQueued: vi.fn(async () => true) }));
 vi.mock('../src/lib/server/batch', () => ({ markQueued: batchMocks.markQueued }));
 
 const productRows = vi.hoisted(() => ({ rows: [] as Array<Record<string, unknown>> }));
-vi.mock('../src/lib/server/db', () => ({
+vi.mock('$lib/server/db', () => ({
 	db: {
 		select: () => ({
 			from: () => ({ where: () => ({ limit: async () => productRows.rows }) }),

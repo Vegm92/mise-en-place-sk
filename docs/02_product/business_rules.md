@@ -71,7 +71,10 @@ with an ADR if structural. Feature-level detail lives in `docs/03_features/`.
 |---|---|---|
 | Nav badge | overdue invoices + pending `budget_overage` (level `exceeded`) | `+layout.server.ts` |
 | Reminders scope | `status IN (pending, accepted)` and `due_date <= now + 7 d` | `reminders` route |
-| E-invoice working days | 4 working days acceptance deadline (Spanish calendar) | `working-days.ts` |
+
+RD 238/2026 / Ley Crea y Crece sets a 4 working-day e-invoice acceptance
+deadline; the product does not currently compute or surface it (issue #1123 —
+the prior working-days clock had no wiring into `reminders` and was removed).
 
 ## Data retention / lifecycle
 
