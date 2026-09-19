@@ -407,7 +407,6 @@ const INLINE_TOKEN_STYLE_BUDGET = new Map([
 	['src/routes/(app)/invoices/+page.svelte', 9],
 	['src/lib/components/waitlist/EmailForm.svelte', 8],
 	['src/routes/(app)/billing/confirm/+page.svelte', 8],
-	['src/lib/components/mep/AlertRow.svelte', 6],
 	['src/lib/components/mep/ConfirmDialog.svelte', 6],
 	['src/lib/components/mep/TrendLineChart.svelte', 6],
 	['src/lib/components/mobile/turno/WorkCardMobile.svelte', 6],

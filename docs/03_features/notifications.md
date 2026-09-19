@@ -103,8 +103,9 @@ consistent i18n rendering and actionable CTAs, plus the unified reminders hub.
   deliberately NOT the raw pending count.
 - **Reminders hub** (`/reminders`): overdue/due-soon invoices (status
   `pending|accepted`, `due_date <= now + 7 d`) + pending notifications; actions
-  mark-paid/bulk-paid, accept/reject invoice; e-invoice acceptance deadlines use
-  working days (`working-days.ts`).
+  mark-paid/bulk-paid, accept/reject invoice. RD 238/2026 / Ley Crea y Crece's
+  4 working-day e-invoice acceptance deadline is not computed or surfaced here
+  (issue #1123).
 - `(app)/api/notifications` GET (default `status=pending`), POST marks `sent`.
 
 ## State transitions

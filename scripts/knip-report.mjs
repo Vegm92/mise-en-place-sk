@@ -62,3 +62,9 @@ const lines = [
 writeFileSync("graph-out/GRAPH_REPORT.md", lines.join("\n"));
 console.log("graph-out/GRAPH_REPORT.md written");
 console.log(`orphans: ${orphans.length}`);
+
+if (orphans.length > 0) {
+	console.error("Error: knip found unreferenced files — see graph-out/GRAPH_REPORT.md (issue #1123).");
+	for (const f of orphans) console.error(`  ${f}`);
+	process.exitCode = 1;
+}

@@ -330,7 +330,7 @@ Everything below describes the per-locale loading design, which the runes move d
 
 **`const tiv`**
 
-- `ti` plus category awareness: interpolates as usual, but routes a var named `category` through `tcat` first. Notification and alert payloads (`messageVars`) carry the canonical category so the stored row stays language-neutral; rendering sites (NotificationBell, AlertRow) use `tiv` instead of `ti` so this cannot be forgotten per message type.
+- `ti` plus category awareness: interpolates as usual, but routes a var named `category` through `tcat` first. Notification and alert payloads (`messageVars`) carry the canonical category so the stored row stays language-neutral; rendering sites (NotificationBell) use `tiv` instead of `ti` so this cannot be forgotten per message type.
 
 **`const tp`**
 

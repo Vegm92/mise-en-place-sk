@@ -62,10 +62,12 @@ tenants) an email.
   falling back to `/waitlist`. `/s/[token]/og.png` serves a server-composed
   SVG share card (not a Playwright/Puppeteer render — those are dev-only
   dependencies per #465 and not available in the production runtime) with the
-  same anonymised content. `AlertRow`'s "share this price shock" affordance
-  (`POST /api/alert-share`) reuses the same mechanism (current week's token),
-  so a shared price-shock alert surfaces only the category-level movers
-  already on the public view — never the ingredient, supplier, or price.
+  same anonymised content. `POST /api/alert-share` reuses the same mechanism
+  (current week's token) for a "share this price shock" affordance, so a
+  shared price-shock alert surfaces only the category-level movers already
+  on the public view — never the ingredient, supplier, or price. No component
+  currently calls this endpoint (its former caller, `AlertRow.svelte`, was
+  removed as dead code — issue #1123).
 
 ## State transitions
 
@@ -84,8 +86,7 @@ actions; `/s/[token]` load (public); `/s/[token]/og.png` (public);
 ## UI dependencies
 
 `digest/+page.svelte`; email template via `email.ts`; `reports/[type]/+page.svelte`
-share panel; `s/[token]/+page.svelte` (public share view); `AlertRow.svelte`
-share button.
+share panel; `s/[token]/+page.svelte` (public share view).
 
 ## Background dependencies
 
@@ -178,7 +179,7 @@ Week claim atomicity; feature gate; tenant scope.
 
 **`function getOrCreateActiveShare` / `getOrCreateCurrentWeekShare`**
 
-- Race-safe against two concurrent callers landing on the same `(restaurantId, week)` — the reports `share` action and `AlertRow`'s "share this price shock" (`POST /api/alert-share`, via `getOrCreateCurrentWeekShare`) both go through this one function. "select, then insert if missing" is a plain check-then-act: both callers can see no existing row and both insert, leaving two live tokens for one week. `digest_shares_restaurant_week_active_unique` (migration 0054) is a **partial** `UNIQUE(restaurant_id, week) WHERE revoked_at IS NULL` index — it rejects the losing insert while leaving revoked/historical rows unconstrained, so a legitimate re-share after a revoke still works. The insert targets that exact index with `onConflictDoNothing({ target: [restaurantId, week], where: revoked_at IS NULL })`; on conflict, one re-select fetches the winner's token — no retry loop, since the partial index guarantees at most one unrevoked row exists once the conflict resolves.
+- Race-safe against two concurrent callers landing on the same `(restaurantId, week)` — the reports `share` action and the "share this price shock" endpoint (`POST /api/alert-share`, via `getOrCreateCurrentWeekShare`, currently unreferenced by any component) both go through this one function. "select, then insert if missing" is a plain check-then-act: both callers can see no existing row and both insert, leaving two live tokens for one week. `digest_shares_restaurant_week_active_unique` (migration 0054) is a **partial** `UNIQUE(restaurant_id, week) WHERE revoked_at IS NULL` index — it rejects the losing insert while leaving revoked/historical rows unconstrained, so a legitimate re-share after a revoke still works. The insert targets that exact index with `onConflictDoNothing({ target: [restaurantId, week], where: revoked_at IS NULL })`; on conflict, one re-select fetches the winner's token — no retry loop, since the partial index guarantees at most one unrevoked row exists once the conflict resolves.
 - A price-shock share is just the current week's digest share token, so it carries exactly the same anonymised, category-level content — never the specific ingredient/supplier/price that triggered the alert.
 
 ### `src/routes/s/[token]/og.png/+server.ts`
