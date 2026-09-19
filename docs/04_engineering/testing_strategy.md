@@ -29,12 +29,23 @@ Job `ci` (postgres:18 service, `REQUIRE_DB_TESTS=1`):
 
 0. `pnpm audit --prod --audit-level high` (issue #1076) — fails on a
    high-severity advisory in the runtime dependency tree only; the full-tree
-   `pnpm audit` is printed afterwards but never fails (see
+   `pnpm audit` is printed afterwards but never fails. On `pull_request` this
+   blocking step itself only runs when the diff touches `package.json` or
+   `pnpm-lock.yaml`; it always runs on a push to `main` (issue #1118, see
    [dependency_policy.md](dependency_policy.md))
 1. `lint:no-sql-raw` → 2. `lint:tenant-scope` → 3. `lint:unscoped-query`
    → 4. `lint:i18n` → 5. `lint:no-comments` → 6. `lint:duplication`
    → 7. `pnpm check` → 8. `db:check-sync` (ADR-003) → 9. `db:migrate`
    → 10. unit tests → 11. build.
+
+A separate workflow, `.github/workflows/audit.yml`, runs daily on a
+`schedule` trigger (plus `workflow_dispatch` for an on-demand check) and does
+nothing but the blocking audit step above — install included, nothing else
+— so a runtime advisory published against something already on `main` still
+fails within 24h even on a day nobody pushes (issue #1118). It's a separate
+file rather than a job in `ci.yml` so the cron trigger never touches
+`secret-scan`, `ci` or `eval-gate`, none of which have anything to check on
+a schedule.
 
 Step 10 runs the **full** `pnpm test` suite on every PR, not a `--changed`-filtered
 subset: many suites (`tests/*.test.ts` grepping a `.svelte`/`.ts` source with
