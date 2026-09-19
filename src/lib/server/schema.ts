@@ -464,16 +464,17 @@ export const idempotencyKeys = pgTable('idempotency_keys', {
 ]);
 
 export const waitlist = pgTable('waitlist', {
-	id:          serial('id').primaryKey(),
-	email:       text('email').notNull().unique(),
-	source:      text('source'),
-	campaign:    text('campaign'),
-	variant:     text('variant'),
-	segment:     text('segment'),
-	referrer:    text('referrer'),
-	landingPath: text('landing_path'),
-	referredBy:  text('referred_by'),
-	createdAt:   timestamp('created_at', { withTimezone: true }).defaultNow(),
+	id:           serial('id').primaryKey(),
+	email:        text('email').notNull().unique(),
+	source:       text('source'),
+	campaign:     text('campaign'),
+	variant:      text('variant'),
+	segment:      text('segment'),
+	referrer:     text('referrer'),
+	landingPath:  text('landing_path'),
+	referredBy:   text('referred_by'),
+	referralCode: text('referral_code').unique(),
+	createdAt:    timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 
 export const funnelEvents = pgTable('funnel_events', {

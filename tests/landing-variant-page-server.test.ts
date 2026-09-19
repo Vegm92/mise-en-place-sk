@@ -117,7 +117,7 @@ describe('/l/[variant] join action — reuses the shared waitlist join action', 
 			}),
 		});
 		const result = await actions.join!(joinEvent('chef@example.com', cookies));
-		expect(result).toEqual({ success: true });
+		expect(result).toEqual({ success: true, referralCode: 'fake-referral-code' });
 		expect(insertWaitlistEmailMock).toHaveBeenCalledWith(
 			'chef@example.com',
 			expect.objectContaining({ variant: 'grupo-multi-local' }),

@@ -20,6 +20,8 @@ import { load, actions } from '../src/routes/waitlist/+page.server';
 import {
 	insertWaitlistEmailMock,
 	countWaitlistEmailsMock,
+	getReferralCodeMock,
+	resolveReferralOwnerEmailMock,
 	trackAnonymousEventMock,
 	resetWaitlistRouteMocks,
 	fakeCookies,
@@ -98,7 +100,7 @@ describe('/waitlist join action — persists attribution from the cookie', () =>
 
 		const result = await actions.join!(joinEvent('chef@example.com', cookies));
 
-		expect(result).toEqual({ success: true });
+		expect(result).toEqual({ success: true, referralCode: 'fake-referral-code' });
 		expect(insertWaitlistEmailMock).toHaveBeenCalledWith(
 			'chef@example.com',
 			expect.objectContaining({ source: 'google', campaign: 'spring_launch', referredBy: 'ABC123' }),
@@ -132,7 +134,53 @@ describe('/waitlist join action — persists attribution from the cookie', () =>
 		insertWaitlistEmailMock.mockResolvedValueOnce(false);
 		const cookies = fakeCookies();
 		const result = await actions.join!(joinEvent('chef@example.com', cookies));
-		expect(result).toEqual({ success: true, alreadyRegistered: true });
+		expect(result).toEqual({ success: true, alreadyRegistered: true, referralCode: 'fake-referral-code' });
 		expect(trackAnonymousEventMock).not.toHaveBeenCalled();
+	});
+});
+
+function referredByCookie(code: string) {
+	return fakeCookies({
+		mep_attr: JSON.stringify({
+			source: null, campaign: null, variant: null, segment: null,
+			referrer: null, landingPath: '/waitlist', referredBy: code,
+		}),
+	});
+}
+
+describe('/waitlist join action — referral codes (issue #332)', () => {
+	it.each([
+		['chef@example.com', null],
+		['Chef@Example.com', null],
+	])('does not count a self-referral when the code owner is %s', async (ownerEmail, expectedReferredBy) => {
+		resolveReferralOwnerEmailMock.mockResolvedValueOnce(ownerEmail);
+		await actions.join!(joinEvent('chef@example.com', referredByCookie('OWNCODE1')));
+
+		expect(insertWaitlistEmailMock).toHaveBeenCalledWith(
+			'chef@example.com',
+			expect.objectContaining({ referredBy: expectedReferredBy }),
+		);
+	});
+
+	it('resolves the incoming code before deciding whether it counts', async () => {
+		resolveReferralOwnerEmailMock.mockResolvedValueOnce('chef@example.com');
+		await actions.join!(joinEvent('chef@example.com', referredByCookie('OWNCODE1')));
+		expect(resolveReferralOwnerEmailMock).toHaveBeenCalledWith('OWNCODE1');
+	});
+
+	it('keeps a genuine referral from a different address', async () => {
+		resolveReferralOwnerEmailMock.mockResolvedValueOnce('friend@example.com');
+		await actions.join!(joinEvent('chef@example.com', referredByCookie('FRIENDCODE')));
+
+		expect(insertWaitlistEmailMock).toHaveBeenCalledWith(
+			'chef@example.com',
+			expect.objectContaining({ referredBy: 'FRIENDCODE' }),
+		);
+	});
+
+	it('returns the referral code for the newly created row', async () => {
+		getReferralCodeMock.mockResolvedValueOnce('newcode123');
+		const result = await actions.join!(joinEvent('chef@example.com', fakeCookies()));
+		expect(result).toEqual({ success: true, referralCode: 'newcode123' });
 	});
 });

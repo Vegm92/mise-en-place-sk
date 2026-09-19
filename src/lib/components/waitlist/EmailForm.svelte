@@ -2,12 +2,13 @@
   import { enhance } from '$app/forms';
   import Turnstile from '$lib/components/Turnstile.svelte';
 
-  type JoinFormResult = { success?: boolean; error?: string; alreadyRegistered?: boolean } | null | undefined;
+  type JoinFormResult = { success?: boolean; error?: string; alreadyRegistered?: boolean; referralCode?: string | null } | null | undefined;
 
   let {
     big,
     form,
     copy,
+    referralBase,
   }: {
     big: boolean;
     form: JoinFormResult;
@@ -26,7 +27,12 @@
       privacy: string;
       privacyLink: string;
       emailLabel: string;
+      referralIntro: string;
+      referralLabel: string;
+      referralCopy: string;
+      referralCopied: string;
     };
+    referralBase: string;
   } = $props();
 
   const uid = $props.id();
@@ -56,6 +62,20 @@
 
   const shownError = $derived(emailError || serverError());
 
+  let copied = $state(false);
+  const referralLink = $derived(form?.referralCode ? `${referralBase}?ref=${form.referralCode}` : '');
+
+  async function copyReferralLink() {
+    if (!referralLink) return;
+    try {
+      await navigator.clipboard.writeText(referralLink);
+      copied = true;
+      setTimeout(() => { copied = false; }, 2000);
+    } catch {
+      copied = false;
+    }
+  }
+
   const privacyParts = $derived.by(() => {
     const idx = copy.privacy.toLowerCase().lastIndexOf(copy.privacyLink.toLowerCase());
     if (idx === -1) return { before: copy.privacy, link: '', after: '' };
@@ -80,6 +100,21 @@
       <div style="font-size:13.5px;color:var(--mep-fg-2);line-height:1.5;">
         {form?.alreadyRegistered ? copy.alreadyReg : copy.successBody}
       </div>
+      {#if referralLink}
+        <div style="margin-top:12px;">
+          <div class="text-fg-2" style="font-size:13px;font-weight:600;margin-bottom:5px;">{copy.referralLabel}</div>
+          <div style="display:flex;gap:6px;">
+            <input type="text" readonly value={referralLink} aria-label={copy.referralLabel}
+              class="bg-surface text-fg-2 border border-border-input"
+              style="flex:1;min-width:0;height:36px;padding:0 10px;border-radius:6px;" />
+            <button type="button" class="btn btn-secondary" onclick={copyReferralLink}
+              style="height:36px;padding:0 12px;font-size:13px;font-weight:600;flex-shrink:0;">
+              {copied ? copy.referralCopied : copy.referralCopy}
+            </button>
+          </div>
+          <p class="text-fg-3" style="font-size:13px;line-height:1.45;margin:8px 0 0;">{copy.referralIntro}</p>
+        </div>
+      {/if}
     </div>
   </div>
 {:else}
