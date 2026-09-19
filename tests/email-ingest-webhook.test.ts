@@ -112,7 +112,7 @@ describe('POST — envelope parsing and hand-off', () => {
 });
 
 describe('POST — signature verification (issue #236)', () => {
-	const SECRET = 'whsec_c2VjcmV0LWJ5dGVzLWZvci10ZXN0aW5n';
+	const SECRET = `whsec_${Buffer.from('secret-bytes-for-testing').toString('base64')}`;
 
 	function sign(id: string, timestamp: string, body: string): string {
 		const secretBytes = Buffer.from(SECRET.replace(/^whsec_/, ''), 'base64');
