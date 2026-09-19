@@ -25,6 +25,17 @@ tables are the ground truth for jobs.
 - **Deliberately loud paths** (do not silence): unknown Stripe price id
   (falls back `starter` + Sentry), WhatsApp number-health drops, dead-letter
   job enqueues.
+- **Application (Drizzle) query spans** (issue #1077). Every query run
+  through `getClient()`'s pooled connection or a per-request/per-job reserved
+  connection (ADR-030) emits a `span.op:db` child span when it runs inside an
+  already-traced request or job — read them the same way you'd read
+  `pg-boss`'s own `span.op:db` housekeeping spans, filtered to a `GET`
+  transaction to attribute its tail to a specific query. The span name is the
+  parameterized SQL text only (`$1`, `$2`, … placeholders); bound values never
+  reach Sentry. A query run outside any traced request/job (a background
+  script, a test) emits no span — there is nothing to attach it to, not a
+  bug. `db.transaction()` blocks (onboarding, add-location) are not
+  instrumented yet — see `src/lib/server/db-client.ts`'s Code notes below.
 
 ## Operational surface — `/admin`
 
@@ -53,7 +64,8 @@ Owner-email gated. Provides:
 | Concern | Check |
 |---|---|
 | Extractions pending | `batch_items` status counts; `extract-invoice` queue |
-| Route latency | `metric_samples` where `name = 'route.latency_ms'`, `label` = the SvelteKit route id. Bucketed per 60 s flush in the web process (`src/lib/server/metrics.ts`) — count/sum/min/max, no exact percentiles; real p50/p95 latency comes from Sentry's performance traces, not this table (issue #1077) |
+| Route latency | `metric_samples` where `name = 'route.latency_ms'`, `label` = the SvelteKit route id. Bucketed per 60 s flush in the web process (`src/lib/server/metrics.ts`) — count/sum/min/max, no exact percentiles; real p50/p95/p99 latency comes from Sentry's performance traces (`GET /(app)`, `GET /waitlist`, …), not this table (issue #1077) |
+| Query latency (per statement) | Sentry performance traces, `span.op:db`, child spans of the route transaction above — since #1077, this is where application query latency lives, not `metric_samples` (which has never recorded per-query timing and isn't the honest fix for it; see the Sentry section above and `src/lib/server/db-client.ts`) |
 | `extract-invoice` depth over time | `metric_samples` where `name = 'queue.depth'` (`label` `extract-invoice`, and `extract-invoice:pgboss` for the job table) plus `queue.oldest_seconds`. Sampled every 5 min by `scheduled-metric-sample` |
 | Extraction end-to-end latency | `batch_items.extracted_at - queued_at` on the row; `extractionStats()` reports p50/p95 over it. Covers failures too, unlike the extraction_results join it replaced |
 | Gemini call latency | `llm_usage_log.duration_ms`, written by `recordLlmUsage` for every caller (the provider times its own call) |
@@ -180,6 +192,60 @@ Two caveats:
   front of it is a cross-tenant leak waiting for a `Vary` mistake. Any cache
   added at the threshold above is per-tenant keyed and invalidated on write,
   or it does not ship.
+
+## Code notes
+
+### `src/lib/server/db-client.ts`
+**`withQuerySpan`** (issue #1077)
+- Wraps postgres.js's `unsafe()` rather than Drizzle's `logger` option or
+  postgres.js's `debug` option: both of those fire once, synchronously,
+  before the query is sent, with no completion signal, so neither gives a
+  real start/end boundary on its own. `unsafe()` is the one call every
+  Drizzle-generated query (select/insert/update/delete) and every raw
+  `db.execute(sql\`…\`)` funnels through for this driver, and it returns a
+  real `Promise` subclass — wrapping it gives the exact SQL text at the call
+  site and its true completion via `.then(onSettled, onSettled)` (not
+  `.finally()`, which would leave an unhandled-rejection-prone derived
+  promise on a query failure that nothing else reads).
+- Applied to both `getClient()`'s pooled connection and every connection
+  `client.reserve()` returns, since ADR-030's per-request/per-job reserved
+  connection (`tenant-context.ts`) is a *separate* postgres.js `Sql` instance
+  with its own `unsafe` — patching only the pooled client would have missed
+  every tenant-scoped query, which is most of the app. Instrumenting at
+  `reserve()`'s return means `tenant-context.ts` needed no change: it already
+  layers its own release-guard onto whatever `.unsafe` it finds.
+- Gated on `Sentry.getActiveSpan()`: with no active span (Sentry never
+  initialized, or a job/script that isn't inside a traced request), the
+  wrapper is a pure passthrough — no span, no measurable overhead. This is
+  also what keeps the worker from emitting spans for jobs it hasn't wrapped
+  in a Sentry transaction, rather than opening one orphan trace per query.
+- The span's `name` is the parameterized query text only (`$1`, `$2`, …
+  placeholders) — the second argument to `unsafe()`, the bound values, is
+  passed through to the real call untouched and never read by the wrapper,
+  so a value that might be personal data (an email in a `WHERE` clause, say)
+  cannot reach the span. Truncated past 300 chars to bound span size on
+  generated queries with many columns.
+- Relies on undocumented postgres.js ordering: `Query.handle()` is
+  `!this.executed && (this.executed = true) && await 1 && this.handler(this)`
+  — the real dispatch is deferred by one microtask. `withQuerySpan` calls
+  `result.then(...)` synchronously (which marks the query executed), and only
+  because of that `await 1` does Drizzle's own synchronous `.values()` call
+  (`drizzle-orm/postgres-js`'s session, for every typed/column-mapped query)
+  still land before dispatch. `tests/1077-db-query-spans.test.ts`'s DB-backed
+  case runs a real `.values()`-path query end to end and asserts both the
+  span and the correct row shape — it is what would catch a future postgres.js
+  release dropping that deferral.
+- Not covered: `db.transaction()` blocks (onboarding, add-location,
+  `billing.ts`'s advisory-lock transaction) — postgres.js's native `begin()`
+  hands the callback a freshly constructed transaction-scoped `sql`, not the
+  reserved connection this file patches. ADR-030 §3 notes these are the rare
+  exception (most call sites never open a transaction); the queries the
+  #1077 issue names (the app-root overdue-invoice count) are not among them.
+  Extending coverage into `begin()` is follow-up, not this fix.
+- Never allowed to fail or slow the query path: the span logic is wrapped in
+  a `try`/`catch` that swallows anything Sentry itself throws, matching the
+  non-fatal-instrumentation posture in
+  `docs/04_engineering/llm_usage_metering.md`.
 
 ## Runbooks available
 

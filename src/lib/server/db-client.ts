@@ -1,5 +1,6 @@
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
+import * as Sentry from '@sentry/sveltekit';
 import * as schema from './schema';
 import { pgSslConfig } from './db-ssl';
 
@@ -10,6 +11,7 @@ const DB_STATEMENT_TIMEOUT_MS = parseInt(process.env.DB_STATEMENT_TIMEOUT_MS ?? 
 const DB_POOL_MAX = parseInt(process.env.DB_POOL_MAX ?? '20', 10);
 const DB_POOL_IDLE_TIMEOUT_MS = parseInt(process.env.DB_POOL_IDLE_TIMEOUT_MS ?? '30000', 10);
 const DB_POOL_MAX_LIFETIME_MS = parseInt(process.env.DB_POOL_MAX_LIFETIME_MS ?? '600000', 10);
+const QUERY_SPAN_NAME_LIMIT = 300;
 
 export type DB = ReturnType<typeof drizzle<typeof schema>>;
 
@@ -18,11 +20,41 @@ declare global {
 	var _dbClient: postgres.Sql | undefined;
 }
 
+type UnsafeFn = postgres.Sql['unsafe'];
+
+export function withQuerySpan<T extends UnsafeFn>(unsafe: T): T {
+	return ((...args: Parameters<UnsafeFn>) => {
+		const query = args[0];
+		const result = unsafe(...args);
+		try {
+			if (!Sentry.getActiveSpan()) return result;
+			const span = Sentry.startInactiveSpan({
+				name: query.length > QUERY_SPAN_NAME_LIMIT ? `${query.slice(0, QUERY_SPAN_NAME_LIMIT)}…` : query,
+				op: 'db',
+				attributes: { 'db.system': 'postgresql' },
+			});
+			result.then(() => span.end(), () => span.end());
+		} catch {}
+		return result;
+	}) as T;
+}
+
+function instrumentClient(client: postgres.Sql): postgres.Sql {
+	client.unsafe = withQuerySpan(client.unsafe.bind(client));
+	const reserve = client.reserve.bind(client);
+	client.reserve = (async (...args: Parameters<typeof reserve>) => {
+		const reserved = await reserve(...args);
+		reserved.unsafe = withQuerySpan(reserved.unsafe.bind(reserved));
+		return reserved;
+	}) as typeof client.reserve;
+	return client;
+}
+
 export function getClient(): postgres.Sql {
 	if (globalThis._dbClient) return globalThis._dbClient;
 	const connectionString = DATABASE_POOL_URL || DATABASE_URL;
 	if (!connectionString) throw new Error('DATABASE_URL (or DATABASE_POOL_URL) is required');
-	globalThis._dbClient = postgres(connectionString, {
+	globalThis._dbClient = instrumentClient(postgres(connectionString, {
 		prepare: false,
 		ssl: pgSslConfig(),
 		connect_timeout: DB_CONNECT_TIMEOUT_SECONDS,
@@ -30,7 +62,7 @@ export function getClient(): postgres.Sql {
 		max: DB_POOL_MAX,
 		idle_timeout: DB_POOL_IDLE_TIMEOUT_MS,
 		max_lifetime: DB_POOL_MAX_LIFETIME_MS,
-	});
+	}));
 	return globalThis._dbClient;
 }
 
