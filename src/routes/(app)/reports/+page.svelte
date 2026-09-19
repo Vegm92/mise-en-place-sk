@@ -1,6 +1,6 @@
 <script lang="ts">
   import { t } from '$lib/i18n';
-  import { REPORT_TYPES } from '$lib/reports';
+  import { DEFAULT_REPORT_TYPES } from '$lib/reports';
   import Newspaper from '@lucide/svelte/icons/newspaper';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
@@ -27,7 +27,7 @@
   </div>
 
   <div style="display:flex;flex-direction:column;gap:10px;" data-coach="digest-main">
-    {#each REPORT_TYPES as type (type)}
+    {#each DEFAULT_REPORT_TYPES as type (type)}
       {@const Icon = ICONS[type]}
       <a href="/reports/{type}" class="rep-card">
         <Icon size={18} style="color:var(--mep-acc);flex-shrink:0;" />

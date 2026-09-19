@@ -1,4 +1,5 @@
 export const REPORT_TYPES = ['weekly', 'monthly', 'prices', 'payables'] as const;
+export const DEFAULT_REPORT_TYPES = ['weekly', 'monthly', 'prices'] as const;
 export type ReportType = (typeof REPORT_TYPES)[number];
 
 export const REPORT_STYLES = ['executive', 'accounting', 'editorial'] as const;
