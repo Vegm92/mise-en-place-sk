@@ -33,6 +33,19 @@
  *     `LIT` placeholder using TypeScript's scanner token kinds, not string
  *     content matching, for exactly this reason.
  *
+ * One consequence of that anonymisation has to be undone deliberately: the
+ * locale tables, src/lib/messages/{en,es}.ts, are flat `'key': 'copy',` maps,
+ * so once both literals collapse to LIT every line in them is the same token
+ * sequence as every other — each file is one long clone of itself and of its
+ * sibling. That is an artefact of the tokenizer, not repeated logic, and it
+ * penalises exactly what `lint:i18n` mandates: a key added to one locale MUST
+ * be added to the other, so every i18n-touching branch pays duplication for
+ * obeying the rule. It is also not what the real gate reads — SonarCloud
+ * scored 0.0% on a tree this script scored 2.6% on (PR #1126), whose only
+ * flagged lines were locale keys. So the two tables are excluded from the
+ * duplicated-line count. They stay in the corpus: a block copied OUT of them
+ * into real code still counts against the file that copied it.
+ *
  * Re-measured against #1120's heads after fixing both: this script's
  * reading tracked SonarCloud's within about a point at every head,
  * including the head that only just passed. See the issue for the exact
@@ -74,6 +87,7 @@ if (!BASE_PATTERN.test(BASE)) {
 }
 const THRESHOLD = Number(arg('threshold', '3'));
 const SCANNED_DIRS = ['src', 'tests'];
+const LOCALE_TABLES = new Set(['src/lib/messages/en.ts', 'src/lib/messages/es.ts']);
 const SCANNED_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.mjs']);
 const MIN_TOKENS = 100;
 const MIN_LINES = 10;
@@ -203,6 +217,7 @@ const duplicatedByFile = new Map();
 for (const occurrences of occurrencesByWindow.values()) {
 	if (occurrences.length < 2) continue;
 	for (const occ of occurrences) {
+		if (LOCALE_TABLES.has(occ.file)) continue;
 		if (occ.endLine - occ.startLine + 1 < MIN_LINES) continue;
 		const added = addedByFile.get(occ.file);
 		if (!added) continue;
