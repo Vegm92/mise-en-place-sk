@@ -1,0 +1,87 @@
+{
+	"pipelineVersion": "pipeline-fae2ac433d08",
+	"generatedAt": "2026-09-19T13:39:32.592Z",
+	"documents": 1,
+	"overallRate": 100,
+	"fields": [
+		{
+			"field": "supplier_name",
+			"compared": 1,
+			"matched": 1,
+			"rate": 100
+		},
+		{
+			"field": "supplier_nif",
+			"compared": 1,
+			"matched": 1,
+			"rate": 100
+		},
+		{
+			"field": "supplier_category",
+			"compared": 1,
+			"matched": 1,
+			"rate": 100
+		},
+		{
+			"field": "invoice_number",
+			"compared": 1,
+			"matched": 1,
+			"rate": 100
+		},
+		{
+			"field": "document_type",
+			"compared": 1,
+			"matched": 1,
+			"rate": 100
+		},
+		{
+			"field": "invoice_date",
+			"compared": 1,
+			"matched": 1,
+			"rate": 100
+		},
+		{
+			"field": "due_date",
+			"compared": 1,
+			"matched": 1,
+			"rate": 100
+		},
+		{
+			"field": "total_amount",
+			"compared": 1,
+			"matched": 1,
+			"rate": 100
+		},
+		{
+			"field": "tax_base",
+			"compared": 1,
+			"matched": 1,
+			"rate": 100
+		},
+		{
+			"field": "currency",
+			"compared": 1,
+			"matched": 1,
+			"rate": 100
+		},
+		{
+			"field": "line_count",
+			"compared": 1,
+			"matched": 1,
+			"rate": 100
+		},
+		{
+			"field": "line_descriptions",
+			"compared": 1,
+			"matched": 1,
+			"rate": 100
+		},
+		{
+			"field": "line_totals",
+			"compared": 1,
+			"matched": 1,
+			"rate": 100
+		}
+	],
+	"criticalFailures": []
+}

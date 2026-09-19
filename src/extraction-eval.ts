@@ -104,7 +104,26 @@ async function main(): Promise<void> {
 
 	const cases = loadCases();
 	if (!cases.length) {
-		console.info('[eval] no golden cases found in tests/golden/index.json — nothing to score, so this passes. Add cases under tests/golden/cases/ to make the gate meaningful again.');
+		if (gate) {
+			console.error(
+				'[eval] GATE FAILED — tests/golden/index.json lists 0 cases and tests/golden/inbox/ holds no staged documents.\n' +
+				'  An empty corpus cannot regress, so it is not a passing run, only an unrun one — indistinguishable in CI from\n' +
+				'  a real pass while still budgeted to spend a real GEMINI_API_KEY call per case once populated (issue #1078).\n' +
+				'  Two kinds of case, and only one is committable:\n' +
+				'    - A REAL supplier document (staged under tests/golden/inbox/, promoted into tests/golden/cases/<id>/) is\n' +
+				'      local/dev-eyes-only — tests/golden/inbox/* and tests/golden/cases/* are gitignored on purpose, and\n' +
+				'      git add -f on either is banned. It can score a case on your machine but can never reach the repo.\n' +
+				'    - A SYNTHETIC XML e-invoice (Facturae 3.2.x or UBL 2.1, hand-authored, no real customer data) under\n' +
+				'      tests/golden/cases/synthetic-*/ IS committable — that one path in .gitignore is negated because\n' +
+				'      extractWithProvider (src/lib/server/extract.ts) scores .xml input through the deterministic\n' +
+				'      einvoice-parser.ts, never Gemini, so it arms this gate without spending budget or holding private\n' +
+				'      data. See tests/golden/cases/synthetic-facturae-001/ for the shape (invoice.xml + expected.json).\n' +
+				'  Either way: add the case to tests/golden/index.json, run `pnpm eval:accept-baseline` to record\n' +
+				'  tests/golden/baseline-report.json, then commit the synthetic case (and the baseline) — never a real one.'
+			);
+			process.exit(1);
+		}
+		console.info('[eval] no golden cases found in tests/golden/index.json — nothing to score. Add cases under tests/golden/cases/ to make the gate meaningful.');
 		return;
 	}
 

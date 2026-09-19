@@ -110,4 +110,9 @@ railway-root-ca.crt
 
 # Golden-set real cases contain real customer PDFs with private data.
 # Never track these — local/dev-eyes-only, git add -f is banned here.
+# The one exception: a synthetic-*/ case, hand-authored fixture data (never a
+# real supplier document) scored by the deterministic XML e-invoice parser
+# rather than a Gemini call, so it can arm eval:gate without spending budget
+# or holding anyone's private data (issue #1078).
 /tests/golden/cases/*
+!/tests/golden/cases/synthetic-*/

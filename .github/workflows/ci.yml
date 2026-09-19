@@ -130,6 +130,9 @@ jobs:
       - name: Lint — inline var(--mep-*) styles stay under the ratchet (issue #845)
         run: pnpm lint:inline-styles
 
+      - name: Lint — pure functions in .svelte files stay under the ratchet (issue #1078)
+        run: pnpm lint:svelte-logic
+
       - name: Lint — destructive migrations ship apart from the src/ change (issue #1009)
         env:
           EVENT_NAME: ${{ github.event_name }}

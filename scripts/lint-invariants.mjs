@@ -570,6 +570,118 @@ function runSqlRowCastGate() {
 }
 
 /**
+ * Ratcheting per-file budget for issue #1078: named functions declared in a
+ * `.svelte` `<script>` block that compute and return a value rather than wire
+ * up an event or drive the page. `vite.config.ts`'s coverage.include is
+ * `src/**\/*.ts` only (no component-test runner exists — see
+ * testing_strategy.md), so any pure logic left in a `.svelte` file is
+ * permanently outside anything `pnpm test`'s coverage can see. A function
+ * counts here when it has an explicit, non-`void` return type, takes no
+ * DOM/event-typed parameter (`Event`, `HTMLElement`, `FormData`, ...), and its
+ * body touches none of `document`/`window`/`localStorage`/`sessionStorage`,
+ * `fetch(`, `goto(`, `invalidateAll(`, `enhance(`, `dispatchEvent`,
+ * `addEventListener`, `.focus(`, `alert(`, `confirm(` — i.e. it is a pure
+ * computation that could be moved to a `.ts` module and unit-tested there
+ * verbatim. An event handler, a `$derived` expression and a one-line
+ * markup-bound formatter that merely echoes a prop are not what this counts;
+ * deliberately narrow, since a noisy gate here gets muted (see
+ * SVELTE_BUSINESS_LOGIC_BUDGET below for the false positives this bought).
+ *
+ * Same discipline as INLINE_TOKEN_STYLE_BUDGET/SQL_ROW_CAST_BUDGET: the
+ * numbers may go down, never up. Extract a function into `src/lib/*.ts` (see
+ * `src/lib/batch-form.ts` for the shape) and lower its file's entry — or
+ * delete the entry at zero — in the same commit; the gate fails on a count
+ * above its budget *and* below it, since a stale budget would let the drift
+ * climb back to the old number. A file with no entry is budgeted at zero, so
+ * a new pure function in a `.svelte` file fails on arrival.
+ */
+const SVELTE_BUSINESS_LOGIC_BUDGET = new Map([
+	['src/routes/(admin)/admin/revenue/+page.svelte', 5],
+	['src/routes/(app)/batch/[id]/+page.svelte', 5],
+	['src/routes/(app)/reports/[type]/+page.svelte', 5],
+	['src/lib/components/mep/TrendLineChart.svelte', 4],
+	['src/lib/components/UploadPanel.svelte', 3],
+	['src/lib/components/waitlist/EmailForm.svelte', 2],
+	['src/routes/(admin)/admin/dead-letters/+page.svelte', 2],
+	['src/routes/s/[token]/+page.svelte', 2],
+	['src/lib/components/desktop/DesktopSupplierDetail.svelte', 1],
+	['src/lib/components/mep/ConfidenceDot.svelte', 1],
+	['src/lib/components/mep/PaceChart.svelte', 1],
+	['src/lib/components/mobile/MobileAlerts.svelte', 1],
+	['src/lib/components/waitlist/DashboardMock.svelte', 1],
+	['src/routes/(admin)/admin/+page.svelte', 1],
+	['src/routes/(admin)/admin/events/+page.svelte', 1],
+	['src/routes/(app)/+layout.svelte', 1],
+	['src/routes/(app)/invoice/[id]/edit/+page.svelte', 1],
+	['src/routes/(app)/invoices/+page.svelte', 1],
+	['src/routes/(app)/reminders/+page.svelte', 1],
+]);
+
+const SVELTE_LOGIC_DOM_PARAM_TYPES =
+	/\b(?:Event|MouseEvent|KeyboardEvent|FocusEvent|InputEvent|SubmitEvent|HTMLElement|HTMLInputElement|HTMLButtonElement|HTMLFormElement|HTMLTextAreaElement|HTMLSelectElement|Node|FormData|DragEvent|ClipboardEvent|PointerEvent|TouchEvent|WheelEvent)\b/;
+const SVELTE_LOGIC_IMPURE_TOKENS =
+	/\b(?:document|window|localStorage|sessionStorage)\b|\bfetch\(|\bgoto\(|\binvalidateAll\(|\benhance\(|dispatchEvent|addEventListener|\.focus\(|\balert\(|\bconfirm\(/;
+
+function countSvelteBusinessLogicFns(src) {
+	const re = /\bfunction\s+[A-Za-z_$][\w$]*\s*\(([^)]*)\)\s*:\s*([^{;]+?)\s*\{/g;
+	let m;
+	let count = 0;
+	while ((m = re.exec(src))) {
+		const [full, params, returnType] = m;
+		const rt = returnType.trim();
+		if (rt === 'void' || rt === 'Promise<void>') continue;
+		if (SVELTE_LOGIC_DOM_PARAM_TYPES.test(params)) continue;
+		const bodyOpen = m.index + full.length - 1;
+		const body = extractBalanced(src, bodyOpen);
+		if (SVELTE_LOGIC_IMPURE_TOKENS.test(body)) continue;
+		count++;
+	}
+	return count;
+}
+
+function runSvelteBusinessLogicGate() {
+	const root = path.join(ROOT, 'src');
+	if (!fs.existsSync(root)) return true;
+
+	const over = [];
+	const stale = [];
+	const seen = new Set();
+	for (const file of walk(root, ['.svelte'])) {
+		const rel = path.relative(ROOT, file).split(path.sep).join('/');
+		const budget = SVELTE_BUSINESS_LOGIC_BUDGET.get(rel) ?? 0;
+		if (budget > 0) seen.add(rel);
+		const count = countSvelteBusinessLogicFns(fs.readFileSync(file, 'utf8'));
+		if (count > budget) over.push(`${rel}: ${count} pure function(s), budget ${budget}`);
+		else if (count < budget)
+			stale.push(
+				`${rel}: ${count} pure function(s), budget ${budget} — ` +
+					(count === 0 ? 'fully extracted, delete its entry' : `lower the entry to ${count}`)
+			);
+	}
+	for (const rel of SVELTE_BUSINESS_LOGIC_BUDGET.keys()) {
+		if (!seen.has(rel)) stale.push(`${rel}: no longer exists — drop its entry`);
+	}
+
+	if (over.length > 0) {
+		console.error(
+			'Error: a .svelte file gained a pure, testable function — vite.config.ts only measures coverage\n' +
+				'  on src/**/*.ts, and no component-test runner exists (issue #1078), so logic left in a .svelte\n' +
+				"  file is permanently untested. Move it to a src/lib/*.ts module (src/lib/batch-form.ts is the\n" +
+				'  worked example) and unit-test it there instead.'
+		);
+		for (const v of over) console.error(`  ${v}`);
+	}
+	if (stale.length > 0) {
+		console.error(
+			'Error: SVELTE_BUSINESS_LOGIC_BUDGET is stale — a budget above the real count would let the drift\n' +
+				'  climb back to the old number. Lower the entries below in the same commit that extracted them.'
+		);
+		for (const v of stale) console.error(`  ${v}`);
+	}
+	return over.length === 0 && stale.length === 0;
+}
+
+/**
  * Expand/contract gate (issue #1009): flags a PR that lands a destructive
  * migration in the same diff as the `src/` change it belongs to.
  *
@@ -700,7 +812,7 @@ function runGate(name, gate) {
 const requested = process.argv[2]?.startsWith('--') ? undefined : process.argv[2];
 const names = requested
 	? [requested]
-	: [...Object.keys(GATES), 'unscoped-tenant-query', 'action-authz', 'inline-token-style', 'sql-row-cast', 'migration-expand-contract'];
+	: [...Object.keys(GATES), 'unscoped-tenant-query', 'action-authz', 'inline-token-style', 'sql-row-cast', 'svelte-business-logic', 'migration-expand-contract'];
 
 let ok = true;
 for (const name of names) {
@@ -718,6 +830,10 @@ for (const name of names) {
 	}
 	if (name === 'sql-row-cast') {
 		if (!runSqlRowCastGate()) ok = false;
+		continue;
+	}
+	if (name === 'svelte-business-logic') {
+		if (!runSvelteBusinessLogicGate()) ok = false;
 		continue;
 	}
 	if (name === 'migration-expand-contract') {

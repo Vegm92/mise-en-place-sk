@@ -43,3 +43,9 @@ export function toIsoDate(value: unknown): string | null {
 export function monthKey(date: Date): string {
 	return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
 }
+
+export function isoDateOffset(dateStr: string, days: number): string {
+	const d = new Date(`${dateStr}T00:00:00Z`);
+	d.setUTCDate(d.getUTCDate() + days);
+	return d.toISOString().slice(0, 10);
+}
