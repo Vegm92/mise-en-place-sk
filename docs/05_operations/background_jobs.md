@@ -318,6 +318,7 @@ Not symmetrical, and worth knowing before deciding how urgent a restart is:
 **`function enqueueExtraction`**
 
 - Returns true when enqueued, false when a job for the same item is already pending/active (pg-boss `singletonKey` dedup). A deduped send is expected on duplicate submits and must never be treated as a failure.
+- Stamps every job with `storageFingerprint` (`env.ts`, #1049) — the web side's non-secret `driver:bucket-or-path` string — so `runExtractionWorkflow` can refuse to process a job whose upload the worker's own storage config cannot see. Optional on the payload so jobs already queued before this shipped are unaffected.
 
 **`function enqueueNormalize`**
 

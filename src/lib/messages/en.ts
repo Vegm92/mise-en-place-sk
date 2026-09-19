@@ -851,6 +851,7 @@ export default {
   'extract.err.generic':           'Extraction failed — please try again, or contact support if the issue persists.',
   'extract.err.timeout':           'Extraction timed out — please try again. If the issue persists, try a smaller file.',
   'extract.err.stalled':           'The extraction never ran: the processing service did not respond in time. Please try again, or contact support if the issue persists.',
+  'extract.err.storageMismatch':   'Extraction failed: the web and processing services disagree on storage {field}. This is a deployment configuration issue — please contact support.',
   'upload.err.formParse':      'Could not read the form data. Please try again.',
   'upload.err.noValidFiles':   'No valid files received. Please select a PDF, JPG or PNG.',
   'upload.err.tooLarge':       'These files exceed the 20 MB limit: {names}',

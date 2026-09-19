@@ -8,7 +8,7 @@ import {
 	type BatchItem,
 } from './batch.js';
 import { getStorage } from './storage.js';
-import { STORAGE_DRIVER } from './env.js';
+import { STORAGE_DRIVER, storageFingerprintMismatch } from './env.js';
 import {
 	extractInvoice, extractWithProvider, EXTRACTION_PROMPT_VERSION, EINVOICE_PARSER_VERSION,
 	type GenerateFn,
@@ -54,6 +54,7 @@ export interface ExtractionJobData {
 	sessionId?: string;
 	restaurantId: string;
 	requestId?: string;
+	storageFingerprint?: string;
 }
 
 const DEGRADATION_ERRORS = new Set([
@@ -315,6 +316,18 @@ export async function runExtractionWorkflow(
 	const claimed = await batchState.markExtracting(itemId);
 	if (!claimed) {
 		log.warn('Item not in queued/extracting state — skipping', { itemId, restaurantId, requestId });
+		return 'completed';
+	}
+
+	const storageMismatch = storageFingerprintMismatch(jobData.storageFingerprint);
+	if (storageMismatch) {
+		log.error('Storage configuration mismatch between web and worker', { itemId, restaurantId, requestId, field: storageMismatch });
+		Sentry.captureMessage('extraction.storage_mismatch', {
+			level: 'error',
+			tags: { itemId, restaurantId, requestId, field: storageMismatch },
+		});
+		await batchState.markFailed(itemId, 'extract.err.storageMismatch', { field: storageMismatch });
+		await notifyWhatsAppIfSource(item, restaurantId, requestId);
 		return 'completed';
 	}
 

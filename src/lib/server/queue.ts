@@ -1,5 +1,6 @@
 import { PgBoss } from 'pg-boss';
 import { pgSslConfig } from './db-ssl.js';
+import { storageFingerprint } from './env.js';
 import type { WhatsAppInboundMessage } from './integrations/whatsapp/transport.js';
 
 import {
@@ -93,7 +94,11 @@ export async function enqueueExtraction(
 	requestId?: string,
 ): Promise<boolean> {
 	const b = await getBoss();
-	const jobId = await b.send(EXTRACTION_QUEUE, { itemId, restaurantId, requestId }, EXTRACTION_OPTIONS(itemId));
+	const jobId = await b.send(
+		EXTRACTION_QUEUE,
+		{ itemId, restaurantId, requestId, storageFingerprint: storageFingerprint() },
+		EXTRACTION_OPTIONS(itemId),
+	);
 	return jobId !== null;
 }
 

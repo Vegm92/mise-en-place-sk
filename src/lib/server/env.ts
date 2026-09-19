@@ -12,6 +12,27 @@ export const AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY ?? '';
 export const AWS_S3_BUCKET_NAME = process.env.AWS_S3_BUCKET_NAME ?? '';
 export const AWS_DEFAULT_REGION = process.env.AWS_DEFAULT_REGION ?? 'us-east-1';
 export const AWS_S3_URL_STYLE = (process.env.AWS_S3_URL_STYLE ?? 'path') as 'path' | 'virtual';
+
+export type StorageFingerprintField = 'driver' | 'bucket' | 'path';
+
+export function storageFingerprint(
+	driver: string = STORAGE_DRIVER,
+	uploadsDir: string = UPLOADS_DIR,
+	bucket: string = AWS_S3_BUCKET_NAME,
+): string {
+	return driver === 'railway' ? `railway:${bucket}` : `local:${uploadsDir}`;
+}
+
+export function storageFingerprintMismatch(
+	jobFingerprint: string | undefined,
+	currentFingerprint: string = storageFingerprint(),
+): StorageFingerprintField | null {
+	if (!jobFingerprint || jobFingerprint === currentFingerprint) return null;
+	const [jobDriver] = jobFingerprint.split(':');
+	const [currentDriver] = currentFingerprint.split(':');
+	if (jobDriver !== currentDriver) return 'driver';
+	return currentDriver === 'railway' ? 'bucket' : 'path';
+}
 export const STORAGE_CONNECT_TIMEOUT_MS = parseInt(process.env.STORAGE_CONNECT_TIMEOUT_MS ?? '5000', 10);
 export const STORAGE_TIMEOUT_MS = parseInt(process.env.STORAGE_TIMEOUT_MS ?? '30000', 10);
 export const STORAGE_MAX_ATTEMPTS = Math.max(1, parseInt(process.env.STORAGE_MAX_ATTEMPTS ?? '3', 10) || 1);

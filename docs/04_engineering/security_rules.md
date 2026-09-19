@@ -251,6 +251,11 @@ Immutable subset is in `docs/00_system/architectural_invariants.md`.
 **`function assertProductionEnv`**
 
 - The boot-validation seam (called at the top of `hooks.server.ts`, before any request): missing required vars, then the WhatsApp secret pairing, then the trusted-proxy check (#1072; the last was `addressHeaderWarning`'s second branch under #500). `ADDRESS_HEADER` set with no known managed-proxy platform (`RAILWAY_*`, `RENDER`, `FLY_APP_NAME`) and no `TRUSTED_PROXY=1` is a hard failure in production, because in that state `getClientAddress()` returns whatever the client wrote into the header and every `ip:`-keyed limit is spoofable; a warning was routinely lost in boot logs. `TRUSTED_PROXY=1` is the operator's attestation for a self-run nginx/Caddy that rewrites the header on every request — the case the old warning called a false positive. The unset case (limits collapse into one bucket) stays a warning: it degrades rate limiting without opening it.
+- Also folds in the web side of the web/worker deploy contract (#1049, `docs/04_engineering/deployment.md` → Web/worker configuration contract): `roleConfigGaps('web', env)` names are merged into the same `missing` list so a misconfigured storage driver/bucket fails boot with the rest, not as a separate error.
+
+**`function assertRoleConfig`**
+
+- The worker-side half of the same contract (#1049): one call at the top of `worker.ts`, reusing `env-report.ts`'s `ENV_REQUIREMENTS` table (already the source `/admin/health` and the heartbeat detail read) rather than a second list of the same variable names. Deliberately narrower than the full `envGaps('worker', …).missing` — only `DATABASE_URL`, `GEMINI_API_KEY` and the `AWS_*` quad (`ROLE_CONTRACT_VARS`) are enforced here, matching the "thin" boot-time enforcement `env-report.test.ts` documents; Stripe/Resend/Sentry stay report-only on `/admin/health`, unchanged by this issue.
 
 ### `src/lib/server/public-form-action.ts`
 

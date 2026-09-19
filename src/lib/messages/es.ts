@@ -849,6 +849,7 @@ export default {
   'extract.err.generic':           'Extracción fallida — inténtalo de nuevo o contacta con soporte si el problema persiste.',
   'extract.err.timeout':           'La extracción tardó demasiado — inténtalo de nuevo. Si el problema persiste, prueba con un archivo más pequeño.',
   'extract.err.stalled':           'La extracción no llegó a ejecutarse: el servicio de procesamiento no respondió a tiempo. Inténtalo de nuevo o contacta con soporte si el problema persiste.',
+  'extract.err.storageMismatch':   'La extracción ha fallado: el servicio web y el de procesamiento no coinciden en el {field} de almacenamiento. Es un problema de configuración del despliegue — contacta con soporte.',
   'upload.err.formParse':      'No se pudieron leer los datos del formulario. Inténtalo de nuevo.',
   'upload.err.noValidFiles':   'No se ha recibido ningún archivo válido. Selecciona un PDF, JPG o PNG.',
   'upload.err.tooLarge':       'Estos archivos superan el límite de 20 MB: {names}',

@@ -323,6 +323,39 @@ describe('processExtractionJob — a failed attempt must not cost the tenant quo
 	});
 });
 
+describe('processExtractionJob — storage fingerprint mismatch (#1049)', () => {
+	beforeEach(() => {
+		batchMocks.markExtracting.mockResolvedValue(true);
+	});
+
+	it('fails the item before claiming quota when the job fingerprint disagrees with this worker\'s storage', async () => {
+		await processExtractionJob({ itemId: item.id, restaurantId: 'r1', storageFingerprint: 'railway:some-other-bucket' });
+
+		expect(batchMocks.markFailed).toHaveBeenCalledWith(item.id, 'extract.err.storageMismatch', { field: 'driver' });
+		expect(billingMocks.getAccessState).not.toHaveBeenCalled();
+		expect(quotaMocks.claimMonthlyExtraction).not.toHaveBeenCalled();
+		expect(extractMocks.extractWithProvider).not.toHaveBeenCalled();
+	});
+
+	it('processes normally when the job fingerprint matches this worker\'s storage', async () => {
+		extractMocks.extractWithProvider.mockResolvedValue({ invoice: { supplier_name: 'Acme', line_items: [] }, usage: {} });
+
+		await processExtractionJob({ itemId: item.id, restaurantId: 'r1', storageFingerprint: 'local:uploads' });
+
+		expect(batchMocks.markFailed).not.toHaveBeenCalled();
+		expect(batchMocks.markDone).toHaveBeenCalledTimes(1);
+	});
+
+	it('processes normally when the job carries no fingerprint at all (queued before this shipped)', async () => {
+		extractMocks.extractWithProvider.mockResolvedValue({ invoice: { supplier_name: 'Acme', line_items: [] }, usage: {} });
+
+		await processExtractionJob({ itemId: item.id, restaurantId: 'r1' });
+
+		expect(batchMocks.markFailed).not.toHaveBeenCalled();
+		expect(batchMocks.markDone).toHaveBeenCalledTimes(1);
+	});
+});
+
 describe('processExtractionJob — dead-letter routing follows the same classification (#520)', () => {
 	it.each(ERROR_CLASSES.filter((c) => c.transient))(
 		'$label is a degradation, not a dead letter',

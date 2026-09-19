@@ -25,6 +25,7 @@ import {
 import { processAccountCleanupJob, type AccountCleanupJobData } from './lib/server/account-cleanup.js';
 import { registerScheduledJobs } from './lib/server/scheduler.js';
 import { deadLetterRefFromJob, recordDeadLetter, runWithDeadLetter } from './lib/server/dead-letter.js';
+import { assertRoleConfig } from './lib/server/config.js';
 import { MAX_CONCURRENT_EXTRACTIONS } from './lib/server/env.js';
 import { createLogger } from './lib/server/log.js';
 import { recordWorkerHeartbeat, startWorkerHeartbeat } from './lib/server/worker-heartbeat.js';
@@ -64,6 +65,8 @@ if (!DATABASE_URL) {
 	log.error('DATABASE_URL is required');
 	process.exit(1);
 }
+
+assertRoleConfig('worker');
 
 const boss = new PgBoss({
 	connectionString: DATABASE_URL,

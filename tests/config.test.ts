@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { assertProductionEnv, addressHeaderWarning, validateAdminSeedConfig, isProduction } from '../src/lib/server/config';
+import { assertProductionEnv, addressHeaderWarning, validateAdminSeedConfig, isProduction, assertRoleConfig } from '../src/lib/server/config';
+import { storageFingerprint, storageFingerprintMismatch } from '../src/lib/server/env';
 
 const complete = {
 	NODE_ENV: 'production',
@@ -70,6 +71,92 @@ describe('isProduction', () => {
 		expect(isProduction({ NODE_ENV: 'development' })).toBe(false);
 		expect(isProduction({ NODE_ENV: 'test' })).toBe(false);
 		expect(isProduction({})).toBe(false);
+	});
+});
+
+describe('assertRoleConfig (issue #1049 — web/worker deploy contract)', () => {
+	const localWeb = { NODE_ENV: 'production', DATABASE_URL: 'b', GEMINI_API_KEY: 'e', STORAGE_DRIVER: 'local' };
+	const localWorker = { NODE_ENV: 'production', DATABASE_URL: 'b', GEMINI_API_KEY: 'e', STORAGE_DRIVER: 'local' };
+
+	it('passes for web and worker on local storage with the shared vars set', () => {
+		expect(() => assertRoleConfig('web', localWeb)).not.toThrow();
+		expect(() => assertRoleConfig('worker', localWorker)).not.toThrow();
+	});
+
+	it('does nothing outside production', () => {
+		expect(() => assertRoleConfig('worker', { NODE_ENV: 'development' })).not.toThrow();
+	});
+
+	it('names a missing shared variable for the worker role, naming only the variable', () => {
+		const { GEMINI_API_KEY, ...incomplete } = localWorker;
+		expect(() => assertRoleConfig('worker', incomplete)).toThrow('GEMINI_API_KEY');
+	});
+
+	it('requires the AWS storage quad only when STORAGE_DRIVER=railway, for both roles', () => {
+		expect(() => assertRoleConfig('web', { ...localWeb, STORAGE_DRIVER: 'railway' }))
+			.toThrow(/AWS_ENDPOINT_URL.*AWS_ACCESS_KEY_ID.*AWS_SECRET_ACCESS_KEY.*AWS_S3_BUCKET_NAME/);
+		expect(() => assertRoleConfig('worker', { ...localWorker, STORAGE_DRIVER: 'railway' }))
+			.toThrow(/AWS_ENDPOINT_URL.*AWS_ACCESS_KEY_ID.*AWS_SECRET_ACCESS_KEY.*AWS_S3_BUCKET_NAME/);
+	});
+
+	it('passes on railway storage once the full AWS quad is set', () => {
+		const railway = {
+			...localWorker,
+			STORAGE_DRIVER: 'railway',
+			AWS_ENDPOINT_URL: 'https://bucket.example',
+			AWS_ACCESS_KEY_ID: 'ak',
+			AWS_SECRET_ACCESS_KEY: 'sk',
+			AWS_S3_BUCKET_NAME: 'invoices',
+		};
+		expect(() => assertRoleConfig('worker', railway)).not.toThrow();
+	});
+
+	it('never includes a secret value in the failure message, only variable names', () => {
+		try {
+			assertRoleConfig('worker', { ...localWorker, STORAGE_DRIVER: 'railway', AWS_ACCESS_KEY_ID: 'super-secret-key', AWS_SECRET_ACCESS_KEY: 'super-secret-value' });
+			throw new Error('expected assertRoleConfig to throw');
+		} catch (err) {
+			const message = (err as Error).message;
+			expect(message).not.toContain('super-secret-key');
+			expect(message).not.toContain('super-secret-value');
+			expect(message).toContain('AWS_ENDPOINT_URL');
+		}
+	});
+});
+
+describe('storageFingerprint / storageFingerprintMismatch (issue #1049)', () => {
+	it('fingerprints local storage as driver:path and railway storage as driver:bucket', () => {
+		expect(storageFingerprint('local', 'uploads', '')).toBe('local:uploads');
+		expect(storageFingerprint('railway', 'uploads', 'invoices')).toBe('railway:invoices');
+	});
+
+	it('never includes AWS credentials — only the driver and the bucket/path name', () => {
+		const fp = storageFingerprint('railway', 'uploads', 'invoices');
+		expect(fp).not.toMatch(/key|secret/i);
+	});
+
+	it('is compatible with itself and with no fingerprint at all (jobs queued before this shipped)', () => {
+		const fp = storageFingerprint('local', 'uploads', '');
+		expect(storageFingerprintMismatch(fp, fp)).toBeNull();
+		expect(storageFingerprintMismatch(undefined, fp)).toBeNull();
+	});
+
+	it('flags a driver mismatch', () => {
+		const jobFp = storageFingerprint('local', 'uploads', '');
+		const currentFp = storageFingerprint('railway', 'uploads', 'invoices');
+		expect(storageFingerprintMismatch(jobFp, currentFp)).toBe('driver');
+	});
+
+	it('flags a bucket mismatch when both sides are on railway', () => {
+		const jobFp = storageFingerprint('railway', 'uploads', 'invoices-old');
+		const currentFp = storageFingerprint('railway', 'uploads', 'invoices-new');
+		expect(storageFingerprintMismatch(jobFp, currentFp)).toBe('bucket');
+	});
+
+	it('flags a path mismatch when both sides are on local', () => {
+		const jobFp = storageFingerprint('local', '/app/uploads', '');
+		const currentFp = storageFingerprint('local', '/tmp/uploads', '');
+		expect(storageFingerprintMismatch(jobFp, currentFp)).toBe('path');
 	});
 });
 
