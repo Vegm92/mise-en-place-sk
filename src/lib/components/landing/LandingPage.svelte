@@ -24,7 +24,7 @@
   import AppDashboardMock from '$lib/components/waitlist/AppDashboardMock.svelte';
   import Logo from '$lib/components/mep/Logo.svelte';
 
-  type JoinActionData = { success?: boolean; error?: string; alreadyRegistered?: boolean } | null | undefined;
+  type JoinActionData = { success?: boolean; error?: string; alreadyRegistered?: boolean; referralCode?: string | null } | null | undefined;
 
   let {
     form,
@@ -164,6 +164,10 @@
     privacy:        t('waitlist.form.privacy'),
     privacyLink:    t('waitlist.form.privacyLink'),
     emailLabel:     t('waitlist.form.emailLabel'),
+    referralIntro:  t('waitlist.form.referralIntro'),
+    referralLabel:  t('waitlist.form.referralLabel'),
+    referralCopy:   t('waitlist.form.referralCopy'),
+    referralCopied: t('waitlist.form.referralCopied'),
   });
 
   const dashboardMockCopy = $derived({
@@ -281,7 +285,7 @@
         </div>
 
         <div style="max-width:460px;margin:40px auto 0;" id="join">
-          <EmailForm big={true} {form} copy={emailFormCopy} />
+          <EmailForm big={true} {form} copy={emailFormCopy} referralBase={data.canonicalUrl} />
         </div>
         <div class="mep-spotbar max-w-[460px] mt-[18px] mx-auto mb-0 flex items-center gap-3.5 py-2.5 px-3.5 rounded-[10px] bg-surface border border-divider">
           <div style="display:flex;align-items:baseline;gap:6px;">
@@ -551,7 +555,7 @@
         <p class="mt-3.5 mx-0 mb-0 text-[17px] leading-[1.6] text-fg-2 max-w-[420px]">{t('waitlist.closeSub')}</p>
       </div>
       <div style="display:flex;flex-direction:column;gap:16px;">
-        <EmailForm big={true} {form} copy={emailFormCopy} />
+        <EmailForm big={true} {form} copy={emailFormCopy} referralBase={data.canonicalUrl} />
       </div>
     </div>
   </section>

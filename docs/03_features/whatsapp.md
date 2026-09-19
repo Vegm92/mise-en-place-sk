@@ -428,6 +428,19 @@ before the handler sees it, because contacts are stored as digits (ADR-019).
 
 - Support's force-release: deletes by phone number alone, so it works without knowing which restaurant holds the number — the whole point of a support path. Deliberately cross-tenant (`tenant-scope-ok`), gated by `isAdminUser` in the calling `/admin/whatsapp` route rather than by tenant scoping here. Same audit event as `removeContact`, tagged `method: 'support'`.
 
+**`digestOptedInContacts` / `isDigestOptedIn` / `setDigestOptIn`** (#331)
+
+- `whatsapp_contacts.digest_opted_in` (migration 0084, defaults `false`) is separate from being an authorised sender: pairing authorises invoice ingestion, not a proactive push, so an enrolled contact receives no digest until this flag is explicitly set. `isDigestOptedIn` exists so the sender can be re-checked immediately before each send rather than trusted from a list fetched earlier in the same job run.
+
+### `src/lib/server/whatsapp-digest-push.ts` (#331)
+
+- `pushWeeklyDigestOverWhatsApp`, called from `sendWeeklyDigest` (`tenant-notification-jobs.ts`) after the email claim succeeds — it rides the same per-tenant fanout and claim-guard rather than a second schedule. It re-fetches the tenant's opted-in contacts, builds one condensed message (`wa.digest.push`, a deep link to `/s/<share-token>` rather than a second digest rendering), and sends it per contact inside its own try/catch so one contact's failure — or the whole push failing — never blocks another contact, the tenant's email, or another tenant's job. The template is utility-category content (informational, opt-out instruction included, no promotional language) per the billable-messaging decision (`DEPLOYMENT.md`, "Messaging policy and cost") — sending it outside the 24-hour service window still requires an approved Meta utility template, which does not exist in this repo yet; `sendWhatsAppMessage` remains the free-text seam until one is registered.
+
+**`handleDigestOptKeyword`** (`integrations/whatsapp/message-handler.ts`, #331)
+
+- Opt-in/opt-out keywords, Spanish and English, checked before the OK/NO review parser so they can never collide with it (`suscribir`/`subscribe` vs. `baja`/`cancelar`/`stop`/`unsubscribe`). This is the only path that sets `digest_opted_in` — deliberately not the pairing flow, so sending an invoice is never read as consent.
+- The two directions are matched asymmetrically on purpose (#331 round 2). Opt-in requires the whole message to equal one keyword exactly — `activar` was dropped from the set because it is not unambiguous (a chef could mean their account, their pairing, anything), and a false opt-in is exactly the unsolicited-push case the shared-number constraint exists to prevent. Opt-out instead matches if any *whole word* of the message is one of the opt-out keywords (`stripAccents` + split on non-alphanumerics, so "BAJA por favor", "quiero darme de baja" and "please stop" all suppress sends, while "nonstop" does not) — someone asking to stop must stop, so opt-out is deliberately generous where opt-in is deliberately strict.
+
 ### `src/lib/server/whatsapp-pairing.ts`
 
 **`const CODE_ALPHABET`**

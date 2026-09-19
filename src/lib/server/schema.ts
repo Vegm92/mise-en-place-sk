@@ -20,6 +20,7 @@ export const restaurants = pgTable('restaurants', {
 	cifNif:             text('cif_nif'),
 	fiscalAddress:      text('fiscal_address'),
 	phone:              text('phone'),
+	emailIngestToken:   uuid('email_ingest_token').notNull().unique().default(sql`gen_random_uuid()`),
 }, (t) => [
 	index('restaurants_parent_idx').on(t.parentId),
 ]);
@@ -464,16 +465,17 @@ export const idempotencyKeys = pgTable('idempotency_keys', {
 ]);
 
 export const waitlist = pgTable('waitlist', {
-	id:          serial('id').primaryKey(),
-	email:       text('email').notNull().unique(),
-	source:      text('source'),
-	campaign:    text('campaign'),
-	variant:     text('variant'),
-	segment:     text('segment'),
-	referrer:    text('referrer'),
-	landingPath: text('landing_path'),
-	referredBy:  text('referred_by'),
-	createdAt:   timestamp('created_at', { withTimezone: true }).defaultNow(),
+	id:           serial('id').primaryKey(),
+	email:        text('email').notNull().unique(),
+	source:       text('source'),
+	campaign:     text('campaign'),
+	variant:      text('variant'),
+	segment:      text('segment'),
+	referrer:     text('referrer'),
+	landingPath:  text('landing_path'),
+	referredBy:   text('referred_by'),
+	referralCode: text('referral_code').unique(),
+	createdAt:    timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 
 export const funnelEvents = pgTable('funnel_events', {
@@ -577,6 +579,7 @@ export const whatsappContacts = pgTable('whatsapp_contacts', {
 	phoneNumber:  text('phone_number').notNull(),
 	displayName:  text('display_name'),
 	createdAt:    timestamp('created_at', { withTimezone: true }).defaultNow(),
+	digestOptedIn: boolean('digest_opted_in').notNull().default(false),
 }, (t) => [
 	uniqueIndex('whatsapp_contacts_phone_unique').on(t.phoneNumber),
 	index('idx_whatsapp_contacts_restaurant').on(t.restaurantId),

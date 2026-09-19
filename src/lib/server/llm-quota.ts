@@ -22,6 +22,16 @@ export async function getMonthlyUsage(restaurantId: string): Promise<number> {
 	return row?.used ?? 0;
 }
 
+export async function remainingMonthlyQuota(restaurantId: string, limit: number | null): Promise<number | null> {
+	if (limit === null) return null;
+	try {
+		return Math.max(0, limit - (await getMonthlyUsage(restaurantId)));
+	} catch (err) {
+		console.error('[llm-quota] monthly usage check failed (allowing request):', err);
+		return null;
+	}
+}
+
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 async function lockItem(tx: Tx, batchItemId: string): Promise<void> {

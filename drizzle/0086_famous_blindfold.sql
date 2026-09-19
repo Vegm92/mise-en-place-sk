@@ -1,0 +1,2 @@
+ALTER TABLE "restaurants" ADD COLUMN "email_ingest_token" uuid DEFAULT gen_random_uuid() NOT NULL;--> statement-breakpoint
+ALTER TABLE "restaurants" ADD CONSTRAINT "restaurants_email_ingest_token_unique" UNIQUE("email_ingest_token");

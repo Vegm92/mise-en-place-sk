@@ -1,6 +1,6 @@
 import { fail } from '@sveltejs/kit';
 import * as v from 'valibot';
-import { insertWaitlistEmail } from './waitlist-db';
+import { insertWaitlistEmail, getReferralCode, resolveReferralOwnerEmail } from './waitlist-db';
 import { publicFormAction } from './public-form-action';
 import { trackAnonymousEvent } from './events';
 import { ATTRIBUTION_COOKIE, parseAttributionCookie } from '$lib/attribution';
@@ -20,10 +20,14 @@ export const joinWaitlistAction = publicFormAction(
 		if (!EMAIL_RE.test(email)) return fail(422, { error: 'invalid' });
 
 		const attribution = parseAttributionCookie(event.cookies.get(ATTRIBUTION_COOKIE));
-		const inserted = await insertWaitlistEmail(email, attribution);
+		const referrerEmail = attribution.referredBy ? await resolveReferralOwnerEmail(attribution.referredBy) : null;
+		const selfReferred = referrerEmail !== null && referrerEmail.toLowerCase() === email;
+		const attributionForInsert = selfReferred ? { ...attribution, referredBy: null } : attribution;
+
+		const inserted = await insertWaitlistEmail(email, attributionForInsert);
 
 		if (!inserted) {
-			return { success: true, alreadyRegistered: true };
+			return { success: true, alreadyRegistered: true, referralCode: await getReferralCode(email) };
 		}
 
 		trackAnonymousEvent('waitlist_joined', {
@@ -31,9 +35,9 @@ export const joinWaitlistAction = publicFormAction(
 			campaign: attribution.campaign,
 			variant: attribution.variant,
 			segment: attribution.segment,
-			referredBy: attribution.referredBy,
+			referredBy: attributionForInsert.referredBy,
 		});
 
-		return { success: true };
+		return { success: true, referralCode: await getReferralCode(email) };
 	},
 );

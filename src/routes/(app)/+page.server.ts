@@ -8,19 +8,10 @@ import { enqueueExtraction } from '$lib/server/queue';
 import { enqueueBatchExtraction } from '$lib/server/extract-batch';
 import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import { trackEvent } from '$lib/server/events';
-import { getMonthlyUsage } from '$lib/server/llm-quota';
+import { remainingMonthlyQuota } from '$lib/server/llm-quota';
 import { findExistingFilenames } from '$lib/server/invoice-save';
+import { getIngestAddress } from '$lib/server/email-ingest';
 import { MAX_UPLOAD_TOTAL_BYTES, MAX_ZIP_BYTES, uploadExtname } from '$lib/upload-formats';
-
-async function remainingMonthlyQuota(rid: string, limit: number | null): Promise<number | null> {
-	if (limit === null) return null;
-	try {
-		return Math.max(0, limit - (await getMonthlyUsage(rid)));
-	} catch (err) {
-		console.error('[upload] quota check failed (allowing upload):', err);
-		return null;
-	}
-}
 
 const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
 const MAX_UPLOAD_TOTAL_MB = MAX_UPLOAD_TOTAL_BYTES / (1024 * 1024);
@@ -59,6 +50,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		duplicate: url.searchParams.get('duplicate_inv') === '1',
 		upgradeUrl: url.searchParams.get('upgrade') === '1' ? '/billing' : null,
 		existingFilenames: rid ? [...(await findExistingFilenames(rid))] : [],
+		emailIngestAddress: rid ? await getIngestAddress(rid) : null,
 	};
 };
 

@@ -353,3 +353,46 @@ Everything below describes the per-locale loading design, which the runes move d
 **`function confColor`**
 
 - Confidence score → CSS colour variable.
+
+### `src/lib/server/waitlist-db.ts`, `src/lib/server/waitlist-join-action.ts`
+
+**Referral codes (issue #332)**
+
+- `generateReferralCode()` is `crypto.randomBytes(9).toString('base64url')` — 72 bits of
+  entropy, independent of the row's `serial` id and of the email, so a code cannot be
+  derived or brute-forced from either (the `waitlist.id` PK is sequential and would be
+  trivially enumerable if a code were built from it). `waitlist.referral_code` is a
+  separate nullable unique column rather than reusing `referred_by`: the latter is the
+  existing attribution-cookie field for whatever `?ref=` value a visitor arrived with
+  (arbitrary campaign string), while `referral_code` is the value a specific waitlist row
+  hands out to be used as someone else's `?ref=`. The join action resolves an incoming
+  `?ref=` against real codes only to decide whether it counts as a referral (self-referral
+  guard below); it does not reject or alter an unrecognised `?ref=` value, so generic
+  campaign-tracking `ref` params (issue #326/#327) keep working unchanged.
+- Self-referral guard in `joinWaitlistAction`: before inserting, the incoming
+  `attribution.referredBy` code is resolved to its owner's email (case-sensitive lookup,
+  compared case-insensitively against the signing-up address). A match means the same
+  person is both referrer and referee, so `referredBy` is nulled out for that insert —
+  the row is still created, it simply is not credited as a referral. A referral chain
+  looping back to an already-registered address is separately impossible: `waitlist.email`
+  is unique, so the earlier row's re-insertion is a no-op regardless of `referredBy`.
+- `getReferralCode`/`resolveReferralOwnerEmail` are plain, unauthenticated lookups (one by
+  email, one by code) used only server-side by the join action; neither is exposed as an
+  endpoint a client could probe, so they do not add an enumeration surface beyond the join
+  action's own rate limit (`waitlist:${ip}`, unchanged, still gates every referred
+  submission the same as any other).
+- `getReferralCode` backfills a missing code on read (`UPDATE ... WHERE email = $1 AND
+  referral_code IS NULL RETURNING referral_code`) rather than the migration doing a bulk
+  backfill: `referral_code` is only generated at insert time, so every row from before
+  0084 — every real waitlist signup that predates this feature — starts out `NULL`. Without
+  this, a returning visitor (the `alreadyRegistered` branch, the cohort most likely to
+  actually refer someone) would see no code at all. The `IS NULL` guard makes concurrent
+  callers race-safe: only the caller whose `UPDATE` actually matches a row writes a code, a
+  losing concurrent call affects zero rows and re-selects the winner's value, so two
+  processes can never generate two different codes for the same row.
+- The success-state copy (`waitlist.form.referralIntro`) deliberately does not promise the
+  referrer a queue position or a number of places moved: `admin/access` invites founders by
+  hand (`+page.server.ts`'s `approve`/`invite` actions), off no stored ordering or position
+  field, so there is nothing a referral could mechanically move. The copy instead ties
+  referring to the waitlist opening more spots sooner in general, which is the honest shape
+  of the incentive per the issue's brief.

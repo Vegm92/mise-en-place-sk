@@ -12,11 +12,15 @@ import { vi } from 'vitest';
 
 export const insertWaitlistEmailMock = vi.fn().mockResolvedValue(true);
 export const countWaitlistEmailsMock = vi.fn().mockResolvedValue(0);
+export const getReferralCodeMock = vi.fn().mockResolvedValue('fake-referral-code');
+export const resolveReferralOwnerEmailMock = vi.fn().mockResolvedValue(null);
 export const trackAnonymousEventMock = vi.fn();
 
 export const waitlistDbMock = {
 	insertWaitlistEmail: insertWaitlistEmailMock,
 	countWaitlistEmails: countWaitlistEmailsMock,
+	getReferralCode: getReferralCodeMock,
+	resolveReferralOwnerEmail: resolveReferralOwnerEmailMock,
 };
 export const eventsMock = { trackAnonymousEvent: trackAnonymousEventMock };
 export const rateLimiterMock = { checkRateLimit: vi.fn().mockResolvedValue(true) };
@@ -24,6 +28,8 @@ export const rateLimiterMock = { checkRateLimit: vi.fn().mockResolvedValue(true)
 export function resetWaitlistRouteMocks() {
 	insertWaitlistEmailMock.mockClear().mockResolvedValue(true);
 	countWaitlistEmailsMock.mockClear().mockResolvedValue(0);
+	getReferralCodeMock.mockClear().mockResolvedValue('fake-referral-code');
+	resolveReferralOwnerEmailMock.mockClear().mockResolvedValue(null);
 	trackAnonymousEventMock.mockClear();
 }
 
