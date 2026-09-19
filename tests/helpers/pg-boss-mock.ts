@@ -20,12 +20,14 @@ export const startMock = vi.fn().mockResolvedValue(undefined);
 
 /** The module `vi.mock('pg-boss', ...)` should resolve to. */
 export const pgBossMockModule = {
-	PgBoss: vi.fn().mockImplementation(() => ({
-		start: startMock,
-		createQueue: createQueueMock,
-		updateQueue: updateQueueMock,
-		send: sendMock,
-	})),
+	PgBoss: vi.fn(function () {
+		return {
+			start: startMock,
+			createQueue: createQueueMock,
+			updateQueue: updateQueueMock,
+			send: sendMock,
+		};
+	}),
 };
 
 /**

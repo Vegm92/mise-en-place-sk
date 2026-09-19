@@ -27,6 +27,10 @@ missing. A change is "verified" when the relevant tests + the gates below pass.
 
 Job `ci` (postgres:17 service, `REQUIRE_DB_TESTS=1`):
 
+0. `pnpm audit --prod --audit-level high` (issue #1076) — fails on a
+   high-severity advisory in the runtime dependency tree only; the full-tree
+   `pnpm audit` is printed afterwards but never fails (see
+   [dependency_policy.md](dependency_policy.md))
 1. `lint:no-sql-raw` → 2. `lint:tenant-scope` → 3. `lint:unscoped-query`
    → 4. `lint:i18n` → 5. `lint:no-comments` → 6. `lint:duplication`
    → 7. `pnpm check` → 8. `db:check-sync` (ADR-003) → 9. `db:migrate`

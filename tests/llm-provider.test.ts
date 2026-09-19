@@ -78,9 +78,9 @@ describe('createGeminiProvider().generate — response schema forwarding (issue 
 			usageMetadata: { promptTokenCount: 1, candidatesTokenCount: 1 },
 		}));
 		vi.doMock('@google/genai', () => ({
-			GoogleGenAI: vi.fn().mockImplementation(() => ({
-				models: { generateContent: generateContentMock },
-			})),
+			GoogleGenAI: vi.fn(function () {
+				return { models: { generateContent: generateContentMock } };
+			}),
 			Type: { OBJECT: 'OBJECT', STRING: 'STRING', NUMBER: 'NUMBER' },
 		}));
 		vi.stubEnv('GEMINI_API_KEY', 'test-key');

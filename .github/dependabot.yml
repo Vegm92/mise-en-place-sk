@@ -1,0 +1,32 @@
+# Quiet-by-design dependency update bot (issue #1076). Rationale and the
+# Dependabot-vs-Renovate decision: docs/04_engineering/dependency_policy.md
+# ("Automated updates"). The CI audit gate in ci.yml does not depend on this
+# file; it fails a build on a runtime advisory whether or not a PR is open.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    groups:
+      npm-minor-and-patch:
+        patterns: ['*']
+        update-types: ['minor', 'patch']
+    ignore:
+      # Majors are a deliberate, per-package decision (Svelte/SvelteKit runes
+      # lock, Stripe API/webhook shapes) — see dependency_policy.md, Upgrading.
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
+    commit-message:
+      prefix: 'build(deps)'
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 2
+    groups:
+      actions:
+        patterns: ['*']
+    commit-message:
+      prefix: 'ci'
