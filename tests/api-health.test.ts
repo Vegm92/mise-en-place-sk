@@ -155,6 +155,21 @@ describe('#491 — detailed health requires admin auth or a token', () => {
 		const body = await res.json();
 		expect(Object.keys(body).sort()).toEqual(DETAIL_KEYS);
 	});
+
+	it('a valid X-Health-Token or admin session bypasses public rate limiting', async () => {
+		rateLimitMock.mockResolvedValue(false);
+		isAdminUserMock.mockReturnValue(false);
+
+		const res = await GET(healthEvent({ token: 'test-health-token' }));
+		expect(res.status).toBe(200);
+		expect(rateLimitMock).not.toHaveBeenCalled();
+
+		rateLimitMock.mockClear();
+		isAdminUserMock.mockReturnValue(true);
+		const resAdmin = await GET(healthEvent({ user: { id: 'admin', email: 'admin@example.com', name: null, image: null } }));
+		expect(resAdmin.status).toBe(200);
+		expect(rateLimitMock).not.toHaveBeenCalled();
+	});
 });
 
 describe('#491 — public endpoint is rate-limited', () => {
@@ -185,17 +200,26 @@ describe('#1067 — the platform liveness probe sends no x-forwarded-for', () =>
 		expect(rateLimitMock).toHaveBeenCalledWith('health:unknown', 60);
 	});
 
-	it('records why a probe failed instead of swallowing it', async () => {
+	it('records why a probe failed with sanitized error string', async () => {
 		isAdminUserMock.mockReturnValue(true);
-		dbExecuteMock.mockRejectedValue(new Error('connection refused'));
+		dbExecuteMock.mockRejectedValue(new Error('connection refused string secret_pass=123'));
 		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 		try {
 			const res = await GET(healthEvent({ user: { id: 'admin', email: 'admin@example.com', name: null, image: null } }));
 			expect((await res.json()).db.reachable).toBe(false);
-			expect(warn.mock.calls.some((c) => String(c[0]).includes('health probe failed'))).toBe(true);
+			const warnCall = warn.mock.calls.find((c) => String(c[0]).includes('health probe failed'));
+			expect(warnCall).toBeDefined();
+			expect(String(warnCall?.[0])).toContain('connection refused string secret_pass=123');
 		} finally {
 			warn.mockRestore();
 		}
+	});
+
+	it('times out DB ping after 2000ms and returns status 503 degraded', async () => {
+		dbExecuteMock.mockImplementationOnce(() => new Promise((resolve) => setTimeout(resolve, 3000)));
+		const res = await GET(healthEvent());
+		expect(res.status).toBe(503);
+		expect(await res.json()).toEqual({ status: 'degraded' });
 	});
 });
 
