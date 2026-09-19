@@ -28,7 +28,7 @@
   const totalMonthInvoices = $derived(data.suppliers.reduce((s, x) => s + (x.month_invoice_count ?? 0), 0));
   const unassigned         = $derived(data.suppliers.filter(s => !s.category || s.category === 'Other').length);
   const firstUnassigned    = $derived(data.suppliers.find(s => !s.category || s.category === 'Other')?.name ?? '');
-  const hasFilters         = $derived(Boolean(data.search || data.category || data.uncategorizedOnly || data.badge));
+  const hasFilters         = $derived(Boolean(data.search || data.category || data.uncategorizedOnly));
 
   const unassignedSub = $derived.by(() => {
     if (unassigned === 0) return t('dsup.allAssigned');
@@ -40,13 +40,13 @@
   let showAdd = $state(false);
 
   const activeFilterCount = $derived(
-    (data.search ? 1 : 0) + (data.category ? 1 : 0) + (data.uncategorizedOnly ? 1 : 0) + (data.badge ? 1 : 0)
+    (data.search ? 1 : 0) + (data.category ? 1 : 0) + (data.uncategorizedOnly ? 1 : 0)
   );
   let filtersOpen = $state(untrack(() => hasFilters));
 
   function clearFilters() {
     search = '';
-    applyFilters({ q: null, category: null, uncategorized: null, badge: null });
+    applyFilters({ q: null, category: null, uncategorized: null });
   }
 
   function listUrl(patch: Record<string, string | null>) {
@@ -193,19 +193,6 @@
               <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:11px;">▾</span>
             </div>
 
-            <div style="position:relative;">
-              <select class="btn btn-secondary"
-                style="appearance:none;padding:0 28px 0 10px;cursor:pointer;min-width:160px;"
-                aria-label={t('dsup.activityAll')}
-                value={data.badge}
-                onchange={(e) => applyFilters({ badge: e.currentTarget.value || null })}>
-                <option value="">{t('dsup.activityAll')}</option>
-                <option value="overdue">{t('status.overdue')}</option>
-                <option value="due_soon">{t('status.due_soon')}</option>
-                <option value="paid_up">{t('status.paid')}</option>
-              </select>
-              <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:11px;">▾</span>
-            </div>
             <div style="position:relative;">
               <select class="btn btn-secondary"
                 style="appearance:none;padding:0 28px 0 10px;cursor:pointer;min-width:190px;"

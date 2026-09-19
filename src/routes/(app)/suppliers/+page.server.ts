@@ -18,12 +18,6 @@ import {
 	supplierTotalSpendExpr,
 } from '$lib/server/supplier-list-query';
 
-function paymentBadge(hasOverdue: number, hasDueSoon: number): 'overdue' | 'due_soon' | 'paid_up' {
-	if (hasOverdue) return 'overdue';
-	if (hasDueSoon) return 'due_soon';
-	return 'paid_up';
-}
-
 function stabilityFromCv(cv: number): 'stable' | 'moderate' | 'volatile' {
 	if (cv < 5) return 'stable';
 	if (cv <= 15) return 'moderate';
@@ -37,8 +31,6 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 		const { rangeFrom, rangeTo } = await parent?.() ?? periodRange(url);
 		const categoryNames = await selectableCategoryNames(rid);
 		const listParams = parseSupplierListParams(url.searchParams, categoryNames);
-		const today   = new Date().toISOString().slice(0, 10);
-		const weekEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
 		type PriceTrendRow = { supplier_id: number; month: string; avg_price: number };
 		type SpendTrendRow = { month: string; category: string; spend: string };
@@ -52,11 +44,8 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 				category:         supplierCategoryExpr().as('category'),
 				total_spend:      supplierTotalSpendExpr().as('total_spend'),
 				month_spend:      sql<number>`COALESCE(SUM(CASE WHEN TO_CHAR(${invoices.invoiceDate},'YYYY-MM')=TO_CHAR(NOW(),'YYYY-MM') THEN COALESCE(${invoices.totalAmount},0) ELSE 0 END),0)::float8`.as('month_spend'),
-				open_count:       sql<number>`COUNT(CASE WHEN ${invoices.status}='pending' THEN 1 END)`.as('open_count'),
 				invoice_count:    sql<number>`COUNT(${invoices.id})`.as('invoice_count'),
 				last_invoice_date:   sql<string | null>`MAX(${invoices.invoiceDate})`.as('last_invoice_date'),
-				has_overdue:         sql<number>`MAX(CASE WHEN ${invoices.status}='pending' AND ${invoices.dueDate} IS NOT NULL AND ${invoices.dueDate} < ${today} THEN 1 ELSE 0 END)`.as('has_overdue'),
-				has_due_soon:        sql<number>`MAX(CASE WHEN ${invoices.status}='pending' AND ${invoices.dueDate} IS NOT NULL AND ${invoices.dueDate} BETWEEN ${today} AND ${weekEnd} THEN 1 ELSE 0 END)`.as('has_due_soon'),
 				month_invoice_count: sql<number>`COALESCE(COUNT(CASE WHEN TO_CHAR(${invoices.invoiceDate},'YYYY-MM')=TO_CHAR(NOW(),'YYYY-MM') THEN 1 END),0)`.as('month_invoice_count'),
 				last_month_spend:    sql<number>`COALESCE(SUM(CASE WHEN TO_CHAR(${invoices.invoiceDate},'YYYY-MM')=TO_CHAR(NOW()-INTERVAL'1 month','YYYY-MM') THEN COALESCE(${invoices.totalAmount},0) ELSE 0 END),0)::float8`.as('last_month_spend'),
 			})
@@ -145,7 +134,6 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 
 		const cadences = await supplierCadences(rid, new Date(`${localToday()}T00:00:00Z`));
 		const supplierList = rows.map((r) => {
-			const badge = paymentBadge(Number(r.has_overdue), Number(r.has_due_soon));
 			const cadence = cadences.get(r.id);
 
 			const cat = r.category ?? 'Other';
@@ -169,13 +157,11 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 			return {
 				...r,
 				invoice_count: invoiceCount,
-				open_count: Number(r.open_count),
 				month_spend: Number(r.month_spend),
 				total_spend: Number(r.total_spend),
 				month_invoice_count: Number(r.month_invoice_count),
 				last_month_spend: lastMonthSpend,
 				delta_pct: deltaPct,
-				badge,
 				category: cat,
 				reliability_score: metrics && invoiceCount >= 3 ? metrics.score : null,
 				stability_level: stabilityLevel,
@@ -203,14 +189,10 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 			})),
 		};
 
-		const filteredList = listParams.badge
-			? supplierList.filter(s => s.badge === listParams.badge)
-			: supplierList;
-
 		return {
 			title: 'nav.suppliers',
 			subtitle: 'All active suppliers',
-			suppliers: filteredList,
+			suppliers: supplierList,
 			categories: orderedCategories,
 			categoryCounts,
 			trendData,
@@ -218,7 +200,6 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 			search: listParams.search,
 			category: listParams.category,
 			uncategorizedOnly: listParams.uncategorizedOnly,
-			badge: listParams.badge,
 		};
 	});
 };

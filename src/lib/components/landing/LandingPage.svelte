@@ -184,7 +184,7 @@
   const appDashboardMockCopy = $derived({
     mockKpiSpend:         t('waitlist.mock.kpiSpend'),
     mockKpiAvg:           t('waitlist.mock.kpiAvg'),
-    mockKpiPending:       t('dash.kpi.pending'),
+    mockKpiPending:       t('inv.kpi.toReview'),
     mockKpiBudget:        t('dash.budget'),
     mockKpiOf:            t('waitlist.mock.kpiOf'),
     mockKpiInvoicesShort: t('shell.quota'),

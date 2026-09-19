@@ -39,7 +39,7 @@
     invoiceDate: string | null;
     dueDate: string | null;
     totalAmount: number | null;
-    status: string | null;
+    reviewState: string | null;
   }
   interface Metrics {
     score: number;
@@ -98,13 +98,11 @@
   const color = $derived(categoryColor(s.category));
   const tint  = $derived(categoryTint(s.category));
 
-  const today = new Date().toISOString().slice(0, 10);
-
-  const totalSpend = $derived(invoices.reduce((a, i) => a + (i.totalAmount ?? 0), 0));
-  const paidCount  = $derived(invoices.filter(i => i.status === 'paid').length);
-  const openCount  = $derived(invoices.filter(i => i.status === 'pending').length);
-  const avgInvoice = $derived(invoices.length ? totalSpend / invoices.length : 0);
-  const pendingAmt = $derived(invoices.filter(i => i.status === 'pending').reduce((a, i) => a + (i.totalAmount ?? 0), 0));
+  const totalSpend     = $derived(invoices.reduce((a, i) => a + (i.totalAmount ?? 0), 0));
+  const reviewedCount  = $derived(invoices.filter(i => i.reviewState === 'revisado').length);
+  const toReviewCount  = $derived(invoices.filter(i => i.reviewState !== 'revisado').length);
+  const avgInvoice     = $derived(invoices.length ? totalSpend / invoices.length : 0);
+  const toReviewAmt    = $derived(invoices.filter(i => i.reviewState !== 'revisado').reduce((a, i) => a + (i.totalAmount ?? 0), 0));
 
   const chartMax = $derived(Math.max(...monthly.map(m => m.value), 1));
   const chartAvg = $derived((() => {
@@ -155,12 +153,6 @@
   const CH = 140;
   const CB = 170;
   const VW = 700;
-
-  function invoiceStatus(inv: Invoice): string {
-    if (inv.status === 'paid') return 'paid';
-    if (inv.dueDate && inv.dueDate < today) return 'overdue';
-    return inv.status ?? 'pending';
-  }
 </script>
 
 <div class="hidden md:flex" style="height:100%;flex-direction:column;overflow:hidden;">
@@ -376,15 +368,15 @@
               </div>
               <div class="card" style="padding:14px;">
                 <div class="label" style="margin-bottom:6px;">{t('sup.openInvoices')}</div>
-                <div class="num text-xl font-semibold tracking-[-0.4px] leading-[1.1] {openCount > 0 ? 'text-warn' : 'text-fg'}">
-                  {openCount}
+                <div class="num text-xl font-semibold tracking-[-0.4px] leading-[1.1] {toReviewCount > 0 ? 'text-warn' : 'text-fg'}">
+                  {toReviewCount}
                 </div>
-                <div class="text-[11.5px] text-fg-3 mt-1.5">{paidCount} {t('sup.paid')}</div>
+                <div class="text-[11.5px] text-fg-3 mt-1.5">{reviewedCount} {t('sup.paid')}</div>
               </div>
               <div class="card" style="padding:14px;">
                 <div class="label" style="margin-bottom:6px;">{t('sup.pendingPayment')}</div>
-                <div class="num text-xl font-semibold tracking-[-0.4px] leading-[1.1] {pendingAmt > 0 ? 'text-warn' : 'text-fg'}">
-                  {fmtEur(pendingAmt, locale.current)}
+                <div class="num text-xl font-semibold tracking-[-0.4px] leading-[1.1] {toReviewAmt > 0 ? 'text-warn' : 'text-fg'}">
+                  {fmtEur(toReviewAmt, locale.current)}
                 </div>
                 <div class="text-[11.5px] text-fg-3 mt-1.5">{t('sup.openAmount')}</div>
               </div>
@@ -536,7 +528,7 @@
                     <div class="num text-[13px] font-medium text-fg">
                       {fmtEur(inv.totalAmount ?? 0, locale.current)}
                     </div>
-                    <StatusBadge status={invoiceStatus(inv)} style="font-size:11px;padding:1px 5px;" />
+                    <StatusBadge status={inv.reviewState ?? 'revisado'} style="font-size:11px;padding:1px 5px;" />
                   </a>
                 {/each}
               {/if}
@@ -569,7 +561,7 @@
                     <td style="font-size:12.5px;">{fmtDate(inv.invoiceDate, locale.current)}</td>
                     <td class="text-[12.5px] text-fg-2">{fmtDate(inv.dueDate, locale.current)}</td>
                     <td class="num" style="font-weight:500;">{fmtEur(inv.totalAmount ?? 0, locale.current)}</td>
-                    <td><StatusBadge status={invoiceStatus(inv)} style="font-size:11px;padding:2px 7px;" /></td>
+                    <td><StatusBadge status={inv.reviewState ?? 'revisado'} style="font-size:11px;padding:2px 7px;" /></td>
                   </tr>
                 {/each}
               </tbody>

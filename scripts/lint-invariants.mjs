@@ -383,7 +383,7 @@ const INLINE_TOKEN_STYLE_BUDGET = new Map([
 	['src/lib/components/mep/BillingStatusCard.svelte', 19],
 	['src/routes/(admin)/admin/+page.svelte', 1],
 	['src/routes/(app)/analytics/spend/+page.svelte', 16],
-	['src/routes/(app)/suppliers/+page.svelte', 17],
+	['src/routes/(app)/suppliers/+page.svelte', 16],
 	['src/lib/components/mobile/MobileProducts.svelte', 16],
 	['src/lib/components/mobile/MobileSuppliersList.svelte', 15],
 	['src/lib/components/mep/BillingFeatureMatrix.svelte', 14],

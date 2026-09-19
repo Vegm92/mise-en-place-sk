@@ -37,10 +37,7 @@
   const m = $derived(data.metrics);
 
   const totalSpend  = $derived(data.invoices.reduce((a, i) => a + (i.totalAmount ?? 0), 0));
-  const paidCount   = $derived(data.invoices.filter(i => i.status === 'paid').length);
-  const openCount   = $derived(data.invoices.filter(i => i.status === 'pending').length);
-  const avgInvoice  = $derived(data.invoices.length ? totalSpend / data.invoices.length : 0);
-  const pendingAmt  = $derived(data.invoices.filter(i => i.status === 'pending').reduce((a, i) => a + (i.totalAmount ?? 0), 0));
+  const toReviewAmt = $derived(data.invoices.filter(i => i.reviewState !== 'revisado').reduce((a, i) => a + (i.totalAmount ?? 0), 0));
 
   const color = $derived(categoryColor(s.category));
   const tint  = $derived(categoryTint(s.category));
@@ -71,19 +68,10 @@
     return { slices, total };
   })());
 
-  const today   = new Date().toISOString().slice(0, 10);
-  const weekEnd = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
-
   function scoreLabelKey(score: number) {
     if (score >= 70) return 'sup.score.very';
     if (score >= 40) return 'sup.score.ok';
     return 'sup.score.poor';
-  }
-
-  function invoiceStatus(inv: typeof data.invoices[0]): string {
-    if (inv.status === 'paid') return 'paid';
-    if (inv.dueDate && inv.dueDate < today) return 'overdue';
-    return inv.status ?? 'pending';
   }
 
 </script>
@@ -175,7 +163,7 @@
       </div>
       <div class="w-px h-[26px] bg-divider"></div>
       <div style="flex:1;text-align:center;">
-        <div class="num text-[15px] font-semibold tracking-[-0.3px] {pendingAmt > 0 ? 'text-warn' : 'text-fg'}">{fmtEur(pendingAmt, locale.current)}</div>
+        <div class="num text-[15px] font-semibold tracking-[-0.3px] {toReviewAmt > 0 ? 'text-warn' : 'text-fg'}">{fmtEur(toReviewAmt, locale.current)}</div>
         <div class="text-[11px] text-fg-3 mt-px">{t('sup.pending')}</div>
       </div>
     </div>
@@ -275,7 +263,7 @@
                 <div class="text-[11px] text-fg-3">{fmtDateShort(inv.invoiceDate, locale.current)}</div>
               </div>
               <div class="num text-[13px] font-medium text-fg">{fmtEur(inv.totalAmount ?? 0, locale.current)}</div>
-              <StatusBadge status={invoiceStatus(inv)} style="font-size:11px;padding:1px 5px;" />
+              <StatusBadge status={inv.reviewState ?? 'revisado'} style="font-size:11px;padding:1px 5px;" />
             </a>
           {/each}
         </div>
@@ -329,7 +317,7 @@
               <div class="text-[11px] text-fg-3 mt-0.5">{fmtDate(inv.invoiceDate, locale.current)}{inv.dueDate ? ` · ${t('sup.dueShort')} ${fmtDateShort(inv.dueDate, locale.current)}` : ''}</div>
             </div>
             <div class="num text-[14px] font-semibold text-fg">{fmtEur(inv.totalAmount ?? 0, locale.current)}</div>
-            <StatusBadge status={invoiceStatus(inv)} style="font-size:11px;padding:1px 5px;" />
+            <StatusBadge status={inv.reviewState ?? 'revisado'} style="font-size:11px;padding:1px 5px;" />
           </a>
         {/each}
       {/if}
