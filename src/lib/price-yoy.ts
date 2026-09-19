@@ -34,10 +34,17 @@ function round1(n: number): number {
 }
 
 export function pairYearlyPrices(rows: YearlyPriceInput[]): YearlyPricePoint[] {
-	const byYear = new Map(rows.map((r) => [r.year, r]));
-	const years = [...byYear.keys()].sort((a, b) => a - b);
+	if (rows.length === 0) return [];
+	const byYear = new Map<number, YearlyPriceInput>();
+	for (let i = 0; i < rows.length; i++) {
+		const r = rows[i]!;
+		byYear.set(r.year, r);
+	}
+	const years = Array.from(byYear.keys()).sort((a, b) => a - b);
+	const res: YearlyPricePoint[] = new Array(years.length);
 
-	return years.map((year) => {
+	for (let i = 0; i < years.length; i++) {
+		const year = years[i]!;
 		const current = byYear.get(year)!;
 		const previous = byYear.get(year - 1) ?? null;
 		const price = displayPrice(current);
@@ -46,10 +53,23 @@ export function pairYearlyPrices(rows: YearlyPriceInput[]): YearlyPricePoint[] {
 			? round1(((price - prevPrice) / prevPrice) * 100)
 			: null;
 
-		return { year, price, prevPrice, changePct };
-	});
+		res[i] = { year, price, prevPrice, changePct };
+	}
+
+	return res;
 }
 
 export function yoyChangeForYear(rows: YearlyPriceInput[], year: number): number | null {
-	return pairYearlyPrices(rows).find((p) => p.year === year)?.changePct ?? null;
+	let current: YearlyPriceInput | undefined;
+	let previous: YearlyPriceInput | undefined;
+	for (let i = 0; i < rows.length; i++) {
+		const r = rows[i]!;
+		if (r.year === year) current = r;
+		else if (r.year === year - 1) previous = r;
+	}
+	if (!current || !previous) return null;
+	const price = displayPrice(current);
+	const prevPrice = comparablePrevPrice(current, previous);
+	if (price == null || prevPrice == null || prevPrice <= 0) return null;
+	return round1(((price - prevPrice) / prevPrice) * 100);
 }
