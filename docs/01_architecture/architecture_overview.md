@@ -74,8 +74,7 @@ to extract — they **must share storage** (persistent volume or
    post-commit alert engines). `done→confirmed`.
 4. **Insights** fire after commit: price shock, stock forecast, budget, category
    nudges, VERI*FACTU mismatch, product suggestions. The alert engines live in
-   `alerts.ts` (re-exported through the `alert-engine.ts` barrel):
-   `runPriceShock` fires on a unit-price deviation beyond the
+   `alerts.ts`: `runPriceShock` fires on a unit-price deviation beyond the
    `price_alert_threshold` setting (default >15%), `runStockForecast` when
    projected stock drops under 3 days, and `runBudgetCheck` when current-month
    category spend crosses its `category_budgets` threshold (warning ≥ 80%

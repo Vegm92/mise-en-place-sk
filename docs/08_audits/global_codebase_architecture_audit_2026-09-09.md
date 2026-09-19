@@ -237,6 +237,8 @@ Scores describe the observed source topology, not production reliability.
 | Deployment independence | 6/10 | web/worker deploy independently but share DB/schema/storage configuration |
 | Architectural simplicity | 6/10 | modular-monolith topology is appropriate, though central hubs obscure change paths |
 
+Note: "RLS" above (diagram, Data ownership, Security boundaries) refers to policies present in the schema (`drizzle/0055_rls_tenant_isolation.sql` and later) that are currently inert — the app connects as the table owner — until the `mep_runtime` cutover (#975/#464); `forTenant().scope()` is the only live tenant boundary today.
+
 ---
 
 ## 08 — Domain map and data ownership

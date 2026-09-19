@@ -42,6 +42,11 @@ subset: many suites (`tests/*.test.ts` grepping a `.svelte`/`.ts` source with
 source-only change is invisible to `vitest --changed` and such a regression
 could merge through a green PR.
 
+A separate `eval-gate` job (`pnpm eval:gate`) re-runs extraction against
+`tests/golden/` when the extraction pipeline changes, but `tests/golden/cases/`
+is gitignored (real invoices), so in CI that corpus is empty and the gate only
+has teeth run locally against a populated one (issue #1078).
+
 ## When to run what
 
 | Change size | Run |

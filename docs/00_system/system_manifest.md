@@ -162,7 +162,7 @@ Full map with file locations: `docs/01_architecture/routing_and_navigation.md`.
 - `document-structure.ts` / `document-segmentation.ts` / `pdf-pages.ts` — composite-PDF
   detection and splitting, before extraction (ADR-035)
 - `einvoice-parser.ts` — Facturae/UBL parsing without AI
-- `alerts.ts` (alias `alert-engine.ts`) — alert rules, fired on save
+- `alerts.ts` — alert rules, fired on save
 - `alert-preferences.ts` — per-tenant, per-type alert toggles (#577)
 - `billing.ts` — tiers, quotas, Stripe checkout + webhooks (ADR-013)
 - `billing-plans.ts` — `PROVISIONAL_PRICE`, `TIER_COPY` (client-facing)

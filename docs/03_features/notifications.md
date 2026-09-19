@@ -208,7 +208,7 @@ Type ∈ known set; payload shape per type; tenant scope.
 
 - POST /api/notifications/:id/ack — mark as sent.
 
-### `src/lib/server/alert-engine.ts`
+### `src/lib/server/alerts.ts`
 
 **`const LOW_STOCK_DAYS`**
 
