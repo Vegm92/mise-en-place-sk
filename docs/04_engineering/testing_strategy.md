@@ -25,7 +25,7 @@ missing. A change is "verified" when the relevant tests + the gates below pass.
 
 ## What CI runs (`.github/workflows/ci.yml`)
 
-Job `ci` (postgres:17 service, `REQUIRE_DB_TESTS=1`):
+Job `ci` (postgres:18 service, `REQUIRE_DB_TESTS=1`):
 
 0. `pnpm audit --prod --audit-level high` (issue #1076) — fails on a
    high-severity advisory in the runtime dependency tree only; the full-tree
