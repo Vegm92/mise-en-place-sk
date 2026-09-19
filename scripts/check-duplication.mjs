@@ -33,18 +33,38 @@
  *     `LIT` placeholder using TypeScript's scanner token kinds, not string
  *     content matching, for exactly this reason.
  *
- * One consequence of that anonymisation has to be undone deliberately: the
- * locale tables, src/lib/messages/{en,es}.ts, are flat `'key': 'copy',` maps,
- * so once both literals collapse to LIT every line in them is the same token
- * sequence as every other — each file is one long clone of itself and of its
- * sibling. That is an artefact of the tokenizer, not repeated logic, and it
- * penalises exactly what `lint:i18n` mandates: a key added to one locale MUST
- * be added to the other, so every i18n-touching branch pays duplication for
- * obeying the rule. It is also not what the real gate reads — SonarCloud
+ * One consequence of that anonymisation looks like it has to be undone by
+ * hand, and does not: the locale tables, src/lib/messages/{en,es}.ts, are
+ * flat `'key': 'copy',` maps, so once both literals collapse to LIT every
+ * line in them is the same token sequence as every other, and each file
+ * reads as one long clone of itself and of its sibling. That penalises
+ * exactly what `lint:i18n` mandates — a key added to one locale MUST be
+ * added to the other — and it is not what the real gate reads: SonarCloud
  * scored 0.0% on a tree this script scored 2.6% on (PR #1126), whose only
- * flagged lines were locale keys. So the two tables are excluded from the
- * duplicated-line count. They stay in the corpus: a block copied OUT of them
- * into real code still counts against the file that copied it.
+ * flagged lines were locale keys.
+ *
+ * Excluding those two paths from the count was the first fix and was the
+ * wrong one, because it makes this script disagree with the gate in the
+ * other direction — it hides a genuine clone that happens to sit in a
+ * locale file, and it only ever covers the paths someone remembered to
+ * list. The actual reason SonarCloud reads 0.0% is a step this script was
+ * missing, and it is not locale-specific.
+ *
+ * SonarQube does not hash raw token windows. It folds a file's tokens into
+ * one fragment per source line and then — `PmdBlockChunker.chunk` in
+ * sonar-duplications, the chunker every non-Java language goes through —
+ * collapses each run of consecutive fragments with an identical value down
+ * to its first and last, before it builds a single block. A file left with
+ * fewer fragments than the 10-line block size produces no CPD blocks at
+ * all. A locale table is ~2700 consecutive `LIT:LIT,` fragments, so Sonar
+ * collapses it to two, drops under the block size, and indexes the file
+ * with zero blocks — confirmed against the live project, which reports
+ * duplicated_blocks=0 on both locale files at ncloc≈2688.
+ *
+ * That collapse is applied below, to every file, before the windows are
+ * built. It costs nothing on ordinary code, where consecutive lines differ:
+ * src/lib/landing-variants.ts (`headline: LIT,` then `sub: LIT,`) still
+ * reports the 110 duplicated lines SonarCloud reports for it.
  *
  * Re-measured against #1120's heads after fixing both: this script's
  * reading tracked SonarCloud's within about a point at every head,
@@ -87,7 +107,6 @@ if (!BASE_PATTERN.test(BASE)) {
 }
 const THRESHOLD = Number(arg('threshold', '3'));
 const SCANNED_DIRS = ['src', 'tests'];
-const LOCALE_TABLES = new Set(['src/lib/messages/en.ts', 'src/lib/messages/es.ts']);
 const SCANNED_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.mjs']);
 const MIN_TOKENS = 100;
 const MIN_LINES = 10;
@@ -184,6 +203,35 @@ function tokenize(file) {
 	return tokens;
 }
 
+/**
+ * `file`'s tokens with every run of consecutive identical source lines
+ * collapsed to its first and last line, as SonarQube's `PmdBlockChunker`
+ * does before chunking: a uniform run of lines contributes two lines to the
+ * corpus, not hundreds, so it cannot form a clone with itself or with a
+ * parallel run in another file.
+ */
+function tokenizeCollapsed(file) {
+	const lines = [];
+	for (const token of tokenize(file)) {
+		const last = lines[lines.length - 1];
+		if (last && last.line === token.line) {
+			last.value += token.value;
+			last.tokens.push(token);
+		} else {
+			lines.push({ value: token.value, line: token.line, tokens: [token] });
+		}
+	}
+	const kept = [];
+	for (let i = 0; i < lines.length; ) {
+		let j = i + 1;
+		while (j < lines.length && lines[j].value === lines[i].value) j++;
+		kept.push(lines[i]);
+		if (i < j - 1) kept.push(lines[j - 1]);
+		i = j;
+	}
+	return kept.flatMap((l) => l.tokens);
+}
+
 const changed = changedScannedFiles();
 if (changed.length === 0) {
 	console.log(`check-duplication: no changed files under ${SCANNED_DIRS.join('/, ')}/ vs ${BASE} — nothing to check.`);
@@ -197,7 +245,7 @@ if (totalNewLines === 0) {
 	process.exit(0);
 }
 
-const tokensByFile = new Map(corpusFiles().map((f) => [f, tokenize(f)]));
+const tokensByFile = new Map(corpusFiles().map((f) => [f, tokenizeCollapsed(f)]));
 
 /** key(anonymised token window) -> every {file, startLine, endLine} it occurs at. */
 const occurrencesByWindow = new Map();
@@ -217,7 +265,6 @@ const duplicatedByFile = new Map();
 for (const occurrences of occurrencesByWindow.values()) {
 	if (occurrences.length < 2) continue;
 	for (const occ of occurrences) {
-		if (LOCALE_TABLES.has(occ.file)) continue;
 		if (occ.endLine - occ.startLine + 1 < MIN_LINES) continue;
 		const added = addedByFile.get(occ.file);
 		if (!added) continue;
