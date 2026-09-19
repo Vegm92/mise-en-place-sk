@@ -142,7 +142,7 @@ export interface ParsedReview {
 const AFFIRMATIVE = new Set(['ok', 'okey', 'oka', 'vale', 'si', 'sip', 'correcto', 'correcta', 'bien']);
 const NEGATIVE = new Set(['no', 'nope', 'mal', 'incorrecto', 'incorrecta', 'error']);
 
-function stripAccents(value: string): string {
+export function stripAccents(value: string): string {
 	return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 

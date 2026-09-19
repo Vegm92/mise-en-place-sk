@@ -81,6 +81,36 @@ export async function removeContact(restaurantId: string, id: number, releasedBy
 	return true;
 }
 
+export interface DigestOptedInContact {
+	id: number;
+	phoneNumber: string;
+}
+
+export async function digestOptedInContacts(restaurantId: string): Promise<DigestOptedInContact[]> {
+	const tdb = forTenant(restaurantId);
+	return db
+		.select({ id: whatsappContacts.id, phoneNumber: whatsappContacts.phoneNumber })
+		.from(whatsappContacts)
+		.where(tdb.scope(whatsappContacts.restaurantId, eq(whatsappContacts.digestOptedIn, true)));
+}
+
+export async function isDigestOptedIn(restaurantId: string, contactId: number): Promise<boolean> {
+	const tdb = forTenant(restaurantId);
+	const [row] = await db
+		.select({ digestOptedIn: whatsappContacts.digestOptedIn })
+		.from(whatsappContacts)
+		.where(tdb.scope(whatsappContacts.restaurantId, eq(whatsappContacts.id, contactId)));
+	return row?.digestOptedIn ?? false;
+}
+
+export async function setDigestOptIn(restaurantId: string, phoneNumber: string, optedIn: boolean): Promise<void> {
+	const tdb = forTenant(restaurantId);
+	await db
+		.update(whatsappContacts)
+		.set({ digestOptedIn: optedIn })
+		.where(tdb.scope(whatsappContacts.restaurantId, eq(whatsappContacts.phoneNumber, phoneNumber)));
+}
+
 export type ReleaseByPhoneResult =
 	| { ok: true; restaurantId: string }
 	| { ok: false; reason: 'invalid' | 'notFound' };

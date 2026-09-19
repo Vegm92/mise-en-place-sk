@@ -578,6 +578,7 @@ export const whatsappContacts = pgTable('whatsapp_contacts', {
 	phoneNumber:  text('phone_number').notNull(),
 	displayName:  text('display_name'),
 	createdAt:    timestamp('created_at', { withTimezone: true }).defaultNow(),
+	digestOptedIn: boolean('digest_opted_in').notNull().default(false),
 }, (t) => [
 	uniqueIndex('whatsapp_contacts_phone_unique').on(t.phoneNumber),
 	index('idx_whatsapp_contacts_restaurant').on(t.restaurantId),

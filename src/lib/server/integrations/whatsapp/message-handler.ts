@@ -7,15 +7,44 @@ import { getAccessState } from '../../billing';
 import { isLocationLocked } from '../../locations';
 import { normalizeCode, redeemPairingCode } from '../../whatsapp-pairing';
 import { WHATSAPP_SENDER_HOURLY_LIMIT } from '../../env';
+import { setDigestOptIn } from '../../whatsapp-contacts';
+import { renderTemplate } from '$lib/i18n-messages';
 import { handleMediaUpload, type CommitFlag } from './media-handler';
 import {
 	batchLink, findJobByCode, parseReview, pendingJobsFor, raiseReviewNotification,
-	setReviewStatus, supplierOf, type WhatsAppJob,
+	setReviewStatus, stripAccents, supplierOf, type WhatsAppJob,
 } from './jobs';
 import type { WhatsAppInboundMessage, WhatsAppMessageContext } from './transport';
 
 const UNAUTHORIZED_REPLY_COOLDOWN_S = 6 * 60 * 60;
 const SENDER_WINDOW_S = 60 * 60;
+const DIGEST_OPT_IN_WORDS = new Set(['suscribir', 'subscribe']);
+const DIGEST_OPT_OUT_WORDS = new Set(['baja', 'cancelar', 'stop', 'unsubscribe']);
+
+function containsDigestOptOutWord(body: string): boolean {
+	const words = stripAccents((body ?? '').toLowerCase()).split(/[^a-z0-9]+/).filter(Boolean);
+	return words.some((w) => DIGEST_OPT_OUT_WORDS.has(w));
+}
+
+async function handleDigestOptKeyword(
+	restaurantId: string,
+	from: string,
+	body: string,
+	ctx: WhatsAppMessageContext,
+): Promise<boolean> {
+	if (containsDigestOptOutWord(body)) {
+		await setDigestOptIn(restaurantId, from, false);
+		await ctx.sendText(from, renderTemplate('es', 'wa.digest.optOutConfirm'));
+		return true;
+	}
+	const word = stripAccents((body ?? '').trim().toLowerCase());
+	if (DIGEST_OPT_IN_WORDS.has(word)) {
+		await setDigestOptIn(restaurantId, from, true);
+		await ctx.sendText(from, renderTemplate('es', 'wa.digest.optInConfirm'));
+		return true;
+	}
+	return false;
+}
 
 async function claimMessageId(messageId: string | undefined): Promise<boolean> {
 	if (!messageId) return true;
@@ -164,6 +193,7 @@ async function dispatchMessage(
 	} else if (msg.type === 'document' && msg.document) {
 		await handleMediaUpload(from, restaurantId, msg.document, ctx, committed, requestId);
 	} else if (msg.type === 'text' && msg.text) {
+		if (await handleDigestOptKeyword(restaurantId, from, msg.text.body, ctx)) return;
 		await handleTextReply(restaurantId, from, msg.text.body, ctx);
 	} else {
 		await ctx.sendText(

@@ -1,0 +1,1 @@
+ALTER TABLE "whatsapp_contacts" ADD COLUMN "digest_opted_in" boolean DEFAULT false NOT NULL;
