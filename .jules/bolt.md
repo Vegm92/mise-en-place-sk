@@ -19,6 +19,7 @@ Keep the existing entry shape: an `## <date> - <title>` heading, then
 
 ## Entries
 
+- `2026-09-10` — [Direct year-pairing and YoY change computation in `src/lib/price-yoy.ts`](bolt/2026-09-10-price-yoy-direct-year-pairing-and-yoy-change-computation.md)
 - `2026-09-09` — [Fast spend trend segment indexing in `src/lib/server/trend.ts`](bolt/2026-09-09-trend-fast-spend-trend-segment-indexing.md)
 - `2026-09-08` — [Memoize recipe quantity parsing and unit key resolution in `src/lib/recipes.ts`](bolt/2026-09-08-recipes-memoize-recipe-quantity-parsing-and-unit-key-resolution.md)
 - `2026-09-08` — [Memoize `parsePack` and `expandAbbreviations` in `src/lib/server/products.ts`](bolt/2026-09-08-products-memoize-parsepack-and-expandabbreviations.md)
