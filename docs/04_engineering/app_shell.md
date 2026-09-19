@@ -443,11 +443,6 @@ the inventory template, issue #885) is a different route entirely.
 **`function parseMonthParam`**
 - Validate a "?month=YYYY-MM" query param, clamped to not-future.
 
-### `src/lib/index.ts`
-
-**_module level_**
-- Place files you want to import through the `$lib` alias in this folder.
-
 ### `src/lib/pwa.ts`
 
 **`function registerPWA`**

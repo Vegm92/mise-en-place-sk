@@ -431,7 +431,6 @@ const INLINE_TOKEN_STYLE_BUDGET = new Map([
 	['src/lib/components/mep/NotificationItem.svelte', 3],
 	['src/routes/(app)/recipes/[id]/sheet/+page.svelte', 3],
 	['src/routes/+error.svelte', 3],
-	['src/lib/components/admin/AdminKpiCard.svelte', 2],
 	['src/lib/components/mep/ListPageTemplate.svelte', 2],
 	['src/lib/components/desktop/turno/StatusChip.svelte', 1],
 	['src/lib/components/FileTypeBadge.svelte', 1],
