@@ -2693,4 +2693,7 @@ export default {
   'rec.warn.line.missingChild':  'That prep no longer exists',
   'rec.warn.line.childNoYield':  'The prep declares no yield',
   'billing.matrix.row.recipes': 'Recipe sheets',
+  'wa.digest.push':            '📊 Weekly digest for {name}. This week\'s spend and prices:\n{link}\nReply STOP to stop receiving this digest on WhatsApp.',
+  'wa.digest.optInConfirm':    '✅ You will receive the weekly spend digest on WhatsApp every Monday. Reply STOP any time to stop.',
+  'wa.digest.optOutConfirm':   '✅ You will no longer receive weekly digests on WhatsApp.',
 } satisfies Record<keyof typeof es, string>;

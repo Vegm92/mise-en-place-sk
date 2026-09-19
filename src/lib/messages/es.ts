@@ -2691,4 +2691,7 @@ export default {
   'rec.warn.line.missingChild':  'La elaboración ya no existe',
   'rec.warn.line.childNoYield':  'La elaboración no declara producción',
   'billing.matrix.row.recipes': 'Escandallos',
+  'wa.digest.push':            '📊 Resumen semanal de {name}. Gasto y precios de esta semana:\n{link}\nEscribe BAJA para dejar de recibir este resumen por WhatsApp.',
+  'wa.digest.optInConfirm':    '✅ Recibirás el resumen semanal de gasto por WhatsApp cada lunes. Escribe BAJA cuando quieras dejar de recibirlo.',
+  'wa.digest.optOutConfirm':   '✅ No recibirás más resúmenes semanales por WhatsApp.',
 } satisfies Record<string, string>;

@@ -3,6 +3,7 @@ import { db, forTenant } from './db';
 import { invoices, settings, userRestaurants, users } from './schema';
 import { sendEmail, weeklyDigestEmail, incidenciaDigestEmail, trialExpiryEmail, trialExpiredEmail } from './email';
 import { getOrGenerateWeeklyDigest, isoWeek } from './weekly-digest';
+import { pushWeeklyDigestOverWhatsApp } from './whatsapp-digest-push';
 import { TIERS, effectiveTier } from './billing';
 import { isAlertEnabled } from './alert-preferences';
 import { dispatchTenantJobs, type DispatchResult, type TenantJobData } from './tenant-fanout';
@@ -82,6 +83,10 @@ export async function sendWeeklyDigest(data: WeeklyDigestJobData): Promise<boole
 	if (!digest) return false;
 
 	if (!(await claimOnce(data.restaurantId, 'weekly_digest_email_week', data.week))) return false;
+
+	if (await claimOnce(data.restaurantId, 'weekly_digest_whatsapp_week', data.week)) {
+		await pushWeeklyDigestOverWhatsApp(data.restaurantId, data.name, data.week, digest);
+	}
 
 	const email = await ownerEmail(data.restaurantId);
 	if (!email) return false;
