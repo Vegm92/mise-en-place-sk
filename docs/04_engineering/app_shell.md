@@ -509,6 +509,13 @@ the inventory template, issue #885) is a different route entirely.
   | `routes/(app)/settings/+page.server.ts`, `routes/(app)/+layout.server.ts` | The location switcher lists every restaurant the user belongs to, not just the active one |
   | `routes/s/[token]/+page.server.ts`, `routes/s/[token]/og.png/+server.ts` | Anonymous digest-share view (#329): the token is the only auth, no session-derived tenant exists |
 
+### `src/routes/api/health/+server.ts`
+
+**`const GET`**
+- Platform liveness probe resilience and rate-limit isolation: requests bearing a valid `X-Health-Token` header or admin session bypass the public IP rate-limit check (`checkRateLimit`) so high-frequency orchestrator probes (e.g. Railway/Kubernetes) are never starved with 429 status codes under shared buckets (`health:unknown`). Public unauthenticated hits remain strictly throttled per IP.
+- DB ping timeout: `isDbReachable()` wraps `SELECT 1` with a strict 2000ms deadline (`withTimeout`) so DB connection starvation or pool lockup causes the probe to fail fast with 503 `degraded` instead of blocking and timing out liveness probes externally.
+- Log sanitization: catch blocks in `computeHealthDetail()` sanitize error objects (`err: e instanceof Error ? e.message : String(e)`) to prevent sensitive connection string or credential leaks in log streams.
+
 **`function applySecurityHeaders`**
 
 - Two routes are embedded in a same-origin `<iframe>` by the app — batch review PDF preview (`/api/upload/[id]/[file]`) and saved invoice PDF preview (`/invoice/[id]/file`); `DENY` would block the app's own preview.
