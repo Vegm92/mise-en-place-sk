@@ -5,6 +5,7 @@ export interface ExtractionJobData {
 	itemId: string;
 	restaurantId: string;
 	requestId?: string;
+	storageFingerprint?: string;
 }
 
 export const EXTRACTION_OPTIONS = (itemId: string) => ({

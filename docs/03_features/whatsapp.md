@@ -282,6 +282,10 @@ before the handler sees it, because contacts are stored as digits (ADR-019).
 - WhatsApp Cloud API webhook: GET answers the Meta verify-token challenge (`WHATSAPP_VERIFY_TOKEN`); POST receives inbound messages. Subscribed fields: messages, account_update, phone_number_quality_update — the account fields turn a shared-number quality downgrade from a support-ticket discovery into something delivered (#321).
 - Verifies Meta's X-Hub-Signature-256 HMAC over the raw body. Bad/missing signature with a configured secret is rejected; a missing secret is tolerated only outside production — in production the webhook fails CLOSED: an unauthenticated POST could impersonate a registered number, inject invoices into that tenant, and burn Gemini quota.
 
+**`function verifyToken`**
+
+- Compares `hub.verify_token` with `timingSafeEqual` (length-guarded), mirroring `verifySignature`'s POST check (#1083) — a plain `===` leaks the token byte-by-byte through response timing.
+
 **`const GET`**
 
 - Meta calls GET to verify the webhook endpoint during setup.
@@ -438,6 +442,10 @@ before the handler sees it, because contacts are stored as digits (ADR-019).
 **`const REDEEM_ATTEMPTS`**
 
 - 5 per sender; 30^6 ≈ 7.3e8, far below brute-forcing a code inside its TTL.
+
+**`const REDEEM_GLOBAL_LIMIT`**
+
+- 100/hr platform-wide, alongside the per-sender bucket (#1083) — the per-sender throttle alone doesn't stop a guess spread across many spoofed sender numbers; 20x the per-sender ceiling bounds total redemption attempts while staying well above realistic concurrent legitimate redemptions.
 
 **`const GENERATE_LIMIT`**
 

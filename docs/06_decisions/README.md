@@ -20,7 +20,7 @@ For *how the code works*, see the per-subsystem `## Code notes` sections (`docs/
 | ADR | Decision | Status |
 |---|---|---|
 | [001](./tenancy/ADR-001-app-level-tenant-scoping.md) | Tenant isolation via `forTenant().scope()`, not RLS | Active, amended by 005, 030 |
-| [005](./tenancy/ADR-005-rls-retired.md) | RLS policies dropped on Railway; app-layer scoping is the only boundary | Active, amended by 030 |
+| [005](./tenancy/ADR-005-rls-retired.md) | RLS policies present but inert until the `mep_runtime` cutover (ADR-030, #975/#464); app-layer scoping is the only live boundary | Active, amended by 030 |
 | [030](./tenancy/ADR-030-rls-runtime-role.md) | Database-enforced tenant isolation: `mep_runtime` role + ENABLE ROW LEVEL SECURITY | Active |
 
 ### [`ingestion/`](./ingestion) — upload → extract → confirm

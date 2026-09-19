@@ -1,6 +1,8 @@
 import { db } from './db';
 import { and, asc, count, desc, eq, sql } from 'drizzle-orm';
 import { extractionCorrections, suppliers, restaurants, productAliases, products } from './schema';
+import * as v from 'valibot';
+import { sqlRows } from './sql-rows';
 
 const DEFAULT_WINDOW_DAYS = 30;
 const TREND_WEEKS = 8;
@@ -68,14 +70,16 @@ export interface PromptVersionCorrections {
 	correctionRate: number | null;
 }
 
+const LearningSummaryRow = v.object({ corrections: v.string(), invoices: v.string() });
+
 export async function learningSummary(days = DEFAULT_WINDOW_DAYS): Promise<LearningSummary> {
-	const rows = await db.execute(sql`
+	const rows = sqlRows(await db.execute(sql`
 		SELECT
 			(SELECT COUNT(*) FROM extraction_corrections
 				WHERE corrected_at > now() - (${days} * interval '1 day')) AS corrections,
 			(SELECT COUNT(*) FROM invoices
 				WHERE created_at > now() - (${days} * interval '1 day')) AS invoices
-	`) as unknown as Array<{ corrections: string; invoices: string }>;
+	`), LearningSummaryRow);
 	const r = rows[0];
 	const corrections = Number(r?.corrections ?? 0);
 	const invoicesCount = Number(r?.invoices ?? 0);
@@ -123,8 +127,15 @@ export async function correctionsBySupplier(days = DEFAULT_WINDOW_DAYS): Promise
 		.limit(MAX_ROWS);
 }
 
+const TenantCorrectionSqlRow = v.object({
+	restaurant_id: v.string(),
+	restaurant_name: v.string(),
+	corrections: v.number(),
+	invoices: v.number(),
+});
+
 export async function correctionsByTenant(days = DEFAULT_WINDOW_DAYS): Promise<TenantCorrectionRow[]> {
-	const rows = await db.execute(sql`
+	const rows = sqlRows(await db.execute(sql`
 		SELECT r.id AS restaurant_id, r.name AS restaurant_name,
 			COUNT(ec.id)::int AS corrections,
 			(SELECT COUNT(*) FROM invoices i WHERE i.restaurant_id = r.id
@@ -135,7 +146,7 @@ export async function correctionsByTenant(days = DEFAULT_WINDOW_DAYS): Promise<T
 		GROUP BY r.id, r.name
 		ORDER BY corrections DESC
 		LIMIT ${MAX_ROWS}
-	`) as unknown as Array<{ restaurant_id: string; restaurant_name: string; corrections: number; invoices: number }>;
+	`), TenantCorrectionSqlRow);
 	return rows.map(r => {
 		const corrections = Number(r.corrections);
 		const invoicesCount = Number(r.invoices);
@@ -175,15 +186,22 @@ export async function productMatchingStats(): Promise<AliasSourceStat[]> {
 		.orderBy(desc(count()));
 }
 
+const FuzzyMatchOutcomesRow = v.object({
+	total: v.number(),
+	confirmed: v.number(),
+	rejected: v.number(),
+	pending: v.number(),
+});
+
 export async function fuzzyMatchOutcomes(): Promise<FuzzyMatchOutcomes> {
-	const rows = await db.execute(sql`
+	const rows = sqlRows(await db.execute(sql`
 		SELECT
 			count(*) filter (where original_source = 'fuzzy')::int AS total,
 			count(*) filter (where original_source = 'fuzzy' and review_outcome = 'confirmed')::int AS confirmed,
 			count(*) filter (where original_source = 'fuzzy' and review_outcome = 'rejected')::int AS rejected,
 			count(*) filter (where original_source = 'fuzzy' and review_outcome is null)::int AS pending
 		FROM product_aliases
-	`) as unknown as Array<{ total: number; confirmed: number; rejected: number; pending: number }>;
+	`), FuzzyMatchOutcomesRow);
 	const r = rows[0];
 	const total = Number(r?.total ?? 0);
 	const confirmed = Number(r?.confirmed ?? 0);
@@ -193,8 +211,10 @@ export async function fuzzyMatchOutcomes(): Promise<FuzzyMatchOutcomes> {
 	return { total, confirmed, rejected, pending, accuracyRate: reviewed > 0 ? confirmed / reviewed : null };
 }
 
+const PromptVersionSqlRow = v.object({ prompt_version: v.string(), invoices: v.number(), corrections: v.number() });
+
 export async function correctionsByPromptVersion(): Promise<PromptVersionCorrections[]> {
-	const rows = await db.execute(sql`
+	const rows = sqlRows(await db.execute(sql`
 		WITH invoice_prompt AS (
 			SELECT DISTINCT ON (i.id) i.id AS invoice_id, er.prompt_version
 			FROM invoices i
@@ -213,7 +233,7 @@ export async function correctionsByPromptVersion(): Promise<PromptVersionCorrect
 		LEFT JOIN extraction_corrections ec ON ec.invoice_id = ip.invoice_id
 		GROUP BY ip.prompt_version
 		ORDER BY ip.prompt_version DESC
-	`) as unknown as Array<{ prompt_version: string; invoices: number; corrections: number }>;
+	`), PromptVersionSqlRow);
 	return rows.map(r => {
 		const invoicesCount = Number(r.invoices);
 		const corrections = Number(r.corrections);

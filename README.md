@@ -17,7 +17,7 @@ Spanish-first, bilingual (es/en). Built for independent restaurants and small gr
 | **Budgets** | Monthly budget per category with overage warnings |
 | **Reminders** | Overdue / due-soon invoices, one-click mark-paid |
 | **Alerts** | Price shock, low-stock forecast, unit-conversion warnings (in-app notification bell) |
-| **Weekly digest** | Gemini-generated weekly summary per restaurant (`/digest`) |
+| **Weekly digest** | Gemini-generated weekly summary per restaurant, surfaced in `/reports` (`/digest` redirects there) |
 | **Chat** | Data-aware assistant (`/chat` + floating FAB) over the restaurant's own purchasing data |
 | **Admin** | `/admin` — ops dashboard, system events, health checks (gated by `AUTH_ADMIN_EMAIL`) |
 | **Waitlist** | Public bilingual landing page at `/waitlist` |
@@ -44,7 +44,7 @@ src/
 │   ├── server/
 │   │   ├── db.ts, schema.ts # Drizzle + Postgres (multi-tenant: restaurant_id everywhere)
 │   │   ├── extract.ts       # Gemini extraction (text-PDF fast path, vision fallback, retries)
-│   │   ├── alert-engine.ts  # price-shock / stock-forecast checks on invoice save
+│   │   ├── alerts.ts        # price-shock / stock-forecast checks on invoice save
 │   │   ├── weekly-digest.ts # AI weekly summary (scheduled in the worker + on dashboard visit)
 │   │   ├── chat-context.ts  # data snapshot for the chat assistant
 │   │   ├── sessions.ts      # upload file storage helpers (save/reject/delete)
@@ -60,7 +60,7 @@ src/
     └── api/                 # upload files, inference status, auth callback
 ```
 
-Multi-tenancy: every business table carries `restaurant_id`; access is enforced in application queries via `forTenant().scope()`, guarded by the `lint:tenant-scope` CI check. This is the **only** tenant boundary — the app connects as the table owner, and RLS policies were dropped in the Railway migration (see ADR-001 and ADR-005, and #222 for the database-enforced path). Uploaded files live on local disk (`UPLOADS_DIR`) or in object storage (`STORAGE_DRIVER=railway`) — see [DEPLOYMENT.md](DEPLOYMENT.md) for the persistence requirements and single-instance constraints.
+Multi-tenancy: every business table carries `restaurant_id`; access is enforced in application queries via `forTenant().scope()`, guarded by the `lint:tenant-scope` CI check — this is the **only live** tenant boundary. Postgres RLS policies exist (`drizzle/0055_rls_tenant_isolation.sql`, `0057_recipes_rls_tenant_isolation.sql`, `0063_usage_events_ledger.sql`, `0078_rls_tenant_isolation_gap.sql`; see ADR-001 and ADR-005) but are inert — the app connects as the table owner — until the `mep_runtime` cutover (#975/#464) moves `DATABASE_URL` off that role. Uploaded files live on local disk (`UPLOADS_DIR`) or in object storage (`STORAGE_DRIVER=railway`) — see [DEPLOYMENT.md](DEPLOYMENT.md) for the persistence requirements and single-instance constraints.
 
 ## Architecture decisions
 

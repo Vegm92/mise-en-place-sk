@@ -31,7 +31,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 			invoiceDate:   invoices.invoiceDate,
 			dueDate:       invoices.dueDate,
 			totalAmount:   invoices.totalAmount,
-			status:        invoices.status,
+			reviewState:   invoices.reviewState,
 		})
 			.from(invoices)
 			.where(and(tdb.scope(invoices.restaurantId), eq(invoices.supplierId, id), isNull(invoices.deletedAt)))

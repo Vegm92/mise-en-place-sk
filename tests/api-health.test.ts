@@ -198,3 +198,20 @@ describe('#1067 — the platform liveness probe sends no x-forwarded-for', () =>
 		}
 	});
 });
+
+describe('#1082 — SQL result rows are parsed, not asserted', () => {
+	it('a column rename on the db-size probe is logged by name instead of silently reporting a stale 0', async () => {
+		isAdminUserMock.mockReturnValue(true);
+		dbExecuteMock.mockResolvedValue([{ pending: 2 }]); // 'size' renamed away
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		try {
+			const res = await GET(healthEvent({ user: { id: 'admin', email: 'admin@example.com', name: null, image: null } }));
+			expect((await res.json()).db).toEqual({ reachable: true, size_mb: 0 });
+			const dbWarnLine = warn.mock.calls.map((c) => String(c[0])).find((line) => line.includes('probe=db'));
+			expect(dbWarnLine).toBeDefined();
+			expect(dbWarnLine).toContain('size');
+		} finally {
+			warn.mockRestore();
+		}
+	});
+});

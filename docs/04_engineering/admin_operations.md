@@ -9,6 +9,10 @@ The ops console under `/admin` (dashboard, events, revenue, health), the public 
 
 ## Code notes
 
+### `src/lib/server/sql-rows.ts`
+**`function sqlRows`**
+- Same fix #1006 applied to JSON bodies (`parseJson`/`invalidBody`), now for raw `db.execute()` rows: `sqlRows(rows, rowSchema)` runs `v.parse(v.array(rowSchema), rows)` instead of an `as unknown as` cast the compiler never checks, so a renamed column throws naming it (issue #1082) instead of `Number(undefined)` rendering `NaN` on an admin dashboard. Adopted on the analytics/health paths first (`extraction-quality.ts`, `pipeline-stats.ts`, `price-deviations.ts`, `system-health.ts`, `/admin/events`, `/api/health`); `scripts/lint-invariants.mjs`'s `SQL_ROW_CAST_BUDGET` ratchets the casts still left elsewhere.
+
 ### `src/routes/(admin)/+layout.svelte`
 **`markup`**
 - Admin banner at the top; scrollable page content area beneath it.

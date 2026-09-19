@@ -71,14 +71,14 @@ describe('resolveAccess', () => {
  * whatever their session or plan says: the marketing surface, the legal
  * pages that must be readable without an account, and the machine
  * endpoints. Both gates that need it — isPendingAllowedPath here and
- * hooks.server.ts's isPublicPath — build on it instead of each keeping a
+ * request-policy.ts's isPublicPath — build on it instead of each keeping a
  * copy.
  *
  * They kept copies until the flight-test QA pass, and the copies drifted:
  * /cookies, /refunds and /legal were added to the route policy but to
  * neither allowlist, so three pages the law requires be readable without an
  * account redirected to /login. This block pins the shared list, and pins
- * that hooks.server.ts reads it rather than restating it.
+ * that request-policy.ts reads it rather than restating it.
  */
 describe('isAlwaysReadablePath — the one list both gates share', () => {
 	const ALWAYS_READABLE = [
@@ -100,13 +100,13 @@ describe('isAlwaysReadablePath — the one list both gates share', () => {
 		}
 	});
 
-	it('hooks.server.ts delegates to it instead of restating the list', () => {
-		const hooks = readFileSync(path.join(ROOT, 'src/hooks.server.ts'), 'utf8');
+	it('the request policy delegates to it instead of restating the list', () => {
+		const hooks = readFileSync(path.join(ROOT, 'src/lib/server/request-policy.ts'), 'utf8');
 		const fn = hooks.slice(hooks.indexOf('function isPublicPath'));
 		const body = fn.slice(0, fn.indexOf('}'));
 		expect(body).toContain('isAlwaysReadablePath(path)');
 		for (const p of ['/privacy', '/terms', '/cookies', '/refunds', '/legal']) {
-			expect(body, `${p} restated in hooks.server.ts`).not.toContain(`'${p}'`);
+			expect(body, `${p} restated in request-policy.ts`).not.toContain(`'${p}'`);
 		}
 	});
 });

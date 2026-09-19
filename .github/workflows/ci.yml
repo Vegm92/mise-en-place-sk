@@ -30,7 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:17
+        image: postgres:18
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: mise_en_place_test
@@ -94,6 +94,9 @@ jobs:
 
       - name: Lint — JSON endpoint bodies parse through a schema (issue #1006)
         run: pnpm lint:json-body-schema
+
+      - name: Lint — SQL row casts stay under the ratchet (issue #1082)
+        run: pnpm lint:sql-row-cast
 
       - name: Lint — inline var(--mep-*) styles stay under the ratchet (issue #845)
         run: pnpm lint:inline-styles

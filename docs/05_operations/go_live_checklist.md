@@ -49,7 +49,7 @@ not pending.
 | 2.2 | `railway.worker.json` (worker): `preDeployCommand: node build/wait-for-migrations.js` — waits (≤10 min, `MIGRATION_WAIT_TIMEOUT_MS`) until every journal entry is applied, so the old worker keeps running until the schema the new build needs exists; exits non-zero on a SKIPPED entry | repo ✔ | — |
 | 2.3 | CI: `pnpm db:check-sync` green on the release commit (schema.ts ↔ drizzle/) | CI | — |
 | 2.4 | `/admin/health` → `Migrations` check | owner | `76/76 applied · last 0075_solid_blacklash` (or the current tail), no pending, no SKIPPED, no drift |
-| 2.5 | Postgres image is `postgres-ssl:18`; CI runs `postgres:17`. Align CI to 18 or pin prod to 17 so migrations are exercised on the version they run on | owner / repo | versions match |
+| 2.5 | Postgres image is `postgres-ssl:18`; CI runs `postgres:18` — migrations are exercised on the version they run on | repo ✔ | — |
 
 ## Gate 3 — worker heartbeat (P0 #781)
 

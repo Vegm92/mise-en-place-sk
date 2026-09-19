@@ -91,9 +91,9 @@ describe('applyPrivateCacheHeaders', () => {
 });
 
 describe('the policy is wired into the request pipeline', () => {
-	const hooks = fs.readFileSync(path.join(process.cwd(), 'src', 'hooks.server.ts'), 'utf8');
+	const hooks = fs.readFileSync(path.join(process.cwd(), 'src', 'lib', 'server', 'request-policy.ts'), 'utf8');
 
-	it('applies to responses in appHandle', () => {
+	it('applies to responses in applySecurityHeaders', () => {
 		expect(hooks).toContain("import { applyPrivateCacheHeaders } from '$lib/server/response-cache'");
 		expect(hooks).toContain('applyPrivateCacheHeaders(response.headers)');
 	});

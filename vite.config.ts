@@ -141,7 +141,7 @@ export default defineConfig(({ mode }) => {
 					'src/lib/status.ts': { lines: 80 },
 					'src/lib/server/extract.ts': { lines: 80 },
 					'src/lib/server/products.ts': { lines: 80 },
-					'src/lib/server/alert-engine.ts': { lines: 80 },
+					'src/lib/server/alerts.ts': { lines: 80 },
 					'src/lib/server/db.ts': { lines: 80 },
 					'src/lib/server/tenant.ts': { lines: 80 },
 				},

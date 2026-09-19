@@ -206,7 +206,7 @@ function buildMigratedCopy(loc: Locale) {
 		mockReview: tr(loc, 'action.review'),
 		mockKpiSpend: tr(loc, 'waitlist.mock.kpiSpend'),
 		mockKpiAvg: tr(loc, 'waitlist.mock.kpiAvg'),
-		mockKpiPending: tr(loc, 'dash.kpi.pending'),
+		mockKpiPending: tr(loc, 'inv.kpi.toReview'),
 		mockKpiBudget: tr(loc, 'dash.budget'),
 		mockKpiOf: tr(loc, 'waitlist.mock.kpiOf'),
 		mockKpiInvoicesShort: tr(loc, 'shell.quota'),
@@ -231,15 +231,21 @@ function buildMigratedCopy(loc: Locale) {
  *   open in batches"), rather than replaced with another guess. `faq` is
  *   nested (an array of {q,a}), so it is patched separately below rather
  *   than through the flat POST_407_INTENTIONAL_CHANGES spread.
+ * - `mockKpiPending` (issue #782): the mock dashboard's third KPI tile read
+ *   "Pendiente" / "Pending", a payment-lifecycle label left over from before
+ *   the review-state pivot. It now reuses the same "to review" wording as the
+ *   real `/invoices` KPI tiles (`inv.kpi.toReview`).
  */
 const POST_407_INTENTIONAL_CHANGES: Record<Locale, Partial<Record<string, string>>> = {
 	es: {
 		privacy:
 			'Al apuntarte aceptas que guardemos tu email para avisarte del acceso anticipado. Sin spam; puedes darte de baja cuando quieras. Más detalles en la política de privacidad.',
+		mockKpiPending: 'Por revisar',
 	},
 	en: {
 		privacy:
 			'By joining you agree that we store your email so we can tell you when early access opens. No spam; unsubscribe whenever you like. More detail in the privacy policy.',
+		mockKpiPending: 'To review',
 	},
 };
 

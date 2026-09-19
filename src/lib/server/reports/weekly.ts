@@ -88,7 +88,7 @@ export async function buildWeekly(rid: string, week: string, digest: string | nu
 			FROM invoices i
 			WHERE i.restaurant_id = ${rid}
 			  AND i.deleted_at IS NULL
-			  AND i.status = 'pending'
+			  AND i.review_state = 'por_revisar'
 			  AND i.invoice_date BETWEEN ${start} AND ${end}
 		`),
 	]);

@@ -1,3 +1,5 @@
+import { envGaps, type EnvService } from './env-report.js';
+
 const REQUIRED_IN_PRODUCTION = [
 	'AUTH_SECRET',
 	'DATABASE_URL',
@@ -9,12 +11,28 @@ const REQUIRED_IN_PRODUCTION = [
 
 const KNOWN_PROXY_PLATFORM_ENV_VARS = ['RAILWAY_PROJECT_ID', 'RAILWAY_SERVICE_ID', 'RENDER', 'FLY_APP_NAME'] as const;
 
+const ROLE_CONTRACT_VARS = ['DATABASE_URL', 'GEMINI_API_KEY', 'AWS_ENDPOINT_URL', 'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_S3_BUCKET_NAME'] as const;
+
+function roleConfigGaps(role: EnvService, env: NodeJS.ProcessEnv): string[] {
+	return envGaps(role, env).missing.filter(name => (ROLE_CONTRACT_VARS as readonly string[]).includes(name));
+}
+
 export function isProduction(env: NodeJS.ProcessEnv = process.env): boolean {
 	return env.NODE_ENV === 'production';
 }
 
 function hasTrustedProxy(env: NodeJS.ProcessEnv): boolean {
 	return env.TRUSTED_PROXY === '1' || KNOWN_PROXY_PLATFORM_ENV_VARS.some(key => Boolean(env[key]));
+}
+
+export function assertRoleConfig(role: EnvService, env: NodeJS.ProcessEnv = process.env): void {
+	if (!isProduction(env)) return;
+
+	const missing = roleConfigGaps(role, env);
+
+	if (missing.length > 0) {
+		throw new Error(`Missing required ${role} environment variable(s) in production: ${missing.join(', ')}`);
+	}
 }
 
 export function assertProductionEnv(env: NodeJS.ProcessEnv = process.env): void {
@@ -24,6 +42,10 @@ export function assertProductionEnv(env: NodeJS.ProcessEnv = process.env): void 
 
 	if (env.WHATSAPP_ACCESS_TOKEN && !env.WHATSAPP_APP_SECRET) {
 		missing.push('WHATSAPP_APP_SECRET');
+	}
+
+	for (const name of roleConfigGaps('web', env)) {
+		if (!missing.includes(name)) missing.push(name);
 	}
 
 	if (missing.length > 0) {

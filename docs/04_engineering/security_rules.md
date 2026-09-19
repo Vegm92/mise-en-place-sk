@@ -251,6 +251,11 @@ Immutable subset is in `docs/00_system/architectural_invariants.md`.
 **`function assertProductionEnv`**
 
 - The boot-validation seam (called at the top of `hooks.server.ts`, before any request): missing required vars, then the WhatsApp secret pairing, then the trusted-proxy check (#1072; the last was `addressHeaderWarning`'s second branch under #500). `ADDRESS_HEADER` set with no known managed-proxy platform (`RAILWAY_*`, `RENDER`, `FLY_APP_NAME`) and no `TRUSTED_PROXY=1` is a hard failure in production, because in that state `getClientAddress()` returns whatever the client wrote into the header and every `ip:`-keyed limit is spoofable; a warning was routinely lost in boot logs. `TRUSTED_PROXY=1` is the operator's attestation for a self-run nginx/Caddy that rewrites the header on every request — the case the old warning called a false positive. The unset case (limits collapse into one bucket) stays a warning: it degrades rate limiting without opening it.
+- Also folds in the web side of the web/worker deploy contract (#1049, `docs/04_engineering/deployment.md` → Web/worker configuration contract): `roleConfigGaps('web', env)` names are merged into the same `missing` list so a misconfigured storage driver/bucket fails boot with the rest, not as a separate error.
+
+**`function assertRoleConfig`**
+
+- The worker-side half of the same contract (#1049): one call at the top of `worker.ts`, reusing `env-report.ts`'s `ENV_REQUIREMENTS` table (already the source `/admin/health` and the heartbeat detail read) rather than a second list of the same variable names. Deliberately narrower than the full `envGaps('worker', …).missing` — only `DATABASE_URL`, `GEMINI_API_KEY` and the `AWS_*` quad (`ROLE_CONTRACT_VARS`) are enforced here, matching the "thin" boot-time enforcement `env-report.test.ts` documents; Stripe/Resend/Sentry stay report-only on `/admin/health`, unchanged by this issue.
 
 ### `src/lib/server/public-form-action.ts`
 
@@ -314,14 +319,5 @@ Immutable subset is in `docs/00_system/architectural_invariants.md`.
 
 **`const handle`**
 
-- Route latency (#1003). `appHandle` wraps the request in a timer and calls `observe(METRIC_ROUTE_LATENCY, …)` in a `finally`, so a slow request still counts when it ends in the redirect or error throws SvelteKit uses for control flow. The label is `event.route.id`, never the raw path: a path label opens a new time series per URL a scanner invents, so unmatched requests share one `(unmatched)` bucket. Railway reports one service-wide p95, so without this the audit's measured 566 ms p99 cannot be attributed to a route, and the read-replica trigger in #1004 has no series to fire on. Bypass paths are excluded before the timer starts, as they are from everything else in `appHandle`.
+- Issue #1048: the per-request policy itself (auth, tenant/access gates, rate limiting, feature flags, security headers, route-latency metric) moved to `src/lib/server/request-policy.ts`'s `createAppHandle()` — see its Code notes in `app_shell.md`. This file keeps Sentry init, boot validation/side effects, `handleError`, and assembling the final `sequence(...)`.
 - adapter-node resolves getClientAddress() from the socket peer unless ADDRESS_HEADER names the proxy header — behind nginx/Caddy every visitor shares one rate-limit bucket, so the IP-keyed login/signup/waitlist limits collapse into one global (#223).
-- Auth.js session: signed JWT cookie, verified locally, no round-trip (unlike the Supabase client this replaced). Build the request-scoped user; resolve the active restaurant (cookie preference if valid, else first). Request-level admin guard for the (admin) layout load, which doesn't rerun on child navigation. Anonymous apex hit → landing page, not the login wall (#291); deep links keep the redirectTo round-trip.
-
-**`const handle`**
-
-- Two routes are embedded in a same-origin <iframe> by the app — batch review PDF preview (/api/upload/[id]/[file]) and saved invoice PDF preview (/invoice/[id]/file); DENY would block the app's own preview.
-
-**`function isPublicPath`**
-
-- Password recovery (#284): /reset-password is reached with a recovery session, but a used/expired link renders its own "request a new one" page rather than bouncing to login.

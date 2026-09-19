@@ -87,6 +87,41 @@ complete inventory the app and worker actually read, grouped by area.
   `ADDRESS_HEADER`/`XFF_DEPTH` behind a proxy, `APP_BASE_URL` (WhatsApp batch
   links).
 
+## Web/worker configuration contract (#1049)
+
+Two independent checks, both boot-time or job-time — never a separate CI
+script — because a config drift here loses an already-uploaded file, not just
+a request:
+
+- **Per-role presence.** `src/lib/server/config.ts` → `assertRoleConfig(role,
+  env)` throws in production when `DATABASE_URL`, `GEMINI_API_KEY`, or (when
+  `STORAGE_DRIVER=railway`) the `AWS_ENDPOINT_URL` / `AWS_ACCESS_KEY_ID` /
+  `AWS_SECRET_ACCESS_KEY` / `AWS_S3_BUCKET_NAME` quad is missing for that role
+  — variable *names* only, never values. The web role runs it inside the
+  existing `assertProductionEnv()` (called from `hooks.server.ts`); the worker
+  calls it once at the top of `worker.ts`. Both read the same
+  `ENV_REQUIREMENTS` table `env-report.ts` already reports on
+  `/admin/health`, so there is one list of required-per-role variables, not
+  two.
+- **Cross-role value match, per job.** Presence alone does not catch two
+  services that are each individually valid but disagree — local storage on
+  both with a different `UPLOADS_DIR`, or `railway` on both with a different
+  bucket. `enqueueExtraction` (`queue.ts`) stamps every `extract-invoice` job
+  with a non-secret `storageFingerprint` (`env.ts`:
+  `local:<UPLOADS_DIR>` or `railway:<AWS_S3_BUCKET_NAME>` — never a key or
+  secret). `runExtractionWorkflow` (`extraction-workflow.ts`) compares it
+  against its own fingerprint right after claiming the item and before any
+  Gemini/quota cost, and fails the item with `extract.err.storageMismatch`
+  naming the mismatched field (`driver` / `bucket` / `path`) when they
+  disagree. The field is optional on the job payload so anything already
+  queued before this shipped keeps running unchecked.
+- **Local compose**: both services share `UPLOADS_DIR=/app/uploads` and the
+  named volume (`docker-compose.yml`) — the fingerprint matches by
+  construction. **Railway split services**: both must set
+  `STORAGE_DRIVER=railway` and the same `AWS_S3_BUCKET_NAME`
+  (`railway.json` / `railway.worker.json` run the same image as separate
+  services with independent env, no shared disk).
+
 ## Go-live
 
 `docs/05_operations/go_live_checklist.md` is the single list: three gates
@@ -140,6 +175,10 @@ pnpm db:studio       # open Drizzle Studio browser UI
 **`const UPLOADS_DIR`**
 
 - Server config reads `process.env` directly — no `$env/dynamic/private` anywhere in `src/`. With adapter-node the two are equivalent at runtime, and going straight to `process.env` is what lets every one of these modules be imported by the worker, which runs outside the Kit runtime (`vite.worker.config.ts` aliases only `$lib`). The standalone `env-dynamic-shim.ts` that used to bridge this is gone. Defaults to `'uploads'`.
+
+**`function storageFingerprint` / `function storageFingerprintMismatch`**
+
+- The cross-role half of the web/worker configuration contract (#1049, see this doc's Web/worker configuration contract section above). Takes explicit params defaulting to the module's own `STORAGE_DRIVER`/`UPLOADS_DIR`/`AWS_S3_BUCKET_NAME` so both sides — the web process stamping a job and the worker checking it — call the same function without either one reaching into the other's env. Deliberately excludes the AWS credentials: only the driver and the bucket/path name (never secret) travel in the fingerprint or the mismatch classification.
 
 **`const EXTRACTION_STALL_WARN_MS`**
 

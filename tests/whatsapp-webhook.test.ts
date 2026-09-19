@@ -70,6 +70,11 @@ describe('GET — verify-token handshake', () => {
 		expect(res.status).toBe(403);
 	});
 
+	it('rejects a verify token of a different length with 403, without throwing (#1083)', async () => {
+		const res = await GET(getEvent('hub.mode=subscribe&hub.verify_token=verify-me-but-longer&hub.challenge=42'));
+		expect(res.status).toBe(403);
+	});
+
 	it('rejects when mode is not subscribe', async () => {
 		const res = await GET(getEvent('hub.mode=unsubscribe&hub.verify_token=verify-me&hub.challenge=42'));
 		expect(res.status).toBe(403);

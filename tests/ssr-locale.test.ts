@@ -98,21 +98,21 @@ describe('resolveLocale', () => {
 
 describe('the rendered locale reaches the HTML shell', () => {
 	const appHtml = read('src/app.html');
-	const hooks = read('src/hooks.server.ts');
+	const hooks = read('src/lib/server/request-policy.ts');
 
 	it('app.html no longer hardcodes Spanish', () => {
 		expect(appHtml).not.toMatch(/<html lang="es"/);
 		expect(appHtml).toContain('<html lang="%mep.lang%">');
 	});
 
-	it('hooks.server.ts substitutes the placeholder from the request locale', () => {
+	it('the request policy substitutes the placeholder from the request locale', () => {
 		expect(hooks).toContain('transformPageChunk');
 		expect(hooks).toContain("html.replace('%mep.lang%', e.locals.locale)");
 	});
 
-	it('hooks.server.ts resolves the locale onto locals before resolving the page', () => {
+	it('the request policy resolves the locale onto locals before resolving the page', () => {
 		expect(hooks).toContain('event.locals.locale = locale');
-		expect(hooks.indexOf('applyLocale(event)')).toBeLessThan(hooks.indexOf('resolveWithContext(event, path, resolveWithLocale)'));
+		expect(hooks.indexOf('applyLocale(event)')).toBeLessThan(hooks.indexOf('resolveWithContext(deps, event, path, resolveWithLocale)'));
 	});
 
 	it('the root layout load resolves from url and cookie, so SvelteKit re-runs it on every navigation', () => {

@@ -25,7 +25,7 @@ missing. A change is "verified" when the relevant tests + the gates below pass.
 
 ## What CI runs (`.github/workflows/ci.yml`)
 
-Job `ci` (postgres:17 service, `REQUIRE_DB_TESTS=1`):
+Job `ci` (postgres:18 service, `REQUIRE_DB_TESTS=1`):
 
 0. `pnpm audit --prod --audit-level high` (issue #1076) — fails on a
    high-severity advisory in the runtime dependency tree only; the full-tree
@@ -41,6 +41,11 @@ subset: many suites (`tests/*.test.ts` grepping a `.svelte`/`.ts` source with
 `readFileSync`) import nothing from the file they assert against, so a
 source-only change is invisible to `vitest --changed` and such a regression
 could merge through a green PR.
+
+A separate `eval-gate` job (`pnpm eval:gate`) re-runs extraction against
+`tests/golden/` when the extraction pipeline changes, but `tests/golden/cases/`
+is gitignored (real invoices), so in CI that corpus is empty and the gate only
+has teeth run locally against a populated one (issue #1078).
 
 ## When to run what
 

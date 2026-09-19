@@ -5,10 +5,10 @@ import { describedLine, lineAmountExpr, lineCategoryExpr, lineProductJoin } from
 
 const TOKEN_LIMIT = 20_000;
 
-type SummaryRow = { pending_count: number; pending_total: number; overdue_count: number; paid_this_month: number };
+type SummaryRow = { to_review_count: number; to_review_total: number; issue_count: number; reviewed_this_month: number };
 type SupplierRow = { name: string; ytd_spend: number; invoice_count: number };
 type BudgetRow = { category: string; monthly_budget: number; actual_this_month: number };
-type RecentRow = { supplier: string; invoice_date: string; total_amount: number; status: string };
+type RecentRow = { supplier: string; invoice_date: string; total_amount: number; review_state: string };
 type AlertRow = { notification_type: string; message: string };
 type StockRow = { ingredient: string; current_stock: number; daily_burn_rate: number; canonical_unit: string | null };
 type TrendRow = { item: string; min_price: number; max_price: number; occurrences: number };
@@ -39,20 +39,20 @@ function truncate(context: string): string {
 async function summarySection(restaurantId: string): Promise<string> {
 	const summaryRows = await db.execute<SummaryRow>(sql`
 		SELECT
-			COUNT(*) FILTER (WHERE status = 'pending') AS pending_count,
-			COALESCE(SUM(total_amount) FILTER (WHERE status = 'pending'), 0)::float8 AS pending_total,
-			COUNT(*) FILTER (WHERE status = 'pending' AND due_date < CURRENT_DATE) AS overdue_count,
-			COALESCE(SUM(total_amount) FILTER (WHERE status = 'paid' AND TO_CHAR(invoice_date, 'YYYY-MM') = TO_CHAR(CURRENT_DATE, 'YYYY-MM')), 0)::float8 AS paid_this_month
+			COUNT(*) FILTER (WHERE review_state = 'por_revisar') AS to_review_count,
+			COALESCE(SUM(total_amount) FILTER (WHERE review_state = 'por_revisar'), 0)::float8 AS to_review_total,
+			COUNT(*) FILTER (WHERE review_state = 'incidencia') AS issue_count,
+			COALESCE(SUM(total_amount) FILTER (WHERE review_state = 'revisado' AND TO_CHAR(invoice_date, 'YYYY-MM') = TO_CHAR(CURRENT_DATE, 'YYYY-MM')), 0)::float8 AS reviewed_this_month
 		FROM ${invoices}
 		WHERE restaurant_id = ${restaurantId}
 	`);
-	const summary = (summaryRows[0] as SummaryRow | undefined) ?? { pending_count: 0, pending_total: 0, overdue_count: 0, paid_this_month: 0 };
+	const summary = (summaryRows[0] as SummaryRow | undefined) ?? { to_review_count: 0, to_review_total: 0, issue_count: 0, reviewed_this_month: 0 };
 
 	const lines = [
 		'## Invoice Summary',
-		`- Pending: ${summary.pending_count} invoices, total ${Number(summary.pending_total).toFixed(2)}`,
-		`- Overdue: ${summary.overdue_count}`,
-		`- Paid this month: ${Number(summary.paid_this_month).toFixed(2)}`,
+		`- To review: ${summary.to_review_count} invoices, total ${Number(summary.to_review_total).toFixed(2)}`,
+		`- With issues: ${summary.issue_count}`,
+		`- Reviewed this month: ${Number(summary.reviewed_this_month).toFixed(2)}`,
 	];
 	return lines.join('\n');
 }
@@ -113,7 +113,7 @@ function budgetPercent(budget: number, actual: number): number {
 
 async function recentSection(restaurantId: string): Promise<string> {
 	const recent = await db.execute<RecentRow>(sql`
-		SELECT s.name AS supplier, i.invoice_date, i.total_amount::float8 AS total_amount, i.status
+		SELECT s.name AS supplier, i.invoice_date, i.total_amount::float8 AS total_amount, i.review_state
 		FROM ${invoices} i
 		LEFT JOIN ${suppliers} s ON s.id = i.supplier_id
 		WHERE i.restaurant_id = ${restaurantId}
@@ -122,7 +122,7 @@ async function recentSection(restaurantId: string): Promise<string> {
 	`);
 
 	const lines = (recent as RecentRow[]).map((r) =>
-		`- ${r.supplier ?? 'Unknown'} | ${r.invoice_date ?? '?'} | ${Number(r.total_amount)?.toFixed(2) ?? '?'} | ${r.status}`,
+		`- ${r.supplier ?? 'Unknown'} | ${r.invoice_date ?? '?'} | ${Number(r.total_amount)?.toFixed(2) ?? '?'} | ${r.review_state}`,
 	);
 	return ['\n## Recent Invoices', ...lines].join('\n');
 }

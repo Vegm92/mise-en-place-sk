@@ -90,8 +90,8 @@ describe('resolveTenantGate', () => {
 	});
 });
 
-describe('the tenant gate is wired into hooks.server.ts', () => {
-	const hooks = fs.readFileSync(path.join(process.cwd(), 'src', 'hooks.server.ts'), 'utf8');
+describe('the tenant gate is wired into the request policy pipeline', () => {
+	const hooks = fs.readFileSync(path.join(process.cwd(), 'src', 'lib', 'server', 'request-policy.ts'), 'utf8');
 
 	it('imports resolveTenantGate and calls it from event.route.id, not a pathname prefix', () => {
 		expect(hooks).toContain("from '$lib/server/tenant-gate'");

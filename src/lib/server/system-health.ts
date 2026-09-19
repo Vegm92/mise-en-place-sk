@@ -1,6 +1,8 @@
 import { db } from './db';
 import { and, asc, eq, inArray, lt, sql } from 'drizzle-orm';
 import { batchItems, restaurants } from './schema';
+import * as v from 'valibot';
+import { sqlRows } from './sql-rows';
 import {
 	contactsPerTenant,
 	getNumberHealth,
@@ -439,9 +441,17 @@ async function checkDeadLetterQueue(): Promise<{ checks: HealthCheck[]; pending:
 	}
 }
 
+const TenantJobStatsRow = v.object({
+	name: v.string(),
+	pending: v.number(),
+	completed: v.number(),
+	failed: v.number(),
+	sent: v.number(),
+});
+
 async function tenantJobStats(): Promise<TenantJobStats[]> {
 	const names = sql.join(TENANT_FANOUT_QUEUES.map(q => sql`${q}`), sql`, `);
-	const rows = await db.execute(sql`
+	const rows = sqlRows(await db.execute(sql`
 		SELECT name,
 			COUNT(*) FILTER (WHERE state IN ('created', 'retry', 'active'))::int AS pending,
 			COUNT(*) FILTER (WHERE state = 'completed')::int AS completed,
@@ -451,8 +461,8 @@ async function tenantJobStats(): Promise<TenantJobStats[]> {
 		WHERE name IN (${names})
 			AND created_on > now() - ${`${TENANT_JOB_WINDOW_HOURS} hours`}::interval
 		GROUP BY name
-	`);
-	return (rows as unknown as Array<Record<string, unknown>>).map(r => ({
+	`), TenantJobStatsRow);
+	return rows.map(r => ({
 		queue: String(r.name),
 		pending: Number(r.pending ?? 0),
 		completed: Number(r.completed ?? 0),
@@ -787,15 +797,16 @@ export async function stuckBatchItems(limit = 25): Promise<StuckItem[]> {
 	}));
 }
 
+const TableRowCountRow = v.object({ relname: v.string(), n_live_tup: v.string() });
+
 export async function tableRowCounts(): Promise<Array<{ table: string; rows: number }>> {
 	try {
-		const rows = await db.execute<{ relname: string; n_live_tup: string }>(sql`
+		const rows = sqlRows(await db.execute(sql`
 			SELECT relname, n_live_tup
 			FROM pg_stat_user_tables
 			ORDER BY n_live_tup DESC
-		`);
-		return (rows as unknown as Array<{ relname: string; n_live_tup: string }>)
-			.map(r => ({ table: r.relname, rows: Number(r.n_live_tup) }));
+		`), TableRowCountRow);
+		return rows.map(r => ({ table: r.relname, rows: Number(r.n_live_tup) }));
 	} catch {
 		return [];
 	}

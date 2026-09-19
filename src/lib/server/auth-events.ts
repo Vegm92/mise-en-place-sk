@@ -1,5 +1,7 @@
 import * as Sentry from '@sentry/sveltekit';
-import { createHash } from 'node:crypto';
+import { createHmac } from 'node:crypto';
+
+const AUTH_SECRET = process.env.AUTH_SECRET ?? '';
 
 export type AuthEventKind =
 	| 'login_failed'
@@ -14,7 +16,7 @@ export type AuthEventKind =
 
 export function hashIp(ip: string | null | undefined): string {
 	if (!ip) return 'unknown';
-	return createHash('sha256').update(ip).digest('hex').slice(0, 12);
+	return createHmac('sha256', AUTH_SECRET).update(ip).digest('hex').slice(0, 12);
 }
 
 export function logAuthEvent(kind: AuthEventKind, meta: Record<string, unknown> = {}): void {

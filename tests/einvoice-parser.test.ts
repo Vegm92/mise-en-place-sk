@@ -736,4 +736,21 @@ describe('parseEinvoice', () => {
 	it('returns null for empty string', () => {
 		expect(parseEinvoice('')).toBeNull();
 	});
+
+	it('still decodes built-in XML entities in party names (#1083)', () => {
+		const xml = FACTURAE_322_XML.replace('Distribuciones Alimentarias S.L.', 'Distribuciones &amp; Alimentarias');
+		const result = parseEinvoice(xml);
+		expect(result?.supplier_name).toBe('Distribuciones & Alimentarias');
+	});
+
+	it('rejects a DOCTYPE declaration before parsing — billion-laughs entity expansion (#1083)', () => {
+		const billionLaughs = `<?xml version="1.0"?>
+<!DOCTYPE lolz [
+ <!ENTITY a "lol">
+ <!ENTITY b "&a;&a;&a;&a;&a;&a;&a;&a;&a;&a;">
+ <!ENTITY c "&b;&b;&b;&b;&b;&b;&b;&b;&b;&b;">
+]>
+<lolz>&c;</lolz>`;
+		expect(parseEinvoice(billionLaughs)).toBeNull();
+	});
 });

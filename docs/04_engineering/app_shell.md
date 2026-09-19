@@ -443,11 +443,6 @@ the inventory template, issue #885) is a different route entirely.
 **`function parseMonthParam`**
 - Validate a "?month=YYYY-MM" query param, clamped to not-future.
 
-### `src/lib/index.ts`
-
-**_module level_**
-- Place files you want to import through the `$lib` alias in this folder.
-
 ### `src/lib/pwa.ts`
 
 **`function registerPWA`**
@@ -487,3 +482,37 @@ the inventory template, issue #885) is a different route entirely.
 
 **`property beforeSend`**
 - Strip live OAuth codes / tokens / emails from attached request URLs (#254).
+
+### `src/lib/server/request-policy.ts`
+
+**_module level_**
+- Issue #1048: the per-request policy sequence `hooks.server.ts` used to inline directly in `appHandle`/`routeApp`, moved here verbatim behind `createAppHandle(overrides)` so it is unit-testable without booting Sentry or a real DB. `REQUEST_POLICY_STEPS` names the order `createAppHandle`'s returned `Handle` actually runs, top to bottom: `resolveRequestId`, `applyLocale`, `resolveSession` (`event.locals.auth()`), `enforceApiRateLimit`, `applyLocalsForUser` (membership lookup → `locals.restaurantId`/`accessApproved`/`entitlements`), `applySentryContext`, `enforceAdminRedirect`, `enforceUserAccess` (pending-approval gate, then the tenant gate), `enforceAuth`, `enforceFeatureFlag`, `resolveWithContext` (`runAsSystem` vs `runWithTenantContext`), `applySecurityHeaders`. `isBypassPath` short-circuits all of it, and the route-latency `observe()` call, before `resolveRequestId` even runs.
+- `RequestPolicyDeps` isolates every impure collaborator the sequence calls — `memberLocations`, the `users.accessStatus` read, `isAccessOpen`, `checkRateLimit`, `isBetaFeatureEnabled`, `isAdminUser`, `runAsSystem`, `runWithTenantContext`, `observe`, and the three Sentry scope calls — behind one object `createAppHandle` merges over real defaults. `tests/request-policy.test.ts` passes fakes for these and never touches Sentry.init, a live DB connection, or the real rate limiter.
+
+**`function resolveWithContext`**
+
+- The `runAsSystem` vs `runWithTenantContext` choice (ADR-030). Every call site in `src/` that reaches for `runAsSystem` directly, with why:
+
+  | Call site | Purpose |
+  | --- | --- |
+  | `request-policy.ts` `resolveWithContext` | `/admin*` and the two webhook paths (`SYSTEM_CONTEXT_PATHS`) resolve with no per-request tenant selected yet |
+  | `party.ts` `ownPartyIdentity` | Reads a restaurant's own legal-identity fields (name/CIF/phone) to match invoice parties, cross-tenant by design |
+  | `tenant-fanout.ts` `tenantPage` | Scheduler enumerates every tenant, paginated, to fan a job out per restaurant |
+  | `scheduler.ts` (cron dispatcher) | Each scheduled per-tenant job runs outside any single tenant's request context |
+  | `billing.ts` `ownedActiveSubscriptions`, `notifyDuplicateSubscriptionCanceled`, `countGroupLocations` | Reconciling a user's/group's subscriptions across restaurants they own spans tenants |
+  | `dead-letter.ts` `recordDeadLetter` | The dead-letter queue is a system-wide table, written from any tenant's failed job |
+  | `whatsapp/message-handler.ts` `resolveRestaurantId`, `handlePairingAttempt` | Resolving which tenant a phone number belongs to is the tenant-resolution step itself — no context exists yet |
+  | `locations.ts` `userMemberships`, `memberLocations`, `isLocationLocked` | Enumerating a user's own memberships/locations is inherently cross-tenant |
+  | `auth-seed.ts` (admin seed) | Boot-time admin user creation, before any tenant exists |
+  | `routes/api/health/+server.ts` | System-wide queue-depth probe, deliberately cross-tenant (`tenant-scope-ok:`) |
+  | `routes/api/whatsapp/webhook/+server.ts` | Fire-and-forget account-event recording after the webhook's own tenant work is done |
+  | `routes/(app)/settings/+page.server.ts`, `routes/(app)/+layout.server.ts` | The location switcher lists every restaurant the user belongs to, not just the active one |
+  | `routes/s/[token]/+page.server.ts`, `routes/s/[token]/og.png/+server.ts` | Anonymous digest-share view (#329): the token is the only auth, no session-derived tenant exists |
+
+**`function applySecurityHeaders`**
+
+- Two routes are embedded in a same-origin `<iframe>` by the app — batch review PDF preview (`/api/upload/[id]/[file]`) and saved invoice PDF preview (`/invoice/[id]/file`); `DENY` would block the app's own preview.
+
+**`function isPublicPath`**
+
+- Password recovery (#284): `/reset-password` is reached with a recovery session, but a used/expired link renders its own "request a new one" page rather than bouncing to login.

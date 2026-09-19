@@ -13,9 +13,9 @@ Auth.js / SvelteKitAuth (`@auth/sveltekit`) with JWT sessions and the `DrizzleAd
 
 - **Providers** — Credentials (email/password via `verifyCredentials`, `auth-credentials.ts`) plus Google OAuth (`AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET`, configured in Google Cloud Console, not a Supabase dashboard). Email/password sign-in and sign-up go through custom routes (`login`/`signup` `+page.server.ts`) that apply app-level rate limiting and mint the session cookie themselves (`auth-session.ts#issueSessionCookie`); Google OAuth flows through Auth.js's own `/api/auth/*` callbacks. Config lives in `src/lib/server/auth.ts`.
 - **Admin seeding** — `seedAdminUser()` (`auth-seed.ts`) creates the admin user, a default restaurant and the `user_restaurants` link on first boot; no external Admin API.
-- **Session validation** — `hooks.server.ts` runs `sequence(Sentry.sentryHandle(), authHandle, appHandle)`; `appHandle` reads `event.locals.auth()` into `locals.user`.
+- **Session validation** — `hooks.server.ts` runs `sequence(Sentry.sentryHandle(), authHandle, createAppHandle(), entitlementHandle)`; the composed handle (`src/lib/server/request-policy.ts`, issue #1048) reads `event.locals.auth()` into `locals.user`.
 - **Password reset / email verification** — `verification-token.ts` (single-use tokens) + `email.ts` (Resend) back `/forgot-password`, `/reset-password`, `/verify-email`; every email kind renders through one shared `renderEmailLayout()`.
-- **Multi-tenancy** — all business tables carry `restaurant_id` (UUID FK). `hooks.server.ts` resolves the active restaurant from `user_restaurants` (honoring the `active_restaurant` cookie) into `locals.restaurantId`. No RLS: Railway Postgres has no `auth.uid()`/Data API, so tenant isolation is app-layer `restaurantId` scoping only (`tests/tenant-isolation.test.ts`, `tests/tenant-isolation-routes.test.ts`).
+- **Multi-tenancy** — all business tables carry `restaurant_id` (UUID FK). `src/lib/server/request-policy.ts` resolves the active restaurant from `user_restaurants` (honoring the `active_restaurant` cookie) into `locals.restaurantId`. No RLS: Railway Postgres has no `auth.uid()`/Data API, so tenant isolation is app-layer `restaurantId` scoping only (`tests/tenant-isolation.test.ts`, `tests/tenant-isolation-routes.test.ts`).
 
 ## Code notes
 
@@ -92,6 +92,7 @@ Auth.js / SvelteKitAuth (`@auth/sveltekit`) with JWT sessions and the `DrizzleAd
 
 **`function hashIp`**
 - Short, non-reversible fingerprint of an IP for correlating attempts without storing it.
+- HMAC-SHA256 keyed with `AUTH_SECRET`, not a plain hash (#1083) — IPv4 is only 2^32 values, so an unsalted digest is brute-forceable in seconds; keying it makes the stored hash unrecoverable without the secret. Rotating `AUTH_SECRET` makes prior stored hashes unmatchable, which is fine for an audit log.
 
 **`function logAuthEvent`**
 - Tagged Sentry event so alert rules catch a spike; breadcrumb for context on any error later in the same request.
