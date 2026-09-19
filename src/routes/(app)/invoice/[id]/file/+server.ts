@@ -7,6 +7,7 @@ import { invoices } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
 import { contentDispositionHeader } from '$lib/server/content-disposition';
 import { requirePositiveIntId } from '$lib/server/route-params';
+import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 
 const MIME: Record<string, string> = {
 	pdf:  'application/pdf',
@@ -20,6 +21,10 @@ const MIME: Record<string, string> = {
 export const GET: RequestHandler = async ({ params, locals }) => {
 	const rid = locals.restaurantId;
 	if (!rid) error(401, 'Unauthorized');
+
+	if (!(await rateLimitScoped({ scope: 'tenant', name: 'invoice-file-download', max: 60 }, { restaurantId: rid }))) {
+		throw error(429, 'Too many requests');
+	}
 
 	const id = requirePositiveIntId(params.id, 'invoice');
 
