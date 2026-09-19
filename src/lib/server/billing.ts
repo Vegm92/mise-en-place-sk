@@ -23,7 +23,7 @@ import { createLogger } from './log';
 const log = createLogger('billing');
 
 const secretKey = STRIPE_SECRET_KEY;
-export const STRIPE_API_VERSION = '2026-06-24.dahlia';
+export const STRIPE_API_VERSION = '2026-08-26.dahlia';
 export const stripe: Stripe | null = secretKey ? new Stripe(secretKey, { apiVersion: STRIPE_API_VERSION }) : null;
 
 export const WEBHOOK_SECRET = STRIPE_WEBHOOK_SECRET;
