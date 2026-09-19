@@ -785,6 +785,7 @@ export default {
   'upload.onboardHintShort': 'PDF, photo or scan — the AI extracts the data.',
   'upload.emailForward':     'Or forward by email',
   'upload.copy':             'Copy',
+  'upload.copied':           'Copied!',
   'upload.queue':            'Upload queue',
   'upload.queueEmpty':       'Add invoices to continue',
   'upload.queueNotStarted':  'Extraction not started yet',

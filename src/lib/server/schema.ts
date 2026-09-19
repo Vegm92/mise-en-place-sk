@@ -20,6 +20,7 @@ export const restaurants = pgTable('restaurants', {
 	cifNif:             text('cif_nif'),
 	fiscalAddress:      text('fiscal_address'),
 	phone:              text('phone'),
+	emailIngestToken:   uuid('email_ingest_token').notNull().unique().default(sql`gen_random_uuid()`),
 }, (t) => [
 	index('restaurants_parent_idx').on(t.parentId),
 ]);

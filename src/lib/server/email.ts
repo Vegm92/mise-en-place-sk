@@ -10,11 +10,15 @@ const COMPANY_NIF = process.env.COMPANY_NIF ?? '';
 
 const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 
+export function getResendClient(): Resend | null {
+	return resend;
+}
+
 export type EmailKind =
 	| 'welcome' | 'waitlist_invite' | 'weekly_digest' | 'incidencia_digest'
 	| 'trial_expiry' | 'trial_expired' | 'subscription_confirmation' | 'subscription_consolidated'
 	| 'quota_warning' | 'verify_email' | 'password_reset' | 'access_approved' | 'promo_code_dispatch'
-	| 'recipe_sheet' | 'supplier_claim';
+	| 'recipe_sheet' | 'supplier_claim' | 'email_ingest_rejected';
 
 export interface EmailPayload {
 	to: string;
@@ -588,6 +592,30 @@ ${p(`Este mes has procesado ${strong(invoicesLabel)} incluidas en tu plan para $
 ${p('Si superas el límite no podrás procesar más facturas hasta el mes siguiente. Puedes ampliar tu plan en cualquier momento:')}`,
 			cta: { href: `${APP_BASE_URL}/billing`, label: 'Ver planes' },
 			footerLinks: true,
+		}),
+	};
+}
+
+export function emailIngestRejectedEmail(
+	to: string,
+	restaurantName: string,
+	rejected: Array<{ name: string; reason: string }>,
+): EmailPayload {
+	const name = escapeHtml(restaurantName);
+	const rows = rejected.map((r) => [r.name, r.reason]);
+	return {
+		to,
+		kind: 'email_ingest_rejected',
+		subject: `No hemos podido leer tu correo — ${restaurantName}`,
+		html: renderEmailLayout({
+			preheader: `Ninguno de los archivos adjuntos era válido para ${restaurantName}.`,
+			tagChip: 'Reenvío rechazado',
+			eyebrow: 'Reenvío de factura',
+			headline: 'No hemos podido leer tu correo.',
+			bodyHtml: `
+${p(`Reenviaste un correo a ${strong(name)}, pero ninguno de los archivos adjuntos es un albarán válido (solo aceptamos PDF, JPG, PNG o un ZIP con esos formatos, hasta el tamaño máximo habitual).`)}
+${dataTable(['Archivo', 'Motivo'], rows)}
+${p('Vuelve a intentarlo adjuntando el albarán original, o súbelo directamente desde la aplicación.')}`,
 		}),
 	};
 }

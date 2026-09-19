@@ -20,7 +20,7 @@ export type BatchDb =
 export type BatchItemStatus =
 	| 'pending' | 'queued' | 'extracting' | 'done' | 'failed' | 'confirmed' | 'discarded';
 
-export type BatchItemSource = 'web' | 'whatsapp';
+export type BatchItemSource = 'web' | 'whatsapp' | 'email';
 
 export type BatchItemReviewStatus = 'pending' | 'reviewed' | 'to_review';
 

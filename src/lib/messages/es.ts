@@ -783,6 +783,7 @@ export default {
   'upload.onboardHintShort': 'PDF, foto o escaneo — la IA extrae los datos.',
   'upload.emailForward':     'O reenvía por email',
   'upload.copy':             'Copiar',
+  'upload.copied':           '¡Copiado!',
   'upload.queue':            'Cola de subida',
   'upload.queueEmpty':       'Añade albaranes para continuar',
   'upload.queueNotStarted':  'Aún no se ha empezado la extracción',
