@@ -195,6 +195,21 @@ describe.skipIf(!hasDbEnv)('corpus persistence', () => {
 		expect(await corpusEntriesForFile(rid, 'ns/corpus-race.pdf', testDb)).toHaveLength(1);
 	});
 
+	it('stays at one row when two sweeps archive the same item concurrently', async () => {
+		const { itemIds } = await store.createBatch(rid, [{ key: 'ns/corpus-race-2.pdf', name: 'race-2.pdf' }]);
+		await store.markQueued(itemIds[0]!);
+		await store.markExtracting(itemIds[0]!);
+		await store.markDone(itemIds[0]!, BASELINE, []);
+
+		const [a, b] = await Promise.all([
+			archiveBatchExtractions(testDb, rid),
+			archiveBatchExtractions(testDb, rid),
+		]);
+
+		expect(a + b).toBe(1);
+		expect(await corpusEntriesForFile(rid, 'ns/corpus-race-2.pdf', testDb)).toHaveLength(1);
+	});
+
 	it('lists live entries per tenant and groups the corpus by prompt version', async () => {
 		await recordExtractionResult({
 			restaurantId: rid,
