@@ -243,13 +243,17 @@ function toLine(r: v.InferOutput<typeof LineSqlRow>): DeviationLine {
 	};
 }
 
+const lineSelectFields = sql`
+	ili.product_id, ili.description, i.supplier_id, COALESCE(s.name, '') AS supplier_name,
+	i.invoice_date::text AS invoice_date, ili.unit,
+	ili.unit_price::float8 AS unit_price, ili.normalized_unit_price::float8 AS normalized_unit_price,
+	ili.base_unit, COALESCE(ili.total_price, 0)::float8 AS total_price
+`;
+
 export async function loadDeviationLines(rid: string, rangeFrom: string, rangeTo: string): Promise<DeviationLine[]> {
 	const since = addDaysIso(rangeFrom, -ALTERNATIVE_LOOKBACK_DAYS);
 	const rows = await db.execute(sql`
-		SELECT ili.product_id, ili.description, i.supplier_id, COALESCE(s.name, '') AS supplier_name,
-			i.invoice_date::text AS invoice_date, ili.unit,
-			ili.unit_price::float8 AS unit_price, ili.normalized_unit_price::float8 AS normalized_unit_price,
-			ili.base_unit, COALESCE(ili.total_price, 0)::float8 AS total_price
+		SELECT ${lineSelectFields}
 		FROM invoice_line_items ili
 		JOIN invoices i ON i.id = ili.invoice_id AND i.restaurant_id = ${rid}
 		LEFT JOIN suppliers s ON s.id = i.supplier_id AND s.restaurant_id = ${rid}
@@ -298,10 +302,7 @@ export function rankSupplierPrices(lines: DeviationLine[]): SupplierPrice[] {
 export async function productSupplierPrices(rid: string, productId: number, today: string): Promise<SupplierPrice[]> {
 	const since = addDaysIso(today, -ALTERNATIVE_LOOKBACK_DAYS);
 	const rows = await db.execute(sql`
-		SELECT ili.product_id, ili.description, i.supplier_id, COALESCE(s.name, '') AS supplier_name,
-			i.invoice_date::text AS invoice_date, ili.unit,
-			ili.unit_price::float8 AS unit_price, ili.normalized_unit_price::float8 AS normalized_unit_price,
-			ili.base_unit, COALESCE(ili.total_price, 0)::float8 AS total_price
+		SELECT ${lineSelectFields}
 		FROM invoice_line_items ili
 		JOIN invoices i ON i.id = ili.invoice_id AND i.restaurant_id = ${rid}
 		LEFT JOIN suppliers s ON s.id = i.supplier_id AND s.restaurant_id = ${rid}
