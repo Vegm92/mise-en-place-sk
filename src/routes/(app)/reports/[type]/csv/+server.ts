@@ -6,10 +6,16 @@ import { getOrGenerateWeeklyDigest, isoWeek } from '$lib/server/weekly-digest';
 import { trackEvent } from '$lib/server/events';
 import { requireFeature } from '$lib/server/billing';
 import { contentDispositionHeader } from '$lib/server/content-disposition';
+import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 
 export const GET: RequestHandler = async ({ params, url, locals }) => {
 	const rid = locals.restaurantId;
 	if (!rid) redirect(303, '/');
+
+	if (!(await rateLimitScoped({ scope: 'tenant', name: 'report-export-csv', max: 10 }, { restaurantId: rid }))) {
+		throw error(429, 'Too many requests');
+	}
+
 	await requireFeature('weeklyDigest', rid);
 
 	const type = params.type;

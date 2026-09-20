@@ -120,6 +120,8 @@ describe('checkRateLimit() call sites go through rateLimitScoped() (issue #440)'
 			'src/routes/api/user/export/+server.ts',
 			'src/routes/api/upload/[id]/[file]/+server.ts',
 			'src/routes/(app)/invoice/[id]/file/+server.ts',
+			'src/routes/(app)/reports/[type]/csv/+server.ts',
+			'src/routes/(app)/recipes/[id]/csv/+server.ts',
 			'src/lib/server/whatsapp-pairing.ts',
 			'src/routes/(app)/settings/+page.server.ts',
 		];

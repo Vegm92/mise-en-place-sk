@@ -4,10 +4,15 @@ import { toCsv } from '$lib/reports';
 import { buildRecipeSheet } from '$lib/server/recipes-sheet';
 import { trackEvent } from '$lib/server/events';
 import { contentDispositionHeader } from '$lib/server/content-disposition';
+import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
 	const rid = locals.restaurantId;
 	if (!rid) redirect(303, '/');
+
+	if (!(await rateLimitScoped({ scope: 'tenant', name: 'recipe-csv-export', max: 10 }, { restaurantId: rid }))) {
+		throw error(429, 'Too many requests');
+	}
 
 	const id = Number(params.id);
 	if (!Number.isInteger(id)) error(404, 'Not found');
