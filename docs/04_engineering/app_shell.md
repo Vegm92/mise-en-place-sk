@@ -512,7 +512,7 @@ the inventory template, issue #885) is a different route entirely.
 ### `src/routes/api/health/+server.ts`
 
 **`const GET`**
-- Platform liveness probe resilience and rate-limit isolation: requests bearing a valid `X-Health-Token` header or admin session bypass the public IP rate-limit check (`checkRateLimit`) so high-frequency orchestrator probes (e.g. Railway/Kubernetes) are never starved with 429 status codes under shared buckets (`health:unknown`). Public unauthenticated hits remain strictly throttled per IP.
+- Platform liveness probe resilience and rate-limit isolation: requests bearing a valid `X-Health-Token` header or admin session bypass the public IP rate-limit check (`checkRateLimit`) so high-frequency orchestrator probes (e.g. Railway/Kubernetes) are never starved with 429 status codes under shared buckets. Furthermore, when `getClientAddress()` throws because `ADDRESS_HEADER` is set but absent on internal probes (addressless probes), public rate-limiting is skipped entirely rather than throttling all addressless probes under a single shared bucket (`health:unknown`). Public unauthenticated hits with a valid client IP remain strictly throttled per IP.
 - DB ping timeout: `isDbReachable()` wraps `SELECT 1` with a strict 2000ms deadline (`withTimeout`) so DB connection starvation or pool lockup causes the probe to fail fast with 503 `degraded` instead of blocking and timing out liveness probes externally.
 - Log sanitization: catch blocks in `computeHealthDetail()` sanitize error objects (`err: e instanceof Error ? e.message : String(e)`) to prevent sensitive connection string or credential leaks in log streams.
 

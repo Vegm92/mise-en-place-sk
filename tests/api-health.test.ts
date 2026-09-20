@@ -195,9 +195,12 @@ describe('#1067 — the platform liveness probe sends no x-forwarded-for', () =>
 		expect(await res.json()).toEqual({ status: 'ok' });
 	});
 
-	it('throttles the addressless probe under a shared key instead of crashing', async () => {
-		await GET(healthEvent({ addressless: true }));
-		expect(rateLimitMock).toHaveBeenCalledWith('health:unknown', 60);
+	it('bypasses public rate limiting when client address is unavailable', async () => {
+		rateLimitMock.mockResolvedValue(false);
+		const res = await GET(healthEvent({ addressless: true }));
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual({ status: 'ok' });
+		expect(rateLimitMock).not.toHaveBeenCalled();
 	});
 
 	it('records why a probe failed with sanitized error string', async () => {
