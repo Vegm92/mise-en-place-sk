@@ -230,7 +230,7 @@ where the Node process is directly internet-facing.
 
 | Variable | Required | Notes |
 |---|---|---|
-| `RESEND_API_KEY` | Recommended | `re_…` from [Resend Dashboard](https://resend.com). If absent, emails are no-ops (logged to console). |
+| `RESEND_API_KEY` | Yes (prod) — **web and worker** | `re_…` from [Resend Dashboard](https://resend.com). The web service sends verification, password-reset and billing mail; the **worker** sends the weekly digest, overdue reminders and trial notices from its cron jobs, so it needs the key too (set it as a reference: `${{<web service>.RESEND_API_KEY}}`). Unset in production, every send is dropped with a `console.error` and a Sentry `email.dropped_no_api_key` event instead of a silent no-op; locally it is a logged no-op. |
 | `EMAIL_FROM` | Optional | Sender address. Defaults to `Mise en Place <noreply@mise-place.com>`. Must match a verified domain in Resend. |
 | `EMAIL_INGEST_ENABLED` | Optional | `true` turns on invoices-by-email (issue #236): each restaurant gets a `<token>@EMAIL_INGEST_DOMAIN` address shown on the upload page. Unset, the webhook acknowledges and ignores everything. |
 | `EMAIL_INGEST_DOMAIN` | Required when ingest is enabled | The Resend-verified inbound domain (e.g. `in.mise-place.com`, MX record at Resend). |
