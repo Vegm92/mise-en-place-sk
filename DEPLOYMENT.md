@@ -232,6 +232,9 @@ where the Node process is directly internet-facing.
 |---|---|---|
 | `RESEND_API_KEY` | Recommended | `re_…` from [Resend Dashboard](https://resend.com). If absent, emails are no-ops (logged to console). |
 | `EMAIL_FROM` | Optional | Sender address. Defaults to `Mise en Place <noreply@mise-place.com>`. Must match a verified domain in Resend. |
+| `EMAIL_INGEST_ENABLED` | Optional | `true` turns on invoices-by-email (issue #236): each restaurant gets a `<token>@EMAIL_INGEST_DOMAIN` address shown on the upload page. Unset, the webhook acknowledges and ignores everything. |
+| `EMAIL_INGEST_DOMAIN` | Required when ingest is enabled | The Resend-verified inbound domain (e.g. `in.mise-place.com`, MX record at Resend). |
+| `RESEND_WEBHOOK_SECRET` | Required (prod) when ingest is enabled | Signing secret (`whsec_…`) of the Resend webhook that POSTs `email.received` to `{APP_BASE_URL}/api/email-ingest/webhook`. Production rejects unsigned POSTs without it. The path is public and exempt from the `/api/*` rate-limit backstop, like the Stripe and WhatsApp webhooks. |
 
 ### Observability
 
