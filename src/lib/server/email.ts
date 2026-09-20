@@ -191,6 +191,15 @@ function maskEmail(to: string): string {
 
 export async function sendEmail(payload: EmailPayload): Promise<void> {
 	if (!resend) {
+		if (process.env.NODE_ENV === 'production') {
+			console.error(`[email] DROPPED (RESEND_API_KEY not set on this service): ${payload.kind ?? 'unknown'} "${payload.subject}" → ${maskEmail(payload.to)}`);
+			Sentry.captureMessage('email.dropped_no_api_key', {
+				level: 'error',
+				tags: { emailKind: payload.kind ?? 'unknown' },
+				extra: { subject: payload.subject, to: maskEmail(payload.to) },
+			});
+			return;
+		}
 		console.log(`[email] no-op (RESEND_API_KEY not set): ${payload.subject} → ${maskEmail(payload.to)}`);
 		return;
 	}

@@ -23,7 +23,7 @@ const log = createLogger('hooks');
 
 const MEMBERSHIP_TIMEOUT_MS = parseInt(process.env.MEMBERSHIP_TIMEOUT_MS ?? '5000', 10);
 const API_GLOBAL_RATE_LIMIT = parseInt(process.env.API_GLOBAL_RATE_LIMIT ?? '300', 10);
-const API_RATE_LIMIT_EXEMPT = new Set(['/api/health', '/api/stripe-webhook', '/api/whatsapp/webhook']);
+const API_RATE_LIMIT_EXEMPT = new Set(['/api/health', '/api/stripe-webhook', '/api/whatsapp/webhook', '/api/email-ingest/webhook']);
 const SYSTEM_CONTEXT_PATHS = new Set(['/api/stripe-webhook', '/api/whatsapp/webhook']);
 
 export const REQUEST_POLICY_STEPS = [
@@ -266,7 +266,6 @@ export function applySecurityHeaders(path: string, response: Response, event: Re
 	response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
 	response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
 	response.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
-	response.headers.set('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.sentry.io; object-src 'none'; base-uri 'self'; frame-ancestors 'self';");
 	response.headers.set('X-Request-Id', event.locals.requestId);
 
 	if (event.route.id !== null) applyPrivateCacheHeaders(response.headers);
@@ -289,6 +288,7 @@ function isPublicPath(path: string): boolean {
 		path === '/verify-email'                ||
 		path === '/api/stripe-webhook'          ||
 		path === '/api/whatsapp/webhook'        ||
+		path === '/api/email-ingest/webhook'    ||
 		isAlwaysReadablePath(path)
 	);
 }

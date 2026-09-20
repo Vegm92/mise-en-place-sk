@@ -79,7 +79,11 @@ export function overpaidOnLine(totalPrice: number, deviation: number): number {
 	return totalPrice * (deviation / (1 + deviation));
 }
 
-interface Priced extends DeviationLine { cmp: Comparable }
+interface Priced extends DeviationLine {
+	cmp: Comparable;
+	lk: string;
+	sk: string;
+}
 
 function groupBy<T>(items: T[], key: (t: T) => string): Map<string, T[]> {
 	const out = new Map<string, T[]>();
@@ -98,12 +102,16 @@ function supplierKey(line: Pick<DeviationLine, 'supplierId' | 'supplierName'>): 
 
 function latestOffers(priced: Priced[], since: string): Map<string, Map<string, Priced>> {
 	const offers = new Map<string, Map<string, Priced>>();
-	for (const line of priced) {
+	for (let i = 0; i < priced.length; i++) {
+		const line = priced[i]!;
 		if (line.invoiceDate < since) continue;
-		const key = lineKey(line);
-		const bySupplier = offers.get(key) ?? new Map<string, Priced>();
-		bySupplier.set(supplierKey(line), line);
-		offers.set(key, bySupplier);
+		const key = line.lk;
+		let bySupplier = offers.get(key);
+		if (!bySupplier) {
+			bySupplier = new Map<string, Priced>();
+			offers.set(key, bySupplier);
+		}
+		bySupplier.set(line.sk, line);
 	}
 	return offers;
 }
@@ -116,8 +124,9 @@ function cheapestAlternative(
 	offers: Map<string, Map<string, Priced>>,
 ): SupplierAlternative | null {
 	let best: Priced | null = null;
+	const ownSk = own.sk;
 	for (const [sk, offer] of offers.get(key) ?? []) {
-		if (sk === supplierKey(own) || offer.cmp.basis !== own.cmp.basis) continue;
+		if (sk === ownSk || offer.cmp.basis !== own.cmp.basis) continue;
 		if (offer.cmp.price >= latestPrice) continue;
 		if (!best || offer.cmp.price < best.cmp.price) best = offer;
 	}
@@ -134,19 +143,38 @@ function cheapestAlternative(
 	};
 }
 
+function referencePrice(group: Priced[], i: number): number {
+	if (i === 1) return group[0]!.cmp.price;
+	if (i === 2) return (group[0]!.cmp.price + group[1]!.cmp.price) / 2;
+	const p0 = group[i - 3]!.cmp.price;
+	const p1 = group[i - 2]!.cmp.price;
+	const p2 = group[i - 1]!.cmp.price;
+	return p0 + p1 + p2 - Math.min(p0, Math.min(p1, p2)) - Math.max(p0, Math.max(p1, p2));
+}
+
 export function computePriceDeviations(
 	lines: DeviationLine[],
 	rangeFrom: string,
 	rangeTo: string,
 	threshold = DEFAULT_DEVIATION_THRESHOLD,
 ): PriceDeviation[] {
-	const priced: Priced[] = lines
-		.map((line) => ({ line, cmp: comparablePrice(line) }))
-		.filter((x): x is { line: DeviationLine; cmp: Comparable } => x.cmp !== null)
-		.map(({ line, cmp }) => ({ ...line, cmp }))
-		.sort((a, b) => a.invoiceDate.localeCompare(b.invoiceDate));
+	const priced: Priced[] = [];
+	for (let i = 0; i < lines.length; i++) {
+		const line = lines[i]!;
+		const cmp = comparablePrice(line);
+		if (cmp !== null) {
+			priced.push({
+				...line,
+				cmp,
+				lk: lineKey(line),
+				sk: supplierKey(line),
+			});
+		}
+	}
+	priced.sort((a, b) => a.invoiceDate.localeCompare(b.invoiceDate));
+
 	const offers = latestOffers(priced, addDaysIso(rangeTo, -ALTERNATIVE_LOOKBACK_DAYS));
-	const groups = groupBy(priced, (l) => `${lineKey(l)}|${supplierKey(l)}|${l.cmp.basis}`);
+	const groups = groupBy(priced, (l) => `${l.lk}|${l.sk}|${l.cmp.basis}`);
 	const out: PriceDeviation[] = [];
 
 	for (const group of groups.values()) {
@@ -157,9 +185,8 @@ export function computePriceDeviations(
 		for (let i = 0; i < group.length; i++) {
 			const line = group[i]!;
 			if (line.invoiceDate < rangeFrom || line.invoiceDate > rangeTo) continue;
-			const previous = group.slice(Math.max(0, i - REFERENCE_SAMPLE), i).map((p) => p.cmp.price);
-			if (previous.length === 0) continue;
-			const reference = median(previous);
+			if (i === 0) continue;
+			const reference = referencePrice(group, i);
 			if (reference <= 0) continue;
 			const deviation = (line.cmp.price - reference) / reference;
 			lineCount++;
@@ -168,7 +195,7 @@ export function computePriceDeviations(
 			latest = { line, reference, deviation };
 		}
 		if (!latest || latest.deviation < threshold) continue;
-		const key = lineKey(latest.line);
+		const key = latest.line.lk;
 		out.push({
 			key,
 			productId: latest.line.productId,
@@ -216,13 +243,17 @@ function toLine(r: v.InferOutput<typeof LineSqlRow>): DeviationLine {
 	};
 }
 
+const lineSelectFields = sql`
+	ili.product_id, ili.description, i.supplier_id, COALESCE(s.name, '') AS supplier_name,
+	i.invoice_date::text AS invoice_date, ili.unit,
+	ili.unit_price::float8 AS unit_price, ili.normalized_unit_price::float8 AS normalized_unit_price,
+	ili.base_unit, COALESCE(ili.total_price, 0)::float8 AS total_price
+`;
+
 export async function loadDeviationLines(rid: string, rangeFrom: string, rangeTo: string): Promise<DeviationLine[]> {
 	const since = addDaysIso(rangeFrom, -ALTERNATIVE_LOOKBACK_DAYS);
 	const rows = await db.execute(sql`
-		SELECT ili.product_id, ili.description, i.supplier_id, COALESCE(s.name, '') AS supplier_name,
-			i.invoice_date::text AS invoice_date, ili.unit,
-			ili.unit_price::float8 AS unit_price, ili.normalized_unit_price::float8 AS normalized_unit_price,
-			ili.base_unit, COALESCE(ili.total_price, 0)::float8 AS total_price
+		SELECT ${lineSelectFields}
 		FROM invoice_line_items ili
 		JOIN invoices i ON i.id = ili.invoice_id AND i.restaurant_id = ${rid}
 		LEFT JOIN suppliers s ON s.id = i.supplier_id AND s.restaurant_id = ${rid}
@@ -271,10 +302,7 @@ export function rankSupplierPrices(lines: DeviationLine[]): SupplierPrice[] {
 export async function productSupplierPrices(rid: string, productId: number, today: string): Promise<SupplierPrice[]> {
 	const since = addDaysIso(today, -ALTERNATIVE_LOOKBACK_DAYS);
 	const rows = await db.execute(sql`
-		SELECT ili.product_id, ili.description, i.supplier_id, COALESCE(s.name, '') AS supplier_name,
-			i.invoice_date::text AS invoice_date, ili.unit,
-			ili.unit_price::float8 AS unit_price, ili.normalized_unit_price::float8 AS normalized_unit_price,
-			ili.base_unit, COALESCE(ili.total_price, 0)::float8 AS total_price
+		SELECT ${lineSelectFields}
 		FROM invoice_line_items ili
 		JOIN invoices i ON i.id = ili.invoice_id AND i.restaurant_id = ${rid}
 		LEFT JOIN suppliers s ON s.id = i.supplier_id AND s.restaurant_id = ${rid}

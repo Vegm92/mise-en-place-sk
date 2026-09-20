@@ -138,13 +138,14 @@ export const GET: RequestHandler = async ({ request, locals, getClientAddress })
 	const wantsDetail = isAdminUser(locals.user) || hasValidHealthToken(request);
 
 	if (!wantsDetail) {
-		let ip = 'unknown';
+		let ip: string | null = null;
 		try {
 			ip = getClientAddress();
 		} catch (e) {
 			log.debug('client address unavailable', { err: e instanceof Error ? e.message : String(e) });
 		}
-		if (!(await checkRateLimit(`health:${ip}`, HEALTH_RATE_LIMIT_RPM))) {
+
+		if (ip && !(await checkRateLimit(`health:${ip}`, HEALTH_RATE_LIMIT_RPM))) {
 			return json({ error: 'Too many requests' }, { status: 429, headers: { 'Retry-After': '60' } });
 		}
 
