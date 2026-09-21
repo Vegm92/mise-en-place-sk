@@ -519,6 +519,7 @@ the inventory template, issue #885) is a different route entirely.
 **`function applySecurityHeaders`**
 
 - Two routes are embedded in a same-origin `<iframe>` by the app — batch review PDF preview (`/api/upload/[id]/[file]`) and saved invoice PDF preview (`/invoice/[id]/file`); `DENY` would block the app's own preview.
+- Applies all required non-CSP security response headers (`X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `Strict-Transport-Security`, `Cross-Origin-Opener-Policy`, and `X-Request-Id`). Hash-based CSP is single-source managed via `svelte.config.js` with optional Sentry `report-uri` violation telemetry when `SENTRY_DSN` is configured.
 
 **`function isPublicPath`**
 
