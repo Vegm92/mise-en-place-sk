@@ -203,8 +203,18 @@ describe('toIntlLocale', () => {
 });
 
 describe('fmtDate / fmtDateShort / fmtMonthShort', () => {
-  it('fmtDate returns an em dash for null', () => {
+  it('fmtDate returns an em dash for null or undefined', () => {
     expect(fmtDate(null)).toBe('—');
+    expect(fmtDate(undefined)).toBe('—');
+  });
+  it('fmtDate handles Date objects and strings', () => {
+    const d = new Date('2026-03-15T12:00:00Z');
+    expect(fmtDate(d, 'es')).toContain('15');
+    expect(fmtDate('2026-03-15', 'es')).toContain('15');
+  });
+  it('fmtDate handles invalid Date objects and unparseable strings gracefully', () => {
+    expect(fmtDate(new Date(NaN))).toBe('—');
+    expect(fmtDate('not-a-date')).toBe('not-a-date');
   });
   it('fmtDate differs between es and en', () => {
     const es = fmtDate('2026-03-15', 'es');
@@ -214,8 +224,18 @@ describe('fmtDate / fmtDateShort / fmtMonthShort', () => {
   it('fmtDate defaults to es', () => {
     expect(fmtDate('2026-03-15')).toBe(fmtDate('2026-03-15', 'es'));
   });
-  it('fmtDateShort returns an em dash for null', () => {
+  it('fmtDateShort returns an em dash for null or undefined', () => {
     expect(fmtDateShort(null)).toBe('—');
+    expect(fmtDateShort(undefined)).toBe('—');
+  });
+  it('fmtDateShort handles Date objects and strings', () => {
+    const d = new Date('2026-03-15T12:00:00Z');
+    expect(fmtDateShort(d, 'es')).toContain('15');
+    expect(fmtDateShort('2026-03-15', 'es')).toContain('15');
+  });
+  it('fmtDateShort handles invalid Date objects and unparseable strings gracefully', () => {
+    expect(fmtDateShort(new Date(NaN))).toBe('—');
+    expect(fmtDateShort('invalid-date')).toBe('invalid-date');
   });
   it('fmtDateShort differs between es and en', () => {
     const es = fmtDateShort('2026-03-15', 'es');

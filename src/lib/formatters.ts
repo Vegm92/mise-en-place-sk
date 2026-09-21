@@ -174,14 +174,17 @@ const fmtDateCache = new Map<string, string>();
 const fmtDateShortCache = new Map<string, string>();
 const fmtMonthShortCache = new Map<string, string>();
 
-export function fmtDate(d: string | null, locale: Locale = 'es'): string {
+export function fmtDate(d: Date | string | null | undefined, locale: Locale = 'es'): string {
 	if (!d) return '—';
-	const key = `${locale}:${d}`;
+	const dateObj = typeof d === 'string' ? new Date(d) : d;
+	if (Number.isNaN(dateObj.getTime())) return typeof d === 'string' ? d : '—';
+
+	const key = typeof d === 'string' ? `${locale}:${d}` : `${locale}:ts:${dateObj.getTime()}`;
 	let cached = fmtDateCache.get(key);
 	if (cached !== undefined) return cached;
 
 	const fmtInst = dateFormatters[locale] ?? dateFormatters.es;
-	cached = fmtInst.format(new Date(d));
+	cached = fmtInst.format(dateObj);
 
 	if (fmtDateCache.size >= DATE_CACHE_MAX) {
 		fmtDateCache.clear();
@@ -190,14 +193,17 @@ export function fmtDate(d: string | null, locale: Locale = 'es'): string {
 	return cached;
 }
 
-export function fmtDateShort(d: string | null, locale: Locale = 'es'): string {
+export function fmtDateShort(d: Date | string | null | undefined, locale: Locale = 'es'): string {
 	if (!d) return '—';
-	const key = `${locale}:${d}`;
+	const dateObj = typeof d === 'string' ? new Date(d) : d;
+	if (Number.isNaN(dateObj.getTime())) return typeof d === 'string' ? d : '—';
+
+	const key = typeof d === 'string' ? `${locale}:${d}` : `${locale}:ts:${dateObj.getTime()}`;
 	let cached = fmtDateShortCache.get(key);
 	if (cached !== undefined) return cached;
 
 	const fmtInst = dateShortFormatters[locale] ?? dateShortFormatters.es;
-	cached = fmtInst.format(new Date(d));
+	cached = fmtInst.format(dateObj);
 
 	if (fmtDateShortCache.size >= DATE_CACHE_MAX) {
 		fmtDateShortCache.clear();

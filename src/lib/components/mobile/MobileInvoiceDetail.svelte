@@ -9,7 +9,7 @@
   import Truck from '@lucide/svelte/icons/truck';
   import { enhance } from '$app/forms';
   import { locale, t, ti } from '$lib/i18n';
-  import { fmtEur } from '$lib/formatters';
+  import { fmtDate, fmtEur } from '$lib/formatters';
   import { uploadExtname } from '$lib/upload-formats';
 
   interface LineItem {
@@ -83,11 +83,6 @@
   function fmt(n: number | null | undefined) {
     if (n == null) return '—';
     return fmtEur(n, locale.current);
-  }
-  function fmtDate(s: Date | string | null | undefined) {
-    if (!s) return '—';
-    const d = new Date(s as string);
-    return isNaN(d.getTime()) ? String(s) : d.toLocaleDateString(locale.current, { day: 'numeric', month: 'short', year: 'numeric' });
   }
 
   const shown = $derived(lineItems.slice(0, 5));
@@ -165,11 +160,11 @@
       ">
         <div>
           <div style="color: var(--mep-fg-3);">{t('mid.issued')}</div>
-          <div class="num" style="color: var(--mep-fg); font-weight: 500; margin-top: 2px;">{fmtDate(invoice.invoice_date)}</div>
+          <div class="num" style="color: var(--mep-fg); font-weight: 500; margin-top: 2px;">{fmtDate(invoice.invoice_date, locale.current)}</div>
         </div>
         <div>
           <div style="color: var(--mep-fg-3);">{t('tbl.due')}</div>
-          <div class="num" style="color: var(--mep-fg); font-weight: 500; margin-top: 2px;">{fmtDate(invoice.due_date)}</div>
+          <div class="num" style="color: var(--mep-fg); font-weight: 500; margin-top: 2px;">{fmtDate(invoice.due_date, locale.current)}</div>
         </div>
         <div>
           <div style="color: var(--mep-fg-3);">{t('tbl.lines')}</div>
@@ -188,7 +183,7 @@
         <div class="border-t border-divider text-fg-2" style="margin-top: 12px; padding-top: 12px; font-size: 11px;">
           {#if invoice.purchase_order}{t('field.purchaseOrder')}: {invoice.purchase_order}{/if}
           {#if invoice.seller_name} · {t('field.sellerName')}: {invoice.seller_name}{/if}
-          {#if invoice.delivery_date} · {t('field.deliveryDate')}: {fmtDate(invoice.delivery_date)}{/if}
+          {#if invoice.delivery_date} · {t('field.deliveryDate')}: {fmtDate(invoice.delivery_date, locale.current)}{/if}
           {#if invoice.delivery_address} · {invoice.delivery_address}{/if}
         </div>
       {/if}
@@ -254,7 +249,7 @@
 
     {#if claim.sentAt}
       <div class="card p-3">
-        <span class="body-strong">{ti('inv.claim.sentLine', { date: fmtDate(claim.sentAt) })}</span>
+        <span class="body-strong">{ti('inv.claim.sentLine', { date: fmtDate(claim.sentAt, locale.current) })}</span>
       </div>
     {:else if claim.eligible}
       <div class="card p-3 flex flex-col gap-3">

@@ -2,6 +2,7 @@
 	import type { PageData } from './$types';
 	import { onMount } from 'svelte';
 	import { t, ti, locale, initLocale } from '$lib/i18n';
+	import { fmtDateShort } from '$lib/formatters';
 	import Check from '@lucide/svelte/icons/check';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import Clock from '@lucide/svelte/icons/clock';
@@ -18,7 +19,7 @@
 		if (!data.createdAt) return null;
 		const d = new Date(data.createdAt);
 		if (isNaN(d.getTime())) return null;
-		const day = d.toLocaleDateString(locale.current, { day: 'numeric', month: 'short' });
+		const day = fmtDateShort(data.createdAt, locale.current);
 		const time = d.toLocaleTimeString(locale.current, { hour: '2-digit', minute: '2-digit' });
 		return `${day} · ${time}`;
 	});

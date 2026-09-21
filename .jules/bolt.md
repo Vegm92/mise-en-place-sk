@@ -19,6 +19,7 @@ Keep the existing entry shape: an `## <date> - <title>` heading, then
 
 ## Entries
 
+- `2026-09-21` — [Memoize date formatters in analytics price lists and components](bolt/2026-09-21-analytics-prices-memoized-date-formatters.md)
 - `2026-09-20` — [Allocation-free reference price median in `src/lib/server/price-deviations.ts`](bolt/2026-09-20-price-deviations-allocation-free-reference-median.md)
 - `2026-09-10` — [Direct year-pairing and YoY change computation in `src/lib/price-yoy.ts`](bolt/2026-09-10-price-yoy-direct-year-pairing-and-yoy-change-computation.md)
 - `2026-09-09` — [Fast spend trend segment indexing in `src/lib/server/trend.ts`](bolt/2026-09-09-trend-fast-spend-trend-segment-indexing.md)
