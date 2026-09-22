@@ -1,6 +1,7 @@
 <script lang="ts">
   import X from '@lucide/svelte/icons/x';
-  import { t, tiv } from '$lib/i18n';
+  import { locale, t, tiv } from '$lib/i18n';
+  import { fmtDateShort } from '$lib/formatters';
   import { notificationIcon, notificationColor, notificationMessage, type Notif } from '$lib/notification-display';
 
   let {
@@ -142,7 +143,7 @@
     {/if}
     {#if notification.createdAt}
       <div style="font-size:11px;color:var(--mep-fg-3);margin-top:2px;">
-        {new Date(notification.createdAt).toLocaleDateString()}
+        {fmtDateShort(notification.createdAt, locale.current)}
       </div>
     {/if}
   </div>

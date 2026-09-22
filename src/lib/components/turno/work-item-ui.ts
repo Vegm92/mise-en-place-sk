@@ -4,6 +4,7 @@ import FileCheck from '@lucide/svelte/icons/file-check';
 import CalendarOff from '@lucide/svelte/icons/calendar-off';
 import Truck from '@lucide/svelte/icons/truck';
 import type { Severity, WorkKind } from '$lib/dashboard-turno';
+import { fmtDateShort, type Locale } from '$lib/formatters';
 
 export const WORK_ICON: Record<WorkKind, typeof TrendingUp> = {
 	price: TrendingUp,
@@ -24,7 +25,6 @@ export function localiseWorkDates(
 	loc: string,
 ): Record<string, string | number> {
 	if (!('date' in vars)) return vars;
-	const parsed = new Date(String(vars.date));
-	if (Number.isNaN(parsed.getTime())) return vars;
-	return { ...vars, date: parsed.toLocaleDateString(loc, { day: '2-digit', month: 'short' }) };
+	const dateStr = String(vars.date);
+	return { ...vars, date: fmtDateShort(dateStr, loc as Locale) };
 }

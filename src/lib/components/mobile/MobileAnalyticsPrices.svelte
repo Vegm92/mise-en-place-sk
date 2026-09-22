@@ -1,7 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { locale, t } from '$lib/i18n';
-  import { fmtEur } from '$lib/formatters';
+  import { fmtDateShort, fmtEur } from '$lib/formatters';
   import ScrollStrip from '$lib/components/mep/ScrollStrip.svelte';
 
   interface PriceItem {
@@ -64,9 +64,7 @@
     return fmtEur(n, locale.current);
   }
   function fmtDate(d: string | null) {
-    if (!d) return '—';
-    try { return new Date(d).toLocaleDateString(locale.current, { day: '2-digit', month: 'short' }); }
-    catch { return d; }
+    return fmtDateShort(d, locale.current);
   }
   function chipBg(pct: number | null) {
     if (pct === null || Math.abs(pct) < 0.01) return 'var(--mep-hover)';

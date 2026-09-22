@@ -2,7 +2,7 @@
   import type { PageData, ActionData } from './$types';
   import { enhance } from '$app/forms';
   import { locale, t, ti } from '$lib/i18n';
-  import { fmtEur } from '$lib/formatters';
+  import { fmtDate, fmtEur } from '$lib/formatters';
   import { uploadExtname } from '$lib/upload-formats';
   import MobileInvoiceDetail from '$lib/components/mobile/MobileInvoiceDetail.svelte';
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
@@ -26,11 +26,6 @@
   function fmt(n: number | null | undefined) {
     if (n == null) return '—';
     return fmtEur(n, locale.current);
-  }
-  function fmtDate(s: Date | string | null | undefined) {
-    if (!s) return '—';
-    const d = new Date(s);
-    return isNaN(d.getTime()) ? s : d.toLocaleDateString(locale.current, { day: '2-digit', month: 'short', year: 'numeric' });
   }
 
   const timelineEvents = $derived([
@@ -123,11 +118,11 @@
           {/if}
           <div style="display:flex;flex-direction:column;gap:2px;">
             <span class="label">{t('field.invoiceDate')}</span>
-            <span class="body-strong">{fmtDate(invoice.invoice_date)}</span>
+            <span class="body-strong">{fmtDate(invoice.invoice_date, locale.current)}</span>
           </div>
           <div style="display:flex;flex-direction:column;gap:2px;">
             <span class="label">{t('field.dueDate')}</span>
-            <span class="body-strong">{fmtDate(invoice.due_date)}</span>
+            <span class="body-strong">{fmtDate(invoice.due_date, locale.current)}</span>
           </div>
           <div style="display:flex;flex-direction:column;gap:2px;">
             <span class="label">{t('field.totalAmount')}</span>
@@ -166,7 +161,7 @@
           {#if invoice.delivery_date}
             <div style="display:flex;flex-direction:column;gap:2px;">
               <span class="label">{t('field.deliveryDate')}</span>
-              <span class="body-strong">{fmtDate(invoice.delivery_date)}</span>
+              <span class="body-strong">{fmtDate(invoice.delivery_date, locale.current)}</span>
             </div>
           {/if}
           {#if invoice.delivery_address}
@@ -273,7 +268,7 @@
 
   {#if claim.sentAt}
     <div class="card p-4">
-      <span class="body-strong">{ti('inv.claim.sentLine', { date: String(fmtDate(claim.sentAt)) })}</span>
+      <span class="body-strong">{ti('inv.claim.sentLine', { date: String(fmtDate(claim.sentAt, locale.current)) })}</span>
     </div>
   {:else if claim.eligible}
     <div class="card p-4 flex flex-col gap-3">
@@ -366,7 +361,7 @@
           <div style="display:flex;flex-direction:column;gap:1px;">
             <span class="body-strong" style="font-size:12.5px;">{t(ev.labelKey)}</span>
             {#if ev.ts}
-              <span class="body" style="font-size:11px;">{fmtDate(ev.ts)}</span>
+              <span class="body" style="font-size:11px;">{fmtDate(ev.ts, locale.current)}</span>
             {/if}
           </div>
         </div>

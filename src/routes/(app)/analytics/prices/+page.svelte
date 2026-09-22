@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { locale, t } from '$lib/i18n';
-  import { fmtEur } from '$lib/formatters';
+  import { fmtDateShort, fmtEur } from '$lib/formatters';
   import Search from '@lucide/svelte/icons/search';
   import MobileAnalyticsPrices from '$lib/components/mobile/MobileAnalyticsPrices.svelte';
 
@@ -31,9 +31,7 @@
   }
 
   function fmtDate(d: string | null) {
-    if (!d) return '—';
-    try { return new Date(d).toLocaleDateString(locale.current, { day: '2-digit', month: 'short' }); }
-    catch { return d; }
+    return fmtDateShort(d, locale.current);
   }
 
   function chipBg(pct: number | null) {
