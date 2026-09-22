@@ -44,6 +44,19 @@ const config = {
 				// cancel; form-action governs that redirect too, and omitting the
 				// portal host made the buy/upgrade button appear dead.
 				'form-action':  ['self', 'https://accounts.google.com', 'https://checkout.stripe.com', 'https://billing.stripe.com'],
+				...(process.env.SENTRY_DSN ? (() => {
+					try {
+						const dsnUrl = new URL(process.env.SENTRY_DSN);
+						const key = dsnUrl.username;
+						const projectId = dsnUrl.pathname.replace(/^\//, '');
+						if (key && projectId) {
+							return { 'report-uri': [`https://${dsnUrl.host}/api/${projectId}/security/?sentry_key=${key}`] };
+						}
+					} catch {
+						// Invalid DSN string — skip report-uri
+					}
+					return {};
+				})() : {}),
 			},
 		},
 	}

@@ -238,15 +238,31 @@ describe('feature-disabled route', () => {
 
 describe('framed-upload paths', () => {
 	it('allows same-origin framing only for upload and invoice-file responses', () => {
-		const event = { route: { id: '/api/upload/[id]' }, locals: { requestId: 'r1' } } as unknown as RequestEvent;
-		const res = applySecurityHeaders('/api/upload/abc123', new Response('ok'), event);
-		expect(res.headers.get('X-Frame-Options')).toBe('SAMEORIGIN');
+		const eventUpload = { route: { id: '/api/upload/[id]' }, locals: { requestId: 'r1' } } as unknown as RequestEvent;
+		const resUpload = applySecurityHeaders('/api/upload/abc123', new Response('ok'), eventUpload);
+		expect(resUpload.headers.get('X-Frame-Options')).toBe('SAMEORIGIN');
+
+		const eventFile = { route: { id: '/invoice/[id]/file' }, locals: { requestId: 'f1' } } as unknown as RequestEvent;
+		const resFile = applySecurityHeaders('/invoice/inv_123/file', new Response('ok'), eventFile);
+		expect(resFile.headers.get('X-Frame-Options')).toBe('SAMEORIGIN');
 	});
 
 	it('denies framing everywhere else', () => {
 		const event = { route: { id: '/dashboard' }, locals: { requestId: 'r1' } } as unknown as RequestEvent;
 		const res = applySecurityHeaders('/dashboard', new Response('ok'), event);
 		expect(res.headers.get('X-Frame-Options')).toBe('DENY');
+	});
+
+	it('applies all mandatory non-CSP security headers on every response', () => {
+		const event = { route: { id: '/dashboard' }, locals: { requestId: 'req_xyz987' } } as unknown as RequestEvent;
+		const res = applySecurityHeaders('/dashboard', new Response('ok'), event);
+
+		expect(res.headers.get('X-Content-Type-Options')).toBe('nosniff');
+		expect(res.headers.get('Referrer-Policy')).toBe('strict-origin-when-cross-origin');
+		expect(res.headers.get('Permissions-Policy')).toBe('camera=(), microphone=(), geolocation=()');
+		expect(res.headers.get('Strict-Transport-Security')).toBe('max-age=31536000; includeSubDomains; preload');
+		expect(res.headers.get('Cross-Origin-Opener-Policy')).toBe('same-origin');
+		expect(res.headers.get('X-Request-Id')).toBe('req_xyz987');
 	});
 });
 
