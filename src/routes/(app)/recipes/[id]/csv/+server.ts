@@ -5,6 +5,7 @@ import { buildRecipeSheet } from '$lib/server/recipes-sheet';
 import { trackEvent } from '$lib/server/events';
 import { contentDispositionHeader } from '$lib/server/content-disposition';
 import { rateLimitScoped } from '$lib/server/rate-limit-scope';
+import { requirePositiveIntId } from '$lib/server/route-params';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
 	const rid = locals.restaurantId;
@@ -14,8 +15,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		throw error(429, 'Too many requests');
 	}
 
-	const id = Number(params.id);
-	if (!Number.isInteger(id)) error(404, 'Not found');
+	const id = requirePositiveIntId(params.id, 'recipe');
 
 	const doc = await buildRecipeSheet(rid, id, new Date());
 	if (!doc) error(404, 'Not found');

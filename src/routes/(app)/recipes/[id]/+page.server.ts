@@ -14,9 +14,9 @@ import {
 	EU_ALLERGENS, RECIPE_SECTIONS, RECIPE_STATUSES, RECIPE_UNITS, isRecipeKind, isRecipeLineKind,
 	isRecipeSection, isRecipeStatus, parseDecimal, parsePercent, parseQty, toAllergenList
 } from '$lib/recipes';
+import { requirePositiveIntId } from '$lib/server/route-params';
 
 async function requireRecipe(rid: string, id: number) {
-	if (!Number.isInteger(id)) error(404, 'Not found');
 	const tdb = forTenant(rid);
 	const [row] = await db.select().from(recipes)
 		.where(tdb.scope(recipes.restaurantId, eq(recipes.id, id))).limit(1);
@@ -49,7 +49,7 @@ async function requestGraph(rid: string, locals: App.Locals): Promise<Map<number
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const rid = locals.restaurantId!;
-	const id = Number(params.id);
+	const id = requirePositiveIntId(params.id, 'recipe');
 
 	return handleLoad('recipe-detail', async () => {
 		const recipe = await requireRecipe(rid, id);
@@ -336,7 +336,7 @@ async function persistRecipeUpdate(
 export const actions: Actions = {
 	updateRecipe: async ({ params, request, locals }) => {
 		const rid = locals.restaurantId!;
-		const id = Number(params.id);
+		const id = requirePositiveIntId(params.id, 'recipe');
 		await requireRecipe(rid, id);
 		const tdb = forTenant(rid);
 		const data = await request.formData();
@@ -353,7 +353,7 @@ export const actions: Actions = {
 
 	addItem: async ({ params, request, locals }) => {
 		const rid = locals.restaurantId!;
-		const id = Number(params.id);
+		const id = requirePositiveIntId(params.id, 'recipe');
 		await requireRecipe(rid, id);
 		const tdb = forTenant(rid);
 
@@ -383,7 +383,7 @@ export const actions: Actions = {
 
 	updateItem: async ({ params, request, locals }) => {
 		const rid = locals.restaurantId!;
-		const id = Number(params.id);
+		const id = requirePositiveIntId(params.id, 'recipe');
 		await requireRecipe(rid, id);
 		const tdb = forTenant(rid);
 
@@ -418,7 +418,7 @@ export const actions: Actions = {
 
 	deleteItem: async ({ params, request, locals }) => {
 		const rid = locals.restaurantId!;
-		const id = Number(params.id);
+		const id = requirePositiveIntId(params.id, 'recipe');
 		await requireRecipe(rid, id);
 		const tdb = forTenant(rid);
 		const data = await request.formData();
@@ -438,7 +438,7 @@ export const actions: Actions = {
 
 	duplicate: async ({ params, locals }) => {
 		const rid = locals.restaurantId!;
-		const id = Number(params.id);
+		const id = requirePositiveIntId(params.id, 'recipe');
 		if (!(await rateLimitScoped({ scope: 'tenant', name: 'recipe-create', max: 30 }, { restaurantId: rid }))) {
 			return fail(429, { error: 'rec.err.rateLimited' });
 		}
@@ -506,7 +506,7 @@ export const actions: Actions = {
 
 	delete: async ({ params, locals }) => {
 		const rid = locals.restaurantId!;
-		const id = Number(params.id);
+		const id = requirePositiveIntId(params.id, 'recipe');
 		await requireRecipe(rid, id);
 		const tdb = forTenant(rid);
 

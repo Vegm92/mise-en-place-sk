@@ -9,13 +9,12 @@ import { recipeSheetEmail, sendEmail } from '$lib/server/email';
 import { trackEvent } from '$lib/server/events';
 import { buildRecipeSheet } from '$lib/server/recipes-sheet';
 import { translations } from '$lib/i18n-messages';
+import { requirePositiveIntId } from '$lib/server/route-params';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/;
 
 function recipeId(params: { id: string }): number {
-	const id = Number(params.id);
-	if (!Number.isInteger(id)) error(404, 'Not found');
-	return id;
+	return requirePositiveIntId(params.id, 'recipe');
 }
 
 export const load: PageServerLoad = async ({ params, locals }) => {

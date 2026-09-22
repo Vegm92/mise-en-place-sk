@@ -86,8 +86,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 export const actions: Actions = {
 	saveFacts: async ({ params, request, locals }) => {
-		const id = Number(params.id);
-		if (!Number.isInteger(id)) return fail(422, { error: 'prod.facts.err' });
+		const id = requirePositiveIntId(params.id, 'product');
 		const rid = locals.restaurantId!;
 		const tdb = forTenant(rid);
 		const data = await request.formData();
