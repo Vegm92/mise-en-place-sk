@@ -17,6 +17,7 @@ import {
 	addMonths,
 	arpaCents,
 	buildCohorts,
+	byTenant,
 	cacCents,
 	grossRetention,
 	logoChurnRate,
@@ -367,19 +368,26 @@ function tenantMrr(rows: SnapshotRow[], month: string): TenantMrr[] {
 	return rows.filter(r => r.month === month).map(r => ({ restaurantId: r.restaurantId, mrrCents: r.mrrCents }));
 }
 
-function payers(rows: TenantMrr[]): number {
-	return rows.filter(r => r.mrrCents > 0).length;
+function payersFromMap(map: Map<string, number>): number {
+	let count = 0;
+	for (const val of map.values()) {
+		if (val > 0) count++;
+	}
+	return count;
 }
 
-function averageMonthlyChurn(history: Map<string, TenantMrr[]>, months: string[]): number | null {
+function averageMonthlyChurnMaps(history: Map<string, Map<string, number>>, months: string[]): number | null {
 	const rates: number[] = [];
 	for (let i = 1; i < months.length; i++) {
-		const previous = history.get(months[i - 1]!) ?? [];
-		const current = history.get(months[i]!) ?? [];
-		const startCustomers = payers(previous);
+		const previous = history.get(months[i - 1]!);
+		const current = history.get(months[i]!);
+		if (!previous || !current) continue;
+		const startCustomers = payersFromMap(previous);
 		if (startCustomers === 0) continue;
-		const currentMap = new Map(current.map(r => [r.restaurantId, r.mrrCents]));
-		const churned = previous.filter(r => r.mrrCents > 0 && (currentMap.get(r.restaurantId) ?? 0) === 0).length;
+		let churned = 0;
+		for (const [restaurantId, mrr] of previous) {
+			if (mrr > 0 && (current.get(restaurantId) ?? 0) === 0) churned++;
+		}
 		rates.push(churned / startCustomers);
 	}
 	if (rates.length === 0) return null;
@@ -477,43 +485,59 @@ export async function revenueOverview(now: Date = new Date()): Promise<RevenueOv
 		mrrCents: payingSubs.filter(s => s.planTier === tier).reduce((sum, s) => sum + mrrOf(s), 0),
 	})).filter(row => row.customers > 0 || row.tier !== 'trial');
 
-	const perMonth = new Map<string, TenantMrr[]>();
-	for (const snapshotMonth of wantedMonths) perMonth.set(snapshotMonth, tenantMrr(snapshots, snapshotMonth));
-	perMonth.set(month, subs.map(s => ({ restaurantId: s.restaurantId, mrrCents: mrrOf(s) })));
+	const perMonth = new Map<string, Map<string, number>>();
+	for (const snapshotMonth of wantedMonths) {
+		perMonth.set(snapshotMonth, byTenant(tenantMrr(snapshots, snapshotMonth)));
+	}
+	const liveMap = new Map<string, number>();
+	for (const s of subs) {
+		liveMap.set(s.restaurantId, (liveMap.get(s.restaurantId) ?? 0) + mrrOf(s));
+	}
+	perMonth.set(month, liveMap);
 
 	const history = historyMonths.map(m => {
-		const rows = perMonth.get(m) ?? [];
+		const map = perMonth.get(m) ?? new Map<string, number>();
 		const monthRows = snapshots.filter(r => r.month === m);
+		let total = 0;
+		for (const v of map.values()) total += v;
 		return {
 			month: m,
-			mrrCents: rows.reduce((sum, r) => sum + r.mrrCents, 0),
-			payingCustomers: payers(rows),
+			mrrCents: total,
+			payingCustomers: payersFromMap(map),
 			source: historySource(m === month, monthRows),
 		};
 	});
 
 	const previousMonth = addMonths(month, -1);
-	const hasPrevious = (perMonth.get(previousMonth) ?? []).length > 0;
+	const prevMap = perMonth.get(previousMonth);
+	const currMap = perMonth.get(month) ?? new Map<string, number>();
+	const hasPrevious = prevMap !== undefined && prevMap.size > 0;
 	const everPaidBefore = new Set(
 		paying.filter(r => monthsBetween(r.month, previousMonth) > 0).map(r => r.restaurantId),
 	);
 
-	const movement = hasPrevious
-		? mrrMovement(perMonth.get(previousMonth) ?? [], perMonth.get(month) ?? [], everPaidBefore)
+	const movement = hasPrevious && prevMap
+		? mrrMovement(prevMap, currMap, everPaidBefore)
 		: null;
 
-	const nrrMonthly = hasPrevious ? netRetention(perMonth.get(previousMonth) ?? [], perMonth.get(month) ?? []) : null;
-	const grrMonthly = hasPrevious ? grossRetention(perMonth.get(previousMonth) ?? [], perMonth.get(month) ?? []) : null;
-	const baselineRows = perMonth.get(nrrBaselineMonth) ?? [];
-	const nrrAnnual = baselineRows.length > 0 ? netRetention(baselineRows, perMonth.get(month) ?? []) : null;
+	const nrrMonthly = hasPrevious && prevMap ? netRetention(prevMap, currMap) : null;
+	const grrMonthly = hasPrevious && prevMap ? grossRetention(prevMap, currMap) : null;
+	const baselineMap = perMonth.get(nrrBaselineMonth);
+	const nrrAnnual = baselineMap && baselineMap.size > 0 ? netRetention(baselineMap, currMap) : null;
 
 	const churnMonths = historyMonths.slice(-(CHURN_WINDOW_MONTHS + 1));
-	const avgMonthlyChurn = averageMonthlyChurn(perMonth, churnMonths);
-	const currentByTenant = new Map((perMonth.get(month) ?? []).map(r => [r.restaurantId, r.mrrCents]));
-	const churnedCustomers = (perMonth.get(previousMonth) ?? [])
-		.filter(r => r.mrrCents > 0 && (currentByTenant.get(r.restaurantId) ?? 0) === 0).length;
-	const logoChurn = hasPrevious
-		? logoChurnRate(payers(perMonth.get(previousMonth) ?? []), churnedCustomers)
+	const avgMonthlyChurn = averageMonthlyChurnMaps(perMonth, churnMonths);
+
+	let churnedCustomers = 0;
+	if (prevMap) {
+		for (const [restaurantId, beforeMrr] of prevMap) {
+			if (beforeMrr > 0 && (currMap.get(restaurantId) ?? 0) === 0) {
+				churnedCustomers++;
+			}
+		}
+	}
+	const logoChurn = hasPrevious && prevMap
+		? logoChurnRate(payersFromMap(prevMap), churnedCustomers)
 		: null;
 	const revenueChurn = movement ? revenueChurnRate(movement.startCents, movement.churnedCents) : null;
 
