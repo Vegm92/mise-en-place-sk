@@ -24,7 +24,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 	const rid = locals.restaurantId;
 	if (!rid) redirect(303, '/');
 
-	if (!(await rateLimitScoped({ scope: 'tenant', name: 'export', max: 5 }, { restaurantId: rid }))) {
+	if (!(await rateLimitScoped({ scope: 'tenant', name: 'analytics-corrections-export', max: 5 }, { restaurantId: rid }))) {
 		throw error(429, 'Too many requests — please wait a moment before trying again');
 	}
 
