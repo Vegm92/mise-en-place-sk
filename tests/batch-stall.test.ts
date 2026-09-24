@@ -16,6 +16,7 @@ import { EXTRACTION_STALL_WARN_MS, EXTRACTION_STALL_TIMEOUT_MS } from '../src/li
 import { fakeBatchItem } from './helpers/batch-item';
 
 const NOW = Date.UTC(2026, 0, 1, 12, 0, 0);
+const VALID_BATCH_ID = '12345678-1234-1234-1234-123456789012';
 
 function item(id: string, status: BatchItemStatus, queuedMsAgo: number | null, base = NOW): BatchItem {
 	return fakeBatchItem({
@@ -96,10 +97,10 @@ function liveItem(id: string, status: BatchItemStatus, queuedMsAgo: number | nul
 
 const LOCALS = { user: { id: 'u' }, restaurantId: 'r' };
 
-async function getStatus() {
+async function getStatus(batchId = VALID_BATCH_ID) {
 	const { GET } = await import('../src/routes/api/batch-status/[id]/+server');
 	const res = await (GET as never as (e: unknown) => Promise<Response>)({
-		params: { id: 'batch-1' },
+		params: { id: batchId },
 		locals: LOCALS,
 	});
 	return { status: res.status, body: await res.json() };
@@ -129,7 +130,7 @@ describe('/api/batch-status/[id] — stall reporting', () => {
 
 		const { body } = await getStatus();
 
-		expect(failStalledItemsMock).toHaveBeenCalledWith('batch-1');
+		expect(failStalledItemsMock).toHaveBeenCalledWith(VALID_BATCH_ID);
 		expect(body.stalled).toBe(false);
 		expect(body.items[0]).toMatchObject({ status: 'failed', error: STALL_ERROR, stalled: false });
 	});
@@ -146,5 +147,9 @@ describe('/api/batch-status/[id] — stall reporting', () => {
 	it('still refuses another tenant\'s batch', async () => {
 		getBatchItemsMock.mockResolvedValue([{ ...liveItem('a', 'queued', 0), restaurantId: 'other' }]);
 		expect((await getStatus()).status).toBe(404);
+	});
+
+	it('returns 400 for an invalid non-UUID batch ID', async () => {
+		expect((await getStatus('invalid-batch-id')).status).toBe(400);
 	});
 });

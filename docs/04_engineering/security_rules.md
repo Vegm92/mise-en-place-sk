@@ -214,6 +214,7 @@ Immutable subset is in `docs/00_system/architectural_invariants.md`.
 **`function rateLimitScoped`**
 
 - Structural identity choice for authenticated rate limits (ADR-029, #440): `scope: 'tenant'` keys on `identity.restaurantId`, `scope: 'user'` on `identity.userId`, key shape `` `${name}:${id}` `` (unchanged from the hand-written keys it replaces, so migrating a site whose scope doesn't change is a no-op for its bucket). Throws rather than keying on `undefined` when the scope's required identity is missing. Lives outside `rate-limiter.ts` on purpose — it imports `checkRateLimit` the normal way so every existing `vi.mock('$lib/server/rate-limiter', ...)` in the test suite keeps intercepting it unchanged.
+- Export rate limit buckets are separated into unique per-route names (PR #1153 follow-up): `analytics-corrections-export` (`/analytics/extraction/csv`), `invoices-download-export` (`/invoices/export/download`), `inventory-template` (`/products/inventory-template`), `recipe-csv-export` (`/recipes/[id]/csv`), and `report-export-csv` (`/reports/[type]/csv`). This prevents unrelated document exports from contending over a single shared `'export'` bucket. Enforced by `tests/rate-limit-scope-enforcement.test.ts`.
 
 **`function checkInMemory`**
 
