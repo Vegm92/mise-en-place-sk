@@ -29,8 +29,13 @@ async function buildOnlyPlugins(): Promise<[PluginOption[], PluginOption[]]> {
 	// require a full SvelteKit request event, which breaks unit tests that call
 	// `load()` directly with a partial mock — request-level tracing already comes
 	// from Sentry.sentryHandle() in hooks.server.ts.
+	// Source maps exist only for the upload: build.sourcemap below is 'hidden'
+	// when SENTRY_AUTH_TOKEN is present and false otherwise, and setting it
+	// explicitly turns off the plugin's default post-upload deletion glob, so
+	// the same globs are passed here — nothing under build/ keeps a .map file.
 	const sentryPlugins = await sentrySvelteKit({
 		autoInstrument: false,
+		sourcemaps: { filesToDeleteAfterUpload: ['./.svelte-kit/**/*.map', './build/**/*.map'] },
 		...(process.env['SENTRY_ORG'] ? { org: process.env['SENTRY_ORG'] } : {}),
 		...(process.env['SENTRY_PROJECT'] ? { project: process.env['SENTRY_PROJECT'] } : {}),
 		...(process.env['SENTRY_AUTH_TOKEN'] ? { authToken: process.env['SENTRY_AUTH_TOKEN'] } : {}),
@@ -102,6 +107,7 @@ export default defineConfig(({ mode }) => {
 		plugins: [...prePlugins, sveltekit(), ...postPlugins],
 		build: {
 			reportCompressedSize: false,
+			sourcemap: process.env['SENTRY_AUTH_TOKEN'] ? 'hidden' : false,
 			rollupOptions: {
 				external: ['@whiskeysockets/baileys', 'qrcode-terminal'],
 			},

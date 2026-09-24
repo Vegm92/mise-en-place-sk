@@ -15,7 +15,24 @@ ARG VITE_SENTRY_DSN
 ARG VITE_SENTRY_RELEASE
 ENV VITE_SENTRY_DSN=$VITE_SENTRY_DSN
 ENV VITE_SENTRY_RELEASE=$VITE_SENTRY_RELEASE
-RUN pnpm build
+# The Sentry vite plugin uploads source maps and creates the release during
+# `pnpm build`, so these four must also reach the build stage — without them
+# it logs "No auth token provided" and every production stack trace stays
+# minified, while the generated .map files ship publicly under build/client.
+# Railway hands service variables to a Dockerfile build only through ARG
+# (docs.railway.com/builds/dockerfiles), so ARG is the only channel for the
+# token. Org, project and release are not secrets and may be promoted with
+# ENV; the token is not — it is passed inline to the one RUN that needs it,
+# never stored in the image config, and this stage is discarded: the runtime
+# image below starts from a fresh base.
+ARG SENTRY_ORG
+ARG SENTRY_PROJECT
+ARG SENTRY_RELEASE
+ENV SENTRY_ORG=$SENTRY_ORG
+ENV SENTRY_PROJECT=$SENTRY_PROJECT
+ENV SENTRY_RELEASE=$SENTRY_RELEASE
+ARG SENTRY_AUTH_TOKEN
+RUN SENTRY_AUTH_TOKEN="$SENTRY_AUTH_TOKEN" pnpm build
 RUN pnpm prune --prod
 
 FROM node:22-alpine

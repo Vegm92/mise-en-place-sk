@@ -357,7 +357,13 @@ what actually applied.
 
 Build args: Vite inlines `VITE_*` at build time, so `VITE_SENTRY_DSN` and `VITE_SENTRY_RELEASE`
 must exist as Railway variables on the web service (Railway passes service variables to Dockerfile
-`ARG`s); set `SENTRY_RELEASE` / `VITE_SENTRY_RELEASE` to `${{RAILWAY_GIT_COMMIT_SHA}}`.
+`ARG`s); set `SENTRY_RELEASE` / `VITE_SENTRY_RELEASE` to `${{RAILWAY_GIT_COMMIT_SHA}}`. The source
+map upload also happens inside `pnpm build`, so `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`
+and `SENTRY_RELEASE` must be web-service variables too (the `Dockerfile` declares all four as build
+`ARG`s). Without the token the build generates no source maps at all and ships none; with it, maps
+are generated as `hidden`, uploaded, and deleted from `build/` before the runtime image is assembled.
+Verify after a deploy: the build log shows `[sentry-vite-plugin]` upload lines and
+`curl -sI https://<host>/_app/immutable/entry/start.<hash>.js.map` answers 404.
 
 Both services are separate containers with separate disks: `STORAGE_DRIVER=railway` with the same
 six `AWS_*` variables on each (see [File storage](#file-storage)). Set `ADDRESS_HEADER=x-forwarded-for`
