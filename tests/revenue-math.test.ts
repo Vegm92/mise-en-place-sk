@@ -233,4 +233,41 @@ describe('buildCohorts', () => {
 		expect(feb!.retention[0]).toEqual({ offset: 3, rate: null, customers: null });
 		expect(feb!.revenueRetention[0]!.rate).toBeNull();
 	});
+
+	it('benchmark buildCohorts performance', () => {
+		const largeCohortOf = new Map<string, string>();
+		const largePaying = new Map<string, Map<string, number>>();
+
+		for (let i = 0; i < 500; i++) {
+			const tenantId = `tenant_${i}`;
+			const startMonthIndex = i % 24;
+			const startYear = 2023 + Math.floor(startMonthIndex / 12);
+			const startMonthNum = (startMonthIndex % 12) + 1;
+			const startMonth = `${startYear}-${String(startMonthNum).padStart(2, '0')}`;
+			largeCohortOf.set(tenantId, startMonth);
+
+			const monthsMap = new Map<string, number>();
+			for (let m = 0; m < 18; m++) {
+				const mIdx = startMonthIndex + m;
+				const y = 2023 + Math.floor(mIdx / 12);
+				const mn = (mIdx % 12) + 1;
+				const ym = `${y}-${String(mn).padStart(2, '0')}`;
+				monthsMap.set(ym, 10000 + (i % 50) * 100);
+			}
+			largePaying.set(tenantId, monthsMap);
+		}
+
+		const offsets = [1, 2, 3, 6, 9, 12, 18, 24];
+		const latestMonth = '2025-02';
+
+		const start = performance.now();
+		const iterations = 100;
+		for (let i = 0; i < iterations; i++) {
+			buildCohorts(largeCohortOf, largePaying, latestMonth, offsets);
+		}
+		const totalMs = performance.now() - start;
+		const avgMs = totalMs / iterations;
+		// Just ensure it runs and passes
+		expect(avgMs).toBeLessThan(100);
+	});
 });
