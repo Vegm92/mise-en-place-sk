@@ -17,6 +17,8 @@ export interface TenantMrr {
 	mrrCents: number;
 }
 
+export type TenantMrrInput = TenantMrr[] | Map<string, number>;
+
 export interface MrrMovement {
 	startCents: number;
 	newCents: number;
@@ -27,14 +29,17 @@ export interface MrrMovement {
 	endCents: number;
 }
 
-function total(rows: TenantMrr[]): number {
-	return rows.reduce((sum, r) => sum + r.mrrCents, 0);
-}
-
-function byTenant(rows: TenantMrr[]): Map<string, number> {
+export function byTenant(rows: TenantMrrInput): Map<string, number> {
+	if (rows instanceof Map) return rows;
 	const map = new Map<string, number>();
 	for (const row of rows) map.set(row.restaurantId, (map.get(row.restaurantId) ?? 0) + row.mrrCents);
 	return map;
+}
+
+function totalMap(map: Map<string, number>): number {
+	let sum = 0;
+	for (const val of map.values()) sum += val;
+	return sum;
 }
 
 function applyCurrent(
@@ -56,8 +61,8 @@ function applyCurrent(
 }
 
 export function mrrMovement(
-	previous: TenantMrr[],
-	current: TenantMrr[],
+	previous: TenantMrrInput,
+	current: TenantMrrInput,
 	everPaidBefore: Set<string> = new Set(),
 ): MrrMovement {
 	const prev = byTenant(previous);
@@ -81,17 +86,17 @@ export function mrrMovement(
 	}
 
 	return {
-		startCents: total(previous),
+		startCents: totalMap(prev),
 		newCents: acc.newCents,
 		reactivationCents: acc.reactivationCents,
 		expansionCents: acc.expansionCents,
 		contractionCents: acc.contractionCents,
 		churnedCents: acc.churnedCents,
-		endCents: total(current),
+		endCents: totalMap(curr),
 	};
 }
 
-export function netRetention(previous: TenantMrr[], current: TenantMrr[]): number | null {
+export function netRetention(previous: TenantMrrInput, current: TenantMrrInput): number | null {
 	const prev = byTenant(previous);
 	const curr = byTenant(current);
 	let base = 0;
@@ -104,7 +109,7 @@ export function netRetention(previous: TenantMrr[], current: TenantMrr[]): numbe
 	return base > 0 ? retained / base : null;
 }
 
-export function grossRetention(previous: TenantMrr[], current: TenantMrr[]): number | null {
+export function grossRetention(previous: TenantMrrInput, current: TenantMrrInput): number | null {
 	const prev = byTenant(previous);
 	const curr = byTenant(current);
 	let base = 0;
