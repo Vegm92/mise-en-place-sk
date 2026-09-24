@@ -47,12 +47,19 @@ Thumbs.db
 
 # Project documentation (for eyes only - don't track)
 CLAUDE.md
+# The root AGENTS.md/CLAUDE.md are tracked on purpose: they carry only the
+# open-PR coordination rule, so cloud agents (Jules, Claude Code on the web)
+# that clone fresh see it. Private notes go in AGENTS.local.md / CLAUDE.local.md.
+!/CLAUDE.md
+CLAUDE.local.md
 REFERENCES.md
 CONTEXT.md
 PRD.md
 TODO.md
 .scratch/
 AGENTS.md
+!/AGENTS.md
+AGENTS.local.md
 .vscode
 /.claude/
 /madge-out
