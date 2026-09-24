@@ -1,26 +1,49 @@
 export function sparkPath(values: (number | null)[], w = 100, h = 28): string | null {
-	const clean = values.filter((v): v is number => v !== null);
-	if (clean.length < 2) return null;
-	const min = Math.min(...clean);
-	const max = Math.max(...clean);
+	if (values.length < 2) return null;
+
+	let min = Infinity;
+	let max = -Infinity;
+	let count = 0;
+
+	for (let i = 0; i < values.length; i++) {
+		const v = values[i];
+		if (v !== null && v !== undefined && Number.isFinite(v)) {
+			if (v < min) min = v;
+			if (v > max) max = v;
+			count++;
+		}
+	}
+
+	if (count < 2) return null;
+
 	const span = max - min || 1;
 	const step = w / (values.length - 1);
 	let d = '';
-	values.forEach((v, i) => {
-		if (v === null) return;
+
+	for (let i = 0; i < values.length; i++) {
+		const v = values[i];
+		if (v === null || v === undefined || !Number.isFinite(v)) continue;
 		const x = i * step;
 		const y = h - ((v - min) / span) * h;
 		d += (d ? ' L ' : 'M ') + x.toFixed(2) + ' ' + y.toFixed(2);
-	});
+	}
+
 	return d;
 }
 
 export function windowAvg(values: (number | null)[], fromEnd: number, len: number): number | null {
-	const slice = values
-		.slice(Math.max(0, values.length - fromEnd - len), values.length - fromEnd)
-		.filter((v): v is number => v !== null);
-	if (!slice.length) return null;
-	return slice.reduce((a, b) => a + b, 0) / slice.length;
+	const endIdx = values.length - fromEnd;
+	const startIdx = Math.max(0, endIdx - len);
+	let sum = 0;
+	let count = 0;
+	for (let i = startIdx; i < endIdx; i++) {
+		const v = values[i];
+		if (v !== null && v !== undefined && Number.isFinite(v)) {
+			sum += v;
+			count++;
+		}
+	}
+	return count > 0 ? sum / count : null;
 }
 
 export interface Delta {
