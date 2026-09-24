@@ -257,31 +257,57 @@ export function buildCohorts(
 ): CohortRow[] {
 	const members = new Map<string, string[]>();
 	for (const [restaurantId, month] of cohortOf) {
-		const list = members.get(month) ?? [];
+		let list = members.get(month);
+		if (!list) {
+			list = [];
+			members.set(month, list);
+		}
 		list.push(restaurantId);
-		members.set(month, list);
 	}
 
-	return [...members.entries()]
-		.sort((a, b) => (a[0] < b[0] ? 1 : -1))
-		.map(([month, ids]) => {
-			const mrrAt = (restaurantId: string, at: string) => payingMonths.get(restaurantId)?.get(at) ?? 0;
-			const startMrrCents = ids.reduce((sum, id) => sum + mrrAt(id, month), 0);
+	const sortedCohorts = [...members.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1));
 
-			const retention = offsets.map((offset) => {
-				const at = addMonths(month, offset);
-				if (monthsBetween(at, latestMonth) < 0) return { offset, rate: null, customers: null };
-				const alive = ids.filter((id) => mrrAt(id, at) > 0).length;
-				return { offset, rate: ids.length > 0 ? alive / ids.length : null, customers: alive };
+	return sortedCohorts.map(([month, ids]) => {
+		const tenantPayMaps = ids.map((id) => payingMonths.get(id));
+		let startMrrCents = 0;
+		for (let i = 0; i < tenantPayMaps.length; i++) {
+			startMrrCents += tenantPayMaps[i]?.get(month) ?? 0;
+		}
+
+		const retention: CohortRow['retention'] = [];
+		const revenueRetention: CohortRow['revenueRetention'] = [];
+		const totalCustomers = ids.length;
+
+		for (let j = 0; j < offsets.length; j++) {
+			const offset = offsets[j]!;
+			const at = addMonths(month, offset);
+			if (monthsBetween(at, latestMonth) < 0) {
+				retention.push({ offset, rate: null, customers: null });
+				revenueRetention.push({ offset, rate: null });
+				continue;
+			}
+
+			let alive = 0;
+			let nowMrr = 0;
+			for (let i = 0; i < tenantPayMaps.length; i++) {
+				const mrr = tenantPayMaps[i]?.get(at) ?? 0;
+				if (mrr > 0) {
+					alive++;
+					nowMrr += mrr;
+				}
+			}
+
+			retention.push({
+				offset,
+				rate: totalCustomers > 0 ? alive / totalCustomers : null,
+				customers: alive,
 			});
-
-			const revenueRetention = offsets.map((offset) => {
-				const at = addMonths(month, offset);
-				if (monthsBetween(at, latestMonth) < 0 || startMrrCents <= 0) return { offset, rate: null };
-				const now = ids.reduce((sum, id) => sum + mrrAt(id, at), 0);
-				return { offset, rate: now / startMrrCents };
+			revenueRetention.push({
+				offset,
+				rate: startMrrCents > 0 ? nowMrr / startMrrCents : null,
 			});
+		}
 
-			return { month, customers: ids.length, startMrrCents, retention, revenueRetention };
-		});
+		return { month, customers: totalCustomers, startMrrCents, retention, revenueRetention };
+	});
 }

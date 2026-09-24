@@ -19,6 +19,7 @@ Keep the existing entry shape: an `## <date> - <title>` heading, then
 
 ## Entries
 
+- `2026-09-24` — [Single-pass cohort calculation and allocation elimination in `src/lib/revenue-math.ts`](bolt/2026-09-24-revenue-math-cohorts-single-pass.md)
 - `2026-09-23` — [Reuse pre-calculated tenant MRR Maps in revenue math calculations](bolt/2026-09-23-revenue-math-precalculated-tenant-mrr-maps.md)
 - `2026-09-22` — [Single-pass allocation-free `sparkPath` and `windowAvg` in `src/lib/pulse-math.ts`](bolt/2026-09-22-pulse-math-single-pass-sparkpath-windowavg.md)
 - `2026-09-21` — [Memoize date formatters in analytics price lists and components](bolt/2026-09-21-analytics-prices-memoized-date-formatters.md)
