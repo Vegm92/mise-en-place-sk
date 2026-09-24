@@ -137,4 +137,30 @@ describe('checkRateLimit() call sites go through rateLimitScoped() (issue #440)'
 		expect(call).toMatch(/scope:\s*'tenant'/);
 		expect(call).not.toMatch(/scope:\s*'user'/);
 	});
+
+	it('export endpoints call rateLimitScoped with unique bucket names for isolated tenant quotas', () => {
+		const exportEndpoints = [
+			'src/routes/(app)/analytics/extraction/csv/+server.ts',
+			'src/routes/(app)/invoices/export/download/+server.ts',
+			'src/routes/(app)/reports/[type]/csv/+server.ts',
+			'src/routes/(app)/recipes/[id]/csv/+server.ts',
+			'src/routes/(app)/products/inventory-template/+server.ts',
+			'src/routes/api/user/export/+server.ts',
+		];
+
+		const bucketNames: string[] = [];
+
+		for (const relFile of exportEndpoints) {
+			const src = fs.readFileSync(path.join(process.cwd(), relFile), 'utf8');
+			expect(src, `${relFile} must use rateLimitScoped`).toMatch(/rateLimitScoped/);
+			const nameMatch = src.match(/name:\s*'([^']+)'/);
+			expect(nameMatch, `${relFile} must define a name in rateLimitScoped`).not.toBeNull();
+			if (nameMatch && nameMatch[1]) {
+				bucketNames.push(nameMatch[1]);
+			}
+		}
+
+		const uniqueBuckets = new Set(bucketNames);
+		expect(uniqueBuckets.size).toBe(exportEndpoints.length);
+	});
 });
