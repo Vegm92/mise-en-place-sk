@@ -43,9 +43,9 @@ class PathTest(unittest.TestCase):
 
 class PipelineTest(unittest.TestCase):
     def test_stub_run_writes_report(self):
-        out = em.BASE_DIR / "data" / "test-report.json"
+        out = em.REPORT_DIR / "test-report.json"
         self.addCleanup(out.unlink, missing_ok=True)
-        self.assertEqual(em.main(["fixtures/synthetic.jsonl", "--stub", "--out", "data/test-report.json"]), 0)
+        self.assertEqual(em.main(["fixtures/synthetic.jsonl", "--stub", "--out", "../../test-report.json"]), 0)
         data = json.loads(out.read_text(encoding="utf-8"))
         groups = data["report"]["groups"]
         self.assertEqual(groups["all"]["n"], 8)

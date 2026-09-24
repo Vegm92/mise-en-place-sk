@@ -53,8 +53,8 @@ mkdir -p data
 psql "$DATABASE_URL" -qAt -f export_golden.sql > data/golden.jsonl
 
 # 3. Real run (first run downloads the checkpoint from huggingface.co)
-python eval_match.py data/golden.jsonl --device cpu --out data/report-multilingual.json
-python eval_match.py data/golden.jsonl --device cpu --subfolder '' --out data/report-english.json
+python eval_match.py data/golden.jsonl --device cpu --out report-multilingual.json
+python eval_match.py data/golden.jsonl --device cpu --subfolder '' --out report-english.json
 ```
 
 `data/` is git-ignored: the golden set holds real supplier line items. Never commit it.

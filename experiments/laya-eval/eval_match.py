@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import difflib
 import json
+import os
 import sys
 import time
 from collections.abc import Callable, Sequence
@@ -17,6 +18,7 @@ from pathlib import Path
 
 LLM_MATCH_THRESHOLD = 0.8
 BASE_DIR = Path(__file__).resolve().parent
+REPORT_DIR = BASE_DIR / "data"
 
 QUESTION = {
     "same_product": {
@@ -166,7 +168,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--threshold", type=float, default=LLM_MATCH_THRESHOLD)
     parser.add_argument("--limit", type=int, default=None)
-    parser.add_argument("--out", default=None, help="report path, relative to this folder")
+    parser.add_argument("--out", default=None, help="report file name, written under data/")
     args = parser.parse_args(argv)
 
     rows = load_rows(args.golden)[: args.limit]
@@ -191,8 +193,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(f"latency: {report['ms_per_pair']} ms/pair over {len(rows)} pairs")
 
     if args.out:
-        out = confined(args.out)
-        out.parent.mkdir(parents=True, exist_ok=True)
+        out = REPORT_DIR / os.path.basename(args.out)
+        REPORT_DIR.mkdir(parents=True, exist_ok=True)
         per_row = [
             {"notification_id": r["notification_id"], "label": r["label"],
              "baseline": r["baseline_score"], "candidate": s}
