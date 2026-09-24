@@ -161,7 +161,9 @@ if (!slug) skip('origin is not a GitHub remote');
 const tok = token();
 if (!tok) skip('no GitHub credentials (set GITHUB_TOKEN or run `gh auth login`)');
 
-const branch = tryGit('rev-parse', '--abbrev-ref', 'HEAD');
+// In a pull_request CI run HEAD is a detached merge commit, so the PR's own
+// branch comes from GITHUB_HEAD_REF; otherwise the PR would collide with itself.
+const branch = process.env.GITHUB_HEAD_REF || tryGit('rev-parse', '--abbrev-ref', 'HEAD');
 const { files, added } = localChanges();
 
 if (files.size === 0) skip(`no changes against origin/${BASE}`);

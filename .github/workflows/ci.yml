@@ -196,6 +196,27 @@ jobs:
           AUTH_ADMIN_PASSWORD: ci-password-not-used
           AUTH_ADMIN_RESTAURANT_NAME: CI
 
+  pr-overlap:
+    # Fails when another open PR edits the same files, so parallel agents
+    # (Jules, Claude sessions) can't silently duplicate each other's work —
+    # see AGENTS.md. The size cap stays a local-only check (lockfile bumps
+    # would trip it here).
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+
+      - name: No other open PR edits these files
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: node scripts/check-pr-overlap.mjs --base="$PR_BASE_REF" --max-added=Infinity
+
   eval-gate:
     # Only runs when the prompt/mapping pipeline changed — it makes real
     # Gemini calls against tests/golden/, so it's kept off unrelated PRs.
