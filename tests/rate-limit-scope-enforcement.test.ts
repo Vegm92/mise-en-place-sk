@@ -137,4 +137,37 @@ describe('checkRateLimit() call sites go through rateLimitScoped() (issue #440)'
 		expect(call).toMatch(/scope:\s*'tenant'/);
 		expect(call).not.toMatch(/scope:\s*'user'/);
 	});
+
+	it('export routes use rateLimitScoped with dedicated granular bucket names (PR #1153)', () => {
+		const exportRoutes = [
+			{ file: 'src/routes/(app)/analytics/extraction/csv/+server.ts', expectedBucket: 'analytics-corrections-export' },
+			{ file: 'src/routes/(app)/invoices/export/download/+server.ts', expectedBucket: 'invoices-download-export' },
+			{ file: 'src/routes/(app)/recipes/[id]/csv/+server.ts', expectedBucket: 'recipe-csv-export' },
+			{ file: 'src/routes/(app)/reports/[type]/csv/+server.ts', expectedBucket: 'report-export-csv' },
+			{ file: 'src/routes/(app)/products/inventory-template/+server.ts', expectedBucket: 'inventory-template' },
+			{ file: 'src/routes/api/user/export/+server.ts', expectedBucket: 'account-export' },
+		];
+
+		for (const { file, expectedBucket } of exportRoutes) {
+			const src = fs.readFileSync(path.join(process.cwd(), file), 'utf8');
+			expect(src, `${file} must call rateLimitScoped`).toMatch(/rateLimitScoped/);
+			expect(src, `${file} must use bucket name '${expectedBucket}'`).toMatch(new RegExp(`name:\\s*['"]${expectedBucket}['"]`));
+		}
+	});
+
+	it('all route handlers with csv/export/template in path execute rateLimitScoped', () => {
+		const routeFiles = walkTsFiles(path.join(process.cwd(), 'src/routes'));
+		for (const routeFile of routeFiles) {
+			const relPath = path.relative(process.cwd(), routeFile).split(path.sep).join('/');
+			if (!relPath.endsWith('+server.ts')) continue;
+			if (
+				relPath.includes('/csv') ||
+				relPath.includes('/export/') ||
+				relPath.includes('inventory-template')
+			) {
+				const src = fs.readFileSync(routeFile, 'utf8');
+				expect(src, `${relPath} is an export endpoint and must invoke rateLimitScoped`).toMatch(/rateLimitScoped/);
+			}
+		}
+	});
 });
