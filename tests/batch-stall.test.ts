@@ -96,10 +96,12 @@ function liveItem(id: string, status: BatchItemStatus, queuedMsAgo: number | nul
 
 const LOCALS = { user: { id: 'u' }, restaurantId: 'r' };
 
-async function getStatus() {
+const BATCH_ID = '11111111-1111-1111-1111-111111111111';
+
+async function getStatus(id = BATCH_ID) {
 	const { GET } = await import('../src/routes/api/batch-status/[id]/+server');
 	const res = await (GET as never as (e: unknown) => Promise<Response>)({
-		params: { id: 'batch-1' },
+		params: { id },
 		locals: LOCALS,
 	});
 	return { status: res.status, body: await res.json() };
@@ -129,7 +131,7 @@ describe('/api/batch-status/[id] — stall reporting', () => {
 
 		const { body } = await getStatus();
 
-		expect(failStalledItemsMock).toHaveBeenCalledWith('batch-1');
+		expect(failStalledItemsMock).toHaveBeenCalledWith(BATCH_ID);
 		expect(body.stalled).toBe(false);
 		expect(body.items[0]).toMatchObject({ status: 'failed', error: STALL_ERROR, stalled: false });
 	});
@@ -146,5 +148,12 @@ describe('/api/batch-status/[id] — stall reporting', () => {
 	it('still refuses another tenant\'s batch', async () => {
 		getBatchItemsMock.mockResolvedValue([{ ...liveItem('a', 'queued', 0), restaurantId: 'other' }]);
 		expect((await getStatus()).status).toBe(404);
+	});
+
+	it('rejects a non-UUID batch id with 400', async () => {
+		const { status, body } = await getStatus('not-a-uuid');
+		expect(status).toBe(400);
+		expect(body.error).toBe('Invalid batch id');
+		expect(getBatchItemsMock).not.toHaveBeenCalled();
 	});
 });
