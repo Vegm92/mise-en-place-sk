@@ -181,9 +181,9 @@ describe.skipIf(!hasDbEnv)('/invoices/export/download — issue #493', () => {
 		expect(await statusOf(runGet(''))).toBe(429);
 	});
 
-	it('rate-limits on the restaurant id (export:<rid>)', async () => {
+	it('rate-limits on the restaurant id (invoices-download-export:<rid>)', async () => {
 		await runGet('');
-		expect(rateLimitMock).toHaveBeenCalledWith(`export:${rid}`, expect.any(Number));
+		expect(rateLimitMock).toHaveBeenCalledWith(`invoices-download-export:${rid}`, expect.any(Number));
 	});
 
 	it('caps rows at EXPORT_ROW_CAP and appends a truncation marker row', async () => {
