@@ -13,7 +13,8 @@ finished PR gets thrown away. Examples: #1169 duplicated #1164, #1166 duplicated
    - Otherwise use the GitHub API / MCP tools, or, with git alone:
      `git fetch origin` then, per branch,
      `git diff --name-only origin/main...origin/<branch>`.
-     Merged branches are deleted, so remote branches ≈ open PRs.
+     Branches of merged or closed PRs are not always deleted: skip ones with
+     no diff, and treat the rest as possibly open.
 2. **Check what just landed on main**: `git log --oneline -30 origin/main`.
 3. **If an open PR or a recent merge already covers your task (same bug, same
    finding, same files), stop.** Don't open a variant of it. If you have
