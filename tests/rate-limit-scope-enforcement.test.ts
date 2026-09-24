@@ -122,6 +122,8 @@ describe('checkRateLimit() call sites go through rateLimitScoped() (issue #440)'
 			'src/routes/(app)/invoice/[id]/file/+server.ts',
 			'src/routes/(app)/reports/[type]/csv/+server.ts',
 			'src/routes/(app)/recipes/[id]/csv/+server.ts',
+			'src/routes/(app)/analytics/extraction/csv/+server.ts',
+			'src/routes/(app)/products/inventory-template/+server.ts',
 			'src/lib/server/whatsapp-pairing.ts',
 			'src/routes/(app)/settings/+page.server.ts',
 		];
@@ -129,6 +131,34 @@ describe('checkRateLimit() call sites go through rateLimitScoped() (issue #440)'
 			const src = fs.readFileSync(path.join(process.cwd(), relFile), 'utf8');
 			expect(src, `${relFile} should import rateLimitScoped`).toMatch(/rateLimitScoped/);
 		}
+	});
+
+	it('all export route endpoints enforce rateLimitScoped and use distinct bucket names (PR #1153 follow-up)', () => {
+		const exportRoutes = [
+			'src/routes/(app)/analytics/extraction/csv/+server.ts',
+			'src/routes/(app)/invoices/export/download/+server.ts',
+			'src/routes/(app)/products/inventory-template/+server.ts',
+			'src/routes/(app)/recipes/[id]/csv/+server.ts',
+			'src/routes/(app)/reports/[type]/csv/+server.ts',
+		];
+
+		const bucketNamesUsed: string[] = [];
+
+		for (const relFile of exportRoutes) {
+			const src = fs.readFileSync(path.join(process.cwd(), relFile), 'utf8');
+			expect(src, `${relFile} must invoke rateLimitScoped`).toMatch(/rateLimitScoped\(/);
+
+			const match = src.match(/name:\s*'([^']+)'/);
+			expect(match, `${relFile} must define a name in rateLimitScoped`).not.toBeNull();
+			if (!match || !match[1]) throw new Error(`Missing bucket name match in ${relFile}`);
+			const bucketName = match[1];
+			bucketNamesUsed.push(bucketName);
+
+			expect(bucketName, `${relFile} must not use generic 'export' bucket name`).not.toBe('export');
+		}
+
+		const uniqueBuckets = new Set(bucketNamesUsed);
+		expect(uniqueBuckets.size, 'Each export route must have a unique rate-limit bucket name').toBe(exportRoutes.length);
 	});
 
 	it('chat is tenant-scoped, not user-scoped — the primary #440 fix (paid Gemini capacity must not multiply per staff seat)', () => {
