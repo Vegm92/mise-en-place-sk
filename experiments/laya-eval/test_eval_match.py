@@ -1,6 +1,5 @@
 import json
 import sys
-import tempfile
 import types
 import unittest
 from pathlib import Path
@@ -13,9 +12,9 @@ FIXTURE = Path(__file__).parent / "fixtures" / "synthetic.jsonl"
 
 class MetricsTest(unittest.TestCase):
     def test_auc_perfect_and_inverted(self):
-        self.assertEqual(em.auc([0.9, 0.8, 0.1], [1, 1, 0]), 1.0)
-        self.assertEqual(em.auc([0.1, 0.9], [1, 0]), 0.0)
-        self.assertEqual(em.auc([0.5, 0.5], [1, 0]), 0.5)
+        self.assertAlmostEqual(em.auc([0.9, 0.8, 0.1], [1, 1, 0]), 1.0)
+        self.assertAlmostEqual(em.auc([0.1, 0.9], [1, 0]), 0.0)
+        self.assertAlmostEqual(em.auc([0.5, 0.5], [1, 0]), 0.5)
 
     def test_auc_undefined_without_both_classes(self):
         self.assertIsNone(em.auc([0.9, 0.8], [1, 1]))
@@ -23,6 +22,7 @@ class MetricsTest(unittest.TestCase):
     def test_ece_zero_when_calibrated(self):
         self.assertAlmostEqual(em.ece([1.0, 0.0], [1, 0]), 0.0)
         self.assertAlmostEqual(em.ece([0.9, 0.9], [0, 0]), 0.9)
+        self.assertAlmostEqual(em.ece([1.0, 0.95], [1, 1]), 0.025)
 
     def test_gate_stats(self):
         g = em.gate_stats([0.95, 0.85, 0.5, 0.9], [1, 0, 1, 0], 0.8)
@@ -32,12 +32,21 @@ class MetricsTest(unittest.TestCase):
         self.assertAlmostEqual(g["rejected_suppressed"], 0.0)
 
 
+class PathTest(unittest.TestCase):
+    def test_confined_rejects_paths_outside_folder(self):
+        with self.assertRaises(ValueError):
+            em.confined("../../package.json")
+        with self.assertRaises(ValueError):
+            em.confined("/etc/passwd")
+        self.assertEqual(em.confined("fixtures/synthetic.jsonl"), FIXTURE.resolve())
+
+
 class PipelineTest(unittest.TestCase):
     def test_stub_run_writes_report(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            out = Path(tmp) / "report.json"
-            self.assertEqual(em.main([str(FIXTURE), "--stub", "--out", str(out)]), 0)
-            data = json.loads(out.read_text(encoding="utf-8"))
+        out = em.BASE_DIR / "data" / "test-report.json"
+        self.addCleanup(out.unlink, missing_ok=True)
+        self.assertEqual(em.main(["fixtures/synthetic.jsonl", "--stub", "--out", "data/test-report.json"]), 0)
+        data = json.loads(out.read_text(encoding="utf-8"))
         groups = data["report"]["groups"]
         self.assertEqual(groups["all"]["n"], 8)
         self.assertEqual(set(groups), {"all", "llm", "fuzzy"})

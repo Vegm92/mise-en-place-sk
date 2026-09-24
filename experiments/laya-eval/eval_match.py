@@ -16,6 +16,7 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 
 LLM_MATCH_THRESHOLD = 0.8
+BASE_DIR = Path(__file__).resolve().parent
 
 QUESTION = {
     "same_product": {
@@ -31,9 +32,16 @@ QUESTION = {
 Scorer = Callable[[Sequence[dict]], list[float]]
 
 
-def load_rows(path: Path) -> list[dict]:
+def confined(path: Path | str) -> Path:
+    resolved = (BASE_DIR / path).resolve()
+    if not resolved.is_relative_to(BASE_DIR):
+        raise ValueError(f"{path} is outside {BASE_DIR}")
+    return resolved
+
+
+def load_rows(path: Path | str) -> list[dict]:
     rows = []
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for line in confined(path).read_text(encoding="utf-8").splitlines():
         if line.strip():
             rows.append(json.loads(line))
     return rows
@@ -69,16 +77,17 @@ def auc(scores: Sequence[float], labels: Sequence[int]) -> float | None:
     neg = [s for s, y in zip(scores, labels) if y == 0]
     if not pos or not neg:
         return None
-    wins = sum(1.0 if p > n else 0.5 if p == n else 0.0 for p in pos for n in neg)
+    wins = sum(((p > n) - (p < n) + 1) / 2 for p in pos for n in neg)
     return wins / (len(pos) * len(neg))
 
 
 def ece(scores: Sequence[float], labels: Sequence[int], bins: int = 10) -> float:
     total = len(scores)
+    buckets: list[list[int]] = [[] for _ in range(bins)]
+    for i, s in enumerate(scores):
+        buckets[min(int(s * bins), bins - 1)].append(i)
     err = 0.0
-    for b in range(bins):
-        lo, hi = b / bins, (b + 1) / bins
-        idx = [i for i, s in enumerate(scores) if lo <= s < hi or (b == bins - 1 and s == 1.0)]
+    for idx in buckets:
         if idx:
             conf = sum(scores[i] for i in idx) / len(idx)
             acc = sum(labels[i] for i in idx) / len(idx)
@@ -150,14 +159,14 @@ def print_report(report: dict, candidate_name: str) -> None:
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("golden", type=Path, help="JSONL from export_golden.sql")
+    parser.add_argument("golden", help="JSONL from export_golden.sql, relative to this folder")
     parser.add_argument("--stub", action="store_true", help="string-similarity scorer, no model")
     parser.add_argument("--subfolder", default="multilingual", help="'' for the English root")
     parser.add_argument("--device", default=None, help="cpu | cuda | mps (auto if unset)")
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--threshold", type=float, default=LLM_MATCH_THRESHOLD)
     parser.add_argument("--limit", type=int, default=None)
-    parser.add_argument("--out", type=Path, default=None, help="write report + per-row scores")
+    parser.add_argument("--out", default=None, help="report path, relative to this folder")
     args = parser.parse_args(argv)
 
     rows = load_rows(args.golden)[: args.limit]
@@ -182,17 +191,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(f"latency: {report['ms_per_pair']} ms/pair over {len(rows)} pairs")
 
     if args.out:
-        args.out.parent.mkdir(parents=True, exist_ok=True)
+        out = confined(args.out)
+        out.parent.mkdir(parents=True, exist_ok=True)
         per_row = [
             {"notification_id": r["notification_id"], "label": r["label"],
              "baseline": r["baseline_score"], "candidate": s}
             for r, s in zip(rows, scores)
         ]
-        args.out.write_text(
+        out.write_text(
             json.dumps({"report": report, "rows": per_row}, ensure_ascii=False, indent=1),
             encoding="utf-8",
         )
-        print(f"wrote {args.out}")
+        print(f"wrote {out}")
     return 0
 
 
