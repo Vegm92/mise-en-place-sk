@@ -114,6 +114,18 @@ async function productDetail() {
 async function supplierDetail() {
 	return import('../src/routes/(app)/suppliers/[id]/+page.server');
 }
+async function recipeDetail() {
+	return import('../src/routes/(app)/recipes/[id]/+page.server');
+}
+async function recipeCocina() {
+	return import('../src/routes/(app)/recipes/[id]/cocina/+page.server');
+}
+async function recipeCsv() {
+	return import('../src/routes/(app)/recipes/[id]/csv/+server');
+}
+async function recipeSheet() {
+	return import('../src/routes/(app)/recipes/[id]/sheet/+page.server');
+}
 
 function buildSentinelArgs(id: string, sentinel: ReturnType<typeof sentinelRequest> | undefined) {
 	return { params: { id }, locals: { restaurantId: RID }, request: sentinel!.request } as never;
@@ -201,6 +213,46 @@ const ROUTES: RouteCase[] = [
 		validEvent: () => ({ id: '5', sentinel: sentinelRequest() }),
 	},
 	{
+		name: '/products/[id] action saveFacts',
+		label: 'product',
+		uses: 'sentinel',
+		run: async (id, { sentinel }) =>
+			(await productDetail()).actions.saveFacts!(
+				{ params: { id }, locals: { restaurantId: RID }, request: sentinel!.request } as never,
+			),
+		validEvent: () => ({ id: '5', sentinel: sentinelRequest() }),
+	},
+	{
+		name: '/products/[id] action createAlias',
+		label: 'product',
+		uses: 'sentinel',
+		run: async (id, { sentinel }) =>
+			(await productDetail()).actions.createAlias!(
+				{ params: { id }, locals: { restaurantId: RID }, request: sentinel!.request } as never,
+			),
+		validEvent: () => ({ id: '5', sentinel: sentinelRequest() }),
+	},
+	{
+		name: '/products/[id] action reassignAlias',
+		label: 'product',
+		uses: 'sentinel',
+		run: async (id, { sentinel }) =>
+			(await productDetail()).actions.reassignAlias!(
+				{ params: { id }, locals: { restaurantId: RID }, request: sentinel!.request } as never,
+			),
+		validEvent: () => ({ id: '5', sentinel: sentinelRequest() }),
+	},
+	{
+		name: '/products/[id] action deleteAlias',
+		label: 'product',
+		uses: 'sentinel',
+		run: async (id, { sentinel }) =>
+			(await productDetail()).actions.deleteAlias!(
+				{ params: { id }, locals: { restaurantId: RID }, request: sentinel!.request } as never,
+			),
+		validEvent: () => ({ id: '5', sentinel: sentinelRequest() }),
+	},
+	{
 		name: '/products/[id] action delete',
 		label: 'product',
 		uses: 'db',
@@ -255,6 +307,100 @@ const ROUTES: RouteCase[] = [
 		run: async (id) =>
 			(await supplierDetail()).actions.delete!({ params: { id }, locals: { restaurantId: RID } } as never),
 		validEvent: () => ({ id: '5' }),
+	},
+	{
+		name: '/recipes/[id] load',
+		label: 'recipe',
+		uses: 'db',
+		run: async (id) => (await recipeDetail()).load({ params: { id }, locals: { restaurantId: RID } } as never),
+		validEvent: () => ({ id: '5' }),
+	},
+	{
+		name: '/recipes/[id] action updateRecipe',
+		label: 'recipe',
+		uses: 'db',
+		run: async (id) =>
+			(await recipeDetail()).actions.updateRecipe!(
+				{ params: { id }, locals: { restaurantId: RID } } as never,
+			),
+		validEvent: () => ({ id: '5' }),
+	},
+	{
+		name: '/recipes/[id] action addItem',
+		label: 'recipe',
+		uses: 'db',
+		run: async (id) =>
+			(await recipeDetail()).actions.addItem!(
+				{ params: { id }, locals: { restaurantId: RID } } as never,
+			),
+		validEvent: () => ({ id: '5' }),
+	},
+	{
+		name: '/recipes/[id] action updateItem',
+		label: 'recipe',
+		uses: 'db',
+		run: async (id) =>
+			(await recipeDetail()).actions.updateItem!(
+				{ params: { id }, locals: { restaurantId: RID } } as never,
+			),
+		validEvent: () => ({ id: '5' }),
+	},
+	{
+		name: '/recipes/[id] action deleteItem',
+		label: 'recipe',
+		uses: 'db',
+		run: async (id) =>
+			(await recipeDetail()).actions.deleteItem!(
+				{ params: { id }, locals: { restaurantId: RID } } as never,
+			),
+		validEvent: () => ({ id: '5' }),
+	},
+	{
+		name: '/recipes/[id] action duplicate',
+		label: 'recipe',
+		uses: 'db',
+		run: async (id) =>
+			(await recipeDetail()).actions.duplicate!({ params: { id }, locals: { restaurantId: RID } } as never),
+		validEvent: () => ({ id: '5' }),
+	},
+	{
+		name: '/recipes/[id] action delete',
+		label: 'recipe',
+		uses: 'db',
+		run: async (id) =>
+			(await recipeDetail()).actions.delete!({ params: { id }, locals: { restaurantId: RID } } as never),
+		validEvent: () => ({ id: '5' }),
+	},
+	{
+		name: '/recipes/[id]/cocina load',
+		label: 'recipe',
+		uses: 'db',
+		run: async (id) => (await recipeCocina()).load({ params: { id }, locals: { restaurantId: RID } } as never),
+		validEvent: () => ({ id: '5' }),
+	},
+	{
+		name: '/recipes/[id]/csv GET',
+		label: 'recipe',
+		uses: 'db',
+		run: async (id) => (await recipeCsv()).GET({ params: { id }, locals: { restaurantId: RID } } as never),
+		validEvent: () => ({ id: '5' }),
+	},
+	{
+		name: '/recipes/[id]/sheet load',
+		label: 'recipe',
+		uses: 'db',
+		run: async (id) => (await recipeSheet()).load({ params: { id }, locals: { restaurantId: RID } } as never),
+		validEvent: () => ({ id: '5' }),
+	},
+	{
+		name: '/recipes/[id]/sheet action sendSheet',
+		label: 'recipe',
+		uses: 'sentinel',
+		run: async (id, { sentinel }) =>
+			(await recipeSheet()).actions.sendSheet!(
+				{ params: { id }, locals: { restaurantId: RID }, request: sentinel!.request } as never,
+			),
+		validEvent: () => ({ id: '5', sentinel: sentinelRequest() }),
 	},
 ];
 
