@@ -9,58 +9,31 @@ vi.mock('$lib/server/rate-limiter', () => ({
 	checkRateLimit: vi.fn().mockResolvedValue(true),
 }));
 
+function postEvent(choice: string, next?: string) {
+	const formData = new FormData();
+	formData.append('choice', choice);
+	if (next !== undefined) formData.append('next', next);
+	return {
+		request: { formData: vi.fn().mockResolvedValue(formData) },
+		cookies: {},
+		getClientAddress: () => '127.0.0.1',
+	} as any;
+}
+
 describe('POST /cookie-consent security', () => {
-	it('throws 400 Bad Request on invalid choice', async () => {
-		const formData = new FormData();
-		formData.append('choice', 'invalid_choice');
-
-		const event = {
-			request: {
-				formData: vi.fn().mockResolvedValue(formData),
-			},
-			cookies: {},
-			getClientAddress: () => '127.0.0.1',
-		};
-
-		await expect(POST(event as any)).rejects.toMatchObject({
+	it('rejects invalid choice values with 400', async () => {
+		await expect(POST(postEvent('invalid_choice'))).rejects.toMatchObject({
 			status: 400,
 			body: { message: 'Invalid choice value' },
 		});
 	});
 
-	it('redirects safely when choice is granted', async () => {
-		const formData = new FormData();
-		formData.append('choice', 'granted');
-		formData.append('next', '/dashboard');
-
-		const event = {
-			request: {
-				formData: vi.fn().mockResolvedValue(formData),
-			},
-			cookies: {},
-			getClientAddress: () => '127.0.0.1',
-		};
-
-		await expect(POST(event as any)).rejects.toMatchObject({
+	it('accepts valid choices and sanitizes next path', async () => {
+		await expect(POST(postEvent('granted', '/dashboard'))).rejects.toMatchObject({
 			status: 303,
 			location: '/dashboard',
 		});
-	});
-
-	it('sanitizes unsafe next redirect paths to /', async () => {
-		const formData = new FormData();
-		formData.append('choice', 'granted');
-		formData.append('next', '\\evil.com');
-
-		const event = {
-			request: {
-				formData: vi.fn().mockResolvedValue(formData),
-			},
-			cookies: {},
-			getClientAddress: () => '127.0.0.1',
-		};
-
-		await expect(POST(event as any)).rejects.toMatchObject({
+		await expect(POST(postEvent('granted', '\\evil.com'))).rejects.toMatchObject({
 			status: 303,
 			location: '/',
 		});
