@@ -63,14 +63,14 @@ function supplierCadence(
 	const lastInvoiceStr = sortedDates[sortedDates.length - 1];
 	if (!firstStr || !lastInvoiceStr) return null;
 
-	const lastTs = Date.parse(lastInvoiceStr);
-	const firstTs = Date.parse(firstStr);
+	const lastTs = new Date(lastInvoiceStr).getTime();
+	const firstTs = new Date(firstStr).getTime();
 	if (Number.isNaN(lastTs) || Number.isNaN(firstTs)) return null;
 
 	const gaps: number[] = [];
 	let prevTs = firstTs;
 	for (const dStr of sortedDates.slice(1)) {
-		const currTs = Date.parse(dStr);
+		const currTs = new Date(dStr).getTime();
 		if (Number.isNaN(currTs)) continue;
 		gaps.push(Math.round((currTs - prevTs) / 86400000));
 		prevTs = currTs;
