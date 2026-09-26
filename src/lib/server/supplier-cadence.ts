@@ -29,18 +29,6 @@ export type SupplierCadence = MissingInvoiceAlert & {
 	late: boolean;
 };
 
-type SupplierDates = { supplier_id: number | null; dates: Set<string> };
-
-function groupDatesBySupplier(rows: SupplierInvoiceDate[]): Record<string, SupplierDates> {
-	const map: Record<string, SupplierDates> = {};
-	for (const row of rows) {
-		if (!row.supplier_name || !row.invoice_date) continue;
-		const entry = (map[row.supplier_name] ??= { supplier_id: row.supplier_id ?? null, dates: new Set() });
-		entry.dates.add(row.invoice_date);
-	}
-	return map;
-}
-
 function frequencyLabel(medianGap: number): string {
 	if (medianGap <= WEEKLY_THRESHOLD_DAYS) return 'weekly';
 	if (medianGap <= BIWEEKLY_THRESHOLD_DAYS) return 'biweekly';
@@ -48,23 +36,61 @@ function frequencyLabel(medianGap: number): string {
 	return 'periodic';
 }
 
-function supplierCadence(name: string, supplierId: number | null, dateObjs: Date[], today: Date): SupplierCadence | null {
-	if (dateObjs.length < 2) return null;
-	const gaps = dateObjs.slice(1).map((d, i) =>
-		Math.round((d.getTime() - dateObjs[i]!.getTime()) / 86400000)
-	);
+function groupDatesBySupplier(rows: SupplierInvoiceDate[]): Map<string, { supplier_id: number | null; dates: Set<string> }> {
+	const map = new Map<string, { supplier_id: number | null; dates: Set<string> }>();
+	for (const row of rows) {
+		if (!row.supplier_name || !row.invoice_date) continue;
+		let entry = map.get(row.supplier_name);
+		if (!entry) {
+			entry = { supplier_id: row.supplier_id ?? null, dates: new Set() };
+			map.set(row.supplier_name, entry);
+		}
+		entry.dates.add(row.invoice_date);
+	}
+	return map;
+}
+
+function supplierCadence(
+	name: string,
+	supplierId: number | null,
+	dates: Set<string>,
+	today: Date,
+): SupplierCadence | null {
+	if (dates.size < 2) return null;
+
+	const sortedDates = [...dates].sort();
+	const firstStr = sortedDates[0];
+	const lastInvoiceStr = sortedDates[sortedDates.length - 1];
+	if (!firstStr || !lastInvoiceStr) return null;
+
+	const lastTs = new Date(lastInvoiceStr).getTime();
+	const firstTs = new Date(firstStr).getTime();
+	if (Number.isNaN(lastTs) || Number.isNaN(firstTs)) return null;
+
+	const gaps: number[] = [];
+	let prevTs = firstTs;
+	for (const dStr of sortedDates.slice(1)) {
+		const currTs = new Date(dStr).getTime();
+		if (Number.isNaN(currTs)) continue;
+		gaps.push(Math.round((currTs - prevTs) / 86400000));
+		prevTs = currTs;
+	}
+
+	if (gaps.length === 0) return null;
 	const medianGap = median(gaps);
 	if (medianGap < MIN_SUPPLIER_GAP_DAYS) return null;
-	const last = dateObjs[dateObjs.length - 1];
-	if (!last) return null;
-	const daysSinceLast = Math.round((today.getTime() - last.getTime()) / 86400000);
-	const expectedBy = new Date(last.getTime() + medianGap * 86400000);
-	const daysLate = Math.round((today.getTime() - expectedBy.getTime()) / 86400000);
+
+	const todayTs = today.getTime();
+	const daysSinceLast = Math.round((todayTs - lastTs) / 86400000);
+	const expectedByTs = lastTs + medianGap * 86400000;
+	if (Number.isNaN(expectedByTs)) return null;
+	const daysLate = Math.round((todayTs - expectedByTs) / 86400000);
+
 	return {
 		supplier_name: name,
 		...(supplierId != null ? { supplier_id: supplierId } : {}),
-		last_invoice: last.toISOString().split('T')[0]!,
-		expected_by: expectedBy.toISOString().split('T')[0]!,
+		last_invoice: lastInvoiceStr,
+		expected_by: new Date(expectedByTs).toISOString().slice(0, 10),
 		days_late: daysLate,
 		frequency: frequencyLabel(medianGap),
 		median_gap: medianGap,
@@ -75,9 +101,8 @@ function supplierCadence(name: string, supplierId: number | null, dateObjs: Date
 export function inferSupplierCadence(rows: SupplierInvoiceDate[], today: Date): SupplierCadence[] {
 	const supplierDates = groupDatesBySupplier(rows);
 	const out: SupplierCadence[] = [];
-	for (const [name, { supplier_id, dates }] of Object.entries(supplierDates)) {
-		const dateObjs = [...dates].map((d) => new Date(d)).sort((a, b) => a.getTime() - b.getTime());
-		const cadence = supplierCadence(name, supplier_id, dateObjs, today);
+	for (const [name, { supplier_id, dates }] of supplierDates) {
+		const cadence = supplierCadence(name, supplier_id, dates, today);
 		if (cadence) out.push(cadence);
 	}
 	return out.sort((a, b) => b.days_late - a.days_late);
