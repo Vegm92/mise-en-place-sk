@@ -7,6 +7,8 @@ import { isAdminUser } from '$lib/server/admin';
 import { safe } from '$lib/server/load-guard';
 import { isAccessOpen, setAccessOpen } from '$lib/server/app-flags';
 import { sendEmail, accessApprovedEmail, waitlistInviteEmail, promoCodeEmail } from '$lib/server/email';
+import * as v from 'valibot';
+import { sqlRows } from '$lib/server/sql-rows';
 
 const STRIPE_FOUNDER_COUPON_ID = process.env.STRIPE_FOUNDER_COUPON_ID ?? '';
 const STRIPE_FOUNDER_PROMO_CODE = process.env.STRIPE_FOUNDER_PROMO_CODE ?? '';
@@ -21,25 +23,55 @@ type AccountRow = {
 	restaurant_count: string;
 };
 
+const AccountRowSchema = v.object({
+	id: v.string(),
+	email: v.string(),
+	access_status: v.string(),
+	founder: v.boolean(),
+	email_verified: v.nullable(v.string()),
+	created_at: v.union([v.string(), v.instance(Date)]),
+	restaurant_count: v.union([v.string(), v.number()]),
+});
+
 type WaitlistRow = { email: string; created_at: string };
+
+const WaitlistRowSchema = v.object({
+	email: v.string(),
+	created_at: v.union([v.string(), v.instance(Date)]),
+});
 
 export const load: PageServerLoad = async () => {
 	const [accessOpen, accounts, pendingInvites] = await Promise.all([
 		safe('admin/access-flag', () => isAccessOpen(), false),
-		safe<AccountRow[]>('admin/access-accounts', async () => await db.execute(sql`
-			SELECT u.id, u.email, u.access_status, u.founder, u.email_verified, u.created_at,
-				(SELECT COUNT(*) FROM user_restaurants ur WHERE ur.user_id = u.id) AS restaurant_count
-			FROM ${users} u
-			ORDER BY (u.access_status = 'pending') DESC, u.created_at DESC
-			LIMIT 200
-		`) as unknown as AccountRow[], []),
-		safe<WaitlistRow[]>('admin/access-waitlist', async () => await db.execute(sql`
-			SELECT w.email, w.created_at
-			FROM ${waitlist} w
-			WHERE NOT EXISTS (SELECT 1 FROM ${users} u WHERE u.email = w.email)
-			ORDER BY w.created_at DESC
-			LIMIT 200
-		`) as unknown as WaitlistRow[], []),
+		safe<AccountRow[]>('admin/access-accounts', async () => {
+			const rawRows = await db.execute(sql`
+				SELECT u.id, u.email, u.access_status, u.founder, u.email_verified, u.created_at,
+					(SELECT COUNT(*) FROM user_restaurants ur WHERE ur.user_id = u.id) AS restaurant_count
+				FROM ${users} u
+				ORDER BY (u.access_status = 'pending') DESC, u.created_at DESC
+				LIMIT 200
+			`);
+			const rows = sqlRows(rawRows, AccountRowSchema);
+			return rows.map((r) => ({
+				...r,
+				created_at: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
+				restaurant_count: String(r.restaurant_count),
+			}));
+		}, []),
+		safe<WaitlistRow[]>('admin/access-waitlist', async () => {
+			const rawRows = await db.execute(sql`
+				SELECT w.email, w.created_at
+				FROM ${waitlist} w
+				WHERE NOT EXISTS (SELECT 1 FROM ${users} u WHERE u.email = w.email)
+				ORDER BY w.created_at DESC
+				LIMIT 200
+			`);
+			const rows = sqlRows(rawRows, WaitlistRowSchema);
+			return rows.map((r) => ({
+				...r,
+				created_at: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
+			}));
+		}, []),
 	]);
 
 	return {
@@ -122,10 +154,11 @@ export const actions: Actions = {
 		if (!isAdminUser(locals.user)) return fail(403, { error: 'forbidden' });
 		if (!STRIPE_FOUNDER_PROMO_CODE) return fail(422, { error: 'no_promo_code' });
 
-		const rows = await db.execute<WaitlistRow>(sql`
-			SELECT w.email FROM ${waitlist} w
+		const rawRows = await db.execute(sql`
+			SELECT w.email, w.created_at FROM ${waitlist} w
 			WHERE NOT EXISTS (SELECT 1 FROM ${users} u WHERE u.email = w.email)
 		`);
+		const rows = sqlRows(rawRows, WaitlistRowSchema);
 		for (const row of rows) {
 			await sendEmail(promoCodeEmail(row.email, STRIPE_FOUNDER_PROMO_CODE));
 		}
