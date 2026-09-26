@@ -39,8 +39,8 @@ function frequencyLabel(medianGap: number): string {
 export function inferSupplierCadence(rows: SupplierInvoiceDate[], today: Date): SupplierCadence[] {
 	const map = new Map<string, { supplier_id: number | null; dates: Set<string> }>();
 	for (let i = 0; i < rows.length; i++) {
-		const row = rows[i]!;
-		if (!row.supplier_name || !row.invoice_date) continue;
+		const row = rows[i];
+		if (!row?.supplier_name || !row.invoice_date) continue;
 		let entry = map.get(row.supplier_name);
 		if (!entry) {
 			entry = { supplier_id: row.supplier_id ?? null, dates: new Set() };
@@ -57,23 +57,31 @@ export function inferSupplierCadence(rows: SupplierInvoiceDate[], today: Date): 
 		if (dates.size < 2) continue;
 
 		const sortedDates = [...dates].sort();
-		const len = sortedDates.length;
-		const lastInvoiceStr = sortedDates[len - 1]!;
-		const lastTs = Date.parse(lastInvoiceStr);
+		const firstStr = sortedDates[0];
+		const lastInvoiceStr = sortedDates[sortedDates.length - 1];
+		if (!firstStr || !lastInvoiceStr) continue;
 
-		const gaps: number[] = new Array(len - 1);
-		let prevTs = Date.parse(sortedDates[0]!);
-		for (let i = 1; i < len; i++) {
-			const currTs = Date.parse(sortedDates[i]!);
-			gaps[i - 1] = Math.round((currTs - prevTs) / 86400000);
+		const lastTs = Date.parse(lastInvoiceStr);
+		let prevTs = Date.parse(firstStr);
+		if (Number.isNaN(lastTs) || Number.isNaN(prevTs)) continue;
+
+		const gaps: number[] = [];
+		for (let i = 1; i < sortedDates.length; i++) {
+			const dStr = sortedDates[i];
+			if (!dStr) continue;
+			const currTs = Date.parse(dStr);
+			if (Number.isNaN(currTs)) continue;
+			gaps.push(Math.round((currTs - prevTs) / 86400000));
 			prevTs = currTs;
 		}
 
+		if (gaps.length === 0) continue;
 		const medianGap = median(gaps);
 		if (medianGap < MIN_SUPPLIER_GAP_DAYS) continue;
 
 		const daysSinceLast = Math.round((todayTs - lastTs) / 86400000);
 		const expectedByTs = lastTs + medianGap * 86400000;
+		if (Number.isNaN(expectedByTs)) continue;
 		const daysLate = Math.round((todayTs - expectedByTs) / 86400000);
 
 		out.push({
