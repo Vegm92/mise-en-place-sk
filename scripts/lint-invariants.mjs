@@ -509,8 +509,6 @@ function runInlineTokenStyleGate() {
  */
 const SQL_ROW_CAST_BUDGET = new Map([
 	['src/lib/server/tenant-context.ts', 3],
-	['src/routes/(admin)/admin/+page.server.ts', 2],
-	['src/routes/(admin)/admin/access/+page.server.ts', 2],
 	['src/routes/(app)/analytics/prices/+page.server.ts', 2],
 	['src/lib/server/batch.ts', 1],
 	['src/lib/server/db-role.ts', 1],
