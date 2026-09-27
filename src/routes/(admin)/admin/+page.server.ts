@@ -3,18 +3,25 @@ import { safe } from '$lib/server/load-guard';
 import { db } from '$lib/server/db';
 import { invoices, suppliers, systemNotifications, restaurants, batchItems } from '$lib/server/schema';
 import { sql } from 'drizzle-orm';
+import * as v from 'valibot';
+import { sqlRows } from '$lib/server/sql-rows';
 import { runSystemChecks } from '$lib/server/system-health';
 import { restaurantActivity, type RestaurantActivity } from '$lib/server/pipeline-stats';
 import { workerLiveness } from '$lib/server/worker-heartbeat';
 
-type CountsRow = {
-	invoices_7d: string; invoices_prev_7d: string; active_restaurants_7d: string;
-	pending_notifs: string; total_invoices: string; total_suppliers: string;
-	total_restaurants: string; pending_extractions: string;
-};
+const CountsRowSchema = v.object({
+	invoices_7d: v.union([v.string(), v.number()]),
+	invoices_prev_7d: v.union([v.string(), v.number()]),
+	active_restaurants_7d: v.union([v.string(), v.number()]),
+	pending_notifs: v.union([v.string(), v.number()]),
+	total_invoices: v.union([v.string(), v.number()]),
+	total_suppliers: v.union([v.string(), v.number()]),
+	total_restaurants: v.union([v.string(), v.number()]),
+	pending_extractions: v.union([v.string(), v.number()]),
+});
 
 async function counts() {
-	const rows = await db.execute(sql`
+	const rawRows = await db.execute(sql`
 		SELECT
 			(SELECT COUNT(*) FROM ${invoices}
 				WHERE ${invoices.createdAt} > NOW() - INTERVAL '7 days') AS invoices_7d,
@@ -30,8 +37,9 @@ async function counts() {
 			(SELECT COUNT(*) FROM ${restaurants}) AS total_restaurants,
 			(SELECT COUNT(*) FROM ${batchItems}
 				WHERE ${batchItems.status} IN ('queued', 'extracting')) AS pending_extractions
-	`) as unknown as CountsRow[];
+	`);
 
+	const rows = sqlRows(rawRows, CountsRowSchema);
 	const r = rows[0];
 
 	return {
@@ -56,19 +64,28 @@ type ActivityRow = {
 	created_at: string; restaurant_name: string | null;
 };
 
+const ActivityRowSchema = v.object({
+	id: v.union([v.number(), v.string()]),
+	notification_type: v.nullable(v.string()),
+	message: v.nullable(v.string()),
+	created_at: v.nullable(v.string()),
+	restaurant_name: v.nullable(v.string()),
+});
+
 export const load: PageServerLoad = async () => {
 	const [health, metrics, recentActivity, recentRestaurants] = await Promise.all([
 		safe('admin/health-checks', () => runSystemChecks(), null),
 		safe('admin/counts', counts, EMPTY_COUNTS),
 		safe('admin/activity', async () => {
-			const rows = await db.execute(sql`
+			const rawRows = await db.execute(sql`
 				SELECT sn.id, sn.notification_type, sn.message, sn.created_at,
 					r.name AS restaurant_name
 				FROM system_notifications sn
 				LEFT JOIN restaurants r ON r.id = sn.restaurant_id
 				ORDER BY sn.created_at DESC
 				LIMIT 8
-			`) as unknown as Array<Partial<ActivityRow>>;
+			`);
+			const rows = sqlRows(rawRows, ActivityRowSchema);
 			return rows.map((row, i): ActivityRow => ({
 				id:              Number(row.id ?? i),
 				notification_type: row.notification_type ?? '',
