@@ -47,6 +47,7 @@ const ALLOWED_DIRECT_CALL_FILES = new Set([
 	'src/routes/(app)/settings/+page.server.ts',
 	'src/routes/s/[token]/+page.server.ts',
 	'src/routes/s/[token]/og.png/+server.ts',
+	'src/routes/cookie-consent/+server.ts',
 ]);
 
 function walkTsFiles(dir: string): string[] {
