@@ -58,7 +58,7 @@ function supplierCadence(
 ): SupplierCadence | null {
 	if (dates.size < 2) return null;
 
-	const sortedDates = [...dates].sort();
+	const sortedDates = [...dates].sort((a, b) => a.localeCompare(b));
 	const firstStr = sortedDates[0];
 	const lastInvoiceStr = sortedDates[sortedDates.length - 1];
 	if (!firstStr || !lastInvoiceStr) return null;
