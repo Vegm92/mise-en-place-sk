@@ -150,4 +150,40 @@ describe.skipIf(!hasDbEnv)('getOrGenerateWeeklyDigest — #426 provider seam + u
 		const rows = await testSql`SELECT id FROM llm_usage_log WHERE restaurant_id = ${rid}`;
 		expect(rows).toHaveLength(0);
 	});
+
+	it('passes an AbortSignal to provider.generate', async () => {
+		let capturedSignal: AbortSignal | undefined;
+		const deps: WeeklyDigestDeps = {
+			provider: {
+				model: 'x',
+				generate: async (_prompt: string, signal?: AbortSignal) => {
+					capturedSignal = signal;
+					return { text: 'Timeout test digest.', usage: { inputTokens: 1, outputTokens: 1, model: 'x' } };
+				},
+			},
+			recordUsage: vi.fn(async () => {}),
+		};
+
+		await getOrGenerateWeeklyDigest(rid, '2026-W41', deps);
+		expect(capturedSignal).toBeInstanceOf(AbortSignal);
+	});
+
+	it('returns null and does not call provider when tenant quota is exceeded', async () => {
+		await testSql`
+			INSERT INTO tenant_llm_quotas (restaurant_id, monthly_cost_limit_usd)
+			VALUES (${rid}, '0.00')
+			ON CONFLICT (restaurant_id) DO UPDATE SET monthly_cost_limit_usd = '0.00'`;
+
+		const generateMock = vi.fn();
+		const deps: WeeklyDigestDeps = {
+			provider: { model: 'x', generate: generateMock },
+			recordUsage: vi.fn(async () => {}),
+		};
+
+		const text = await getOrGenerateWeeklyDigest(rid, '2026-W42', deps);
+		expect(text).toBeNull();
+		expect(generateMock).not.toHaveBeenCalled();
+
+		await testSql`DELETE FROM tenant_llm_quotas WHERE restaurant_id = ${rid}`;
+	});
 });

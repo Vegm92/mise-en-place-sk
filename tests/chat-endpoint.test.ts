@@ -93,7 +93,7 @@ describe.skipIf(!hasDbEnv)('#426 — POST /api/chat routes through the LLM provi
 		expect(generateMock).toHaveBeenCalledTimes(1);
 		const [content, signal, systemInstruction] = generateMock.mock.calls[0]!;
 		expect(content).toBe('How much did I spend this week?');
-		expect(signal).toBeUndefined();
+		expect(signal).toBeInstanceOf(AbortSignal);
 		expect(typeof systemInstruction).toBe('string');
 		expect(systemInstruction).toContain('<restaurant_data>');
 	});
@@ -260,5 +260,22 @@ describe.skipIf(!hasDbEnv)('#440 — chat rate limit is tenant-scoped, not user-
 
 		await expectApiError(await POST(chatEvent('One too many', 'staff-a')), 429);
 		expect(generateMock).not.toHaveBeenCalled();
+	});
+});
+
+describe.skipIf(!hasDbEnv)('#1141 — per-tenant quota enforcement in chat', () => {
+	it('returns 402 quota_exceeded when tenant extraction cost quota is exceeded and does not call Gemini provider', async () => {
+		await testSql`
+			INSERT INTO tenant_llm_quotas (restaurant_id, monthly_cost_limit_usd)
+			VALUES (${rid}, '0.00')
+			ON CONFLICT (restaurant_id) DO UPDATE SET monthly_cost_limit_usd = '0.00'`;
+
+		const res = await POST(chatEvent('Should be blocked by quota'));
+		expect(res.status).toBe(402);
+		const body = await res.json();
+		expect(body.error).toBe('quota_exceeded');
+		expect(generateMock).not.toHaveBeenCalled();
+
+		await testSql`DELETE FROM tenant_llm_quotas WHERE restaurant_id = ${rid}`;
 	});
 });

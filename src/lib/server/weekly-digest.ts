@@ -1,9 +1,10 @@
 import { eq, sql } from 'drizzle-orm';
 import { db, forTenant } from './db';
 import { settings, restaurants } from './schema';
+import { GEMINI_TIMEOUT_MS } from './env';
 import { buildChatContext } from './chat-context';
 import { createGeminiProvider } from './llm-provider';
-import { recordLlmUsage } from './llm-quota';
+import { checkExtractionQuota, recordLlmUsage } from './llm-quota';
 
 const VENUE_TYPE_PROMPT_LABEL: Record<string, string> = {
 	menu_del_dia: 'a fixed-price menú del día restaurant',
@@ -74,7 +75,7 @@ export interface WeeklyDigestDeps {
 
 async function callGeminiText(prompt: string, restaurantId: string, deps: WeeklyDigestDeps): Promise<string> {
 	const provider = deps.provider ?? createGeminiProvider();
-	const response = await provider.generate(prompt);
+	const response = await provider.generate(prompt, AbortSignal.timeout(GEMINI_TIMEOUT_MS));
 	const recordUsage = deps.recordUsage ?? recordLlmUsage;
 	await recordUsage(restaurantId, response.usage, 'weekly-digest');
 	return response.text;
@@ -93,6 +94,12 @@ export async function getOrGenerateWeeklyDigest(
 
 		if (!(await claimDigestWeek(restaurantId, currentWeek))) {
 			return await getSetting(restaurantId, 'weekly_digest_text');
+		}
+
+		const quota = await checkExtractionQuota(restaurantId);
+		if (!quota.allowed) {
+			console.warn(`[weekly-digest] quota exceeded for restaurant ${restaurantId}: ${quota.reason}`);
+			return null;
 		}
 
 		const context = await buildChatContext(restaurantId);
