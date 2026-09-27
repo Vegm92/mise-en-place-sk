@@ -19,19 +19,29 @@ export function computeDonutSlices<T extends DonutSliceInput>(
 	input: T[],
 	radius: number,
 ): DonutResult<T> {
-	const positive = input.filter(s => s.value > 0);
-	const total = positive.reduce((sum, s) => sum + s.value, 0);
-	if (total <= 0 || radius <= 0) return { slices: [], total: 0 };
+	if (radius <= 0 || input.length === 0) return { slices: [], total: 0 };
+
+	let total = 0;
+	for (let i = 0; i < input.length; i++) {
+		const val = input[i]!.value;
+		if (val > 0) total += val;
+	}
+	if (total <= 0) return { slices: [], total: 0 };
 
 	const circumference = 2 * Math.PI * radius;
+	const invTotal = 1 / total;
 	let cursor = 0;
-	const slices: DonutSlice<T>[] = positive.map(s => {
-		const pct = s.value / total;
+	const slices: DonutSlice<T>[] = [];
+
+	for (let i = 0; i < input.length; i++) {
+		const s = input[i]!;
+		if (s.value <= 0) continue;
+		const pct = s.value * invTotal;
 		const dash = pct * circumference;
-		const slice = { ...s, pct, dash, offset: cursor };
+		slices.push({ ...s, pct, dash, offset: cursor });
 		cursor += dash;
-		return slice;
-	});
+	}
+
 	return { slices, total };
 }
 
