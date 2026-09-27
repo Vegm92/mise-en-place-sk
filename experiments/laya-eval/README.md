@@ -37,12 +37,35 @@ probability, so read only `auc` for them), and `all`.
   renamed after the decision shows up as a false reject.
 - Categorization is not covered: `products.category` has no user-vs-model provenance to label from.
 
-## Run it
+## Install Laya
+
+Needs Python 3.10 or newer and outbound access to `pypi.org` and `huggingface.co`. `laya==0.3.20`
+pulls in `torch>=2.0`, `transformers>=4.48`, `safetensors`, `huggingface_hub` and `numpy`; no extras
+are needed for this harness.
 
 ```bash
 cd experiments/laya-eval
 python3 -m venv .venv && . .venv/bin/activate
+python -m pip install --upgrade pip
+
+# Linux without a GPU: install the CPU-only torch wheel first, or pip pulls the much larger CUDA build.
+# Skip this line on macOS or on a CUDA machine.
+pip install torch --index-url https://download.pytorch.org/whl/cpu
+
 pip install -r requirements.txt
+python -c "import laya, torch; print('laya ok, torch', torch.__version__)"
+```
+
+The first `laya.load(...)` (step 3 below) downloads the `convaiinnovations/laya` checkpoint into the
+Hugging Face cache (`~/.cache/huggingface/hub`; set `HF_HOME` to move it). Later runs reuse it, and
+`HF_HUB_OFFLINE=1` forces cache-only. If the download returns 401/403, run `huggingface-cli login`
+first. `--device` accepts `cpu`, `cuda` or `mps`; an unavailable device falls back to CPU.
+
+## Run it
+
+```bash
+cd experiments/laya-eval
+. .venv/bin/activate
 
 # 1. Harness self-check (no model, no DB)
 python -m unittest -v
