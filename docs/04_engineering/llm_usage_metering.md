@@ -5,26 +5,24 @@ related: "[[CONTEXT]]"
 
 # LLM Usage Metering
 
-Status: **Recorded, not fully enforced** (chat/digest metering shipped in
-#426, closing the original 2026-08-13 gap this doc described; a cost-cap
-enforcement gap remains — see below).
+Status: **Recorded and enforced** (chat/digest metering shipped in
+#426; cost-cap enforcement and timeouts added in #1141).
 
 ## Current state
 
 Chat (`src/routes/(app)/api/chat/+server.ts:133`) and the weekly digest
-(`src/lib/server/weekly-digest.ts:78`) call `recordLlmUsage` after a
-successful reply, with `caller_context` `'chat'` / `'weekly-digest'`. Both
-write to `llm_usage_log`, so `estimated_cost_usd` and `/admin/revenue` now
-include this spend.
+(`src/lib/server/weekly-digest.ts:78`) call `checkExtractionQuota` before
+making Gemini requests to enforce per-tenant cost ceilings, pass
+`AbortSignal.timeout(GEMINI_TIMEOUT_MS)` to `generate()`, and call `recordLlmUsage`
+after a successful reply with `caller_context` `'chat'` / `'weekly-digest'`. Both
+write to `llm_usage_log`, so `estimated_cost_usd` and `/admin/revenue` include
+this spend.
 
-What's still open:
+Key details:
 
-- `checkExtractionQuota` (`tenant_llm_quotas.monthly_extractions` /
-  `monthly_cost_limit_usd`) is called only from the extraction path
-  (`src/lib/server/extraction-worker.ts:89`). Chat and digest usage is
-  **recorded but not checked against the per-tenant cost cap** — a tenant can
-  exceed `monthly_cost_limit_usd` through chat/digest alone and nothing stops
-  it, though the spend is now visible for review.
+- `checkExtractionQuota` (`tenant_llm_quotas.monthly_cost_limit_usd`) is enforced
+  across extraction, chat, and weekly digest paths. When a tenant reaches its cost
+  limit, chat returns HTTP 402 (`quota_exceeded`) and weekly digest returns `null`.
 - `monthly_usage` (plan quota, `claimMonthlyExtraction`) tracks only
   extractions — deliberately, since that is the unit the plan is sold on
   (ADR-036) — so chat/digest usage does not consume the plan's extraction
@@ -32,10 +30,6 @@ What's still open:
   `document-structure` but is likewise off the plan counter: it is the system
   deciding what a file is, not a document the customer asked to have
   processed.
-
-This is a **cost-cap enforcement** gap, not a correctness or visibility one:
-chat and digest work and their spend is now visible in `llm_usage_log` and
-`/admin/revenue`; only the per-tenant cost limit doesn't yet stop them.
 
 ## The mechanism that already exists (reuse, do not rebuild)
 
@@ -64,14 +58,12 @@ Chat and digest are logging-only: neither is added to `checkExtractionQuota`
 or `claimMonthlyExtraction`. `recordLlmUsage` stays non-fatal everywhere —
 metering failure never breaks chat, digest, or extraction.
 
-## Remaining decision
+## Enforced behavior (#1141)
 
-Should chat/digest usage count toward `tenant_llm_quotas.monthly_cost_limit_usd`
-(and, separately, the plan's `monthly_usage` extraction counter)? Per
-ADR-007, this is an open product decision, not an engineering gap — the
-mechanism (`checkExtractionQuota`) already exists and would just need chat
-and digest wired into it once the call is made. Record the decision as an
-ADR-007 amendment when it's made.
+Chat and weekly digest check `checkExtractionQuota` before invoking LLM calls.
+If `quota.allowed` is false due to reaching `monthly_cost_limit_usd` or extraction
+limits, Gemini provider calls are skipped. Furthermore, both paths pass
+`AbortSignal.timeout(GEMINI_TIMEOUT_MS)` to prevent hung calls.
 
 ## Tests to add
 
