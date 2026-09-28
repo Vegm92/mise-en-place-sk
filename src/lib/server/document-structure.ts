@@ -111,6 +111,7 @@ export function pageSignalsFromText(pages: string[]): PageSignal[] | null {
 
 	const signals: PageSignal[] = [];
 	let previousRef: string | null = null;
+	let open = false;
 
 	pages.forEach((text, index) => {
 		const page = index + 1;
@@ -119,7 +120,6 @@ export function pageSignalsFromText(pages: string[]): PageSignal[] | null {
 		const isCover = COVER_RE.test(text) && (text.match(DATE_ROW_RE)?.length ?? 0) >= MIN_COVER_ROWS;
 		const continues = (pageOf ? Number(pageOf[1]) > 1 : false) || CONTINUES_RE.test(text);
 		const hasHeader = HEADER_RE.test(text);
-		const open = signals.some((s) => s.role !== 'cover');
 
 		let role: PageRole = 'document';
 		if (isCover) role = 'cover';
@@ -128,6 +128,7 @@ export function pageSignalsFromText(pages: string[]): PageSignal[] | null {
 		else if (ref && previousRef && ref !== previousRef) role = 'document';
 		else if (continues || !hasHeader) role = 'continuation';
 
+		if (role !== 'cover') open = true;
 		if (ref) previousRef = ref;
 		signals.push({ page, role, ref, confidence: 1 });
 	});
