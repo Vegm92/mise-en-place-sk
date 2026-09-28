@@ -25,7 +25,7 @@ interface Sample extends Bucket {
 
 const buckets = new Map<string, Sample>();
 
-const keyOf = (name: string, label: string | null) => JSON.stringify([name, label]);
+const keyOf = (name: string, label: string | null) => (label === null ? name : `${name}\0${label}`);
 
 export function observe(name: string, value: number, label: string | null = null): void {
 	if (!Number.isFinite(value)) return;
