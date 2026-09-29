@@ -140,11 +140,11 @@ describe('/reset-password', () => {
 		expect(result).toMatchObject({ status: 400, data: { error: 'expired' } });
 	});
 
-	it('rejects a file part posted under the password field with a clean 400 instead of crashing (issue #844)', async () => {
+	it('rejects a file part posted under the password field with a clean 422 instead of crashing (issue #844)', async () => {
 		const result = await resetActions.default!(
 			formEventWithFile({ email: 'chef@example.com', token: 'abc', password: maliciousFile('not a password'), confirm: 'longenough123' }),
 		);
-		expect(result).toMatchObject({ status: 400, data: { error: 'expired' } });
+		expect(result).toMatchObject({ status: 422, data: { error: 'invalid' } });
 		expect(updatedRows).toHaveLength(0);
 	});
 
@@ -168,6 +168,29 @@ describe('/reset-password', () => {
 			formEvent({ email: 'chef@example.com', token: 'abc', password: 'longenough123', confirm: 'longenough123' }),
 		);
 		expect(result).toMatchObject({ status: 400, data: { error: 'expired' } });
+	});
+
+	it('rate limits per IP, short-circuiting before checking token or email', async () => {
+		rateLimitMock.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+		const result = await resetActions.default!(
+			formEvent({ email: 'chef@example.com', token: 'abc', password: 'longenough123', confirm: 'longenough123' }),
+		);
+		expect(result).toMatchObject({ status: 429, data: { error: 'rate_limited' } });
+		expect(consumeVerificationTokenMock).not.toHaveBeenCalled();
+		expect(logAuthEventMock).toHaveBeenCalledWith('password_reset_rate_limited', expect.anything());
+	});
+
+	it('rate limits per email once IP bucket has room', async () => {
+		rateLimitMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+		const result = await resetActions.default!(
+			formEvent({ email: 'chef@example.com', token: 'abc', password: 'longenough123', confirm: 'longenough123' }),
+		);
+		expect(result).toMatchObject({ status: 429, data: { error: 'rate_limited' } });
+		expect(consumeVerificationTokenMock).not.toHaveBeenCalled();
+		expect(rateLimitMock.mock.calls.map(c => c[0])).toEqual([
+			'reset:ip:203.0.113.7',
+			'reset:email:chef@example.com',
+		]);
 	});
 
 	it('updates the password, clears the session cookie, and sends the user back to sign in', async () => {
