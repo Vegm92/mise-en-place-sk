@@ -64,13 +64,17 @@ export function parseInvoiceFilters(params: URLSearchParams): InvoiceFilters {
 }
 
 export function countActiveInvoiceFilters(filters: InvoiceFilters): number {
-	const values = [
-		filters.q, filters.status, filters.supplier_id, filters.category,
-		filters.date_from, filters.date_to,
-		filters.uploaded_from, filters.uploaded_to,
-	];
-	const populated = values.filter(v => (v ?? '').trim() !== '').length;
-	return populated + (filters.sort && filters.sort !== DEFAULT_INVOICE_SORT ? 1 : 0);
+	let count = 0;
+	if ((filters.q ?? '').trim()) count++;
+	if ((filters.status ?? '').trim()) count++;
+	if ((filters.supplier_id ?? '').trim()) count++;
+	if ((filters.category ?? '').trim()) count++;
+	if ((filters.date_from ?? '').trim()) count++;
+	if ((filters.date_to ?? '').trim()) count++;
+	if ((filters.uploaded_from ?? '').trim()) count++;
+	if ((filters.uploaded_to ?? '').trim()) count++;
+	if (filters.sort && filters.sort !== DEFAULT_INVOICE_SORT) count++;
+	return count;
 }
 
 export interface InvoiceListParamExtras {

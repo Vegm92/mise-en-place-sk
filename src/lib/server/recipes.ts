@@ -581,8 +581,9 @@ export function wouldCycle(
 	if (parentId === childId) return true;
 	const seen = new Set<number>([childId]);
 	const queue = [childId];
-	while (queue.length > 0) {
-		const current = queue.shift()!;
+	let head = 0;
+	while (head < queue.length) {
+		const current = queue[head++]!;
 		const node = graph.get(current);
 		if (!node) continue;
 		for (const item of node.items) {
@@ -596,7 +597,7 @@ export function wouldCycle(
 	return false;
 }
 
-function buildRecipeParentIndex(graph: Map<number, RecipeNode>): Map<number, number[]> {
+export function buildRecipeParentIndex(graph: Map<number, RecipeNode>): Map<number, number[]> {
 	const parentsOf = new Map<number, number[]>();
 	for (const [parentId, node] of graph) {
 		for (const item of node.items) {
@@ -609,14 +610,19 @@ function buildRecipeParentIndex(graph: Map<number, RecipeNode>): Map<number, num
 	return parentsOf;
 }
 
-export function recipeAncestors(graph: Map<number, RecipeNode>, id: number): Set<number> {
-	const parentsOf = buildRecipeParentIndex(graph);
+export function recipeAncestors(
+	graph: Map<number, RecipeNode>,
+	id: number,
+	parentsOf?: Map<number, number[]>
+): Set<number> {
+	const parentMap = parentsOf ?? buildRecipeParentIndex(graph);
 
 	const ancestors = new Set<number>();
 	const queue = [id];
-	while (queue.length > 0) {
-		const current = queue.shift()!;
-		for (const parentId of parentsOf.get(current) ?? []) {
+	let head = 0;
+	while (head < queue.length) {
+		const current = queue[head++]!;
+		for (const parentId of parentMap.get(current) ?? []) {
 			if (ancestors.has(parentId)) continue;
 			ancestors.add(parentId);
 			queue.push(parentId);

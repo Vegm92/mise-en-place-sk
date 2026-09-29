@@ -431,7 +431,7 @@ observances), so it was removed as dead code rather than connected as-is
 - The only place a query string becomes filters. Text is trimmed (a whitespace-only `q` is no filter at all), dates go through `toIsoDate` so a malformed one is dropped rather than handed to a `date` column, and an unknown `sort` falls back to `uploaded_desc` instead of reaching the sort map.
 
 **`function countActiveInvoiceFilters`**
-- The number badged on the collapsed toggle. `sort` counts only when it is not the default, and blank/whitespace values never count — otherwise a bare `/invoices` would advertise filters it is not applying.
+- The number badged on the collapsed toggle. `sort` counts only when it is not the default, and blank/whitespace values never count — otherwise a bare `/invoices` would advertise filters it is not applying. Allocation-free property iteration (no intermediate arrays) to prevent garbage collection pressure during UI updates and renders.
 
 **`function invoiceFilterParams` / `invoiceFiltersHref`**
 - The inverse of `parseInvoiceFilters`: empty values and default `sort`/`period`/`page` are omitted, so an unfiltered list is `/invoices` and not a query string of empties. Round-tripping through both is what lets the client rebuild the URL without the server and the client disagreeing.
