@@ -118,4 +118,16 @@ describe('inferSupplierCadence — every supplier, not only the late ones', () =
 		expect(missing).not.toHaveProperty('median_gap');
 		expect(missing).not.toHaveProperty('late');
 	});
+
+	it('calculates gap correctly for multiple dates without subarray allocation', () => {
+		const cadence = inferSupplierCadence([
+			{ supplier_id: 1, supplier_name: 'Multi Date Supplier', invoice_date: '2026-01-05' },
+			{ supplier_id: 1, supplier_name: 'Multi Date Supplier', invoice_date: '2026-01-12' },
+			{ supplier_id: 1, supplier_name: 'Multi Date Supplier', invoice_date: '2026-01-19' },
+			{ supplier_id: 1, supplier_name: 'Multi Date Supplier', invoice_date: '2026-01-26' },
+		], TODAY);
+		expect(cadence).toHaveLength(1);
+		expect(cadence[0]!.median_gap).toBe(7);
+		expect(cadence[0]!.last_invoice).toBe('2026-01-26');
+	});
 });

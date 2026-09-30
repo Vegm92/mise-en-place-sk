@@ -1,0 +1,1 @@
+CREATE INDEX "idx_invoices_rid_supplier_date" ON "invoices" USING btree ("restaurant_id","supplier_id","invoice_date");

@@ -131,6 +131,7 @@ export const invoices = pgTable('invoices', {
 	index('idx_invoices_rid_incidence_kind').on(t.restaurantId, t.incidenceKind).where(sql`${t.incidenceKind} IS NOT NULL`),
 	index('idx_invoices_rid_created_at').on(t.restaurantId, t.createdAt),
 	index('idx_invoices_supplier_id').on(t.supplierId),
+	index('idx_invoices_rid_supplier_date').on(t.restaurantId, t.supplierId, t.invoiceDate),
 	check('invoices_incidence_kind_valid', sql`${t.incidenceKind} IS NULL OR ${t.incidenceKind} IN ('lectura','documento')`),
 ]);
 

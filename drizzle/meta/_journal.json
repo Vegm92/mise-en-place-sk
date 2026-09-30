@@ -610,6 +610,13 @@
       "when": 1789835271107,
       "tag": "0086_famous_blindfold",
       "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "7",
+      "when": 1790763450806,
+      "tag": "0087_true_vin_gonzales",
+      "breakpoints": true
     }
   ]
 }
