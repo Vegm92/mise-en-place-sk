@@ -85,25 +85,37 @@ async function computeFrequencyScore(supplierId: number, restaurantId: string): 
 		))
 		.orderBy(invoices.invoiceDate);
 
-	if (invoiceDates.length < 2) return 15;
-
-	const dateObjs = invoiceDates
-		.filter(r => r.invoice_date)
-		.map(r => new Date(r.invoice_date!))
-		.sort((a, b) => a.getTime() - b.getTime());
-
-	const gaps: number[] = [];
-	for (let i = 1; i < dateObjs.length; i++) {
-		gaps.push((dateObjs[i]!.getTime() - dateObjs[i - 1]!.getTime()) / 86400000);
+	const timestamps: number[] = [];
+	for (let i = 0; i < invoiceDates.length; i++) {
+		const dStr = invoiceDates[i]!.invoice_date;
+		if (!dStr) continue;
+		const ts = Date.parse(dStr);
+		if (!Number.isNaN(ts)) timestamps.push(ts);
 	}
 
-	const avgGap = gaps.reduce((a, b) => a + b, 0) / gaps.length;
+	if (timestamps.length < 2) return 15;
+
+	let totalGap = 0;
+	const gaps: number[] = [];
+	for (let i = 1; i < timestamps.length; i++) {
+		const gap = (timestamps[i]! - timestamps[i - 1]!) / 86400000;
+		gaps.push(gap);
+		totalGap += gap;
+	}
+
+	if (gaps.length === 0) return 15;
+
+	const avgGap = totalGap / gaps.length;
 	let threshold = 45;
 	if (avgGap <= 10) threshold = 10;
 	else if (avgGap <= 20) threshold = 20;
-	const lastDate = dateObjs[dateObjs.length - 1]!;
-	const daysSinceLast = (Date.now() - lastDate.getTime()) / 86400000;
-	const missedCount = gaps.filter(g => g > threshold * 1.5).length + (daysSinceLast > threshold * 1.5 ? 1 : 0);
+	const lastTs = timestamps[timestamps.length - 1]!;
+	const daysSinceLast = (Date.now() - lastTs) / 86400000;
+	const thresholdFactor = threshold * 1.5;
+	let missedCount = daysSinceLast > thresholdFactor ? 1 : 0;
+	for (let i = 0; i < gaps.length; i++) {
+		if (gaps[i]! > thresholdFactor) missedCount++;
+	}
 
 	if (missedCount === 0) return 33;
 	return missedCount <= 2 ? 15 : 0;
