@@ -116,6 +116,7 @@ describe('checkRateLimit() call sites go through rateLimitScoped() (issue #440)'
 			'src/routes/(app)/invoices/+page.server.ts',
 			'src/routes/(app)/invoices/export/download/+server.ts',
 			'src/routes/(app)/invoice/[id]/+page.server.ts',
+			'src/routes/(app)/invoice/[id]/edit/+page.server.ts',
 			'src/routes/(app)/+page.server.ts',
 			'src/routes/api/user/delete/+server.ts',
 			'src/routes/api/user/export/+server.ts',
