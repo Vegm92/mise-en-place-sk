@@ -69,7 +69,9 @@ function supplierCadence(
 
 	const gaps: number[] = [];
 	let prevTs = firstTs;
-	for (const dStr of sortedDates.slice(1)) {
+	for (let i = 1; i < sortedDates.length; i++) {
+		const dStr = sortedDates[i];
+		if (!dStr) continue;
 		const currTs = new Date(dStr).getTime();
 		if (Number.isNaN(currTs)) continue;
 		gaps.push(Math.round((currTs - prevTs) / 86400000));

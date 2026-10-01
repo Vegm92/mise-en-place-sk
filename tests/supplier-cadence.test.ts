@@ -118,4 +118,22 @@ describe('inferSupplierCadence — every supplier, not only the late ones', () =
 		expect(missing).not.toHaveProperty('median_gap');
 		expect(missing).not.toHaveProperty('late');
 	});
+
+	it('correctly calculates gap sequences for out-of-order date inputs', () => {
+		const cadence = inferSupplierCadence([
+			{ supplier_id: 3, supplier_name: 'Carnes', invoice_date: '2026-01-20' },
+			{ supplier_id: 3, supplier_name: 'Carnes', invoice_date: '2026-01-06' },
+			{ supplier_id: 3, supplier_name: 'Carnes', invoice_date: '2026-01-13' },
+			{ supplier_id: 3, supplier_name: 'Carnes', invoice_date: '2026-01-27' },
+		], TODAY);
+		expect(cadence).toHaveLength(1);
+		expect(cadence[0]).toMatchObject({
+			supplier_id: 3,
+			supplier_name: 'Carnes',
+			frequency: 'weekly',
+			median_gap: 7,
+			last_invoice: '2026-01-27',
+			expected_by: '2026-02-03',
+		});
+	});
 });
