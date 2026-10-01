@@ -248,6 +248,12 @@ the inventory template, issue #885) is a different route entirely.
 
 ## Server core (DB, extraction, billing, jobs)
 
+### `src/lib/server/supplier-cadence.ts`
+
+**`function supplierCadence`**
+- Delivery cadence inference and gap calculation: iterates over lexicographical ISO date strings (`sortedDates`) using index-based loop (`for (let i = 1; i < sortedDates.length; i++)`) to calculate date gaps in days without creating temporary array allocations (`sortedDates.slice(1)`).
+- `supplierInvoiceDates` query performance is supported by composite index `idx_invoices_deleted_at` (`restaurant_id` where `deleted_at IS NULL`) and covering index `idx_invoices_supplier_id` (`supplier_id`) on the `invoices` table.
+
 ### `src/lib/server/with-timeout.ts`
 
 **`function withTimeout`**
