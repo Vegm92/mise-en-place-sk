@@ -11,6 +11,7 @@ import { isBlankOrIsoDate, toIsoDate } from '$lib/server/dates';
 import { parseLineInputs, enrichLineItems, computeFormContentHash, linkProductsToInvoice, findInvalidMonetaryField, documentReferenceColumns, type DocumentReferenceFields } from '$lib/server/invoice-save';
 import { reevaluateInvoiceAlerts } from '$lib/server/alerts';
 import { requirePositiveIntId } from '$lib/server/route-params';
+import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import type { TaxBand } from '$lib/tax';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -160,6 +161,11 @@ export const actions: Actions = {
 	save: async ({ request, params, locals }) => {
 		const id  = requirePositiveIntId(params.id, 'invoice');
 		const rid = locals.restaurantId!;
+
+		if (!(await rateLimitScoped({ scope: 'tenant', name: 'invoice-edit-save', max: 30 }, { restaurantId: rid }))) {
+			return fail(429, { error: 'Too many requests' });
+		}
+
 		const uid = locals.user!.id;
 		const tdb = forTenant(rid);
 		const data = await request.formData();
