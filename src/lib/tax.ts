@@ -115,12 +115,16 @@ export function sumTaxCents(bands: TaxBand[]): number {
 }
 
 export function taxableBaseCents(bands: TaxBand[]): number {
-	const perType = new Map<string, number>();
-	for (const band of bands) {
-		const key = band.type === 'rec' ? 'rec' : 'iva';
-		perType.set(key, (perType.get(key) ?? 0) + (toCents(band.base) ?? 0));
+	let ivaCents = 0;
+	let recCents = 0;
+	for (let i = 0; i < bands.length; i++) {
+		const band = bands[i]!;
+		const cents = toCents(band.base) ?? 0;
+		if (band.type === 'rec') recCents += cents;
+		else ivaCents += cents;
 	}
-	return Math.max(0, ...perType.values());
+	const maxCents = ivaCents > recCents ? ivaCents : recCents;
+	return maxCents > 0 ? maxCents : 0;
 }
 
 export function taxableBaseMoney(bands: TaxBand[]): string {
@@ -157,20 +161,24 @@ export function detectTotalMismatch(
 
 export function bandsFromLines(lines: TaxedLine[], type?: TaxType): TaxBand[] {
 	const perRate = new Map<number, number>();
-	for (const line of lines) {
+	for (let i = 0; i < lines.length; i++) {
+		const line = lines[i]!;
 		const rate = percentToFraction(line.rate);
 		if (rate === null) continue;
 		perRate.set(rate, (perRate.get(rate) ?? 0) + (toCents(line.totalPrice) ?? 0));
 	}
-	return [...perRate.entries()]
-		.sort((a, b) => b[0] - a[0])
-		.map(([rate, baseCents]) => {
-			const band: TaxBand = {
-				rate,
-				base: baseCents / 100,
-				tax_amount: Math.round(baseCents * rate) / 100,
-			};
-			if (type) band.type = type;
-			return band;
-		});
+	const rates = Array.from(perRate.keys()).sort((a, b) => b - a);
+	const res: TaxBand[] = new Array(rates.length);
+	for (let i = 0; i < rates.length; i++) {
+		const rate = rates[i]!;
+		const baseCents = perRate.get(rate)!;
+		const band: TaxBand = {
+			rate,
+			base: baseCents / 100,
+			tax_amount: Math.round(baseCents * rate) / 100,
+		};
+		if (type) band.type = type;
+		res[i] = band;
+	}
+	return res;
 }
