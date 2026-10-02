@@ -13,9 +13,33 @@ export interface Logger {
 
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
-function serializeFieldValue(value: unknown): unknown {
+const SENSITIVE_KEYS = new Set([
+	'email',
+	'token',
+	'access_token',
+	'refresh_token',
+	'password',
+	'authorization',
+	'cookie',
+	'set-cookie',
+	'secret',
+]);
+
+function isSensitiveKey(key: string): boolean {
+	return SENSITIVE_KEYS.has(key.toLowerCase());
+}
+
+function serializeFieldValue(key: string, value: unknown): unknown {
+	if (isSensitiveKey(key)) return '[redacted]';
 	if (value instanceof Error) {
 		return { name: value.name, message: value.message, stack: value.stack ?? null };
+	}
+	if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+		const obj: Record<string, unknown> = {};
+		for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+			if (v !== undefined) obj[k] = serializeFieldValue(k, v);
+		}
+		return obj;
 	}
 	return value;
 }
@@ -24,7 +48,7 @@ function serializeFields(fields: LogFields | undefined): LogFields {
 	const out: LogFields = {};
 	if (!fields) return out;
 	for (const [key, value] of Object.entries(fields)) {
-		if (value !== undefined) out[key] = serializeFieldValue(value);
+		if (value !== undefined) out[key] = serializeFieldValue(key, value);
 	}
 	return out;
 }
