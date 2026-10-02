@@ -33,7 +33,7 @@
 					: (page.error?.message ?? t('error.unexpected'))}
 			</p>
 			{#if page.error?.requestId}
-				<p style="font-size:11px;font-family:monospace;color:var(--mep-fg-3);margin:-12px 0 20px;">
+				<p class="request-id">
 					ID: {page.error.requestId}
 				</p>
 			{/if}
@@ -44,3 +44,12 @@
 
 	</div>
 </div>
+
+<style>
+	.request-id {
+		font-size: 11px;
+		font-family: monospace;
+		color: var(--mep-fg-3);
+		margin: -12px 0 20px;
+	}
+</style>
