@@ -25,7 +25,8 @@ const REVIEW_STATE_LABELS: Record<string, string> = {
 };
 
 export const GET: RequestHandler = async ({ url, locals }) => {
-	const rid = locals.restaurantId!;
+	const rid = locals.restaurantId;
+	if (!rid) throw error(401, 'Unauthorized');
 
 	if (!(await rateLimitScoped({ scope: 'tenant', name: 'invoices-download-export', max: 5 }, { restaurantId: rid }))) {
 		throw error(429, 'Too many requests — please wait a moment before trying again');
