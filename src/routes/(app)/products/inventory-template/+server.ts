@@ -10,7 +10,8 @@ import { currentLocale } from '$lib/server/locale';
 import { contentDispositionHeader } from '$lib/server/content-disposition';
 
 export const GET: RequestHandler = async ({ locals }) => {
-	const rid = locals.restaurantId!;
+	const rid = locals.restaurantId;
+	if (!rid) throw error(401, 'Unauthorized');
 
 	if (!(await rateLimitScoped({ scope: 'tenant', name: 'inventory-template', max: 10 }, { restaurantId: rid }))) {
 		throw error(429, 'Too many requests — please wait a moment before trying again');
