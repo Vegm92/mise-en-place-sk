@@ -66,6 +66,7 @@ const ALLOWED = new Set([
 	'kg',
 	'pp',
 	'CV:',
+	'ID:',
 	'YYYY-MM-DD',
 	'OK',
 	'WARN',
