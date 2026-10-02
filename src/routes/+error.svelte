@@ -32,6 +32,11 @@
 					? t('error.notFound')
 					: (page.error?.message ?? t('error.unexpected'))}
 			</p>
+			{#if page.error?.requestId}
+				<p class="request-id">
+					ID: {page.error.requestId}
+				</p>
+			{/if}
 			<a href="/" class="btn btn-primary" style="justify-content:center;text-decoration:none;">
 				{t('error.goHome')}
 			</a>
@@ -39,3 +44,12 @@
 
 	</div>
 </div>
+
+<style>
+	.request-id {
+		font-size: 11px;
+		font-family: monospace;
+		color: var(--mep-fg-3);
+		margin: -12px 0 20px;
+	}
+</style>

@@ -31,5 +31,10 @@ describe('issue #747 — 404 route-miss message goes through i18n', () => {
 			expect(source).toMatch(/page\.status === 404/);
 			expect(source).toMatch(/page\.error\?\.message === 'Not Found'/);
 		});
+
+		it(`${path.relative(ROOT, file)} renders page.error.requestId when present`, () => {
+			const source = readFileSync(file, 'utf8');
+			expect(source).toContain('page.error?.requestId');
+		});
 	}
 });

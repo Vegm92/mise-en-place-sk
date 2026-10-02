@@ -85,6 +85,27 @@ describe('createLogger — production JSON lines', () => {
 		const parsed = JSON.parse(spy.mock.calls[0]![0] as string);
 		expect('requestId' in parsed).toBe(false);
 	});
+
+	it('redacts sensitive keys like email, token, password, and authorization in fields', async () => {
+		const { createLogger } = await loggerFor('production');
+		const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
+		const log = createLogger('auth');
+
+		log.info('user login', {
+			email: 'user@example.com',
+			password: 'secret-password',
+			token: 'jwt-token-123',
+			authorization: 'Bearer 12345',
+			requestId: 'req-safe',
+		});
+
+		const parsed = JSON.parse(spy.mock.calls[0]![0] as string);
+		expect(parsed.email).toBe('[redacted]');
+		expect(parsed.password).toBe('[redacted]');
+		expect(parsed.token).toBe('[redacted]');
+		expect(parsed.authorization).toBe('[redacted]');
+		expect(parsed.requestId).toBe('req-safe');
+	});
 });
 
 describe('createLogger — non-production pretty line', () => {

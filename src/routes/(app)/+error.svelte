@@ -10,6 +10,11 @@
 			? t('error.notFound')
 			: (page.error?.message ?? t('error.generic'))}
 	</p>
+	{#if page.error?.requestId}
+		<p class="request-id">
+			ID: {page.error.requestId}
+		</p>
+	{/if}
 	<a href="/">{t('error.backToPanel')}</a>
 </div>
 
@@ -24,5 +29,6 @@
 	}
 	h1 { font-size: 3rem; margin: 0; }
 	p  { color: var(--mep-fg-3); }
+	.request-id { font-size: 0.8rem; font-family: monospace; margin-top: -0.5rem; }
 	a  { color: inherit; text-decoration: underline; }
 </style>

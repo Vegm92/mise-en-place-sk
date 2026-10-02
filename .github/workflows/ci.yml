@@ -185,8 +185,6 @@ jobs:
         # fixes in this commit). The full suite takes ~2.5 minutes, which is
         # cheap next to a red main.
         run: pnpm test
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
       - name: Build
         run: pnpm build

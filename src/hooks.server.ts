@@ -40,8 +40,14 @@ Sentry.init({
 
 export const handleError = Sentry.handleErrorWithSentry(
 	({ error, event, status }: { error: unknown; event: RequestEvent; status: number }) => {
-		if (status < 500) return;
-		log.error('server error', { requestId: event?.locals?.requestId, err: error });
+		const requestId = event?.locals?.requestId;
+		if (status >= 500) {
+			log.error('server error', { requestId, err: error });
+		}
+		return {
+			message: (error as Error)?.message ?? 'An unexpected error occurred',
+			requestId,
+		};
 	},
 );
 
