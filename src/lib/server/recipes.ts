@@ -714,8 +714,13 @@ export async function recipeCostTrend(
 	const perRecipe = new Map<number, RecipeCostPoint[]>();
 	const points: RecipeCostTrendPoint[] = [];
 
-	for (const asOf of dates) {
-		const prices = await resolveProductPrices(rid, productIds, asOf === today ? null : asOf);
+	const priceMaps = await Promise.all(
+		dates.map((asOf) => resolveProductPrices(rid, productIds, asOf === today ? null : asOf))
+	);
+
+	for (let i = 0; i < dates.length; i++) {
+		const asOf = dates[i]!;
+		const prices = priceMaps[i]!;
 		const costs = computeRecipeCosts(graph, prices, facts);
 		const foodCosts: Array<number | null> = [];
 		const portionCosts: number[] = [];
@@ -729,9 +734,12 @@ export async function recipeCostTrend(
 				costPerPortionCents: complete ? cost.costPerPortionCents : null,
 				foodCostPct: complete ? cost.foodCostPct : null,
 			};
-			const series = perRecipe.get(recipeId) ?? [];
-			series.push(point);
-			perRecipe.set(recipeId, series);
+			const series = perRecipe.get(recipeId);
+			if (series) {
+				series.push(point);
+			} else {
+				perRecipe.set(recipeId, [point]);
+			}
 			if (complete) {
 				priced++;
 				portionCosts.push(cost.costPerPortionCents);
