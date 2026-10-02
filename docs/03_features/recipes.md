@@ -291,4 +291,4 @@ save cannot race past it and a human declaration is never overwritten.
 
 ## Food-cost trend (ADR-039)
 
-`recipeCostTrend()` re-prices the recipe graph as of each of the last six month-ends plus today (`resolveProductPrices(rid, ids, asOf)`, no snapshot table). The recipes page chart is the average food cost % at month end and each recipe shows its cost-per-portion delta vs. the earliest priced month-end.
+`recipeCostTrend()` re-prices the recipe graph as of each of the last six month-ends plus today (`resolveProductPrices(rid, ids, asOf)`, no snapshot table). Price resolutions across date bounds are executed concurrently via `Promise.all` to avoid sequential DB query latency. The recipes page chart is the average food cost % at month end and each recipe shows its cost-per-portion delta vs. the earliest priced month-end.
