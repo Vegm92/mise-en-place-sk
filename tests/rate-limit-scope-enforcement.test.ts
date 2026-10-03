@@ -63,6 +63,22 @@ function walkTsFiles(dir: string): string[] {
 	return files;
 }
 
+function discoverExportRoutes(): string[] {
+	const routeFiles = walkTsFiles(path.join(process.cwd(), 'src/routes'));
+	const exportFiles: string[] = [];
+	for (const routeFile of routeFiles) {
+		const relPath = path.relative(process.cwd(), routeFile).split(path.sep).join('/');
+		if (!relPath.endsWith('+server.ts')) continue;
+		const src = fs.readFileSync(routeFile, 'utf8');
+		const isExportByPath = relPath.includes('/csv') || relPath.includes('/export') || relPath.includes('inventory-template');
+		const isExportByContent = src.includes('text/csv') || src.includes('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') || src.includes('toCsv') || src.includes('ExcelJS');
+		if (isExportByPath || isExportByContent) {
+			exportFiles.push(relPath);
+		}
+	}
+	return exportFiles;
+}
+
 const sourceFiles = walkTsFiles(SRC_DIR);
 
 describe('checkRateLimit() call sites go through rateLimitScoped() (issue #440)', () => {
@@ -135,14 +151,9 @@ describe('checkRateLimit() call sites go through rateLimitScoped() (issue #440)'
 		}
 	});
 
-	it('all export route endpoints enforce rateLimitScoped and use distinct bucket names (PR #1153 follow-up)', () => {
-		const exportRoutes = [
-			'src/routes/(app)/analytics/extraction/csv/+server.ts',
-			'src/routes/(app)/invoices/export/download/+server.ts',
-			'src/routes/(app)/products/inventory-template/+server.ts',
-			'src/routes/(app)/recipes/[id]/csv/+server.ts',
-			'src/routes/(app)/reports/[type]/csv/+server.ts',
-		];
+	it('all dynamically discovered export route endpoints enforce rateLimitScoped and use distinct bucket names', () => {
+		const exportRoutes = discoverExportRoutes();
+		expect(exportRoutes.length).toBeGreaterThanOrEqual(6);
 
 		const bucketNamesUsed: string[] = [];
 
@@ -188,18 +199,10 @@ describe('checkRateLimit() call sites go through rateLimitScoped() (issue #440)'
 	});
 
 	it('all route handlers with csv/export/template in path execute rateLimitScoped', () => {
-		const routeFiles = walkTsFiles(path.join(process.cwd(), 'src/routes'));
-		for (const routeFile of routeFiles) {
-			const relPath = path.relative(process.cwd(), routeFile).split(path.sep).join('/');
-			if (!relPath.endsWith('+server.ts')) continue;
-			if (
-				relPath.includes('/csv') ||
-				relPath.includes('/export/') ||
-				relPath.includes('inventory-template')
-			) {
-				const src = fs.readFileSync(routeFile, 'utf8');
-				expect(src, `${relPath} is an export endpoint and must invoke rateLimitScoped`).toMatch(/rateLimitScoped/);
-			}
+		const exportRoutes = discoverExportRoutes();
+		for (const relPath of exportRoutes) {
+			const src = fs.readFileSync(path.join(process.cwd(), relPath), 'utf8');
+			expect(src, `${relPath} is an export endpoint and must invoke rateLimitScoped`).toMatch(/rateLimitScoped/);
 		}
 	});
 });
