@@ -3,7 +3,6 @@ import * as Sentry from '@sentry/sveltekit';
 import type { RequestHandler } from './$types';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { RESEND_WEBHOOK_SECRET } from '$lib/server/env';
-import { checkRateLimit } from '$lib/server/rate-limiter';
 import {
 	fetchResendAttachment,
 	ingestInboundEmail,
@@ -76,12 +75,7 @@ const OUTCOME_STATUS: Record<string, number> = {
 	'unknown-recipient': 404,
 };
 
-export const POST: RequestHandler = async ({ request, locals, getClientAddress }) => {
-	const ip = (typeof getClientAddress === 'function' ? getClientAddress() : '') || 'unknown';
-	if (!(await checkRateLimit(`email-ingest-webhook:${ip}`, 60))) {
-		return json({ error: 'Too many requests' }, { status: 429 });
-	}
-
+export const POST: RequestHandler = async ({ request, locals }) => {
 	const body = await request.text();
 
 	if (!verifySignature(body, request.headers.get('svix-id'), request.headers.get('svix-timestamp'), request.headers.get('svix-signature'))) {

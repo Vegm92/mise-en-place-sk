@@ -18,10 +18,7 @@ const { ingestMock } = vi.hoisted(() => ({
 // RESEND_WEBHOOK_SECRET is intentionally empty here: with no secret the route
 // skips signature verification (dev behaviour), so these tests isolate the
 // route plumbing. Signature rejection is covered separately below.
-vi.mock('$lib/server/env', async (importOriginal) => ({
-	...(await importOriginal<typeof import('$lib/server/env')>()),
-	RESEND_WEBHOOK_SECRET: '',
-}));
+vi.mock('$lib/server/env', () => ({ RESEND_WEBHOOK_SECRET: '' }));
 vi.mock('$lib/server/email-ingest', () => ({
 	ingestInboundEmail: ingestMock,
 	fetchResendAttachment: vi.fn(),
@@ -125,10 +122,7 @@ describe('POST — signature verification (issue #236)', () => {
 
 	async function signedPost() {
 		vi.resetModules();
-		vi.doMock('$lib/server/env', async (importOriginal) => ({
-			...(await importOriginal<typeof import('$lib/server/env')>()),
-			RESEND_WEBHOOK_SECRET: SECRET,
-		}));
+		vi.doMock('$lib/server/env', () => ({ RESEND_WEBHOOK_SECRET: SECRET }));
 		vi.doMock('$lib/server/email-ingest', () => ({ ingestInboundEmail: ingestMock, fetchResendAttachment: vi.fn() }));
 		return (await import('../src/routes/api/email-ingest/webhook/+server')).POST;
 	}
