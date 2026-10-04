@@ -42,9 +42,17 @@ const PAGE_OF_RE = /\bp[áa]g(?:ina)?s?\.?\s*(\d{1,3})\s*(?:de|\/|of)\s*(\d{1,3}
 
 const CONTINUES_RE = /\b(?:contin[uú]a|continuaci[oó]n|continued|sigue)\b/i;
 
-const DATE_ROW_RE = /\b\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}\b/g;
-
 const MIN_COVER_ROWS = 3;
+
+function hasMinDateRows(text: string, minCount: number): boolean {
+	const re = /\b\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}\b/g;
+	let count = 0;
+	while (re.exec(text) !== null) {
+		count++;
+		if (count >= minCount) return true;
+	}
+	return false;
+}
 
 export const STRUCTURE_PROMPT = `You are a document-structure classifier for Spanish restaurant supplier paperwork (facturas and albaranes).
 
@@ -117,7 +125,7 @@ export function pageSignalsFromText(pages: string[]): PageSignal[] | null {
 		const page = index + 1;
 		const ref = normaliseRef(NUMBER_RE.exec(text)?.[1] ?? null);
 		const pageOf = PAGE_OF_RE.exec(text);
-		const isCover = COVER_RE.test(text) && (text.match(DATE_ROW_RE)?.length ?? 0) >= MIN_COVER_ROWS;
+		const isCover = COVER_RE.test(text) && hasMinDateRows(text, MIN_COVER_ROWS);
 		const continues = (pageOf ? Number(pageOf[1]) > 1 : false) || CONTINUES_RE.test(text);
 		const hasHeader = HEADER_RE.test(text);
 
