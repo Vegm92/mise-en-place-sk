@@ -14,6 +14,7 @@ const MIME: Record<string, string> = {
 	'.jpg':  'image/jpeg',
 	'.jpeg': 'image/jpeg',
 	'.png':  'image/png',
+	'.webp': 'image/webp',
 };
 
 function resolveMime(filename: string): string {
@@ -47,6 +48,10 @@ describe('resolveMime', () => {
 
 	it('returns image/png for .png', () => {
 		expect(resolveMime('photo.png')).toBe('image/png');
+	});
+
+	it('returns image/webp for .webp', () => {
+		expect(resolveMime('photo.webp')).toBe('image/webp');
 	});
 
 	it('falls back to application/octet-stream for unknown extensions', () => {
