@@ -205,4 +205,34 @@ describe('checkRateLimit() call sites go through rateLimitScoped() (issue #440)'
 			expect(src, `${relPath} is an export endpoint and must invoke rateLimitScoped`).toMatch(/rateLimitScoped/);
 		}
 	});
+
+	it('public unauthenticated form actions are wrapped with publicFormAction, resendVerificationAction, or signIn', () => {
+		const publicRoutes = [
+			{ file: 'src/routes/login/+page.server.ts', expectedActions: ['signIn', 'resend', 'signInWithGoogle'] },
+			{ file: 'src/routes/signup/+page.server.ts', expectedActions: ['signUp', 'resend', 'signUpWithGoogle'] },
+			{ file: 'src/routes/forgot-password/+page.server.ts', expectedActions: ['default'] },
+			{ file: 'src/routes/reset-password/+page.server.ts', expectedActions: ['default'] },
+		];
+
+		const prefixesFound = new Set<string>();
+
+		for (const { file, expectedActions } of publicRoutes) {
+			const src = fs.readFileSync(path.join(process.cwd(), file), 'utf8');
+
+			for (const actionName of expectedActions) {
+				const actionPattern = new RegExp(`\\b${actionName}\\s*:\\s*(publicFormAction|resendVerificationAction|signIn)\\b`);
+				expect(src, `${file} action '${actionName}' must use publicFormAction, resendVerificationAction, or signIn`).toMatch(actionPattern);
+			}
+
+			const matches = src.matchAll(/key:\s*['"`]([a-z]+):(ip|email):/g);
+			for (const m of matches) {
+				if (m[1]) prefixesFound.add(m[1]);
+			}
+		}
+
+		expect(prefixesFound.has('login')).toBe(true);
+		expect(prefixesFound.has('signup')).toBe(true);
+		expect(prefixesFound.has('recover')).toBe(true);
+		expect(prefixesFound.has('reset')).toBe(true);
+	});
 });
