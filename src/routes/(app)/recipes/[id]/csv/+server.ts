@@ -26,5 +26,6 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	const headers = new Headers();
 	headers.set('Content-Type', 'text/csv; charset=utf-8');
 	headers.set('Content-Disposition', contentDispositionHeader('attachment', doc.csv.filename));
+	headers.set('X-Content-Type-Options', 'nosniff');
 	return new Response(body, { headers });
 };

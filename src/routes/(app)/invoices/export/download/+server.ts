@@ -179,6 +179,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			headers: {
 				'Content-Type':        'application/zip',
 				'Content-Disposition': contentDispositionHeader('attachment', 'facturas.zip'),
+				'X-Content-Type-Options': 'nosniff',
 			},
 		});
 	}
@@ -187,6 +188,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		headers: {
 			'Content-Type':        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 			'Content-Disposition': contentDispositionHeader('attachment', 'invoices.xlsx'),
+			'X-Content-Type-Options': 'nosniff',
 		},
 	});
 };
