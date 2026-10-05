@@ -45,7 +45,6 @@ export const GET: RequestHandler = async ({ locals }) => {
 		headers: {
 			'Content-Type':        'application/json',
 			'Content-Disposition': contentDispositionHeader('attachment', `mise-en-place-data-${user.id}.json`),
-			'X-Content-Type-Options': 'nosniff',
 		},
 	});
 };
