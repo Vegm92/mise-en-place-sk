@@ -47,8 +47,10 @@ const DATE_OPTS: Intl.DateTimeFormatOptions = {
 const DATE_SHORT_OPTS: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short' };
 const MONTH_SHORT_OPTS: Intl.DateTimeFormatOptions = { month: 'short' };
 
-const numberFormatters = new Map<string, Intl.NumberFormat>();
-const dateTimeFormatters = new Map<string, Intl.DateTimeFormat>();
+const NUM_CACHE_MAX = 2000;
+const fmtEurCache = new Map<string, string>();
+const fmtEurCompactCache = new Map<string, string>();
+const formatYoyPctCache = new Map<string, string>();
 
 const eurFormatters: Record<Locale, Intl.NumberFormat> = {
 	es: new Intl.NumberFormat('es-ES', EUR_OPTS),
@@ -90,28 +92,6 @@ const monthShortFormatters: Record<Locale, Intl.DateTimeFormat> = {
 	en: new Intl.DateTimeFormat('en-GB', MONTH_SHORT_OPTS),
 };
 
-function getNumberFormatter(locale: Locale, options: Intl.NumberFormatOptions): Intl.NumberFormat {
-	const intlLoc = toIntlLocale(locale);
-	const key = `${intlLoc}:${JSON.stringify(options)}`;
-	let fmtInstance = numberFormatters.get(key);
-	if (!fmtInstance) {
-		fmtInstance = new Intl.NumberFormat(intlLoc, options);
-		numberFormatters.set(key, fmtInstance);
-	}
-	return fmtInstance;
-}
-
-function getDateTimeFormatter(locale: Locale, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
-	const intlLoc = toIntlLocale(locale);
-	const key = `${intlLoc}:${JSON.stringify(options)}`;
-	let fmtInstance = dateTimeFormatters.get(key);
-	if (!fmtInstance) {
-		fmtInstance = new Intl.DateTimeFormat(intlLoc, options);
-		dateTimeFormatters.set(key, fmtInstance);
-	}
-	return fmtInstance;
-}
-
 export function fmtSize(bytes: number, locale: Locale = 'es'): string {
 	const fmtInt = integerFormatters[locale] ?? integerFormatters.es;
 	const fmtDec = oneDecimalFormatters[locale] ?? oneDecimalFormatters.es;
@@ -121,13 +101,34 @@ export function fmtSize(bytes: number, locale: Locale = 'es'): string {
 }
 
 export function fmtEur(n: number, locale: Locale = 'es'): string {
+	const key = `${locale}:${n}`;
+	let cached = fmtEurCache.get(key);
+	if (cached !== undefined) return cached;
+
 	const fmtInst = eurFormatters[locale] ?? eurFormatters.es;
-	return fmtInst.format(n);
+	cached = fmtInst.format(n);
+
+	if (fmtEurCache.size >= NUM_CACHE_MAX) {
+		fmtEurCache.clear();
+	}
+	fmtEurCache.set(key, cached);
+	return cached;
 }
 
 export function fmtEurCompact(n: number, locale: Locale = 'es'): string {
+	const rounded = Math.round(n);
+	const key = `${locale}:${rounded}`;
+	let cached = fmtEurCompactCache.get(key);
+	if (cached !== undefined) return cached;
+
 	const fmtInst = eurCompactFormatters[locale] ?? eurCompactFormatters.es;
-	return fmtInst.format(Math.round(n));
+	cached = fmtInst.format(rounded);
+
+	if (fmtEurCompactCache.size >= NUM_CACHE_MAX) {
+		fmtEurCompactCache.clear();
+	}
+	fmtEurCompactCache.set(key, cached);
+	return cached;
 }
 
 export function fmtEurSigned(n: number, locale: Locale = 'es'): string {
@@ -140,8 +141,19 @@ export function fmtEurSigned(n: number, locale: Locale = 'es'): string {
 
 export function formatYoyPct(pct: number | null, locale: Locale = 'es'): string {
 	if (pct === null || !Number.isFinite(pct)) return '—';
+
+	const key = `${locale}:${pct}`;
+	let cached = formatYoyPctCache.get(key);
+	if (cached !== undefined) return cached;
+
 	const fmtInst = yoyFormatters[locale] ?? yoyFormatters.es;
-	return fmtInst.format(pct) + ' %';
+	cached = fmtInst.format(pct) + ' %';
+
+	if (formatYoyPctCache.size >= NUM_CACHE_MAX) {
+		formatYoyPctCache.clear();
+	}
+	formatYoyPctCache.set(key, cached);
+	return cached;
 }
 
 export function fmtMinutes(n: number | null): string {
