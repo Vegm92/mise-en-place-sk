@@ -83,3 +83,21 @@ describe('contentDispositionHeader — a filename containing CR/LF (header-split
 		expect(header).toContain("filename*=UTF-8''evil%0D%0AX-Injected%3A%201.pdf");
 	});
 });
+
+describe('export endpoints attach X-Content-Type-Options: nosniff header', () => {
+	it('user account export (+server.ts) attaches nosniff header', async () => {
+		const fs = await import('node:fs');
+		const path = await import('node:path');
+		const src = fs.readFileSync(path.join(process.cwd(), 'src/routes/api/user/export/+server.ts'), 'utf8');
+		expect(src).toMatch(/['"]X-Content-Type-Options['"]:\s*['"]nosniff['"]/);
+	});
+
+	it('invoice export (+server.ts) attaches nosniff header', async () => {
+		const fs = await import('node:fs');
+		const path = await import('node:path');
+		const src = fs.readFileSync(path.join(process.cwd(), 'src/routes/(app)/invoices/export/download/+server.ts'), 'utf8');
+		const matches = src.match(/['"]X-Content-Type-Options['"]:\s*['"]nosniff['"]/g);
+		expect(matches).not.toBeNull();
+		expect(matches!.length).toBeGreaterThanOrEqual(2);
+	});
+});
