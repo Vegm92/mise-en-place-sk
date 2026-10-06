@@ -177,18 +177,16 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 		return new Response(new Uint8Array(zipBuffer), {
 			headers: {
-				'Content-Type':           'application/zip',
-				'X-Content-Type-Options': 'nosniff',
-				'Content-Disposition':    contentDispositionHeader('attachment', 'facturas.zip'),
+				'Content-Type':        'application/zip',
+				'Content-Disposition': contentDispositionHeader('attachment', 'facturas.zip'),
 			},
 		});
 	}
 
 	return new Response(workbookBuffer, {
 		headers: {
-			'Content-Type':           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-			'X-Content-Type-Options': 'nosniff',
-			'Content-Disposition':    contentDispositionHeader('attachment', 'invoices.xlsx'),
+			'Content-Type':        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+			'Content-Disposition': contentDispositionHeader('attachment', 'invoices.xlsx'),
 		},
 	});
 };

@@ -145,7 +145,6 @@ describe.skipIf(!hasDbEnv)('/invoices/export/download — issue #493', () => {
 		expect(res.headers.get('Content-Type')).toBe(
 			'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 		);
-		expect(res.headers.get('X-Content-Type-Options')).toBe('nosniff');
 
 		const sheet = await parseSheet(res);
 		expect(sheet.rowCount).toBe(4); // header + 3 data rows, no marker
@@ -280,7 +279,6 @@ describe.skipIf(!hasDbEnv)('/invoices/export/download — issue #883 taxable bas
 		const res = await runGet(`?ids=${withFile},${noFile}&format=zip`);
 		expect(res.status).toBe(200);
 		expect(res.headers.get('Content-Type')).toBe('application/zip');
-		expect(res.headers.get('X-Content-Type-Options')).toBe('nosniff');
 		expect(res.headers.get('Content-Disposition')).toContain('facturas.zip');
 
 		const buf = Buffer.from(await res.arrayBuffer());

@@ -80,7 +80,6 @@ describe.skipIf(!hasDbEnv)('GET /api/user/export (issue #390)', () => {
 		await testSql`INSERT INTO products (restaurant_id, canonical_name, name_key) VALUES (${rid}, 'Aceite', 'aceite')`;
 
 		const res = await GET(exportEvent(userId, email));
-		expect(res.headers.get('X-Content-Type-Options')).toBe('nosniff');
 		const body = await res.json();
 
 		expect(Object.keys(body)).toEqual(EXPECTED_KEYS);

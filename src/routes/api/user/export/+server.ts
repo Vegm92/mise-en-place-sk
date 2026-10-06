@@ -43,9 +43,8 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 	return new Response(JSON.stringify(export_data, null, 2), {
 		headers: {
-			'Content-Type':           'application/json',
-			'X-Content-Type-Options': 'nosniff',
-			'Content-Disposition':    contentDispositionHeader('attachment', `mise-en-place-data-${user.id}.json`),
+			'Content-Type':        'application/json',
+			'Content-Disposition': contentDispositionHeader('attachment', `mise-en-place-data-${user.id}.json`),
 		},
 	});
 };

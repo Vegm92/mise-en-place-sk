@@ -111,6 +111,9 @@ Immutable subset is in `docs/00_system/architectural_invariants.md`.
   `/api/*` gateway fallback, the dual-keyed email-change) — see ADR-029 for
   the full list and reasons. `tests/rate-limit-scope-enforcement.test.ts`
   fails the build on a new direct `checkRateLimit()` call outside that list.
+- Dynamic export route rate-limit enforcement (issue #1153): `tests/export-rate-limit-enforcement.test.ts`
+  scans all server endpoints serving data exports (CSV, XLSX, ZIP, JSON attachments) to dynamically
+  verify that every export endpoint incorporates rate-limiting and uses a unique, isolated bucket name.
 - In-memory buckets swept every 2 min; concurrency semaphore for extraction.
 
 ## Security headers (every response)

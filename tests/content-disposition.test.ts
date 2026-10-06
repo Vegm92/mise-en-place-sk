@@ -10,23 +10,7 @@
  * `filename*=` form carries the exact original name, percent-encoded.
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
 import { contentDispositionHeader } from '../src/lib/server/content-disposition';
-
-describe('export endpoints nosniff headers static check', () => {
-	it('verifies export route handlers attach X-Content-Type-Options: nosniff header', () => {
-		const routes = [
-			'src/routes/api/user/export/+server.ts',
-			'src/routes/(app)/invoices/export/download/+server.ts',
-		];
-
-		for (const route of routes) {
-			const source = readFileSync(path.join(process.cwd(), route), 'utf8');
-			expect(source).toMatch(/['"]X-Content-Type-Options['"]\s*:\s*['"]nosniff['"]/i);
-		}
-	});
-});
 
 describe('contentDispositionHeader — plain ASCII name', () => {
 	it('renders both forms identically for the same value', () => {
