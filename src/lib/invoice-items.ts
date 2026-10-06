@@ -12,12 +12,12 @@ export interface RowWithTotal extends Row {
 }
 
 export function calcTotal(
-	qty: string | number | null,
-	price: string | number | null
+	qty: string | number | null | undefined,
+	price: string | number | null | undefined
 ): number | null {
-	const q = parseFloat(String(qty ?? ''));
-	const p = parseFloat(String(price ?? ''));
-	if (isNaN(q) || isNaN(p)) return null;
+	const q = typeof qty === 'number' ? qty : (qty ? parseFloat(qty) : NaN);
+	const p = typeof price === 'number' ? price : (price ? parseFloat(price) : NaN);
+	if (!Number.isFinite(q) || !Number.isFinite(p)) return null;
 	return Math.round(q * p * 100) / 100;
 }
 

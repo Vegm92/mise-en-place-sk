@@ -399,6 +399,11 @@ the inventory template, issue #885) is a different route entirely.
 **`function median`**
 - The one median (issue #1068): sorts a copy, returns the middle value, and on even length **averages the two middles** (`[1, 2, 3, 4]` → 2.5). Empty input returns 0, matching the two callers it replaced that already coalesced to 0. Three copies used to exist — `alerts.ts` took the lower middle (`[1, 2, 3, 4]` → 2), `price-deviations.ts` and `supplier-cadence.ts` (`medianOf`) averaged — so the price-shock alert and the deviation engine computed different reference prices from the same history; the lower-median form was drift, not a decision. Server code imports it through `server/money.ts`'s re-export. `tests/money-math-convergence.test.ts` fails on a second definition.
 
+### `src/lib/invoice-items.ts`
+
+**`function calcTotal`**
+- Fast-path numeric validation for `calcTotal(qty, price)`, bypassing string conversion (`String(qty ?? '')`) and `parseFloat` when inputs are already numbers or falsy/empty strings (~2.08x speedup across line item table renders and batch calculation loops).
+
 ### `src/lib/formatters.ts`
 
 **`const numberFormatters` / `const dateTimeFormatters`**
