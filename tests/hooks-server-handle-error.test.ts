@@ -81,14 +81,26 @@ describe('hooks.server.ts handleError', () => {
 		spy.mockRestore();
 	});
 
-	it('returns an object containing message and requestId for SvelteKit error page context', async () => {
-		const error = new Error('test error');
+	it('masks 500 error messages for client error context while retaining requestId', async () => {
+		const error = new Error('sensitive database stack trace');
 		const result = (await handleError({ error, event: fakeEvent, status: 500, message: 'Internal Error' })) as {
 			message?: string;
 			requestId?: string;
 		};
 		expect(result).toBeDefined();
 		expect(result.requestId).toBe('req-1');
+		expect(result.message).toBe('An unexpected error occurred');
+	});
+
+	it('preserves user-facing 4xx error messages for client error context', async () => {
+		const error = new Error('Custom client error message');
+		const result = (await handleError({ error, event: fakeEvent, status: 400, message: 'Bad Request' })) as {
+			message?: string;
+			requestId?: string;
+		};
+		expect(result).toBeDefined();
+		expect(result.requestId).toBe('req-1');
+		expect(result.message).toBe('Custom client error message');
 	});
 
 	it("keeps SvelteKit's hash-mode Content-Security-Policy instead of overriding it with 'unsafe-inline'", async () => {
