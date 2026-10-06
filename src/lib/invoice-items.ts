@@ -11,13 +11,19 @@ export interface RowWithTotal extends Row {
 	total_price: number | null;
 }
 
+function parseNum(val: string | number | null | undefined): number {
+	if (typeof val === 'number') return val;
+	if (typeof val === 'string' && val.length > 0) return parseFloat(val);
+	return NaN;
+}
+
 export function calcTotal(
-	qty: string | number | null,
-	price: string | number | null
+	qty: string | number | null | undefined,
+	price: string | number | null | undefined
 ): number | null {
-	const q = parseFloat(String(qty ?? ''));
-	const p = parseFloat(String(price ?? ''));
-	if (isNaN(q) || isNaN(p)) return null;
+	const q = parseNum(qty);
+	const p = parseNum(price);
+	if (!Number.isFinite(q) || !Number.isFinite(p)) return null;
 	return Math.round(q * p * 100) / 100;
 }
 
