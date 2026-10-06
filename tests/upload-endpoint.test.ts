@@ -14,6 +14,7 @@ const MIME: Record<string, string> = {
 	'.jpg':  'image/jpeg',
 	'.jpeg': 'image/jpeg',
 	'.png':  'image/png',
+	'.webp': 'image/webp',
 };
 
 function resolveMime(filename: string): string {
@@ -33,20 +34,14 @@ function isFileInSession(sessionFiles: string[], filename: string): boolean {
 
 // ── MIME type resolution ─────────────────────────────────────────────────────
 describe('resolveMime', () => {
-	it('returns application/pdf for .pdf', () => {
-		expect(resolveMime('invoice.pdf')).toBe('application/pdf');
-	});
-
-	it('returns image/jpeg for .jpg', () => {
-		expect(resolveMime('scan.jpg')).toBe('image/jpeg');
-	});
-
-	it('returns image/jpeg for .jpeg', () => {
-		expect(resolveMime('scan.jpeg')).toBe('image/jpeg');
-	});
-
-	it('returns image/png for .png', () => {
-		expect(resolveMime('photo.png')).toBe('image/png');
+	it.each([
+		['invoice.pdf', 'application/pdf'],
+		['scan.jpg', 'image/jpeg'],
+		['scan.jpeg', 'image/jpeg'],
+		['photo.png', 'image/png'],
+		['photo.webp', 'image/webp'],
+	])('maps %s to %s', (filename, expected) => {
+		expect(resolveMime(filename)).toBe(expected);
 	});
 
 	it('falls back to application/octet-stream for unknown extensions', () => {
