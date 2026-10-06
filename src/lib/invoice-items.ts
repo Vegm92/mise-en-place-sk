@@ -15,8 +15,9 @@ export function calcTotal(
 	qty: string | number | null,
 	price: string | number | null
 ): number | null {
-	const q = parseFloat(String(qty ?? ''));
-	const p = parseFloat(String(price ?? ''));
+	if (qty == null || price == null) return null;
+	const q = typeof qty === 'number' ? qty : parseFloat(qty);
+	const p = typeof price === 'number' ? price : parseFloat(price);
 	if (isNaN(q) || isNaN(p)) return null;
 	return Math.round(q * p * 100) / 100;
 }
