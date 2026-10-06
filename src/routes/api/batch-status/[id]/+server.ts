@@ -10,6 +10,8 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		return json({ error: 'Invalid batch ID' }, { status: 400 });
 	}
 
+	if (!locals.restaurantId) return json({ error: 'Unauthorized' }, { status: 401 });
+
 	if (!(await rateLimitScoped({ scope: 'user', name: 'batch-status', max: 60 }, { userId: locals.user.id }))) {
 		return json({ error: 'Too many requests' }, { status: 429 });
 	}
