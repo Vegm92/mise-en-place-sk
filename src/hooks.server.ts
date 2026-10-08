@@ -45,7 +45,7 @@ export const handleError = Sentry.handleErrorWithSentry(
 			log.error('server error', { requestId, err: error });
 		}
 		return {
-			message: (error as Error)?.message ?? 'An unexpected error occurred',
+			message: status >= 500 ? 'An unexpected error occurred' : ((error as Error)?.message ?? 'An unexpected error occurred'),
 			requestId,
 		};
 	},

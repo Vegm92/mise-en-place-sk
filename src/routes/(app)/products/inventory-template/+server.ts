@@ -31,8 +31,9 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 	return new Response(buffer, {
 		headers: {
-			'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-			'Content-Disposition': contentDispositionHeader('attachment', filename),
+			'Content-Type':           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+			'Content-Disposition':    contentDispositionHeader('attachment', filename),
+			'X-Content-Type-Options': 'nosniff',
 		},
 	});
 };
