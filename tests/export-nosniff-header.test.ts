@@ -6,6 +6,8 @@ describe('Export and download endpoints attach X-Content-Type-Options: nosniff',
 	const exportRoutes = [
 		'src/routes/(app)/reports/[type]/csv/+server.ts',
 		'src/routes/(app)/recipes/[id]/csv/+server.ts',
+		'src/routes/(app)/analytics/extraction/csv/+server.ts',
+		'src/routes/(app)/products/inventory-template/+server.ts',
 	];
 
 	for (const relFile of exportRoutes) {
