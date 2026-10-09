@@ -40,6 +40,13 @@ describe('estimateCostUsd', () => {
 		expect(estimateCostUsd('gemini-2.5-pro', 0, 1_000_000)).toBeCloseTo(10.0, 10);
 	});
 
+	it('prices gemini-3.1-flash-lite and successor gemini-3.5-flash-lite (issue #1142)', () => {
+		// gemini-3.1-flash-lite: $0.25 in + $1.50 out per million
+		expect(estimateCostUsd('gemini-3.1-flash-lite', 1_000_000, 1_000_000)).toBeCloseTo(1.75, 10);
+		// gemini-3.5-flash-lite: $0.30 in + $2.50 out per million
+		expect(estimateCostUsd('gemini-3.5-flash-lite', 1_000_000, 1_000_000)).toBeCloseTo(2.80, 10);
+	});
+
 	it('falls back to default rates for an unknown model', () => {
 		// default { input: 0.075, output: 0.30 }
 		const fallback = estimateCostUsd('totally-made-up-model', 1_000_000, 1_000_000);
