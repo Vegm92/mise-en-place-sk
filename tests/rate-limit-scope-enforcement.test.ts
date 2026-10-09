@@ -234,5 +234,6 @@ describe('checkRateLimit() call sites go through rateLimitScoped() (issue #440)'
 		expect(prefixesFound.has('signup')).toBe(true);
 		expect(prefixesFound.has('recover')).toBe(true);
 		expect(prefixesFound.has('reset')).toBe(true);
+		expect(prefixesFound.size, 'Each public route must use a distinct rate limit bucket prefix').toBe(publicRoutes.length);
 	});
 });
