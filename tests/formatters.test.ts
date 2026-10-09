@@ -326,3 +326,34 @@ describe('fmtMinutes and fmtPercent (issue #1078 — moved out of the activation
 		});
 	}
 });
+
+describe('Formatters Performance Benchmark', () => {
+	it('quantifies memoization speedup over uncached Intl formatting', () => {
+		const rawEur = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' });
+		const rawCompact = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+		const rawYoy = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 1, signDisplay: 'exceptZero' });
+
+		const samples = 150000;
+		const values = Array.from({ length: samples }, (_, i) => (i % 500) / 10);
+
+		const t0 = performance.now();
+		for (let i = 0; i < samples; i++) {
+			const v = values[i]!;
+			rawEur.format(v);
+			rawCompact.format(Math.round(v));
+			rawYoy.format(v);
+		}
+		const unmemoTime = performance.now() - t0;
+
+		const t1 = performance.now();
+		for (let i = 0; i < samples; i++) {
+			const v = values[i]!;
+			fmtEur(v, 'es');
+			fmtEurCompact(v, 'es');
+			formatYoyPct(v, 'es');
+		}
+		const memoTime = performance.now() - t1;
+
+		expect(unmemoTime / memoTime).toBeGreaterThan(1.2);
+	});
+});
