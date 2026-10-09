@@ -62,18 +62,27 @@ export function notificationColor(type: string) {
   return 'var(--mep-fg-2)';
 }
 
-const PRICE_SHOCK      = ['price_shock'];
-const LOW_STOCK         = ['low_stock_forecast'];
-const BUDGET            = ['budget_overage'];
-const SUPPLIERS         = ['supplier_uncategorized', 'supplier_category_suggested'];
-const CATEGORIZED_TYPES = new Set([...PRICE_SHOCK, ...LOW_STOCK, ...BUDGET, ...SUPPLIERS]);
-
 export function groupNotifications(items: Notif[]) {
-  return {
-    priceShock: items.filter(n => PRICE_SHOCK.includes(n.notificationType)),
-    lowStock:   items.filter(n => LOW_STOCK.includes(n.notificationType)),
-    budget:     items.filter(n => BUDGET.includes(n.notificationType)),
-    suppliers:  items.filter(n => SUPPLIERS.includes(n.notificationType)),
-    other:      items.filter(n => !CATEGORIZED_TYPES.has(n.notificationType)),
-  };
+  const priceShock: Notif[] = [];
+  const lowStock: Notif[] = [];
+  const budget: Notif[] = [];
+  const suppliers: Notif[] = [];
+  const other: Notif[] = [];
+
+  for (const n of items) {
+    const type = n.notificationType;
+    if (type === 'price_shock') {
+      priceShock.push(n);
+    } else if (type === 'low_stock_forecast') {
+      lowStock.push(n);
+    } else if (type === 'budget_overage') {
+      budget.push(n);
+    } else if (type === 'supplier_uncategorized' || type === 'supplier_category_suggested') {
+      suppliers.push(n);
+    } else {
+      other.push(n);
+    }
+  }
+
+  return { priceShock, lowStock, budget, suppliers, other };
 }
