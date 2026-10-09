@@ -59,6 +59,17 @@ describe('toMonthKey', () => {
 		expect(toMonthKey('2026-1')).toBeNull();
 		expect(toMonthKey('2026-13')).toBeNull();
 		expect(toMonthKey('2026-01-05')).toBeNull();
+		expect(toMonthKey('')).toBeNull();
+		expect(toMonthKey(null)).toBeNull();
+	});
+
+	it('returns cached results for repeated inputs', () => {
+		const samples = ['2026-01', '2026-02', 'invalid', '2026-13', '2025-09'];
+		for (const s of samples) {
+			const res1 = toMonthKey(s);
+			const res2 = toMonthKey(s);
+			expect(res1).toBe(res2);
+		}
 	});
 });
 

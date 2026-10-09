@@ -1,6 +1,8 @@
 import { toIsoDate, monthKey, isoDateOffset } from '../dates';
 
 const MONTH_KEY = /^(\d{4})-(\d{2})$/;
+const MONTH_KEY_CACHE_MAX = 2000;
+const monthKeyCache = new Map<string, string | null>();
 
 export { toIsoDate, monthKey, isoDateOffset };
 
@@ -13,11 +15,25 @@ export function isBlankOrIsoDate(value: unknown): boolean {
 export function toMonthKey(value: unknown): string | null {
 	if (value === null || value === undefined) return null;
 	const raw = String(value).trim();
+	if (!raw) return null;
+
+	const cached = monthKeyCache.get(raw);
+	if (cached !== undefined) return cached;
+
+	let res: string | null = null;
 	const m = MONTH_KEY.exec(raw);
-	if (!m) return null;
-	const month = Number(m[2]);
-	if (month < 1 || month > 12) return null;
-	return raw;
+	if (m) {
+		const month = Number(m[2]);
+		if (month >= 1 && month <= 12) {
+			res = raw;
+		}
+	}
+
+	if (monthKeyCache.size >= MONTH_KEY_CACHE_MAX) {
+		monthKeyCache.clear();
+	}
+	monthKeyCache.set(raw, res);
+	return res;
 }
 
 export function addDays(d: Date, days: number): Date {
