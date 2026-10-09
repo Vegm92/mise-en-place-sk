@@ -55,7 +55,11 @@ export interface ResolvedDigestShare {
 	week: string;
 }
 
+const SHARE_TOKEN_RE = /^[A-Za-z0-9_-]{16,128}$/;
+
 export async function resolveShareToken(token: string): Promise<ResolvedDigestShare | null> {
+	if (!token || typeof token !== 'string' || !SHARE_TOKEN_RE.test(token)) return null;
+
 	const [row] = await db
 		.select({ restaurantId: digestShares.restaurantId, week: digestShares.week, revokedAt: digestShares.revokedAt })
 		.from(digestShares)
