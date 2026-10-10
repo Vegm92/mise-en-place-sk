@@ -186,19 +186,27 @@ export function structureFromSignals(
 }
 
 export function signalsFromPageMap(map: RawPageMap, pageCount: number): PageSignal[] | null {
-	const byPage = new Map<number, PageSignal>();
-	for (const entry of map.pages) {
-		if (!Number.isInteger(entry.page) || entry.page < 1 || entry.page > pageCount) continue;
+	if (pageCount <= 0) return null;
+	const out: (PageSignal | undefined)[] = new Array(pageCount);
+	let count = 0;
+	for (let i = 0; i < map.pages.length; i++) {
+		const entry = map.pages[i]!;
+		const page = entry.page;
+		if (!Number.isInteger(page) || page < 1 || page > pageCount) continue;
+		const idx = page - 1;
+		if (out[idx] === undefined) {
+			count++;
+		}
 		const role: PageRole = entry.role === 'continuation' || entry.role === 'cover' ? entry.role : 'document';
-		byPage.set(entry.page, {
-			page: entry.page,
+		out[idx] = {
+			page,
 			role,
 			ref: normaliseRef(entry.document_ref ?? null),
 			confidence: typeof entry.confidence === 'number' ? entry.confidence : 0,
-		});
+		};
 	}
-	if (byPage.size !== pageCount) return null;
-	return [...byPage.values()].sort((a, b) => a.page - b.page);
+	if (count !== pageCount) return null;
+	return out as PageSignal[];
 }
 
 export async function classifyPdfWithVision(
