@@ -85,19 +85,40 @@ describe('contentDispositionHeader — a filename containing CR/LF (header-split
 });
 
 describe('export endpoints attach X-Content-Type-Options: nosniff header', () => {
-	it('user account export (+server.ts) attaches nosniff header', async () => {
+	it('all +server.ts endpoints setting Content-Disposition attach X-Content-Type-Options: nosniff', async () => {
 		const fs = await import('node:fs');
 		const path = await import('node:path');
-		const src = fs.readFileSync(path.join(process.cwd(), 'src/routes/api/user/export/+server.ts'), 'utf8');
-		expect(src).toMatch(/['"]X-Content-Type-Options['"]:\s*['"]nosniff['"]/);
-	});
 
-	it('invoice export (+server.ts) attaches nosniff header', async () => {
-		const fs = await import('node:fs');
-		const path = await import('node:path');
-		const src = fs.readFileSync(path.join(process.cwd(), 'src/routes/(app)/invoices/export/download/+server.ts'), 'utf8');
-		const matches = src.match(/['"]X-Content-Type-Options['"]:\s*['"]nosniff['"]/g);
-		expect(matches).not.toBeNull();
-		expect(matches!.length).toBeGreaterThanOrEqual(2);
+		function getFiles(dir: string): string[] {
+			const entries = fs.readdirSync(dir, { withFileTypes: true });
+			const files: string[] = [];
+			for (const entry of entries) {
+				const fullPath = path.join(dir, entry.name);
+				if (entry.isDirectory()) {
+					files.push(...getFiles(fullPath));
+				} else if (entry.isFile() && entry.name === '+server.ts') {
+					files.push(fullPath);
+				}
+			}
+			return files;
+		}
+
+		const routesDir = path.join(process.cwd(), 'src/routes');
+		const serverFiles = getFiles(routesDir);
+		const missingNosniff: string[] = [];
+
+		for (const file of serverFiles) {
+			const content = fs.readFileSync(file, 'utf8');
+			if (content.includes('Content-Disposition') || content.includes('contentDispositionHeader')) {
+				const hasNosniff =
+					/['"]X-Content-Type-Options['"]\s*:\s*['"]nosniff['"]/i.test(content) ||
+					/headers\.set\(\s*['"]X-Content-Type-Options['"]\s*,\s*['"]nosniff['"]\s*\)/i.test(content);
+				if (!hasNosniff) {
+					missingNosniff.push(path.relative(process.cwd(), file));
+				}
+			}
+		}
+
+		expect(missingNosniff).toEqual([]);
 	});
 });
