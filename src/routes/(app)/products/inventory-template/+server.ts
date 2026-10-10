@@ -33,6 +33,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 		headers: {
 			'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 			'Content-Disposition': contentDispositionHeader('attachment', filename),
+			'X-Content-Type-Options': 'nosniff',
 		},
 	});
 };
