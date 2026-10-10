@@ -102,24 +102,16 @@ describe('downloadWhatsAppMedia', () => {
 		expect((await downloadWhatsAppMedia('media-2')).extension).toBe('jpg');
 	});
 
-	it('maps image/webp to webp extension', async () => {
-		fetchMock
-			.mockResolvedValueOnce({
-				ok: true,
-				json: async () => ({ url: 'https://lookaside.fbsbx.com/x', mime_type: 'image/webp' }),
-			})
-			.mockResolvedValueOnce({ ok: true, headers: new Headers(), arrayBuffer: async () => new ArrayBuffer(1) });
-
-		const { downloadWhatsAppMedia } = await import('../src/lib/server/whatsapp');
-		expect((await downloadWhatsAppMedia('media-webp')).extension).toBe('webp');
-	});
-
 	// Issue #484: image/heic used to fall through the "unmapped mime type"
 	// default above and get saved as a .jpg — a file the extraction pipeline
 	// then handed to Gemini as image/jpeg, which cannot decode HEIC bytes.
 	// It now maps to its own extension so the allow-list check downstream
 	// (file-validation.ts) rejects it honestly instead of mislabelling it.
-	it.each(['image/heic', 'image/heif'])('maps %s to its own extension, not jpg', async (mimeType) => {
+	it.each([
+		['image/heic', 'heic'],
+		['image/heif', 'heif'],
+		['image/webp', 'webp'],
+	])('maps %s to its extension %s, not jpg', async (mimeType, expectedExt) => {
 		fetchMock
 			.mockResolvedValueOnce({
 				ok: true,
@@ -128,9 +120,8 @@ describe('downloadWhatsAppMedia', () => {
 			.mockResolvedValueOnce({ ok: true, headers: new Headers(), arrayBuffer: async () => new ArrayBuffer(1) });
 
 		const { downloadWhatsAppMedia } = await import('../src/lib/server/whatsapp');
-		const result = await downloadWhatsAppMedia('media-heic');
-		expect(result.extension).not.toBe('jpg');
-		expect(result.extension).toBe(mimeType === 'image/heic' ? 'heic' : 'heif');
+		const result = await downloadWhatsAppMedia('media-ext');
+		expect(result.extension).toBe(expectedExt);
 	});
 
 	// Issue #483: the bytes were buffered unconditionally, so a 2 GB "invoice"
