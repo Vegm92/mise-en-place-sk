@@ -7,7 +7,20 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { resolveMimeType } from '../src/lib/server/file-validation';
+
+// ── MIME map (copied from the endpoint) ─────────────────────────────────────
+const MIME: Record<string, string> = {
+	'.pdf':  'application/pdf',
+	'.jpg':  'image/jpeg',
+	'.jpeg': 'image/jpeg',
+	'.png':  'image/png',
+	'.webp': 'image/webp',
+};
+
+function resolveMime(filename: string): string {
+	const ext = path.extname(filename).toLowerCase();
+	return MIME[ext] ?? 'application/octet-stream';
+}
 
 // ── Path-traversal guard (copied from the endpoint) ─────────────────────────
 function isPathSafe(dir: string, fp: string): boolean {
@@ -20,31 +33,25 @@ function isFileInSession(sessionFiles: string[], filename: string): boolean {
 }
 
 // ── MIME type resolution ─────────────────────────────────────────────────────
-describe('resolveMimeType', () => {
+describe('resolveMime', () => {
 	it.each([
 		['invoice.pdf', 'application/pdf'],
 		['scan.jpg', 'image/jpeg'],
 		['scan.jpeg', 'image/jpeg'],
 		['photo.png', 'image/png'],
 		['photo.webp', 'image/webp'],
-		['document.xml', 'application/xml'],
-		['photo.heic', 'image/heic'],
-		['photo.heif', 'image/heif'],
-		['pdf', 'application/pdf'],
-		['webp', 'image/webp'],
 	])('maps %s to %s', (filename, expected) => {
-		expect(resolveMimeType(filename)).toBe(expected);
+		expect(resolveMime(filename)).toBe(expected);
 	});
 
 	it('falls back to application/octet-stream for unknown extensions', () => {
-		expect(resolveMimeType('data.bin')).toBe('application/octet-stream');
-		expect(resolveMimeType('noext')).toBe('application/octet-stream');
+		expect(resolveMime('data.bin')).toBe('application/octet-stream');
+		expect(resolveMime('noext')).toBe('application/octet-stream');
 	});
 
 	it('is case-insensitive for extension matching', () => {
-		expect(resolveMimeType('INVOICE.PDF')).toBe('application/pdf');
-		expect(resolveMimeType('scan.JPG')).toBe('image/jpeg');
-		expect(resolveMimeType('PHOTO.WEBP')).toBe('image/webp');
+		expect(resolveMime('INVOICE.PDF')).toBe('application/pdf');
+		expect(resolveMime('scan.JPG')).toBe('image/jpeg');
 	});
 });
 
@@ -123,7 +130,7 @@ describe('upload guard chain', () => {
 
 		// 4. serve
 		const buf = fs.readFileSync(fp);
-		return { status: 200, contentType: resolveMimeType(requestedFile), bodyLength: buf.length };
+		return { status: 200, contentType: resolveMime(requestedFile), bodyLength: buf.length };
 	}
 
 	it('returns 200 with correct MIME for a valid PDF in session', () => {

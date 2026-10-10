@@ -8,7 +8,15 @@ import { eq } from 'drizzle-orm';
 import { contentDispositionHeader } from '$lib/server/content-disposition';
 import { requirePositiveIntId } from '$lib/server/route-params';
 import { rateLimitScoped } from '$lib/server/rate-limit-scope';
-import { resolveMimeType } from '$lib/server/file-validation';
+
+const MIME: Record<string, string> = {
+	pdf:  'application/pdf',
+	jpg:  'image/jpeg',
+	jpeg: 'image/jpeg',
+	png:  'image/png',
+	webp: 'image/webp',
+	xml:  'application/xml',
+};
 
 export const GET: RequestHandler = async ({ params, locals }) => {
 	const rid = locals.restaurantId;
@@ -37,7 +45,8 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		throw error(404, 'File not found');
 	}
 
-	const mimeType = resolveMimeType(key);
+	const ext = path.extname(key).toLowerCase().replace('.', '');
+	const mimeType = MIME[ext] ?? 'application/octet-stream';
 
 	return new Response(new Uint8Array(buf), {
 		headers: {

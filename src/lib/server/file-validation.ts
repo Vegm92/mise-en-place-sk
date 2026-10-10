@@ -34,21 +34,3 @@ export function validateBuffer(buf: Buffer, ext: string): RejectReason | null {
 	if (magicCheck && !magicCheck(buf)) return 'contentMismatch';
 	return null;
 }
-
-const EXT_TO_MIME: Record<string, string> = {
-	pdf:  'application/pdf',
-	jpg:  'image/jpeg',
-	jpeg: 'image/jpeg',
-	png:  'image/png',
-	webp: 'image/webp',
-	xml:  'application/xml',
-	heic: 'image/heic',
-	heif: 'image/heif',
-};
-
-export function resolveMimeType(filenameOrExt: string): string {
-	const ext = filenameOrExt.includes('.')
-		? filenameOrExt.slice(filenameOrExt.lastIndexOf('.') + 1).toLowerCase()
-		: filenameOrExt.toLowerCase();
-	return EXT_TO_MIME[ext] ?? 'application/octet-stream';
-}
