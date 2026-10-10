@@ -236,4 +236,21 @@ describe('checkRateLimit() call sites go through rateLimitScoped() (issue #440)'
 		expect(prefixesFound.has('reset')).toBe(true);
 		expect(prefixesFound.size, 'Each public route must use a distinct rate limit bucket prefix').toBe(publicRoutes.length);
 	});
+
+	it('all public unauthenticated server form actions enforce rate-limiting via publicFormAction or auth helpers', () => {
+		const publicServerFiles = [
+			'src/routes/login/+page.server.ts',
+			'src/routes/signup/+page.server.ts',
+			'src/routes/forgot-password/+page.server.ts',
+			'src/routes/reset-password/+page.server.ts',
+		];
+
+		for (const file of publicServerFiles) {
+			const src = fs.readFileSync(path.join(process.cwd(), file), 'utf8');
+			expect(
+				src.includes('publicFormAction') || src.includes('resendVerificationAction') || src.includes('signIn'),
+				`${file} must use publicFormAction, resendVerificationAction, or signIn to enforce rate-limiting`,
+			).toBe(true);
+		}
+	});
 });
