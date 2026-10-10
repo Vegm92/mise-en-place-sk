@@ -94,12 +94,24 @@ describe('downloadWhatsAppMedia', () => {
 		fetchMock
 			.mockResolvedValueOnce({
 				ok: true,
-				json: async () => ({ url: 'https://lookaside.fbsbx.com/x', mime_type: 'image/webp' }),
+				json: async () => ({ url: 'https://lookaside.fbsbx.com/x', mime_type: 'video/mp4' }),
 			})
 			.mockResolvedValueOnce({ ok: true, headers: new Headers(), arrayBuffer: async () => new ArrayBuffer(1) });
 
 		const { downloadWhatsAppMedia } = await import('../src/lib/server/whatsapp');
 		expect((await downloadWhatsAppMedia('media-2')).extension).toBe('jpg');
+	});
+
+	it('maps image/webp to webp extension', async () => {
+		fetchMock
+			.mockResolvedValueOnce({
+				ok: true,
+				json: async () => ({ url: 'https://lookaside.fbsbx.com/x', mime_type: 'image/webp' }),
+			})
+			.mockResolvedValueOnce({ ok: true, headers: new Headers(), arrayBuffer: async () => new ArrayBuffer(1) });
+
+		const { downloadWhatsAppMedia } = await import('../src/lib/server/whatsapp');
+		expect((await downloadWhatsAppMedia('media-webp')).extension).toBe('webp');
 	});
 
 	// Issue #484: image/heic used to fall through the "unmapped mime type"

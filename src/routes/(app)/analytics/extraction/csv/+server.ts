@@ -65,7 +65,6 @@ export const GET: RequestHandler = async ({ locals }) => {
 		headers: {
 			'Content-Type': 'text/csv; charset=utf-8',
 			'Content-Disposition': contentDispositionHeader('attachment', 'extraction-corrections.csv'),
-			'X-Content-Type-Options': 'nosniff',
 		},
 	});
 };
