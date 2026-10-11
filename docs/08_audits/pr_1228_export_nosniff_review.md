@@ -1,6 +1,6 @@
 ---
 tags: [mep, audit, pr-review, security, headers, export-security, nosniff, content-disposition]
-related: PR #1228, Commit 1b33cff4
+related: PR #1228, Commit 1b33cff4, Commit 25e6c0ff
 ---
 
 # Post-Merge Review Report: Commit 1b33cff4 / PR #1228 (Attach X-Content-Type-Options nosniff to CSV Report and Recipe Exports)
@@ -9,7 +9,7 @@ related: PR #1228, Commit 1b33cff4
 **Merge Commit:** `1b33cff449d686a08dc494ee42c8095e115d356a`
 **Branch:** `Vegm92/security/handle-error-nosniff-hardening-246537850084729795`
 **Reviewer:** Master Closed PR Reviewer
-**Audit Date:** 2026-10-11
+**Audit Date:** 2026-10-10
 
 ---
 
