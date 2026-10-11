@@ -1,3 +1,4 @@
+import path from 'path';
 import {
 	MAGIC_BYTES,
 	MAX_UPLOAD_BYTES,
@@ -15,6 +16,24 @@ export { MAX_ZIP_BYTES, MAX_ZIP_ENTRIES };
 
 export { MAGIC_BYTES };
 export type { RejectReason };
+
+const MIME_MAP: Record<string, string> = {
+	pdf: 'application/pdf',
+	jpg: 'image/jpeg',
+	jpeg: 'image/jpeg',
+	png: 'image/png',
+	webp: 'image/webp',
+	xml: 'application/xml',
+	xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+	zip: 'application/zip',
+	csv: 'text/csv',
+};
+
+export function resolveMimeType(filenameOrExt: string): string {
+	const ext = path.extname(filenameOrExt) || filenameOrExt;
+	const cleanExt = ext.toLowerCase().replace(/^\./, '');
+	return MIME_MAP[cleanExt] ?? 'application/octet-stream';
+}
 
 export class MediaTooLargeError extends Error {
 	readonly declaredSize: number;

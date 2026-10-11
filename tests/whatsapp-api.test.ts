@@ -94,7 +94,7 @@ describe('downloadWhatsAppMedia', () => {
 		fetchMock
 			.mockResolvedValueOnce({
 				ok: true,
-				json: async () => ({ url: 'https://lookaside.fbsbx.com/x', mime_type: 'image/webp' }),
+				json: async () => ({ url: 'https://lookaside.fbsbx.com/x', mime_type: 'image/bmp' }),
 			})
 			.mockResolvedValueOnce({ ok: true, headers: new Headers(), arrayBuffer: async () => new ArrayBuffer(1) });
 
