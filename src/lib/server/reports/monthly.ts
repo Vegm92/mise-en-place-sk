@@ -2,6 +2,7 @@ import { db } from '$lib/server/db';
 import { sql } from 'drizzle-orm';
 import { moneyToNumber } from '$lib/server/money';
 import { categoryColor } from '$lib/colors';
+import { shiftMonth } from '$lib/formatters';
 import { describedLine, lineAmountExpr, lineCategoryExpr, lineProductJoin } from '../category-spend';
 import type { Cell, ReportDoc } from '$lib/reports';
 import {
@@ -15,14 +16,6 @@ import {
 } from './shared';
 
 const OVER_BUDGET_PCT = 100;
-
-function shiftMonth(month: string, delta: number): string {
-	let year = Number(month.slice(0, 4));
-	let m = Number(month.slice(5, 7)) + delta;
-	while (m <= 0) { m += 12; year--; }
-	while (m > 12) { m -= 12; year++; }
-	return `${year}-${String(m).padStart(2, '0')}`;
-}
 
 async function monthSpend(rid: string, month: string): Promise<Map<string, number>> {
 	const rows = await db.execute<{ category: string; total: string | null }>(sql`

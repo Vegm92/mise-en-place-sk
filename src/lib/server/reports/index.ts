@@ -4,6 +4,7 @@ import { translations } from '$lib/i18n-messages';
 import { categorySlug } from '$lib/constants';
 import { isoWeek } from '$lib/server/weekly-digest';
 import { monthKey } from '$lib/dates';
+import { shiftMonth } from '$lib/formatters';
 import { buildWeekly } from './weekly';
 import { buildMonthly } from './monthly';
 import { buildPrices } from './prices';
@@ -14,14 +15,6 @@ const CSV_LOCALE = 'es';
 const KEY_PREFIX = 'rep.';
 const PERIOD_CHOICES = 4;
 
-function shiftMonthKey(month: string, delta: number): string {
-	let year = Number(month.slice(0, 4));
-	let m = Number(month.slice(5, 7)) + delta;
-	while (m <= 0) { m += 12; year--; }
-	while (m > 12) { m -= 12; year++; }
-	return `${year}-${String(m).padStart(2, '0')}`;
-}
-
 export function periodOptions(type: ReportType, now = new Date()): string[] {
 	if (type === 'weekly') {
 		const current = isoWeek(now);
@@ -29,7 +22,7 @@ export function periodOptions(type: ReportType, now = new Date()): string[] {
 	}
 	if (type === 'monthly') {
 		const current = monthKey(now);
-		return Array.from({ length: PERIOD_CHOICES }, (_, i) => shiftMonthKey(current, -i));
+		return Array.from({ length: PERIOD_CHOICES }, (_, i) => shiftMonth(current, -i));
 	}
 	return [];
 }

@@ -55,7 +55,14 @@ export function categoryBars(
 	}));
 }
 
+const WEEK_RANGE_CACHE_MAX = 500;
+const isoWeekRangeCache = new Map<string, { start: string; end: string }>();
+const shiftIsoWeekCache = new Map<string, string>();
+
 export function isoWeekRange(week: string): { start: string; end: string } {
+	let cached = isoWeekRangeCache.get(week);
+	if (cached !== undefined) return cached;
+
 	const [yearPart, weekPart] = week.split('-W');
 	const year = Number(yearPart);
 	const weekNum = Number(weekPart);
@@ -64,10 +71,20 @@ export function isoWeekRange(week: string): { start: string; end: string } {
 	const week1Monday = new Date(jan4.getTime() - jan4Dow * 86400000);
 	const monday = new Date(week1Monday.getTime() + (weekNum - 1) * 7 * 86400000);
 	const sunday = new Date(monday.getTime() + 6 * 86400000);
-	return { start: monday.toISOString().slice(0, 10), end: sunday.toISOString().slice(0, 10) };
+	cached = { start: monday.toISOString().slice(0, 10), end: sunday.toISOString().slice(0, 10) };
+
+	if (isoWeekRangeCache.size >= WEEK_RANGE_CACHE_MAX) {
+		isoWeekRangeCache.clear();
+	}
+	isoWeekRangeCache.set(week, cached);
+	return cached;
 }
 
 export function shiftIsoWeek(week: string, delta: number): string {
+	const key = `${week}:${delta}`;
+	let cached = shiftIsoWeekCache.get(key);
+	if (cached !== undefined) return cached;
+
 	const { start } = isoWeekRange(week);
 	const shifted = new Date(Date.parse(start) + delta * 7 * 86400000);
 	const d = new Date(shifted);
@@ -76,7 +93,13 @@ export function shiftIsoWeek(week: string, delta: number): string {
 	const weekNum = 1 + Math.round(
 		((d.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getUTCDay() + 6) % 7)) / 7,
 	);
-	return `${d.getUTCFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+	cached = `${d.getUTCFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+
+	if (shiftIsoWeekCache.size >= WEEK_RANGE_CACHE_MAX) {
+		shiftIsoWeekCache.clear();
+	}
+	shiftIsoWeekCache.set(key, cached);
+	return cached;
 }
 
 export function generatedStamp(now: Date): string {

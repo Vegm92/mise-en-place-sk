@@ -391,6 +391,11 @@ the inventory template, issue #885) is a different route entirely.
 **`const monthBoundsCache` / `const addDaysIsoCache` / `const daysBetweenCache` / `const previousRangeCache`**
 - Module-level bounded `Map` caches (max 2000 entries each) for period and date range calculations (`monthBounds`, `addDaysIso`, `daysBetween`, `previousRange`). Prevents repeated `Date` object allocations, string slicing, and ISO conversions on hot paths across dashboard metrics, analytics, budget tools, and report views (~8.8x speedup).
 
+### `src/lib/server/reports/shared.ts`
+
+**`const isoWeekRangeCache` / `const shiftIsoWeekCache`**
+- Bounded `Map` caches (max 500 entries each) for ISO week range calculations (`isoWeekRange`) and week offsets (`shiftIsoWeek`). Prevents repeated Date object allocations, string slicing, and UTC time math on hot paths in report generation and weekly digest routines (~36x speedup).
+
 ### `src/lib/money.ts`
 
 **`const normalizeAmountCache` / `const toCentsCache`**
