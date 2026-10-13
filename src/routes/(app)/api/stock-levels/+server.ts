@@ -22,10 +22,12 @@ const StockLevelBody = v.object({
 });
 
 export const GET: RequestHandler = async ({ locals }) => {
+	const rid = locals.restaurantId;
+	if (!rid) return apiError(409, 'No active restaurant');
+
 	if (!await rateLimitScoped({ scope: 'user', name: 'stock-levels', max: 60 }, { userId: locals.user!.id })) {
 		return apiError(429, 'Too many requests');
 	}
-	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
 	if (!(await hasFeature('stockTracking', locals))) return apiError(402, 'plan_upgrade_required');
 
@@ -42,10 +44,12 @@ export const GET: RequestHandler = async ({ locals }) => {
 };
 
 export const POST: RequestHandler = async ({ request, locals }) => {
+	const rid = locals.restaurantId;
+	if (!rid) return apiError(409, 'No active restaurant');
+
 	if (!await rateLimitScoped({ scope: 'user', name: 'stock-levels', max: 60 }, { userId: locals.user!.id })) {
 		return apiError(429, 'Too many requests');
 	}
-	const rid = locals.restaurantId!;
 	if (!(await hasFeature('stockTracking', locals))) return apiError(402, 'plan_upgrade_required');
 
 	const parsed = await parseJson(StockLevelBody, request);
