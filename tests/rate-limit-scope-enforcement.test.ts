@@ -212,6 +212,7 @@ describe('checkRateLimit() call sites go through rateLimitScoped() (issue #440)'
 			{ file: 'src/routes/signup/+page.server.ts', expectedActions: ['signUp', 'resend', 'signUpWithGoogle'] },
 			{ file: 'src/routes/forgot-password/+page.server.ts', expectedActions: ['default'] },
 			{ file: 'src/routes/reset-password/+page.server.ts', expectedActions: ['default'] },
+			{ file: 'src/routes/verify-email/+page.server.ts', expectedActions: ['default'] },
 		];
 
 		const prefixesFound = new Set<string>();
@@ -234,6 +235,7 @@ describe('checkRateLimit() call sites go through rateLimitScoped() (issue #440)'
 		expect(prefixesFound.has('signup')).toBe(true);
 		expect(prefixesFound.has('recover')).toBe(true);
 		expect(prefixesFound.has('reset')).toBe(true);
+		expect(prefixesFound.has('verify')).toBe(true);
 		expect(prefixesFound.size, 'Each public route must use a distinct rate limit bucket prefix').toBe(publicRoutes.length);
 	});
 });
