@@ -9,7 +9,7 @@ import { localFilePath, saveUploadedFiles, deleteUploadFile } from '$lib/server/
 import {
 	getItem, getBatchItems, addItems, removeItem, deleteBatch, isBatchSettled,
 	markQueued, markDiscarded, pickActiveItem, pickStalledItem, requeueStalled,
-	failStalledItems, stallLevel, isRefundableOnCancel,
+	failStalledItems, stallLevel, isRefundableOnCancel, UUID_RE,
 	type BatchItem,
 } from '$lib/server/batch';
 import { enqueueExtraction } from '$lib/server/queue';
@@ -116,6 +116,9 @@ async function findSimilarInvoiceId(
 }
 
 async function requireOwnedBatch(batchId: string, locals: App.Locals) {
+	if (!UUID_RE.test(batchId)) {
+		redirect(303, '/?error=upload.err.sessionNotFound');
+	}
 	const items = await getBatchItems(batchId);
 	if (!items.length || items.some(i => i.restaurantId !== locals.restaurantId)) {
 		redirect(303, '/?error=upload.err.sessionNotFound');
