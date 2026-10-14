@@ -40,8 +40,9 @@ describe('sitemap.xml', () => {
 		}
 	});
 
-	it('lists /signup', async () => {
+	it('lists /signup and attaches nosniff header', async () => {
 		const res = await sitemapGet(fakeEvent('https://mise-place.com'));
+		expect(res.headers.get('x-content-type-options')).toBe('nosniff');
 		const xml = await res.text();
 		expect(xml).toContain('<loc>https://mise-place.com/signup</loc>');
 	});
@@ -59,16 +60,12 @@ describe('sitemap.xml', () => {
 		const locCount = new Set(xml.match(/<loc>[^<]+<\/loc>/g)).size;
 		expect(locCount).toBe(urlCount);
 	});
-
-	it('includes X-Content-Type-Options: nosniff header', async () => {
-		const res = await sitemapGet(fakeEvent('https://mise-place.com'));
-		expect(res.headers.get('x-content-type-options')).toBe('nosniff');
-	});
 });
 
 describe('robots.txt', () => {
-	it('explicitly allows /l/', async () => {
+	it('explicitly allows /l/ and attaches nosniff header', async () => {
 		const res = await robotsGet({ url: new URL('https://mise-place.com/robots.txt') } as never);
+		expect(res.headers.get('x-content-type-options')).toBe('nosniff');
 		const body = await res.text();
 		expect(body).toContain('Allow: /l/');
 	});
@@ -85,11 +82,6 @@ describe('robots.txt', () => {
 		const body = await res.text();
 		expect(body).toContain('Disallow: /s/');
 		expect(body).toContain('Allow: /l/');
-	});
-
-	it('includes X-Content-Type-Options: nosniff header', async () => {
-		const res = await robotsGet({ url: new URL('https://mise-place.com/robots.txt') } as never);
-		expect(res.headers.get('x-content-type-options')).toBe('nosniff');
 	});
 });
 
