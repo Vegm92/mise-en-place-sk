@@ -90,28 +90,19 @@ describe('downloadWhatsAppMedia', () => {
 		expect(result.extension).toBe('pdf');
 	});
 
-	it('maps image/webp to webp extension', async () => {
+	it.each([
+		['image/webp', 'webp'],
+		['image/bmp', 'jpg'],
+	])('maps %s to extension %s', async (mimeType, expectedExt) => {
 		fetchMock
 			.mockResolvedValueOnce({
 				ok: true,
-				json: async () => ({ url: 'https://lookaside.fbsbx.com/x', mime_type: 'image/webp' }),
+				json: async () => ({ url: 'https://lookaside.fbsbx.com/x', mime_type: mimeType }),
 			})
 			.mockResolvedValueOnce({ ok: true, headers: new Headers(), arrayBuffer: async () => new ArrayBuffer(1) });
 
 		const { downloadWhatsAppMedia } = await import('../src/lib/server/whatsapp');
-		expect((await downloadWhatsAppMedia('media-2')).extension).toBe('webp');
-	});
-
-	it('falls back to a jpg extension for a genuinely unmapped mime type', async () => {
-		fetchMock
-			.mockResolvedValueOnce({
-				ok: true,
-				json: async () => ({ url: 'https://lookaside.fbsbx.com/x', mime_type: 'image/bmp' }),
-			})
-			.mockResolvedValueOnce({ ok: true, headers: new Headers(), arrayBuffer: async () => new ArrayBuffer(1) });
-
-		const { downloadWhatsAppMedia } = await import('../src/lib/server/whatsapp');
-		expect((await downloadWhatsAppMedia('media-bmp')).extension).toBe('jpg');
+		expect((await downloadWhatsAppMedia('media-ext')).extension).toBe(expectedExt);
 	});
 
 	// Issue #484: image/heic used to fall through the "unmapped mime type"
