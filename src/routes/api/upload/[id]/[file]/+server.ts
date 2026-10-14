@@ -4,15 +4,8 @@ import { getItem, UUID_RE } from '$lib/server/batch';
 import { getStorage } from '$lib/server/storage';
 import { contentDispositionHeader } from '$lib/server/content-disposition';
 import { rateLimitScoped } from '$lib/server/rate-limit-scope';
+import { resolveMimeType } from '$lib/server/file-validation';
 import type { RequestHandler } from './$types';
-
-const MIME: Record<string, string> = {
-	'.pdf':  'application/pdf',
-	'.jpg':  'image/jpeg',
-	'.jpeg': 'image/jpeg',
-	'.png':  'image/png',
-	'.webp': 'image/webp',
-};
 
 export const GET: RequestHandler = async ({ params, locals }) => {
 	if (!locals.user || !locals.restaurantId) throw error(401, 'Unauthorized');
@@ -32,8 +25,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 	const key = item.fileKey;
 
-	const ext = path.extname(filename).toLowerCase();
-	const contentType = MIME[ext] ?? 'application/octet-stream';
+	const contentType = resolveMimeType(filename);
 
 	let buf: Buffer;
 	try {
