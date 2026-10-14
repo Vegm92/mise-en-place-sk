@@ -101,6 +101,12 @@ the inventory template, issue #885) is a different route entirely.
 **`const load`**
 - SSR'd so the trend chart renders with the rest of the dashboard instead of flashing a client-side "Loading…" state on every visit.
 - Sparkline — daily spend for selected month.
+
+### `src/routes/(app)/invoices/+page.server.ts`
+
+**`const load`**
+- Single-pass line item grouping, uncategorized line counting, line item price mapping, and invoice list enrichment. Eliminates multi-pass `.filter()` and `.map()` calls and intermediate array allocations when building `invoiceList` and calculating `uncategorized_line_invoices`.
+- Trend month label mapping uses direct substring slicing (`month.slice(5, 7)`) instead of string splitting to avoid array allocations during chart rendering.
 **`function relativeTime`**
 - Alerts.
 **`const actions`**

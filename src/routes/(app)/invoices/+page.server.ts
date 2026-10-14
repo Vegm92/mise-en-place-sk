@@ -150,42 +150,76 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 			: [];
 
 		const lineItemsByInvoice = new Map<number, typeof allLineItems>();
-		for (const li of allLineItems) {
+		for (let i = 0; i < allLineItems.length; i++) {
+			const li = allLineItems[i]!;
 			if (li.invoice_id == null) continue;
-			const arr = lineItemsByInvoice.get(li.invoice_id) ?? [];
+			let arr = lineItemsByInvoice.get(li.invoice_id);
+			if (!arr) {
+				arr = [];
+				lineItemsByInvoice.set(li.invoice_id, arr);
+			}
 			arr.push(li);
-			lineItemsByInvoice.set(li.invoice_id, arr);
 		}
 
-		const isUncategorizedLine = (li: { description: string | null; product_category: string | null }, supplierCategory: string | null) => {
-			if (!li.description) return false;
-			const effective = li.product_category ?? supplierCategory ?? UNCATEGORIZED_CATEGORY;
-			return effective === UNCATEGORIZED_CATEGORY;
-		};
+		let uncategorizedLineInvoices = 0;
+		const invoiceList = new Array(invoiceRows.length);
+		for (let i = 0; i < invoiceRows.length; i++) {
+			const inv = invoiceRows[i]!;
+			const items = lineItemsByInvoice.get(inv.id);
+			let uncategorizedCount = 0;
+			let mappedItems: Array<{
+				invoice_id: number | null;
+				description: string | null;
+				quantity: number | null;
+				unit: string | null;
+				unit_price: number | null;
+				total_price: number | null;
+				product_category: string | null;
+			}>;
 
-		const invoiceList = invoiceRows.map(inv => ({
-			...inv,
-			total_amount: moneyToNullableNumber(inv.total_amount),
-			uncategorized_line_count: (lineItemsByInvoice.get(inv.id) ?? [])
-				.filter(li => isUncategorizedLine(li, inv.supplier_category)).length,
-			line_items: (lineItemsByInvoice.get(inv.id) ?? []).map(li => ({
-				...li,
-				unit_price: moneyToNullableNumber(li.unit_price),
-				total_price: moneyToNullableNumber(li.total_price),
-			})),
-		}));
+			if (items) {
+				mappedItems = new Array(items.length);
+				for (let j = 0; j < items.length; j++) {
+					const li = items[j]!;
+					if (li.description) {
+						const effective = li.product_category ?? inv.supplier_category ?? UNCATEGORIZED_CATEGORY;
+						if (effective === UNCATEGORIZED_CATEGORY) {
+							uncategorizedCount++;
+						}
+					}
+					mappedItems[j] = {
+						...li,
+						unit_price: moneyToNullableNumber(li.unit_price),
+						total_price: moneyToNullableNumber(li.total_price),
+					};
+				}
+			} else {
+				mappedItems = [];
+			}
+
+			if (uncategorizedCount > 0) {
+				uncategorizedLineInvoices++;
+			}
+
+			invoiceList[i] = {
+				...inv,
+				total_amount: moneyToNullableNumber(inv.total_amount),
+				uncategorized_line_count: uncategorizedCount,
+				line_items: mappedItems,
+			};
+		}
 
 		const stats = {
 			reviewed_count: Number(statsRow[0]?.reviewed_count ?? 0),
 			to_review_count: Number(statsRow[0]?.to_review_count ?? 0),
 			issue_count: Number(statsRow[0]?.issue_count ?? 0),
-			uncategorized_line_invoices: invoiceList.filter(inv => inv.uncategorized_line_count > 0).length,
+			uncategorized_line_invoices: uncategorizedLineInvoices,
 		};
 		const total = Number(countRow[0]?.cnt ?? 0);
 
 		const MONTH_LABELS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 		const trendData = {
-			xLabels: trendRows.map(r => MONTH_LABELS[(Number.parseInt(r.month.split('-')[1] ?? '0', 10) - 1)] ?? r.month),
+			xLabels: trendRows.map(r => MONTH_LABELS[(Number.parseInt(r.month.slice(5, 7), 10) - 1)] ?? r.month),
 			series: [
 				{ key: 'revisado',    labelKey: 'inv.review.revisado',    values: trendRows.map(r => Number(r.revisado))    },
 				{ key: 'por_revisar', labelKey: 'inv.review.por_revisar', values: trendRows.map(r => Number(r.por_revisar)) },
