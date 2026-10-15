@@ -7,20 +7,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-
-// ── MIME map (copied from the endpoint) ─────────────────────────────────────
-const MIME: Record<string, string> = {
-	'.pdf':  'application/pdf',
-	'.jpg':  'image/jpeg',
-	'.jpeg': 'image/jpeg',
-	'.png':  'image/png',
-	'.webp': 'image/webp',
-};
-
-function resolveMime(filename: string): string {
-	const ext = path.extname(filename).toLowerCase();
-	return MIME[ext] ?? 'application/octet-stream';
-}
+import { resolveMimeType as resolveMime } from '$lib/server/file-validation';
 
 // ── Path-traversal guard (copied from the endpoint) ─────────────────────────
 function isPathSafe(dir: string, fp: string): boolean {

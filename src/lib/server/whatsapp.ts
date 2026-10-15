@@ -7,8 +7,9 @@ const GRAPH_API_BASE = `https://graph.facebook.com/${WHATSAPP_API_VERSION}`;
 const ALLOWED_MEDIA_HOSTS = /(^|\.)(facebook\.com|fbcdn\.net|fbsbx\.com|whatsapp\.net)$/;
 
 const MIME_TO_EXT: Record<string, string> = {
-	'image/jpeg':    'jpg',
-	'image/png':     'png',
+	'image/jpeg':      'jpg',
+	'image/png':       'png',
+	'image/webp':      'webp',
 	'application/pdf': 'pdf',
 	'application/xml': 'xml',
 	'text/xml':        'xml',

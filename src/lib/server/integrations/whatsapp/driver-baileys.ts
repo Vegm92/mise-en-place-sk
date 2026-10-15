@@ -27,6 +27,7 @@ const MIME_TO_EXT: Record<string, string> = {
 	'image/jpeg': 'jpg',
 	'image/jpg': 'jpg',
 	'image/png': 'png',
+	'image/webp': 'webp',
 	'application/pdf': 'pdf',
 	'application/xml': 'xml',
 	'text/xml': 'xml',
