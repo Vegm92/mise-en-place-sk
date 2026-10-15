@@ -354,6 +354,7 @@ issue #881); name non-empty; tenant scope. List search params validated by
 **`function normalizeTaxId`**
 - Canonical form for any tax id before it is stored or compared (issue #905): uppercase, drop every separator, and strip a leading `ES` only when what remains is still a full 9-character id — otherwise a razón social beginning with "Es…" would lose its first two letters.
 - Normalisation is deliberately independent of validation. Extracted supplier ids must be comparable even when they are foreign VAT numbers that no Spanish checksum accepts.
+- Memoized with a bounded Map cache (`normalizeCache`, max 2000) to avoid repeated string upper-casing and regex testing on identical raw values.
 
 **`function taxIdDecidesIdentity`**
 
@@ -363,6 +364,7 @@ issue #881); name non-empty; tenant scope. List search params validated by
 **`function isValidSpanishTaxId`**
 - Real checksums (DNI/NIE mod 23, CIF control character), not a shape regex, and it enforces the control *kind* each CIF entity letter allows — a digit for A/B/E/H, a letter for K/P/Q/R/S/N/W. A shape check would accept most single-character typos, which is precisely the input this exists to reject.
 - Used to gate the restaurant's own CIF/NIF in Settings, where a human types it. It is not the right gate for extracted supplier ids: rejecting a valid foreign VAT number would drop identity data the document really carries.
+- Memoized with a bounded Map cache (`validTaxIdCache`, max 2000) for fast O(1) repeated checks.
 
 ### `src/lib/components/desktop/DesktopSupplierDetail.svelte`
 
