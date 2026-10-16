@@ -14,26 +14,15 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { contentDispositionHeader } from '../src/lib/server/content-disposition';
 
-function walkTsFiles(dir: string): string[] {
-	const files: string[] = [];
-	for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-		const full = path.join(dir, entry.name);
-		if (entry.isDirectory()) {
-			files.push(...walkTsFiles(full));
-		} else if (entry.name.endsWith('.ts') && !entry.name.endsWith('.test.ts')) {
-			files.push(full);
-		}
-	}
-	return files;
-}
-
 function discoverContentDispositionRoutes(): string[] {
-	const routeFiles = walkTsFiles(path.join(process.cwd(), 'src/routes'));
+	const routesDir = path.join(process.cwd(), 'src/routes');
+	const entries = fs.readdirSync(routesDir, { recursive: true }) as string[];
 	const matchedFiles: string[] = [];
-	for (const routeFile of routeFiles) {
-		const relPath = path.relative(process.cwd(), routeFile).split(path.sep).join('/');
-		if (!relPath.endsWith('+server.ts')) continue;
-		const src = fs.readFileSync(routeFile, 'utf8');
+	for (const entry of entries) {
+		if (!entry.endsWith('+server.ts')) continue;
+		const fullPath = path.join(routesDir, entry);
+		const relPath = path.relative(process.cwd(), fullPath).split(path.sep).join('/');
+		const src = fs.readFileSync(fullPath, 'utf8');
 		if (src.includes('Content-Disposition') || src.includes('contentDispositionHeader')) {
 			matchedFiles.push(relPath);
 		}
