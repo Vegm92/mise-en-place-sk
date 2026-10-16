@@ -356,4 +356,24 @@ describe('Formatters Performance Benchmark', () => {
 
 		expect(unmemoTime / memoTime).toBeGreaterThan(1.2);
 	});
+
+	it('benchmarks fast cache-first string lookup for fmtDate and fmtDateShort', () => {
+		const sampleDates = Array.from({ length: 300 }, (_, i) => `2026-03-${String((i % 28) + 1).padStart(2, '0')}`);
+		for (const d of sampleDates) {
+			fmtDate(d, 'es');
+			fmtDateShort(d, 'es');
+		}
+
+		const ops = 200000;
+		const t0 = performance.now();
+		for (let i = 0; i < ops; i++) {
+			const d = sampleDates[i % sampleDates.length]!;
+			fmtDate(d, 'es');
+			fmtDateShort(d, 'es');
+		}
+		const elapsed = performance.now() - t0;
+
+		console.log(`fmtDate/fmtDateShort cache-first string lookup (${ops} ops): ${elapsed.toFixed(2)} ms`);
+		expect(elapsed).toBeLessThan(300);
+	});
 });
