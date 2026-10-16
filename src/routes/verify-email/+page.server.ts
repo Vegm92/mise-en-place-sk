@@ -4,6 +4,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { db } from '$lib/server/db';
 import { users } from '$lib/server/schema';
 import { consumeVerificationToken } from '$lib/server/verification-token';
+import { publicFormAction } from '$lib/server/public-form-action';
 
 export const load: PageServerLoad = async ({ url }) => {
 	const email = url.searchParams.get('email')?.trim().toLowerCase();
@@ -14,23 +15,28 @@ export const load: PageServerLoad = async ({ url }) => {
 };
 
 export const actions: Actions = {
-	default: async ({ url }) => {
-		const email = url.searchParams.get('email')?.trim().toLowerCase();
-		const token = url.searchParams.get('token');
+	default: publicFormAction(
+		{
+			limits: ({ ip }) => [{ key: `verify-email:ip:${ip}`, max: 10, scope: 'ip' }],
+		},
+		async ({ event }) => {
+			const email = event.url.searchParams.get('email')?.trim().toLowerCase();
+			const token = event.url.searchParams.get('token');
 
-		if (!email || !token) return { ok: false };
+			if (!email || !token) return { ok: false };
 
-		const valid = await consumeVerificationToken(`verify-email:${email}`, token);
-		if (!valid) return { ok: false };
+			const valid = await consumeVerificationToken(`verify-email:${email}`, token);
+			if (!valid) return { ok: false };
 
-		const [user] = await db
-			.update(users)
-			.set({ emailVerified: new Date() })
-			.where(eq(users.email, email))
-			.returning();
+			const [user] = await db
+				.update(users)
+				.set({ emailVerified: new Date() })
+				.where(eq(users.email, email))
+				.returning();
 
-		if (!user) return { ok: false };
+			if (!user) return { ok: false };
 
-		redirect(303, '/login?verified=1');
-	},
+			redirect(303, '/login?verified=1');
+		},
+	),
 };

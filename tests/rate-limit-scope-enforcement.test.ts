@@ -212,6 +212,7 @@ describe('checkRateLimit() call sites go through rateLimitScoped() (issue #440)'
 			{ file: 'src/routes/signup/+page.server.ts', expectedActions: ['signUp', 'resend', 'signUpWithGoogle'] },
 			{ file: 'src/routes/forgot-password/+page.server.ts', expectedActions: ['default'] },
 			{ file: 'src/routes/reset-password/+page.server.ts', expectedActions: ['default'] },
+			{ file: 'src/routes/verify-email/+page.server.ts', expectedActions: ['default'] },
 		];
 
 		const prefixesFound = new Set<string>();
@@ -224,7 +225,7 @@ describe('checkRateLimit() call sites go through rateLimitScoped() (issue #440)'
 				expect(src, `${file} action '${actionName}' must use publicFormAction, resendVerificationAction, or signIn`).toMatch(actionPattern);
 			}
 
-			const matches = src.matchAll(/key:\s*['"`]([a-z]+):(ip|email):/g);
+			const matches = src.matchAll(/key:\s*['"`]([a-z-]+):(ip|email):/g);
 			for (const m of matches) {
 				if (m[1]) prefixesFound.add(m[1]);
 			}
@@ -234,6 +235,7 @@ describe('checkRateLimit() call sites go through rateLimitScoped() (issue #440)'
 		expect(prefixesFound.has('signup')).toBe(true);
 		expect(prefixesFound.has('recover')).toBe(true);
 		expect(prefixesFound.has('reset')).toBe(true);
+		expect(prefixesFound.has('verify-email')).toBe(true);
 		expect(prefixesFound.size, 'Each public route must use a distinct rate limit bucket prefix').toBe(publicRoutes.length);
 	});
 });
