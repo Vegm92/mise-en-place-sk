@@ -40,10 +40,9 @@ import { actions as confirmActions } from '../src/routes/(app)/settings/confirm-
 function urlEvent(params: Record<string, string>, extra: Record<string, unknown> = {}) {
 	const url = new URL('https://app.example.test/verify-email');
 	for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
-	const formData = new FormData();
 	return {
 		url,
-		request: { formData: () => Promise.resolve(formData) },
+		request: { formData: async () => new FormData() },
 		getClientAddress: () => '127.0.0.1',
 		...extra,
 	} as never;
