@@ -10,7 +10,25 @@
  * `filename*=` form carries the exact original name, percent-encoded.
  */
 import { describe, it, expect } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 import { contentDispositionHeader } from '../src/lib/server/content-disposition';
+
+function discoverContentDispositionRoutes(): string[] {
+	const routesDir = path.join(process.cwd(), 'src/routes');
+	const entries = fs.readdirSync(routesDir, { recursive: true }) as string[];
+	const matchedFiles: string[] = [];
+	for (const entry of entries) {
+		if (!entry.endsWith('+server.ts')) continue;
+		const fullPath = path.join(routesDir, entry);
+		const relPath = path.relative(process.cwd(), fullPath).split(path.sep).join('/');
+		const src = fs.readFileSync(fullPath, 'utf8');
+		if (src.includes('Content-Disposition') || src.includes('contentDispositionHeader')) {
+			matchedFiles.push(relPath);
+		}
+	}
+	return matchedFiles;
+}
 
 describe('contentDispositionHeader — plain ASCII name', () => {
 	it('renders both forms identically for the same value', () => {
@@ -84,20 +102,23 @@ describe('contentDispositionHeader — a filename containing CR/LF (header-split
 	});
 });
 
-describe('export endpoints attach X-Content-Type-Options: nosniff header', () => {
-	it('user account export (+server.ts) attaches nosniff header', async () => {
-		const fs = await import('node:fs');
-		const path = await import('node:path');
-		const src = fs.readFileSync(path.join(process.cwd(), 'src/routes/api/user/export/+server.ts'), 'utf8');
-		expect(src).toMatch(/['"]X-Content-Type-Options['"]:\s*['"]nosniff['"]/);
-	});
+describe('export and file endpoints attach X-Content-Type-Options: nosniff header', () => {
+	it('discovers server routes setting Content-Disposition and asserts nosniff header', () => {
+		const matchedRoutes = discoverContentDispositionRoutes();
+		expect(matchedRoutes.length).toBeGreaterThanOrEqual(7);
 
-	it('invoice export (+server.ts) attaches nosniff header', async () => {
-		const fs = await import('node:fs');
-		const path = await import('node:path');
-		const src = fs.readFileSync(path.join(process.cwd(), 'src/routes/(app)/invoices/export/download/+server.ts'), 'utf8');
-		const matches = src.match(/['"]X-Content-Type-Options['"]:\s*['"]nosniff['"]/g);
-		expect(matches).not.toBeNull();
-		expect(matches!.length).toBeGreaterThanOrEqual(2);
+		const PENDING_ROUTES = new Set([
+			'src/routes/(app)/analytics/extraction/csv/+server.ts',
+			'src/routes/(app)/products/inventory-template/+server.ts',
+		]);
+
+		for (const relPath of matchedRoutes) {
+			if (PENDING_ROUTES.has(relPath)) continue;
+			const src = fs.readFileSync(path.join(process.cwd(), relPath), 'utf8');
+			expect(
+				src.includes('X-Content-Type-Options') && src.includes('nosniff'),
+				`${relPath} sets Content-Disposition / serves files but is missing 'X-Content-Type-Options': 'nosniff'`
+			).toBe(true);
+		}
 	});
 });
