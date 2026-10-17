@@ -44,13 +44,10 @@ const CONTINUES_RE = /\b(?:contin[uú]a|continuaci[oó]n|continued|sigue)\b/i;
 
 const MIN_COVER_ROWS = 3;
 
-const DATE_ROW_RE = /\b\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}\b/g;
-
-export function hasMinDateRows(text: string, minCount: number): boolean {
-	if (text.length < 10) return false;
-	DATE_ROW_RE.lastIndex = 0;
+function hasMinDateRows(text: string, minCount: number): boolean {
+	const re = /\b\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}\b/g;
 	let count = 0;
-	while (DATE_ROW_RE.exec(text) !== null) {
+	while (re.exec(text) !== null) {
 		count++;
 		if (count >= minCount) return true;
 	}
