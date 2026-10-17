@@ -77,6 +77,15 @@ describe('reconcileLineItems — matching and missing lines', () => {
 });
 
 describe('reconcileLineItems — quantity and unit verdicts', () => {
+	it('normalizes unit token casing and whitespace when checking unit equality', () => {
+		const a = [line({ id: 1, description: 'Tomate pera', quantity: 5, unit: '  KG  ', unitPrice: 2 })];
+		const b = [line({ id: 2, description: 'Tomate pera', quantity: 5, unit: 'kg', unitPrice: 2 })];
+		const result = reconcileLineItems(a, b);
+		expect(result.matched).toBe(1);
+		expect(result.unitMismatches).toEqual([]);
+		expect(result.quantityMismatches).toEqual([]);
+	});
+
 	it('flags a quantity mismatch when units agree but quantities differ beyond tolerance', () => {
 		const a = [line({ id: 1, description: 'Tomate pera', quantity: 10, unit: 'kg' })];
 		const b = [line({ id: 2, description: 'Tomate pera', quantity: 8, unit: 'kg' })];
@@ -125,6 +134,13 @@ describe('reconcileLineItems — quantity and unit verdicts', () => {
 });
 
 describe('reconcileLineItems — price verdicts', () => {
+	it('does not flag price mismatch when both prices are zero', () => {
+		const a = [line({ id: 1, description: 'Muestra gratis', unit: 'ud', unitPrice: 0 })];
+		const b = [line({ id: 2, description: 'Muestra gratis', unit: 'ud', unitPrice: 0 })];
+		const result = reconcileLineItems(a, b);
+		expect(result.priceMismatches).toEqual([]);
+	});
+
 	it.each<[string, number, number, boolean]>([
 		['flags a price mismatch beyond the 5% tolerance using normalized unit prices', 3.0, 3.5, true],
 		['does not flag a price difference within the 5% tolerance', 3.0, 3.1, false],
