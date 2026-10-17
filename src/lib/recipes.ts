@@ -54,31 +54,48 @@ const UNIT_FACTORS: Record<string, { family: UnitFamily; factor: number }> = {
 
 const QTY_INPUT = /^(\d+)(?:[.,](\d+))?$/;
 
+const RECIPE_KINDS_SET = new Set<string>(RECIPE_KINDS);
+const RECIPE_STATUSES_SET = new Set<string>(RECIPE_STATUSES);
+const RECIPE_LINE_KINDS_SET = new Set<string>(RECIPE_LINE_KINDS);
+const RECIPE_SECTIONS_SET = new Set<string>(RECIPE_SECTIONS);
+const EU_ALLERGENS_SET = new Set<string>(EU_ALLERGENS);
+
 export function isRecipeKind(v: unknown): v is RecipeKind {
-	return typeof v === 'string' && (RECIPE_KINDS as readonly string[]).includes(v);
+	return typeof v === 'string' && RECIPE_KINDS_SET.has(v);
 }
 
 export function isRecipeStatus(v: unknown): v is RecipeStatus {
-	return typeof v === 'string' && (RECIPE_STATUSES as readonly string[]).includes(v);
+	return typeof v === 'string' && RECIPE_STATUSES_SET.has(v);
 }
 
 export function isRecipeLineKind(v: unknown): v is RecipeLineKind {
-	return typeof v === 'string' && (RECIPE_LINE_KINDS as readonly string[]).includes(v);
+	return typeof v === 'string' && RECIPE_LINE_KINDS_SET.has(v);
 }
 
 export function isRecipeSection(v: unknown): v is RecipeSection {
-	return typeof v === 'string' && (RECIPE_SECTIONS as readonly string[]).includes(v);
+	return typeof v === 'string' && RECIPE_SECTIONS_SET.has(v);
 }
 
 export function isAllergen(v: unknown): v is Allergen {
-	return typeof v === 'string' && (EU_ALLERGENS as readonly string[]).includes(v);
+	return typeof v === 'string' && EU_ALLERGENS_SET.has(v);
 }
 
 export function toAllergenList(raw: unknown): Allergen[] {
 	if (!Array.isArray(raw)) return [];
 	const seen = new Set<Allergen>();
-	for (const entry of raw) if (isAllergen(entry)) seen.add(entry);
-	return EU_ALLERGENS.filter((code) => seen.has(code));
+	for (let i = 0; i < raw.length; i++) {
+		const entry = raw[i];
+		if (typeof entry === 'string' && EU_ALLERGENS_SET.has(entry)) {
+			seen.add(entry as Allergen);
+		}
+	}
+	if (seen.size === 0) return [];
+	const res: Allergen[] = [];
+	for (let i = 0; i < EU_ALLERGENS.length; i++) {
+		const code = EU_ALLERGENS[i]!;
+		if (seen.has(code)) res.push(code);
+	}
+	return res;
 }
 
 const MAX_CACHE_SIZE = 2000;
