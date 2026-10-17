@@ -108,30 +108,48 @@ export interface CategoryRisk {
 }
 
 export function buildCategoryRisk(input: TurnoInput): CategoryRisk[] {
-	return Object.entries(input.budgets)
-		.filter(([, budget]) => budget > 0)
-		.map(([category, budget]) => {
-			const spent = input.categorySpend[category] ?? 0;
-			const forecast = forecastFromRunRate(spent, input);
-			return {
-				category,
-				spent,
-				budget,
-				planToDate: planToDate(budget, input),
-				forecast,
-				overrun: forecast - budget,
-			};
-		})
-		.sort((a, b) => b.overrun - a.overrun);
+	const out: CategoryRisk[] = [];
+	const budgets = input.budgets;
+	const categorySpend = input.categorySpend;
+	const f = elapsedFraction(input);
+
+	const keys = Object.keys(budgets);
+	for (let i = 0; i < keys.length; i++) {
+		const category = keys[i]!;
+		const budget = budgets[category] ?? 0;
+		if (budget <= 0) continue;
+		const spent = categorySpend[category] ?? 0;
+		const forecast = f > 0 ? spent / f : spent;
+		out.push({
+			category,
+			spent,
+			budget,
+			planToDate: budget * f,
+			forecast,
+			overrun: forecast - budget,
+		});
+	}
+	out.sort((a, b) => b.overrun - a.overrun);
+	return out;
 }
 
-function priceItems(input: TurnoInput): WorkItem[] {
-	return input.priceShocks
-		.filter((s) => s.deviationPct > 0)
-		.map((s) => ({ s, eur: priceShockImpact(s) }))
-		.sort((a, b) => b.eur - a.eur)
-		.slice(0, MAX_PRICE_ITEMS)
-		.map(({ s, eur }): WorkItem => ({
+function pushPriceItems(input: TurnoInput, out: WorkItem[]): void {
+	const shocks = input.priceShocks;
+	if (shocks.length === 0) return;
+
+	const top: { s: PriceShockInput; eur: number }[] = [];
+	for (let i = 0; i < shocks.length; i++) {
+		const s = shocks[i]!;
+		if (s.deviationPct <= 0) continue;
+		top.push({ s, eur: priceShockImpact(s) });
+	}
+	if (top.length > 1) {
+		top.sort((a, b) => b.eur - a.eur);
+	}
+	const count = Math.min(top.length, MAX_PRICE_ITEMS);
+	for (let i = 0; i < count; i++) {
+		const { s, eur } = top[i]!;
+		out.push({
 			id: `price-${s.id}`,
 			kind: 'price',
 			severity: 'high',
@@ -145,7 +163,8 @@ function priceItems(input: TurnoInput): WorkItem[] {
 			whyVars: priceWhyVars(s),
 			actionKey: s.alternative ? 'turno.price.actionAlt' : 'turno.price.action',
 			href: s.productId != null ? `/products/${s.productId}` : '/analytics/prices',
-		}));
+		});
+	}
 }
 
 function priceWhyVars(s: PriceShockInput): Record<string, string | number> {
@@ -159,16 +178,18 @@ function priceWhyVars(s: PriceShockInput): Record<string, string | number> {
 	};
 }
 
-function budgetItems(input: TurnoInput): WorkItem[] {
-	if (!input.isCurrentMonth) return [];
+function pushBudgetItems(input: TurnoInput, out: WorkItem[]): void {
+	if (!input.isCurrentMonth) return;
+	const risks = buildCategoryRisk(input);
 	const daysLeft = Math.max(0, input.daysInMonth - input.daysElapsed);
-	return buildCategoryRisk(input)
-		.filter((c) => c.overrun > 0)
-		.slice(0, MAX_BUDGET_ITEMS)
-		.map((c) => ({
+	let added = 0;
+	for (let i = 0; i < risks.length && added < MAX_BUDGET_ITEMS; i++) {
+		const c = risks[i]!;
+		if (c.overrun <= 0) continue;
+		out.push({
 			id: `budget-${c.category}`,
-			kind: 'budget' as const,
-			severity: c.spent > c.budget ? 'high' as const : 'med' as const,
+			kind: 'budget',
+			severity: c.spent > c.budget ? 'high' : 'med',
 			eur: c.overrun,
 			urgencyRank: 10,
 			urgencyKey: 'turno.when.thisWeek',
@@ -179,13 +200,15 @@ function budgetItems(input: TurnoInput): WorkItem[] {
 			whyVars: { spent: Math.round(c.spent), budget: Math.round(c.budget), days: daysLeft },
 			actionKey: 'turno.budget.action',
 			href: '/budgets',
-		}));
+		});
+		added++;
+	}
 }
 
-function reviewItems(input: TurnoInput): WorkItem[] {
-	if (input.review.count <= 0) return [];
+function pushReviewItems(input: TurnoInput, out: WorkItem[]): void {
+	if (input.review.count <= 0) return;
 	const incidencias = input.review.incidencias;
-	return [{
+	out.push({
 		id: 'review',
 		kind: 'review',
 		severity: incidencias > 0 ? 'med' : 'low',
@@ -199,31 +222,36 @@ function reviewItems(input: TurnoInput): WorkItem[] {
 		whyVars: { n: incidencias },
 		actionKey: 'turno.review.action',
 		href: incidencias > 0 ? '/invoices?status=incidencia' : '/invoices?status=por_revisar',
-	}];
+	});
 }
 
-function missingItems(input: TurnoInput): WorkItem[] {
-	return input.missing.slice(0, MAX_MISSING_ITEMS).map((m, i) => ({
-		id: `missing-${m.supplier_id ?? m.supplier_name}`,
-		kind: 'missing' as const,
-		severity: 'med' as const,
-		eur: 0,
-		urgencyRank: 90 + i,
-		urgencyKey: 'turno.when.whenYouCan',
-		urgencyVars: {},
-		titleKey: 'turno.missing.title',
-		titleVars: { supplier: m.supplier_name, days: m.days_late },
-		whyKey: `turno.missing.why.${MISSING_FREQUENCIES.includes(m.frequency) ? m.frequency : 'periodic'}`,
-		whyVars: {},
-		actionKey: 'turno.missing.action',
-		href: m.supplier_id != null ? `/suppliers/${m.supplier_id}` : '/suppliers',
-	}));
+function pushMissingItems(input: TurnoInput, out: WorkItem[]): void {
+	const missing = input.missing;
+	const count = Math.min(missing.length, MAX_MISSING_ITEMS);
+	for (let i = 0; i < count; i++) {
+		const m = missing[i]!;
+		out.push({
+			id: `missing-${m.supplier_id ?? m.supplier_name}`,
+			kind: 'missing',
+			severity: 'med',
+			eur: 0,
+			urgencyRank: 90 + i,
+			urgencyKey: 'turno.when.whenYouCan',
+			urgencyVars: {},
+			titleKey: 'turno.missing.title',
+			titleVars: { supplier: m.supplier_name, days: m.days_late },
+			whyKey: `turno.missing.why.${MISSING_FREQUENCIES.includes(m.frequency) ? m.frequency : 'periodic'}`,
+			whyVars: {},
+			actionKey: 'turno.missing.action',
+			href: m.supplier_id != null ? `/suppliers/${m.supplier_id}` : '/suppliers',
+		});
+	}
 }
 
-function supplierItems(input: TurnoInput): WorkItem[] {
+function pushSupplierItems(input: TurnoInput, out: WorkItem[]): void {
 	const s = input.uncategorized[0];
-	if (!s) return [];
-	return [{
+	if (!s) return;
+	out.push({
 		id: `supplier-${s.supplierId}`,
 		kind: 'supplier',
 		severity: 'low',
@@ -237,33 +265,47 @@ function supplierItems(input: TurnoInput): WorkItem[] {
 		whyVars: {},
 		actionKey: 'turno.supplier.action',
 		href: `/suppliers/${s.supplierId}?highlight=category`,
-	}];
+	});
 }
 
 export function buildWorklist(input: TurnoInput): WorkItem[] {
-	const items = [
-		...priceItems(input),
-		...budgetItems(input),
-		...reviewItems(input),
-		...missingItems(input),
-		...supplierItems(input),
-	];
-	return sortWorklist(items, 'money').slice(0, MAX_WORK_ITEMS);
+	const items: WorkItem[] = [];
+	pushPriceItems(input, items);
+	pushBudgetItems(input, items);
+	pushReviewItems(input, items);
+	pushMissingItems(input, items);
+	pushSupplierItems(input, items);
+
+	sortWorklistInPlace(items, 'money');
+	if (items.length > MAX_WORK_ITEMS) {
+		items.length = MAX_WORK_ITEMS;
+	}
+	return items;
 }
 
 export type SortMode = 'money' | 'urgency';
 
-export function sortWorklist(items: WorkItem[], mode: SortMode): WorkItem[] {
-	if (mode === 'urgency') return [...items].sort((a, b) => a.urgencyRank - b.urgencyRank || b.eur - a.eur);
-	return [...items].sort((a, b) => {
+function sortWorklistInPlace(items: WorkItem[], mode: SortMode): WorkItem[] {
+	if (mode === 'urgency') {
+		return items.sort((a, b) => a.urgencyRank - b.urgencyRank || b.eur - a.eur);
+	}
+	return items.sort((a, b) => {
 		if ((a.eur > 0) !== (b.eur > 0)) return a.eur > 0 ? -1 : 1;
 		if (a.eur !== b.eur) return b.eur - a.eur;
 		return a.urgencyRank - b.urgencyRank;
 	});
 }
 
+export function sortWorklist(items: WorkItem[], mode: SortMode): WorkItem[] {
+	return sortWorklistInPlace([...items], mode);
+}
+
 export function atStake(items: WorkItem[]): number {
-	return items.reduce((s, i) => s + i.eur, 0);
+	let total = 0;
+	for (let i = 0; i < items.length; i++) {
+		total += items[i]!.eur;
+	}
+	return total;
 }
 
 export interface PacePoint {
@@ -295,7 +337,8 @@ export function buildPaceCurve(
 		});
 	}
 	if (lastActualDay < days) {
-		for (const p of points) {
+		for (let i = 0; i < points.length; i++) {
+			const p = points[i]!;
 			if (p.day < lastActualDay) continue;
 			p.forecast = cumAtToday + rate * (p.day - lastActualDay);
 		}

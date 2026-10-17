@@ -197,6 +197,9 @@ n/a (read-only).
 **`function buildWorklist`**
 - Money-carrying items always outrank money-less ones, so a €0 item can never
   push a €600 one off the six-item list.
+- Implemented as a single-pass, allocation-free array construction with in-place
+  sorting and truncation (`items.length = MAX_WORK_ITEMS`) to eliminate GC
+  churn on reactive dashboard updates.
 
 **`function buildPaceCurve`**
 - The forecast segment starts at `lastActualDay` so the actual line and the
