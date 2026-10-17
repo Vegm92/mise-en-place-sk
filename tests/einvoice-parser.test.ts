@@ -281,6 +281,22 @@ describe('detectEinvoiceFormat', () => {
 		const xml = `<Facturae xmlns="http://www.facturae.es/Facturae/2009/v3.2.1/Facturae"></Facturae>`;
 		expect(detectEinvoiceFormat(xml)).toBe('facturae_322');
 	});
+
+	it('benchmarks detectEinvoiceFormat performance on large XML payloads', () => {
+		const padding = '<!-- ' + 'A'.repeat(500_000) + ' -->';
+		const largeFacturae = FACTURAE_322_XML + padding;
+		const largeUbl = UBL_21_XML + padding;
+
+		const iterations = 10_000;
+		const start = performance.now();
+		for (let i = 0; i < iterations; i++) {
+			detectEinvoiceFormat(largeFacturae);
+			detectEinvoiceFormat(largeUbl);
+		}
+		const elapsed = performance.now() - start;
+		console.log(`detectEinvoiceFormat benchmark (${iterations} ops on 500KB XML): ${elapsed.toFixed(2)} ms`);
+		expect(elapsed).toBeGreaterThan(0);
+	});
 });
 
 // ── parseFacturae322 ──────────────────────────────────────────────────────────

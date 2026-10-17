@@ -1,5 +1,6 @@
 const SENSITIVE_PARAMS = ['code', 'token', 'access_token', 'refresh_token', 'email'];
 const SENSITIVE_KEYS = [...SENSITIVE_PARAMS, 'authorization', 'cookie', 'set-cookie'];
+const SENSITIVE_KEY_SET = new Set(SENSITIVE_KEYS);
 const REDACTED = '[redacted]';
 const MAX_SCRUB_DEPTH = 6;
 const URL_IN_TEXT = /https?:\/\/\S+/g;
@@ -26,7 +27,7 @@ function scrubUrlsInText(text: string): string {
 }
 
 function isSensitiveKey(key: string): boolean {
-	return SENSITIVE_KEYS.includes(key.toLowerCase());
+	return SENSITIVE_KEY_SET.has(key.toLowerCase());
 }
 
 function scrubArrayInPlace(items: unknown[], seen: WeakSet<object>, depth: number): void {
