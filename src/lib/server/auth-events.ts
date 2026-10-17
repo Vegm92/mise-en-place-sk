@@ -12,7 +12,8 @@ export type AuthEventKind =
 	| 'password_reset_requested'
 	| 'password_reset_rate_limited'
 	| 'password_reset_completed'
-	| 'password_changed';
+	| 'password_changed'
+	| 'verify_email_rate_limited';
 
 export function hashIp(ip: string | null | undefined): string {
 	if (!ip) return 'unknown';
