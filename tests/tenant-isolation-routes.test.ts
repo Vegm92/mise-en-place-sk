@@ -73,6 +73,7 @@ vi.mock('$lib/server/db', () => {
 });
 
 vi.mock('$lib/server/batch', () => ({
+	UUID_RE: /.*/,
 	getBatchItems: getBatchItemsMock,
 	getItem: vi.fn(),
 	addItems: mutations.addItems,

@@ -445,9 +445,9 @@ describe('/batch/[id] — malformed id stays a redirect, never a raw db error (i
 	const GUARD_LOCATION = '/?error=upload.err.sessionNotFound';
 
 	it.each(['not-a-uuid', "1' OR '1'='1", 'abc', '../etc/passwd'])(
-		'redirects instead of 500ing for batchId=%j',
+		'redirects instead of 500ing for batchId=%j and touches nothing',
 		async (id) => {
-			const { load } = await import('../src/routes/(app)/batch/[id]/+page.server');
+			const { load, actions } = await import('../src/routes/(app)/batch/[id]/+page.server');
 
 			const outcome = await Promise.resolve(load({ params: { id }, locals: { restaurantId: RID } } as never)).catch(
 				(e: unknown) => e,
@@ -455,6 +455,15 @@ describe('/batch/[id] — malformed id stays a redirect, never a raw db error (i
 
 			expect(isRedirect(outcome)).toBe(true);
 			expect((outcome as { location: string }).location).toBe(GUARD_LOCATION);
+			expect(dbState.calls).toEqual([]);
+
+			const actionOutcome = await Promise.resolve(
+				actions.extract!({ params: { id }, locals: { restaurantId: RID } } as never),
+			).catch((e: unknown) => e);
+
+			expect(isRedirect(actionOutcome)).toBe(true);
+			expect((actionOutcome as { location: string }).location).toBe(GUARD_LOCATION);
+			expect(dbState.calls).toEqual([]);
 		},
 	);
 

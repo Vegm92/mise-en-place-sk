@@ -29,7 +29,9 @@ const UnitConversionBody = v.object({
 });
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-	const rid = locals.restaurantId!;
+	const rid = locals.restaurantId;
+	if (!rid) return apiError(409, 'No active restaurant');
+
 	if (!await rateLimitScoped({ scope: 'tenant', name: 'unit-conversions', max: 30 }, { restaurantId: rid })) {
 		return apiError(429, 'Too many requests');
 	}
