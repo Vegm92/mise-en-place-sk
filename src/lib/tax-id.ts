@@ -8,11 +8,22 @@ const DNI_RE = /^\d{8}[A-Z]$/;
 const NIE_RE = /^[XYZ]\d{7}[A-Z]$/;
 const CIF_RE = /^[ABCDEFGHJKLMNPQRSUVW]\d{7}[0-9A-J]$/;
 
+const MAX_CACHE_ENTRIES = 2000;
+const normalizeCache = new Map<string, string | null>();
+const validTaxIdCache = new Map<string, boolean>();
+
 export function normalizeTaxId(raw: string | null | undefined): string | null {
 	if (!raw) return null;
+	const cached = normalizeCache.get(raw);
+	if (cached !== undefined) return cached;
+
 	const stripped = raw.toUpperCase().replace(/[^0-9A-Z]/g, '');
 	const withoutCountry = /^ES[0-9A-Z]{9}$/.test(stripped) ? stripped.slice(2) : stripped;
-	return withoutCountry || null;
+	const res = withoutCountry || null;
+
+	if (normalizeCache.size >= MAX_CACHE_ENTRIES) normalizeCache.clear();
+	normalizeCache.set(raw, res);
+	return res;
 }
 
 function personalControlLetter(digits: string): string {
@@ -33,16 +44,17 @@ function cifControlDigit(body: string): number {
 	return (10 - (sum % 10)) % 10;
 }
 
-const validTaxIdCache = new Map<string, boolean>();
-
 export function isValidSpanishTaxId(value: string | null | undefined): boolean {
-	const id = normalizeTaxId(value);
-	if (!id) return false;
-	const cached = validTaxIdCache.get(id);
+	if (!value) return false;
+	const cached = validTaxIdCache.get(value);
 	if (cached !== undefined) return cached;
-	if (DNI_RE.test(id)) return id[8] === personalControlLetter(id.slice(0, 8));
-	if (NIE_RE.test(id)) return id[8] === personalControlLetter((NIE_PREFIX[id[0] ?? ''] ?? '') + id.slice(1, 8));
-	if (!CIF_RE.test(id)) return false;
+
+	const id = normalizeTaxId(value);
+	if (!id) {
+		if (validTaxIdCache.size >= MAX_CACHE_ENTRIES) validTaxIdCache.clear();
+		validTaxIdCache.set(value, false);
+		return false;
+	}
 
 	let res = false;
 	if (DNI_RE.test(id)) {
@@ -62,7 +74,8 @@ export function isValidSpanishTaxId(value: string | null | undefined): boolean {
 		}
 	}
 
-	validTaxIdCache.set(id, res);
+	if (validTaxIdCache.size >= MAX_CACHE_ENTRIES) validTaxIdCache.clear();
+	validTaxIdCache.set(value, res);
 	return res;
 }
 
