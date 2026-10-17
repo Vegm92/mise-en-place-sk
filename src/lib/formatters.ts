@@ -188,15 +188,32 @@ const fmtMonthShortCache = new Map<string, string>();
 
 export function fmtDate(d: Date | string | null | undefined, locale: Locale = 'es'): string {
 	if (!d) return '—';
-	const dateObj = typeof d === 'string' ? new Date(d) : d;
-	if (Number.isNaN(dateObj.getTime())) return typeof d === 'string' ? d : '—';
+	if (typeof d === 'string') {
+		const key = `${locale}:${d}`;
+		let cached = fmtDateCache.get(key);
+		if (cached !== undefined) return cached;
 
-	const key = typeof d === 'string' ? `${locale}:${d}` : `${locale}:ts:${dateObj.getTime()}`;
+		const dateObj = new Date(d);
+		if (Number.isNaN(dateObj.getTime())) return d;
+
+		const fmtInst = dateFormatters[locale] ?? dateFormatters.es;
+		cached = fmtInst.format(dateObj);
+
+		if (fmtDateCache.size >= DATE_CACHE_MAX) {
+			fmtDateCache.clear();
+		}
+		fmtDateCache.set(key, cached);
+		return cached;
+	}
+
+	if (Number.isNaN(d.getTime())) return '—';
+
+	const key = `${locale}:ts:${d.getTime()}`;
 	let cached = fmtDateCache.get(key);
 	if (cached !== undefined) return cached;
 
 	const fmtInst = dateFormatters[locale] ?? dateFormatters.es;
-	cached = fmtInst.format(dateObj);
+	cached = fmtInst.format(d);
 
 	if (fmtDateCache.size >= DATE_CACHE_MAX) {
 		fmtDateCache.clear();
@@ -207,15 +224,32 @@ export function fmtDate(d: Date | string | null | undefined, locale: Locale = 'e
 
 export function fmtDateShort(d: Date | string | null | undefined, locale: Locale = 'es'): string {
 	if (!d) return '—';
-	const dateObj = typeof d === 'string' ? new Date(d) : d;
-	if (Number.isNaN(dateObj.getTime())) return typeof d === 'string' ? d : '—';
+	if (typeof d === 'string') {
+		const key = `${locale}:${d}`;
+		let cached = fmtDateShortCache.get(key);
+		if (cached !== undefined) return cached;
 
-	const key = typeof d === 'string' ? `${locale}:${d}` : `${locale}:ts:${dateObj.getTime()}`;
+		const dateObj = new Date(d);
+		if (Number.isNaN(dateObj.getTime())) return d;
+
+		const fmtInst = dateShortFormatters[locale] ?? dateShortFormatters.es;
+		cached = fmtInst.format(dateObj);
+
+		if (fmtDateShortCache.size >= DATE_CACHE_MAX) {
+			fmtDateShortCache.clear();
+		}
+		fmtDateShortCache.set(key, cached);
+		return cached;
+	}
+
+	if (Number.isNaN(d.getTime())) return '—';
+
+	const key = `${locale}:ts:${d.getTime()}`;
 	let cached = fmtDateShortCache.get(key);
 	if (cached !== undefined) return cached;
 
 	const fmtInst = dateShortFormatters[locale] ?? dateShortFormatters.es;
-	cached = fmtInst.format(dateObj);
+	cached = fmtInst.format(d);
 
 	if (fmtDateShortCache.size >= DATE_CACHE_MAX) {
 		fmtDateShortCache.clear();
