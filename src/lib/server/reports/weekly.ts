@@ -2,6 +2,7 @@ import { db } from '$lib/server/db';
 import { sql } from 'drizzle-orm';
 import { moneyToNumber } from '$lib/server/money';
 import { describedLine, lineAmountExpr, lineCategoryExpr, lineProductJoin } from '../category-spend';
+import { addDaysIso } from '$lib/period';
 import type { Cell, ReportDoc } from '$lib/reports';
 import {
 	DATA_NEUTRAL,
@@ -95,7 +96,7 @@ export async function buildWeekly(rid: string, week: string, digest: string | nu
 
 	const spendByDay = new Map(dayRows.map((r) => [String(r.day), moneyToNumber(r.spend)]));
 	const dayValues = Array.from({ length: 7 }, (_, i) => {
-		const iso = new Date(Date.parse(start) + i * 86400000).toISOString().slice(0, 10);
+		const iso = addDaysIso(start, i);
 		return spendByDay.get(iso) ?? 0;
 	});
 	const maxDay = Math.max(...dayValues, 0) || 1;
