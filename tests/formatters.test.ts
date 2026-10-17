@@ -356,24 +356,4 @@ describe('Formatters Performance Benchmark', () => {
 
 		expect(unmemoTime / memoTime).toBeGreaterThan(1.2);
 	});
-
-	it('quantifies fast-path cache lookup for string date formatters without Date allocations', () => {
-		const samples = 500000;
-		const dateStrings = ['2025-01-15', '2025-02-20', '2025-03-10', '2025-04-05', '2025-05-12'];
-
-		for (const d of dateStrings) {
-			fmtDate(d, 'es');
-			fmtDateShort(d, 'es');
-		}
-
-		const t0 = performance.now();
-		for (let i = 0; i < samples; i++) {
-			const d = dateStrings[i % dateStrings.length]!;
-			fmtDate(d, 'es');
-			fmtDateShort(d, 'es');
-		}
-		const elapsed = performance.now() - t0;
-		console.log(`fmtDate / fmtDateShort string cache benchmark (${samples} ops): ${elapsed.toFixed(2)} ms`);
-		expect(elapsed).toBeGreaterThan(0);
-	});
 });

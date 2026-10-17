@@ -16,8 +16,9 @@ const FACTURAE_NS_SUBSTRINGS = [
 const UBL_INVOICE_NS = 'urn:oasis:names:specification:ubl:schema:xsd:Invoice-2';
 
 export function detectEinvoiceFormat(xml: string): EinvoiceFormat | null {
-	if (FACTURAE_NS_SUBSTRINGS.some((s) => xml.includes(s))) return 'facturae_322';
-	if (xml.includes(UBL_INVOICE_NS)) return 'ubl_21';
+	const header = xml.length > 8192 ? xml.slice(0, 8192) : xml;
+	if (FACTURAE_NS_SUBSTRINGS.some((s) => header.includes(s))) return 'facturae_322';
+	if (header.includes(UBL_INVOICE_NS)) return 'ubl_21';
 	return null;
 }
 

@@ -244,6 +244,7 @@ Quota, access, classification, JSON shape, error classification.
 **`type EinvoiceFormat`**
 
 - Structured e-invoice parser for Facturae 3.2.x and UBL 2.1 (EN 16931). XML uploads skip Gemini entirely — fields arrive structured at confidence 1.0. Facturae 3.2.2 = Spain national (B2G via FACe, also B2B private); UBL 2.1 = EU standard (EN 16931, mandatory for Spain's SPFE public platform).
+- `detectEinvoiceFormat` inspects the initial 8KB header slice of the XML payload rather than scanning full multi-megabyte payloads repeatedly, ensuring fast format detection without redundant string scanning overhead.
 
 **`const parser`**
 
