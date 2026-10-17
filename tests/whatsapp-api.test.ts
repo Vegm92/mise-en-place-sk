@@ -18,6 +18,15 @@ vi.mock('../src/lib/server/env', () => ({
 
 const fetchMock = vi.fn();
 
+function mockMediaFetch(mimeType: string, url = 'https://lookaside.fbsbx.com/file') {
+	fetchMock
+		.mockResolvedValueOnce({
+			ok: true,
+			json: async () => ({ url, mime_type: mimeType }),
+		})
+		.mockResolvedValueOnce({ ok: true, headers: new Headers(), arrayBuffer: async () => new ArrayBuffer(1) });
+}
+
 async function setupWhatsAppSend() {
 	fetchMock.mockResolvedValue({ ok: true, text: async () => '' });
 	const { sendWhatsAppMessage } = await import('../src/lib/server/whatsapp');
@@ -90,16 +99,16 @@ describe('downloadWhatsAppMedia', () => {
 		expect(result.extension).toBe('pdf');
 	});
 
-	it('falls back to a jpg extension for a genuinely unmapped mime type', async () => {
-		fetchMock
-			.mockResolvedValueOnce({
-				ok: true,
-				json: async () => ({ url: 'https://lookaside.fbsbx.com/x', mime_type: 'image/webp' }),
-			})
-			.mockResolvedValueOnce({ ok: true, headers: new Headers(), arrayBuffer: async () => new ArrayBuffer(1) });
-
+	it('maps image/webp to webp extension', async () => {
+		mockMediaFetch('image/webp');
 		const { downloadWhatsAppMedia } = await import('../src/lib/server/whatsapp');
-		expect((await downloadWhatsAppMedia('media-2')).extension).toBe('jpg');
+		expect((await downloadWhatsAppMedia('media-2')).extension).toBe('webp');
+	});
+
+	it('falls back to a jpg extension for a genuinely unmapped mime type', async () => {
+		mockMediaFetch('image/bmp');
+		const { downloadWhatsAppMedia } = await import('../src/lib/server/whatsapp');
+		expect((await downloadWhatsAppMedia('media-unmapped')).extension).toBe('jpg');
 	});
 
 	// Issue #484: image/heic used to fall through the "unmapped mime type"
@@ -108,13 +117,7 @@ describe('downloadWhatsAppMedia', () => {
 	// It now maps to its own extension so the allow-list check downstream
 	// (file-validation.ts) rejects it honestly instead of mislabelling it.
 	it.each(['image/heic', 'image/heif'])('maps %s to its own extension, not jpg', async (mimeType) => {
-		fetchMock
-			.mockResolvedValueOnce({
-				ok: true,
-				json: async () => ({ url: 'https://lookaside.fbsbx.com/y', mime_type: mimeType }),
-			})
-			.mockResolvedValueOnce({ ok: true, headers: new Headers(), arrayBuffer: async () => new ArrayBuffer(1) });
-
+		mockMediaFetch(mimeType);
 		const { downloadWhatsAppMedia } = await import('../src/lib/server/whatsapp');
 		const result = await downloadWhatsAppMedia('media-heic');
 		expect(result.extension).not.toBe('jpg');

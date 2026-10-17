@@ -1,3 +1,4 @@
+import path from 'path';
 import {
 	MAGIC_BYTES,
 	MAX_UPLOAD_BYTES,
@@ -7,6 +8,20 @@ import {
 	SUPPORTED_UPLOAD_EXTENSIONS,
 	type RejectReason,
 } from '$lib/upload-formats';
+
+const MIME_MAP: Record<string, string> = {
+	'.pdf':  'application/pdf',
+	'.jpg':  'image/jpeg',
+	'.jpeg': 'image/jpeg',
+	'.png':  'image/png',
+	'.webp': 'image/webp',
+	'.xml':  'application/xml',
+};
+
+export function resolveMimeType(filename: string): string {
+	const ext = path.extname(filename).toLowerCase();
+	return MIME_MAP[ext] ?? 'application/octet-stream';
+}
 
 export const ALLOWED_EXTENSIONS: ReadonlySet<string> = new Set(SUPPORTED_UPLOAD_EXTENSIONS);
 export const MAX_FILE_BYTES = MAX_UPLOAD_BYTES;
