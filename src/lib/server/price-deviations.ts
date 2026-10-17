@@ -171,7 +171,7 @@ export function computePriceDeviations(
 			});
 		}
 	}
-	priced.sort((a, b) => a.invoiceDate.localeCompare(b.invoiceDate));
+	priced.sort((a, b) => (a.invoiceDate < b.invoiceDate ? -1 : a.invoiceDate > b.invoiceDate ? 1 : 0));
 
 	const offers = latestOffers(priced, addDaysIso(rangeTo, -ALTERNATIVE_LOOKBACK_DAYS));
 	const groups = groupBy(priced, (l) => `${l.lk}|${l.sk}|${l.cmp.basis}`);
@@ -279,7 +279,9 @@ export async function priceDeviations(
 
 export function rankSupplierPrices(lines: DeviationLine[]): SupplierPrice[] {
 	const latest = new Map<string, { line: DeviationLine; cmp: Comparable }>();
-	for (const line of [...lines].sort((a, b) => a.invoiceDate.localeCompare(b.invoiceDate))) {
+	const sorted = [...lines].sort((a, b) => (a.invoiceDate < b.invoiceDate ? -1 : a.invoiceDate > b.invoiceDate ? 1 : 0));
+	for (let i = 0; i < sorted.length; i++) {
+		const line = sorted[i]!;
 		const cmp = comparablePrice(line);
 		if (cmp) latest.set(supplierKey(line), { line, cmp });
 	}
