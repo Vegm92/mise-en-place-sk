@@ -40,8 +40,9 @@ describe('sitemap.xml', () => {
 		}
 	});
 
-	it('lists /signup', async () => {
+	it('lists /signup and attaches nosniff header', async () => {
 		const res = await sitemapGet(fakeEvent('https://mise-place.com'));
+		expect(res.headers.get('x-content-type-options')).toBe('nosniff');
 		const xml = await res.text();
 		expect(xml).toContain('<loc>https://mise-place.com/signup</loc>');
 	});
@@ -62,8 +63,9 @@ describe('sitemap.xml', () => {
 });
 
 describe('robots.txt', () => {
-	it('explicitly allows /l/', async () => {
+	it('explicitly allows /l/ and attaches nosniff header', async () => {
 		const res = await robotsGet({ url: new URL('https://mise-place.com/robots.txt') } as never);
+		expect(res.headers.get('x-content-type-options')).toBe('nosniff');
 		const body = await res.text();
 		expect(body).toContain('Allow: /l/');
 	});

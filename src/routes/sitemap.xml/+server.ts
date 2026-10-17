@@ -43,6 +43,7 @@ ${urls}
 	return new Response(xml, {
 		headers: {
 			'Content-Type': 'application/xml',
+			'X-Content-Type-Options': 'nosniff',
 			'Cache-Control': 'public, max-age=86400',
 		},
 	});
