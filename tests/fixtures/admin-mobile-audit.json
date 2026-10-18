@@ -7,8 +7,8 @@
   },
   "tag": "after",
   "totals": {
-    "routes": 9,
-    "tables": 28,
+    "routes": 10,
+    "tables": 32,
     "clipped": 0
   },
   "routes": [
@@ -400,6 +400,59 @@
       "clippedCount": 0,
       "documentOverflowPx": 0,
       "screenshot": "shots/after-390-admin_feature-flags.png"
+    },
+    {
+      "route": "/admin/activation",
+      "tables": [
+        {
+          "index": 0,
+          "label": "Paso / Restaurantes / Desde el paso anterior / Sobre las alt",
+          "columns": 4,
+          "renderedWidth": 616.2,
+          "containerWidth": 364,
+          "overflowPx": 252.2,
+          "containerKind": "scroller",
+          "scrollable": true,
+          "clipped": false
+        },
+        {
+          "index": 1,
+          "label": "Subida → insight / Restaurantes / Sobre los 0 que subieron a",
+          "columns": 3,
+          "renderedWidth": 415.5,
+          "containerWidth": 364,
+          "overflowPx": 51.5,
+          "containerKind": "scroller",
+          "scrollable": true,
+          "clipped": false
+        },
+        {
+          "index": 2,
+          "label": "Semana de alta / Altas / Activado ≤ 7 días / Activos semana ",
+          "columns": 5,
+          "renderedWidth": 499,
+          "containerWidth": 364,
+          "overflowPx": 135,
+          "containerKind": "scroller",
+          "scrollable": true,
+          "clipped": false
+        },
+        {
+          "index": 3,
+          "label": "Restaurante / Alta / Alta → subida / Subida → extraído / Sub",
+          "columns": 7,
+          "renderedWidth": 886.8,
+          "containerWidth": 364,
+          "overflowPx": 522.8,
+          "containerKind": "scroller",
+          "scrollable": true,
+          "clipped": false
+        }
+      ],
+      "tableCount": 4,
+      "clippedCount": 0,
+      "documentOverflowPx": 0,
+      "screenshot": "shots/after-390-admin_activation.png"
     }
   ]
 }
