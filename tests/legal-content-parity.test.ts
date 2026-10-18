@@ -5,6 +5,7 @@ import { privacyMeta, privacySections } from '../src/lib/content/legal/privacy';
 import type { PrivacySection } from '../src/lib/content/legal/privacy';
 import { termsMeta, termsSections } from '../src/lib/content/legal/terms';
 import type { TermsSection } from '../src/lib/content/legal/terms';
+import { SUBPROCESSORS } from '../src/lib/legal-entity';
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -216,35 +217,46 @@ function buildTermsCopy(loc: Loc) {
 	};
 }
 
-describe('privacy/terms content migration is byte-identical to the pre-migration inline copy (issue #835)', () => {
+function omit(record: Record<string, unknown>, keys: readonly string[]): Record<string, unknown> {
+	return Object.fromEntries(Object.entries(record).filter(([key]) => !keys.includes(key)));
+}
+
+const SUBPROCESSOR_CELLS = ['r1Function', 'r1Country', 'r2Function', 'r2Country', 'r3Function', 'r3Country', 'r4Function', 'r4Country', 'r5Function', 'r5Country'];
+const PRIVACY_REWRITTEN = ['meta', 'p1a', 'p1b', 'p4', 'thCountry', ...SUBPROCESSOR_CELLS, 'p5', 'd6a', 'h10'];
+const TERMS_REWRITTEN = ['meta', 'p5', 'h13'];
+
+describe('privacy/terms content outside the legal-entity rewrite is byte-identical to the pre-migration inline copy (issues #835, #779)', () => {
 	const PRE_PRIVACY = loadPreMigrationCopy('privacy-page-pre-content-c747c69e.txt');
 	const PRE_TERMS = loadPreMigrationCopy('terms-page-pre-content-c747c69e.txt');
 
 	it('privacy: es matches the pre-migration copy field for field', () => {
-		expect(buildPrivacyCopy('es')).toEqual(PRE_PRIVACY.es);
+		expect(omit(buildPrivacyCopy('es'), PRIVACY_REWRITTEN)).toEqual(omit(PRE_PRIVACY.es, PRIVACY_REWRITTEN));
 	});
 
 	it('privacy: en matches the pre-migration copy field for field', () => {
-		expect(buildPrivacyCopy('en')).toEqual(PRE_PRIVACY.en);
+		expect(omit(buildPrivacyCopy('en'), PRIVACY_REWRITTEN)).toEqual(omit(PRE_PRIVACY.en, PRIVACY_REWRITTEN));
 	});
 
 	it('terms: es matches the pre-migration copy field for field', () => {
-		expect(buildTermsCopy('es')).toEqual(PRE_TERMS.es);
+		expect(omit(buildTermsCopy('es'), TERMS_REWRITTEN)).toEqual(omit(PRE_TERMS.es, TERMS_REWRITTEN));
 	});
 
 	it('terms: en matches the pre-migration copy field for field', () => {
-		expect(buildTermsCopy('en')).toEqual(PRE_TERMS.en);
+		expect(omit(buildTermsCopy('en'), TERMS_REWRITTEN)).toEqual(omit(PRE_TERMS.en, TERMS_REWRITTEN));
 	});
 
-	it('privacy keeps the sub-processor names and contact address that were hardcoded outside the copy object', () => {
+	it('every rewritten field really changed, so the exclusion list cannot hide drift', () => {
+		for (const loc of ['es', 'en'] as const) {
+			const privacy = buildPrivacyCopy(loc) as Record<string, unknown>;
+			const terms = buildTermsCopy(loc) as Record<string, unknown>;
+			for (const key of PRIVACY_REWRITTEN.filter((k) => !SUBPROCESSOR_CELLS.includes(k))) expect(privacy[key], key).not.toEqual(PRE_PRIVACY[loc][key]);
+			for (const key of TERMS_REWRITTEN) expect(terms[key], key).not.toEqual(PRE_TERMS[loc][key]);
+		}
+	});
+
+	it('privacy lists every sub-processor from the entity module and keeps the contact address', () => {
 		const subprocessors = section(privacySections, 'subprocessors') as Extract<PrivacySection, { id: 'subprocessors' }>;
-		expect(subprocessors.rows.map((row) => row.provider.es)).toEqual([
-			'Railway Corporation',
-			'Google LLC (Gemini API)',
-			'Stripe Inc.',
-			'Sentry (Functional Software)',
-			'Cloudflare, Inc.'
-		]);
+		expect(subprocessors.rows.map((row) => row.provider.es)).toEqual(SUBPROCESSORS.map((s) => s.provider));
 		expect(privacyMeta.contactEmail).toBe('privacy@mise-place.com');
 	});
 
@@ -281,6 +293,7 @@ describe('privacy/terms legal content keeps es/en structural parity (issue #835)
 			'rights',
 			'cookies',
 			'security',
+			'processor',
 			'contact'
 		]);
 		expect(() => assertBilingualParity(privacyMeta, 'privacyMeta')).not.toThrow();
@@ -301,6 +314,7 @@ describe('privacy/terms legal content keeps es/en structural parity (issue #835)
 			'modifications',
 			'termination',
 			'governingLaw',
+			'dataProcessing',
 			'contact'
 		]);
 		expect(() => assertBilingualParity(termsMeta, 'termsMeta')).not.toThrow();
