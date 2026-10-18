@@ -77,8 +77,10 @@ complete inventory the app and worker actually read, grouped by area.
   `STRIPE_WEBHOOK_SECRET` (required in prod — the handler throws rather than
   skipping signature verification; dev uses
   `stripe listen --forward-to localhost:5173/api/stripe-webhook`),
-  `PLAN_PRICE_STARTER_EUR` / `PLAN_PRICE_PRO_EUR` / `PLAN_PRICE_BUSINESS_EUR`
-  (MRR pricing for `/admin/revenue`; falls back to `PROVISIONAL_PRICE`).
+  optional `STRIPE_PRICE_ID_<TIER>_ANNUAL` (all three → annual toggle on
+  `/billing`) and `STRIPE_TAX_RATE_ID` (IVA 21 % on new subscriptions). Prices
+  live only in `src/lib/billing-plans.ts`; the old `PLAN_PRICE_<TIER>_EUR`
+  overrides are no longer read and should be deleted from the environment.
 - **WhatsApp (prod)** — `WHATSAPP_ACCESS_TOKEN` + `WHATSAPP_PHONE_NUMBER_ID` +
   `WHATSAPP_VERIFY_TOKEN` + `WHATSAPP_APP_SECRET` (the webhook fails closed
   without them), plus `WHATSAPP_API_VERSION` and `WHATSAPP_DISPLAY_NUMBER`.

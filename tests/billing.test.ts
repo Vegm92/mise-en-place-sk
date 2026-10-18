@@ -20,6 +20,12 @@ vi.hoisted(() => {
 	process.env.STRIPE_PRICE_ID_STARTER = 'price_starter';
 	process.env.STRIPE_PRICE_ID_PRO = 'price_pro';
 	process.env.STRIPE_PRICE_ID_BUSINESS = 'price_business';
+	// Starter's annual price is deliberately unset: annual billing must hide itself.
+	delete process.env.STRIPE_PRICE_ID_STARTER_ANNUAL;
+	process.env.STRIPE_PRICE_ID_PRO_ANNUAL = 'price_pro_annual';
+	process.env.STRIPE_PRICE_ID_BUSINESS_ANNUAL = 'price_business_annual';
+	process.env.STRIPE_TAX_RATE_ID = 'txr_iva21';
+	process.env.STRIPE_FOUNDER_COUPON_ID = 'FUNDADOR60';
 });
 
 // Sentry is mocked so the unknown-price alert can be counted: it fires on every
@@ -45,7 +51,22 @@ vi.mock('$lib/server/db', async () => {
 // retrieve returns the subscription item id, update records the price swap.
 vi.mock('stripe', () => {
 	const subscriptions = { retrieve: vi.fn(), update: vi.fn() };
-	return { default: class { subscriptions = subscriptions; } };
+	const checkout = { sessions: { create: vi.fn() } };
+	class StripeInvalidRequestError extends Error {
+		code?: string;
+		param?: string;
+		constructor(raw: { code?: string; param?: string }) {
+			super('stripe invalid request');
+			Object.assign(this, raw);
+		}
+	}
+	return {
+		default: class {
+			static errors = { StripeInvalidRequestError };
+			subscriptions = subscriptions;
+			checkout = checkout;
+		},
+	};
 });
 
 import {
@@ -60,9 +81,27 @@ import {
 	switchTier,
 	stripe,
 	UNLIMITED_QUOTA_SETTING,
+	createCheckoutSession,
+	founderDiscount,
+	intervalFromPriceId,
+	isAnnualBillingAvailable,
+	isMissingCustomerError,
+	subscriptionMonthlyPriceCents,
+	configuredPriceIdSet,
 	type PlanTier,
 } from '../src/lib/server/billing';
-import { PROVISIONAL_PRICE } from '../src/lib/billing-plans';
+import {
+	ANNUAL_MONTHS_BILLED,
+	ANNUAL_MONTHLY_EQUIVALENT,
+	ANNUAL_PRICE,
+	FOUNDER_PRICE,
+	PROVISIONAL_PRICE,
+	TIER_MAX_LOCATIONS,
+	TIER_QUOTA,
+	tierPrice,
+	type TierId,
+} from '../src/lib/billing-plans';
+import Stripe from 'stripe';
 
 // The revenue console prices MRR off this function, so a drift between the
 // published price table and what admin reports would misstate every downstream
@@ -373,6 +412,21 @@ describe('switchTier', () => {
 		});
 	});
 
+	// An annual subscriber who changes tier stays annual rather than being moved
+	// to the monthly price of the new tier behind their back.
+	it('keeps the billing interval of the subscription it switches', async () => {
+		vi.mocked(stripe!.subscriptions.retrieve).mockResolvedValue({
+			items: { data: [{ id: 'item_1', price: { id: 'price_pro_annual' } }] },
+		} as never);
+
+		subscriptionRow.value = { stripeSubscriptionId: 'sub_3', planTier: 'pro' };
+		await switchTier('rest-1', 'business');
+		expect(stripe!.subscriptions.update).toHaveBeenCalledWith('sub_3', {
+			items: [{ id: 'item_1', price: 'price_business_annual' }],
+			cancel_at_period_end: false,
+		});
+	});
+
 	it('refuses to switch to a tier with no configured price id', async () => {
 		subscriptionRow.value = { stripeSubscriptionId: 'sub_1' };
 		await expect(switchTier('rest-1', 'trial')).rejects.toThrow(/not configured/);
@@ -383,6 +437,151 @@ describe('switchTier', () => {
 		subscriptionRow.value = null;
 		await expect(switchTier('rest-1', 'pro')).rejects.toThrow(/No subscription to switch/);
 		expect(stripe!.subscriptions.update).not.toHaveBeenCalled();
+	});
+});
+
+// docs/02_product/pricing_decision_2026-10.md — the launch table. Every number
+// the public page, /billing and /admin/revenue show is derived from these, so
+// they are pinned here rather than re-derived.
+describe('launch price table (pricing decision 2026-10)', () => {
+	const tiers: TierId[] = ['starter', 'pro', 'business'];
+
+	it('lists 69 / 139 / 299 € a month, and the annual price is ten months of it', () => {
+		expect(PROVISIONAL_PRICE).toEqual({ starter: 69, pro: 139, business: 299 });
+		expect(ANNUAL_PRICE).toEqual({ starter: 690, pro: 1390, business: 2990 });
+		for (const tier of tiers) {
+			expect(ANNUAL_PRICE[tier]).toBe(PROVISIONAL_PRICE[tier] * ANNUAL_MONTHS_BILLED);
+			expect(tierPrice(tier, 'month')).toBe(PROVISIONAL_PRICE[tier]);
+			expect(tierPrice(tier, 'year')).toBe(ANNUAL_PRICE[tier]);
+		}
+		expect(ANNUAL_MONTHLY_EQUIVALENT).toEqual({ starter: 57.5, pro: 115.83, business: 249.17 });
+	});
+
+	// The waitlist told every sign-up that the price it showed (29 / 59 / 129)
+	// would stay frozen for life. The founder coupon is what keeps that promise
+	// under the new list price, so it must never price a founder above it.
+	it('keeps every founder price at or below what the waitlist promised', () => {
+		const promised: Record<TierId, number> = { starter: 29, pro: 59, business: 129 };
+		expect(FOUNDER_PRICE).toEqual({ starter: 27.6, pro: 55.6, business: 119.6 });
+		for (const tier of tiers) expect(FOUNDER_PRICE[tier]).toBeLessThanOrEqual(promised[tier]);
+	});
+
+	it('feeds TIERS its quotas and location caps from billing-plans.ts', () => {
+		for (const tier of tiers) {
+			expect(TIERS[tier].monthlyInvoiceQuota).toBe(TIER_QUOTA[tier]);
+			expect(TIERS[tier].maxLocations).toBe(TIER_MAX_LOCATIONS[tier]);
+		}
+		expect(TIERS.pro.monthlyInvoiceQuota).toBe(400);
+	});
+
+	// A group of 2–10 restaurants must land on Business: Pro covers one
+	// restaurant, so any second location forces the top tier, and the top tier
+	// has room for ten.
+	it('sizes Business for a 2–10-location group and keeps Pro single-location', () => {
+		expect(TIERS.pro.maxLocations).toBe(1);
+		expect(TIERS.starter.maxLocations).toBe(1);
+		expect(TIERS.business.maxLocations).toBe(10);
+		expect(TIERS.business.features.multiLocation).toBe(true);
+	});
+});
+
+describe('annual billing', () => {
+	it('maps the annual price id to the same tier, without an unknown-price alert', () => {
+		const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+		expect(tierFromPriceId('price_pro_annual')).toBe('pro');
+		expect(tierFromPriceId('price_business_annual')).toBe('business');
+		expect(spy).not.toHaveBeenCalled();
+		spy.mockRestore();
+	});
+
+	it('tells the interval from the price id', () => {
+		expect(intervalFromPriceId('price_pro_annual')).toBe('year');
+		expect(intervalFromPriceId('price_pro')).toBe('month');
+		expect(intervalFromPriceId(null)).toBe('month');
+		expect(intervalFromPriceId('price_unknown')).toBe('month');
+	});
+
+	it('prices an annual subscription at a twelfth of the annual price for MRR', () => {
+		expect(planMonthlyPriceCents('business', 'year')).toBe(Math.round((ANNUAL_PRICE.business * 100) / 12));
+		expect(subscriptionMonthlyPriceCents('business', 'price_business_annual')).toBe(24917);
+		expect(subscriptionMonthlyPriceCents('pro', 'price_pro')).toBe(PROVISIONAL_PRICE.pro * 100);
+		expect(planMonthlyPriceCents('trial', 'year')).toBe(0);
+	});
+
+	it('hides annual billing until every paid tier has an annual price', () => {
+		expect(isTierAvailable('pro', 'year')).toBe(true);
+		expect(isTierAvailable('starter', 'year')).toBe(false);
+		expect(isTierAvailable('starter', 'month')).toBe(true);
+		expect(isAnnualBillingAvailable()).toBe(false);
+	});
+
+	it('counts annual price ids as configured, so revenue leaks do not flag them', () => {
+		const ids = configuredPriceIdSet();
+		expect(ids.has('price_pro_annual')).toBe(true);
+		expect(ids.has('price_pro')).toBe(true);
+		expect(ids.has('')).toBe(false);
+	});
+});
+
+describe('createCheckoutSession', () => {
+	const create = () => vi.mocked(stripe!.checkout.sessions.create);
+	const base = { restaurantId: 'rest-1', customerId: 'cus_1', successUrl: 'https://s', cancelUrl: 'https://c' };
+
+	afterEach(() => create().mockReset());
+
+	it('checks out the annual price with IVA as the default tax rate', async () => {
+		create().mockResolvedValue({ url: 'https://checkout.stripe.test/a' } as never);
+		subscriptionRow.value = { founder: false };
+		const url = await createCheckoutSession({ ...base, tier: 'pro', interval: 'year' });
+		expect(url).toBe('https://checkout.stripe.test/a');
+		const params = create().mock.calls[0]![0]!;
+		expect(params.line_items).toEqual([{ price: 'price_pro_annual', quantity: 1 }]);
+		expect(params.subscription_data?.default_tax_rates).toEqual(['txr_iva21']);
+		expect(params.allow_promotion_codes).toBe(true);
+		expect(params.discounts).toBeUndefined();
+	});
+
+	it('defaults to the monthly price', async () => {
+		create().mockResolvedValue({ url: 'https://checkout.stripe.test/m' } as never);
+		subscriptionRow.value = { founder: false };
+		await createCheckoutSession({ ...base, tier: 'business' });
+		expect(create().mock.calls[0]![0]!.line_items).toEqual([{ price: 'price_business', quantity: 1 }]);
+	});
+
+	it('refuses an interval whose price is not configured, naming the variable', async () => {
+		await expect(createCheckoutSession({ ...base, tier: 'starter', interval: 'year' }))
+			.rejects.toThrow(/STRIPE_PRICE_ID_STARTER_ANNUAL not configured/);
+		expect(create()).not.toHaveBeenCalled();
+	});
+
+	// The env var is named, and documented, as a coupon id. It used to be passed
+	// as `promotion_code`, which Stripe rejects for a coupon id — every founder
+	// checkout would have failed.
+	it('applies the founder coupon as a coupon, with the founder trial', async () => {
+		create().mockResolvedValue({ url: 'https://checkout.stripe.test/f' } as never);
+		subscriptionRow.value = { founder: true };
+		await createCheckoutSession({ ...base, tier: 'business' });
+		const params = create().mock.calls[0]![0]!;
+		expect(params.discounts).toEqual([{ coupon: 'FUNDADOR60' }]);
+		expect(params.allow_promotion_codes).toBeUndefined();
+		expect(params.subscription_data?.trial_period_days).toBe(30);
+	});
+
+	it('accepts a promotion-code id in the same variable', () => {
+		expect(founderDiscount('promo_1AbC')).toEqual({ promotion_code: 'promo_1AbC' });
+		expect(founderDiscount('FUNDADOR60')).toEqual({ coupon: 'FUNDADOR60' });
+	});
+
+	// Only a missing customer means a stale customer id. A missing price or
+	// coupon is a config error, and treating it as a stale customer used to
+	// mint a fresh Stripe customer on every retry.
+	it('treats only a missing customer as a stale customer', () => {
+		const Err = (Stripe as unknown as { errors: { StripeInvalidRequestError: new (raw: object) => Error } }).errors.StripeInvalidRequestError;
+		expect(isMissingCustomerError(new Err({ code: 'resource_missing', param: 'customer' }))).toBe(true);
+		expect(isMissingCustomerError(new Err({ code: 'resource_missing' }))).toBe(true);
+		expect(isMissingCustomerError(new Err({ code: 'resource_missing', param: 'discounts[0][coupon]' }))).toBe(false);
+		expect(isMissingCustomerError(new Err({ code: 'parameter_invalid', param: 'customer' }))).toBe(false);
+		expect(isMissingCustomerError(new Error('network'))).toBe(false);
 	});
 });
 

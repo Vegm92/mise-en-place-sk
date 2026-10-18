@@ -1,10 +1,11 @@
 <script lang="ts">
 	import { locale, t, ti } from '$lib/i18n';
 	import Wallet from '@lucide/svelte/icons/wallet';
+	import type { BillingInterval } from '$lib/billing-plans';
 
 	const {
 		status, trialEndsAt, currentPeriodEnd, cancelAtPeriodEnd, hasSubscription, stripeConfigured,
-		planName, price, quotaUsed, quotaLimit, locationsUsed, lockedLocations, maxLocations, upgradeName, upgradeMaxLocations
+		planName, price, interval, quotaUsed, quotaLimit, locationsUsed, lockedLocations, maxLocations, upgradeName, upgradeMaxLocations
 	}: {
 		status: 'trialing' | 'active' | 'past_due' | 'paused' | 'canceled' | 'incomplete';
 		trialEndsAt: string | null;
@@ -14,6 +15,7 @@
 		stripeConfigured: boolean;
 		planName: string;
 		price: number | null;
+		interval: BillingInterval;
 		quotaUsed: number;
 		quotaLimit: number | null;
 		locationsUsed: number;
@@ -58,7 +60,7 @@
 
 			{#if status === 'active' && periodEnd}
 				<span style="font-size:13px;color:var(--mep-fg-3);">
-					{#if cancelAtPeriodEnd}{ti('billing.cancelsOn', { date: fmt(periodEnd) })}{:else}{ti('billing.renewsOn', { date: fmt(periodEnd) })}{#if price !== null}{' · '}<span class="num">{price} €</span>{t('billing.perMonthShort')}{/if}{/if}
+					{#if cancelAtPeriodEnd}{ti('billing.cancelsOn', { date: fmt(periodEnd) })}{:else}{ti('billing.renewsOn', { date: fmt(periodEnd) })}{#if price !== null}{' · '}<span class="num">{price} €</span>{t(interval === 'year' ? 'billing.perYearShort' : 'billing.perMonthShort')}{/if}{/if}
 				</span>
 			{:else if status === 'trialing' && trialEnd && trialDaysLeft > 0}
 				<span style="font-size:13px;color:var(--mep-fg-3);">{ti('billing.trialEndsOn', { date: fmt(trialEnd) })}</span>

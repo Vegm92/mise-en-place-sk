@@ -4,6 +4,7 @@ import { captureAttribution } from '$lib/server/attribution-cookie';
 import { canonicalUrl } from '$lib/server/site-origin';
 import { joinWaitlistAction } from '$lib/server/waitlist-join-action';
 import { getLandingVariant } from '$lib/landing-variants';
+import { landingFacts } from '$lib/server/landing-facts';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, url, request, cookies }) => {
@@ -18,6 +19,7 @@ export const load: PageServerLoad = async ({ params, url, request, cookies }) =>
     canonicalUrl: canonicalUrl(url, `/l/${params.variant}`),
     spotTaken,
     overrides: variant.overrides,
+    facts: landingFacts(),
   };
 };
 

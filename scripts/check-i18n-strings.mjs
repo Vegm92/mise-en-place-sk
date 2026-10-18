@@ -16,8 +16,8 @@
  *
  * Language-neutral tokens (brand, currency codes, units, date formats) are
  * allowlisted below. `cookies`/`refunds`/`legal` keep their own locale-keyed
- * copy and are skipped wholesale (issue #408); the waitlist mock illustrations
- * are fixture-like demo data, skipped for the same reason (issue #407).
+ * copy and are skipped wholesale (issue #408); the /login ticket illustration
+ * is fixture-like demo data, skipped for the same reason (issue #407).
  *
  * `privacy`/`terms` source their copy from `src/lib/content/legal/*` instead
  * (issue #835 — too much paragraph prose for the shared table). They are not
@@ -38,14 +38,7 @@ const SKIP_FILES = [
 	'src/routes/cookies/+page.svelte',
 	'src/routes/refunds/+page.svelte',
 	'src/routes/legal/+page.svelte',
-	// Mock product/invoice illustrations for the waitlist landing — fixture-like
-	// demo data (supplier names, line items), not real UI copy. Same exemption
-	// as the page they were extracted from.
-	'src/lib/components/waitlist/AppDashboardMock.svelte',
-	'src/lib/components/waitlist/CaptureMock.svelte',
-	'src/lib/components/waitlist/DashboardMock.svelte',
-	'src/lib/components/waitlist/ExtractMock.svelte',
-	// Same fixture-like invoice illustration, reused as the proof panel on /login.
+	// Fixture-like invoice illustration, used as the proof panel on /login.
 	'src/lib/components/auth/TicketMock.svelte'
 ];
 
