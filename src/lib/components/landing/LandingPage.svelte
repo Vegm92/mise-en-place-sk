@@ -6,22 +6,24 @@
   import { cubicOut } from 'svelte/easing';
   import Sun from '@lucide/svelte/icons/sun';
   import Moon from '@lucide/svelte/icons/moon';
-  import Check from '@lucide/svelte/icons/check';
-  import X from '@lucide/svelte/icons/x';
+  import Camera from '@lucide/svelte/icons/camera';
+  import ScanText from '@lucide/svelte/icons/scan-text';
+  import BellRing from '@lucide/svelte/icons/bell-ring';
   import Clock from '@lucide/svelte/icons/clock';
   import MessageCircle from '@lucide/svelte/icons/message-circle';
   import ShieldCheck from '@lucide/svelte/icons/shield-check';
-  import { PROVISIONAL_PRICE, TIER_COPY, type TierId } from '$lib/billing-plans';
+  import { PROVISIONAL_PRICE, TIER_COPY } from '$lib/billing-plans';
+  import { landingTiers, type LandingFacts } from '$lib/landing-plans';
+  import { DEFAULT_DRIFT, DEFAULT_MONTHLY_SPEND, formatPct, stakeAt } from '$lib/savings-calculator';
+  import { fmtEurCompact } from '$lib/formatters';
   import { page } from '$app/state';
   import { setLocale } from '$lib/i18n';
   import { getLocale, getT, getTi } from '$lib/i18n-context';
   import { localeHref, otherLocale } from '$lib/locale-url';
   import { overrideFor, interpolate, type LandingOverrides } from '$lib/landing-copy';
   import EmailForm from '$lib/components/waitlist/EmailForm.svelte';
-  import CaptureMock from '$lib/components/waitlist/CaptureMock.svelte';
-  import ExtractMock from '$lib/components/waitlist/ExtractMock.svelte';
-  import DashboardMock from '$lib/components/waitlist/DashboardMock.svelte';
-  import AppDashboardMock from '$lib/components/waitlist/AppDashboardMock.svelte';
+  import SavingsCalculator from './SavingsCalculator.svelte';
+  import SampleProof from './SampleProof.svelte';
   import Logo from '$lib/components/mep/Logo.svelte';
 
   type JoinActionData = { success?: boolean; error?: string; alreadyRegistered?: boolean; referralCode?: string | null } | null | undefined;
@@ -32,7 +34,7 @@
     overrides = null,
   }: {
     form: JoinActionData;
-    data: { canonicalUrl: string; spotTaken: number };
+    data: { canonicalUrl: string; spotTaken: number; facts: LandingFacts };
     overrides?: LandingOverrides | null;
   } = $props();
 
@@ -69,63 +71,30 @@
 
   const SPOT_TOTAL = 50;
 
-  const PAID_TIERS: { id: TierId; price: number; recommended: boolean; quota: number | null }[] = [
-    { id: 'starter',  price: PROVISIONAL_PRICE.starter,  recommended: false, quota: 100 },
-    { id: 'pro',      price: PROVISIONAL_PRICE.pro,      recommended: true,  quota: 300 },
-    { id: 'business', price: PROVISIONAL_PRICE.business, recommended: false, quota: null },
-  ];
+  const PAID_TIERS = $derived(landingTiers(data.facts.plans));
+
+  const heroStake = stakeAt(DEFAULT_MONTHLY_SPEND, DEFAULT_DRIFT);
+
+  const headline = $derived(ti('waitlist.headline', {
+    spend: fmtEurCompact(DEFAULT_MONTHLY_SPEND, locale.current),
+    pct: formatPct(DEFAULT_DRIFT, locale.current),
+    yearly: fmtEurCompact(heroStake.yearly, locale.current),
+  }));
 
   let openFaq = $state(0);
 
   const faqUid = $props.id();
 
-  const spotPct = $derived((data.spotTaken / SPOT_TOTAL) * 100);
-
   const painItems = $derived([
-    {
-      stat:  t('waitlist.pain.0.stat'),
-      label: t('waitlist.pain.0.label'),
-      title: t('waitlist.pain.0.title'),
-      body:  t('waitlist.pain.0.body'),
-    },
-    {
-      stat:  t('waitlist.pain.1.stat'),
-      label: t('waitlist.pain.1.label'),
-      title: t('waitlist.pain.1.title'),
-      body:  t('waitlist.pain.1.body'),
-    },
-    {
-      stat:  t('waitlist.pain.2.stat'),
-      label: t('waitlist.pain.2.label'),
-      title: t('waitlist.pain.2.title'),
-      body:  t('waitlist.pain.2.body'),
-    },
-  ]);
-
-  const compareWithoutItems = $derived([
-    t('waitlist.compare.without.0'),
-    t('waitlist.compare.without.1'),
-    t('waitlist.compare.without.2'),
-    t('waitlist.compare.without.3'),
-  ]);
-
-  const compareWithItems = $derived([
-    t('waitlist.compare.with.0'),
-    t('waitlist.compare.with.1'),
-    t('waitlist.compare.with.2'),
-    t('waitlist.compare.with.3'),
+    { stat: t('waitlist.pain.0.stat'), label: t('waitlist.pain.0.label'), title: t('waitlist.pain.0.title'), body: t('waitlist.pain.0.body') },
+    { stat: t('waitlist.pain.1.stat'), label: t('waitlist.pain.1.label'), title: t('waitlist.pain.1.title'), body: t('waitlist.pain.1.body') },
+    { stat: t('waitlist.pain.2.stat'), label: t('waitlist.pain.2.label'), title: t('waitlist.pain.2.title'), body: t('waitlist.pain.2.body') },
   ]);
 
   const stepItems = $derived([
-    { num: '01', tag: t('waitlist.steps.0.tag'), title: t('waitlist.steps.0.title'), body: t('waitlist.steps.0.body') },
-    { num: '02', tag: t('waitlist.steps.1.tag'), title: t('waitlist.steps.1.title'), body: t('waitlist.steps.1.body') },
-    { num: '03', tag: t('waitlist.steps.2.tag'), title: t('waitlist.steps.2.title'), body: t('waitlist.steps.2.body') },
-  ]);
-
-  const foundingItems = $derived([
-    { title: t('waitlist.founding.0.title'), body: t('waitlist.founding.0.body') },
-    { title: t('waitlist.founding.1.title'), body: t('waitlist.founding.1.body') },
-    { title: t('waitlist.founding.2.title'), body: t('waitlist.founding.2.body') },
+    { icon: Camera, tag: t('waitlist.steps.0.tag'), title: t('waitlist.steps.0.title'), body: t('waitlist.steps.0.body') },
+    { icon: ScanText, tag: t('waitlist.steps.1.tag'), title: t('waitlist.steps.1.title'), body: t('waitlist.steps.1.body') },
+    { icon: BellRing, tag: t('waitlist.steps.2.tag'), title: t('waitlist.steps.2.title'), body: t('waitlist.steps.2.body') },
   ]);
 
   const trustBarItems = $derived([
@@ -144,9 +113,11 @@
         starter: PROVISIONAL_PRICE.starter,
         pro: PROVISIONAL_PRICE.pro,
         business: PROVISIONAL_PRICE.business,
+        days: data.facts.trial.days,
       }),
     },
     { q: t('waitlist.faq.4.q'), a: t('waitlist.faq.4.a') },
+    { q: t('waitlist.faq.5.q'), a: t('waitlist.faq.5.a') },
   ]);
 
   const emailFormCopy = $derived({
@@ -168,31 +139,6 @@
     referralLabel:  t('waitlist.form.referralLabel'),
     referralCopy:   t('waitlist.form.referralCopy'),
     referralCopied: t('waitlist.form.referralCopied'),
-  });
-
-  const dashboardMockCopy = $derived({
-    mockSpendLabel: t('waitlist.mock.spendLabel'),
-    mockCatMeat:    t('waitlist.mock.catMeat'),
-    mockCatFish:    t('tpl.demo.category.pescado'),
-    mockCatVeg:     t('waitlist.mock.catVeg'),
-    mockAlertTitle: t('waitlist.mock.alertTitle'),
-    mockReview:     t('action.review'),
-  });
-
-  const extractMockCopy = $derived({
-    mockExtractedIn: t('waitlist.mock.extractedIn'),
-    mockConfirmed:   t('waitlist.mock.confirmed'),
-    mockLinesVat:    t('waitlist.mock.linesVat'),
-  });
-
-  const appDashboardMockCopy = $derived({
-    mockKpiSpend:         t('waitlist.mock.kpiSpend'),
-    mockKpiAvg:           t('waitlist.mock.kpiAvg'),
-    mockKpiPending:       t('inv.kpi.toReview'),
-    mockKpiBudget:        t('dash.budget'),
-    mockKpiOf:            t('waitlist.mock.kpiOf'),
-    mockKpiInvoicesShort: t('shell.quota'),
-    mockChartTitle:       t('waitlist.mock.chartTitle'),
   });
 
   const siteRoot = $derived.by(() => {
@@ -245,266 +191,186 @@
 
 <div class="mep w-full min-h-screen bg-bg text-fg font-[inherit]" data-accent="tinta">
 
-  <nav class="mep-nav flex items-center gap-3.5 px-8 py-4 border-b border-divider">
-    <div style="display:flex;align-items:center;gap:10px;">
-      <Logo size={20} wordmark />
-    </div>
-    <span class="text-[11px] font-semibold tracking-[0.12em] uppercase text-acc px-[7px] py-0.5 rounded font-mono bg-acc-soft">{t('waitlist.betaBadge')}</span>
-    <div style="flex:1;"></div>
-    <button onclick={toggleTheme} aria-label={t('waitlist.themeToggleLabel')} class="w-[28px] h-[28px] shrink-0 rounded-full border border-border bg-surface flex items-center justify-center cursor-pointer text-fg-2">
-      {#if theme === 'dark'}<Sun size={14} />{:else}<Moon size={14} />{/if}
+  <nav class="flex flex-wrap items-center gap-3 border-b border-divider px-4 py-3 sm:px-8 sm:py-4">
+    <Logo size={20} wordmark />
+    <span class="hidden rounded px-[7px] py-0.5 font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-acc bg-acc-soft sm:inline">{t('waitlist.betaBadge')}</span>
+    <div class="flex-1"></div>
+    <button onclick={toggleTheme} aria-label={t('waitlist.themeToggleLabel')} class="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-border bg-surface text-fg-2">
+      {#if theme === 'dark'}<Sun size={15} />{:else}<Moon size={15} />{/if}
     </button>
-    <div class="inline-flex items-center px-2.5 py-1 rounded-full border border-border bg-surface text-[11.5px] font-semibold tracking-[0.06em] text-fg-2 font-mono gap-2">
-      <a href={alternateHref} hreflang={alternate} lang={alternate} rel="alternate"
-         onclick={rememberLocale} class="bg-transparent border-0 cursor-pointer p-0 font-[inherit] text-[inherit] font-[inherit] tracking-[inherit] no-underline text-fg-2">{locale.current === 'es' ? 'EN' : 'ES'}</a>
-    </div>
-    <div class="mep-nav-signin" style="display:flex;align-items:center;gap:8px;">
-      <a href="/login" class="btn btn-secondary" style="padding:0 14px;font-size:13px;
-                                                       font-weight:600;text-decoration:none;
-                                                       white-space:nowrap;">{t('waitlist.signInLink')}</a>
-      <a href="/signup" class="btn btn-primary" style="padding:0 14px;font-size:13px;
-                                                      font-weight:600;text-decoration:none;
-                                                      white-space:nowrap;">{t('signup.submit')}</a>
-    </div>
+    <a href={alternateHref} hreflang={alternate} lang={alternate} rel="alternate"
+       onclick={rememberLocale} class="inline-flex h-9 items-center rounded-full border border-border bg-surface px-3 font-mono text-[12px] font-semibold tracking-[0.06em] text-fg-2 no-underline">{locale.current === 'es' ? 'EN' : 'ES'}</a>
+    <a href="/login" class="btn btn-secondary h-9 whitespace-nowrap px-3.5 text-[13px] font-semibold no-underline">{t('waitlist.signInLink')}</a>
   </nav>
 
-  <section class="mep-section mep-hero" style="padding:108px 72px 96px;text-align:center;">
-    <div class="mep-hero-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:56px;
-                align-items:center;max-width:1180px;margin:0 auto;">
+  <section class="px-4 pt-12 pb-14 sm:px-8 lg:px-[72px] lg:pt-24 lg:pb-20">
+    <div class="mx-auto grid max-w-[1180px] items-center gap-10 lg:grid-cols-[1.1fr_1fr] lg:gap-14">
       <div>
-        <div style="max-width:560px;margin:0 auto;">
-          <div class="mep-eyebrow" style="margin-bottom:26px;">
-            {t('waitlist.eyebrow')}
-          </div>
-          <h1 class="m-0 text-[clamp(40px,5.6vw,59.5px)] font-semibold text-fg tracking-[-0.035em] leading-[1.08] text-balance">
-            {t('waitlist.headline')}
-          </h1>
-          <p class="mt-[22px] mx-auto mb-0 max-w-[560px] text-[18.5px] leading-[1.6] text-fg-2 text-pretty">
-            {t('waitlist.sub')}
-          </p>
-        </div>
+        <div class="mep-eyebrow mb-5">{t('waitlist.eyebrow')}</div>
+        <h1 class="m-0 text-balance text-[clamp(30px,4.4vw,50px)] font-semibold leading-[1.1] tracking-[-0.03em] text-fg">{headline}</h1>
+        <p class="mt-5 mb-0 max-w-[580px] text-pretty text-[17px] leading-[1.6] text-fg-2 sm:text-[18px]">{t('waitlist.sub')}</p>
 
-        <div style="max-width:460px;margin:40px auto 0;" id="join">
+        <div class="mt-8 max-w-[500px]" id="join">
           <EmailForm big={true} {form} copy={emailFormCopy} referralBase={data.canonicalUrl} />
         </div>
-        <div class="mep-spotbar max-w-[460px] mt-[18px] mx-auto mb-0 flex items-center gap-3.5 py-2.5 px-3.5 rounded-[10px] bg-surface border border-divider">
-          <div style="display:flex;align-items:baseline;gap:6px;">
-            <span class="text-2xl font-bold text-acc tracking-[-0.6px] leading-none font-mono">{data.spotTaken}</span>
-            <span class="text-[15px] text-fg-3 font-mono">/ {SPOT_TOTAL}</span>
+        <p class="mt-3 mb-0 text-[14.5px] font-semibold text-fg">{ti('waitlist.trialNote', { days: data.facts.trial.days })}</p>
+        <a href="#calculadora" class="mt-1.5 inline-block text-[14px] text-fg-2 underline underline-offset-2">{t('waitlist.heroCalcLink')}</a>
+
+        <div class="mt-6 flex max-w-[500px] flex-wrap items-center gap-3.5 rounded-[10px] border border-divider bg-surface px-3.5 py-2.5">
+          <div class="flex items-baseline gap-1.5">
+            <span class="font-mono text-2xl font-bold leading-none tracking-[-0.6px] text-acc">{data.spotTaken}</span>
+            <span class="font-mono text-[15px] text-fg-3">/ {SPOT_TOTAL}</span>
           </div>
-          <div style="flex:1;min-width:120px;">
-            <div class="text-xs text-fg-3 uppercase tracking-[0.06em] font-medium mb-[5px] font-mono">{t('waitlist.spotLabel')}</div>
-            <div class="w-full h-[5px] rounded-[3px] bg-hover overflow-hidden">
-              <div class="h-full bg-acc rounded-[3px]" style="width:{spotPct}%;"></div>
-            </div>
+          <div class="min-w-[120px] flex-1">
+            <div class="mb-[5px] font-mono text-xs font-medium uppercase tracking-[0.06em] text-fg-3">{t('waitlist.spotLabel')}</div>
+            <progress class="mep-spot-progress" max={SPOT_TOTAL} value={Math.min(data.spotTaken, SPOT_TOTAL)} aria-label={t('waitlist.spotLabel')}></progress>
           </div>
         </div>
       </div>
 
-      <div class="mep-hero-visual">
-        <AppDashboardMock copy={appDashboardMockCopy} />
+      <div class="mx-auto w-full max-w-[520px]">
+        <div class="mb-3 text-[15px] font-semibold text-fg">{t('waitlist.proof.title')}</div>
+        <SampleProof alert={data.facts.sampleAlert} />
       </div>
     </div>
   </section>
 
-  <section class="mep-section mep-tinted" style="padding:76px 72px;">
+  <section id="calculadora" class="mep-tinted scroll-mt-4 px-4 py-14 sm:px-8 lg:px-[72px] lg:py-[76px]">
     <div class="mep-container">
-      <div class="mep-eyebrow" style="margin-bottom:14px;">{t('waitlist.painEyebrow')}</div>
+      <div class="mep-eyebrow mb-3.5">{t('waitlist.calc.eyebrow')}</div>
+      <h2 class="mep-h2">{t('waitlist.calc.head')}</h2>
+      <p class="mt-3.5 mb-0 max-w-[620px] text-pretty text-[15px] leading-[1.6] text-fg-2">{t('waitlist.calc.sub')}</p>
+      <div class="mt-9">
+        <SavingsCalculator tiers={PAID_TIERS} />
+      </div>
+      <a href="#join" class="btn btn-secondary mt-6 h-11 px-5 text-[15px] font-semibold no-underline">{t('waitlist.form.submit')}</a>
+    </div>
+  </section>
+
+  <section class="px-4 py-14 sm:px-8 lg:px-[72px] lg:py-[76px]">
+    <div class="mep-container">
+      <div class="mep-eyebrow mb-3.5">{t('waitlist.painEyebrow')}</div>
       <h2 class="mep-h2">{t('waitlist.painHead')}</h2>
-      <div class="mep-grid-3" style="margin-top:44px;">
+      <div class="mep-grid-3 mt-11">
         {#each painItems as p}
-          <div class="pt-5 border-t border-border">
-            <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:14px;">
-              <span class="text-[44px] font-bold text-fg tracking-[-0.04em] leading-none font-mono">{p.stat}</span>
-              <span class="text-[11.5px] font-medium tracking-[0.08em] uppercase text-fg-3 font-mono">{p.label}</span>
+          <div class="border-t border-border pt-5">
+            <div class="mb-3.5 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+              <span class="font-mono text-[30px] font-bold leading-none tracking-[-0.03em] text-fg">{p.stat}</span>
+              <span class="font-mono text-[11.5px] font-medium uppercase tracking-[0.08em] text-fg-3">{p.label}</span>
             </div>
-            <div class="text-[17px] font-semibold text-fg tracking-[-0.02em] leading-[1.3] mb-2.5">{p.title}</div>
-            <div class="text-sm text-fg-2 leading-[1.6]">{p.body}</div>
+            <h3 class="m-0 mb-2.5 text-[17px] font-semibold leading-[1.3] tracking-[-0.02em] text-fg">{p.title}</h3>
+            <p class="m-0 text-sm leading-[1.6] text-fg-2">{p.body}</p>
           </div>
         {/each}
       </div>
     </div>
   </section>
 
-  <section class="mep-section" style="padding:76px 72px;">
-    <div style="max-width:1000px;margin:0 auto;">
-      <div class="text-[11px] font-semibold tracking-[0.2em] uppercase text-acc font-mono mb-3.5">{t('waitlist.compareEyebrow')}</div>
-      <h2 class="m-0 max-w-[640px] text-[32px] font-semibold text-fg tracking-[-0.025em] leading-[1.15]">{t('waitlist.compareHead')}</h2>
-
-      <div class="mep-compare-grid" style="margin-top:44px;display:grid;grid-template-columns:1fr 1fr;gap:24px;">
-        <div class="mep-compare-card mep-compare-card-neg rounded-card border border-neg p-7">
-          <div class="text-base font-semibold text-neg tracking-[-0.01em] mb-5">{t('waitlist.compare.without.title')}</div>
-          <div style="display:flex;flex-direction:column;gap:16px;">
-            {#each compareWithoutItems as item}
-              <div style="display:flex;gap:12px;align-items:flex-start;">
-                <div class="w-[22px] h-[22px] rounded-full shrink-0 bg-neg text-neg-fg flex items-center justify-center">
-                  <X size={13} />
-                </div>
-                <span class="text-[13px] leading-[1.5] text-fg-2 pt-0.5">{item}</span>
-              </div>
-            {/each}
-          </div>
-        </div>
-
-        <div class="mep-compare-card mep-compare-card-pos rounded-card border border-pos p-7">
-          <div class="text-base font-semibold text-pos tracking-[-0.01em] mb-5">{t('waitlist.compare.with.title')}</div>
-          <div style="display:flex;flex-direction:column;gap:16px;">
-            {#each compareWithItems as item}
-              <div style="display:flex;gap:12px;align-items:flex-start;">
-                <div class="w-[22px] h-[22px] rounded-full shrink-0 bg-pos text-pos-fg flex items-center justify-center">
-                  <Check size={13} />
-                </div>
-                <span class="text-[13px] leading-[1.5] text-fg pt-0.5">{item}</span>
-              </div>
-            {/each}
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="mep-section" style="padding:88px 72px;">
+  <section class="px-4 pb-14 sm:px-8 lg:px-[72px] lg:pb-[88px]">
     <div class="mep-container">
-      <div class="mep-eyebrow" style="margin-bottom:14px;">{t('waitlist.howEyebrow')}</div>
-      <h2 class="mep-h2" style="margin:0 0 56px;">{t('waitlist.howHead')}</h2>
-
-      <div style="display:flex;flex-direction:column;gap:64px;">
-        {#each stepItems as step, i}
-          <div class="mep-how-row" style="display:grid;grid-template-columns:360px 1fr;gap:56px;align-items:center;">
-            <div>
-              <div class="flex items-center gap-2.5 mb-4 text-xs font-semibold tracking-[0.2em] uppercase text-acc font-mono">
-                <span class="w-7 h-5 rounded bg-acc-soft flex items-center justify-center">{step.num}</span>
-                <span>{step.tag}</span>
-              </div>
-              <h3 class="m-0 text-2xl font-semibold text-fg tracking-[-0.01em] leading-[1.25]">{step.title}</h3>
-              <p class="mt-3 mb-0 text-[15px] leading-[1.65] text-fg-2">{step.body}</p>
+      <div class="mep-eyebrow mb-3.5">{t('waitlist.howEyebrow')}</div>
+      <h2 class="mep-h2">{t('waitlist.howHead')}</h2>
+      <ol class="mep-grid-3 m-0 mt-11 list-none p-0">
+        {#each stepItems as step}
+          <li class="rounded-card border border-border bg-surface p-6">
+            <div class="mb-4 flex items-center gap-2.5 font-mono text-xs font-semibold uppercase tracking-[0.2em] text-acc">
+              <span class="flex h-8 w-8 items-center justify-center rounded-full bg-acc-soft" aria-hidden="true"><step.icon size={16} /></span>
+              <span>{step.tag}</span>
             </div>
-            <div>
-              {#if i === 0}
-                <CaptureMock whatsappReply={t('waitlist.mock.whatsappReply')} />
-              {:else if i === 1}
-                <ExtractMock copy={extractMockCopy} />
-              {:else}
-                <DashboardMock copy={dashboardMockCopy} locale={locale.current} />
-              {/if}
-            </div>
-          </div>
+            <h3 class="m-0 text-[19px] font-semibold leading-[1.3] tracking-[-0.01em] text-fg">{step.title}</h3>
+            <p class="mt-2.5 mb-0 text-[14.5px] leading-[1.6] text-fg-2">{step.body}</p>
+          </li>
         {/each}
-      </div>
+      </ol>
     </div>
   </section>
 
-  <section class="mep-section" style="padding:76px 72px;">
-    <div class="mep-founder-card max-w-[860px] mx-auto flex gap-6 items-start py-8 px-9 rounded-2xl bg-surface border border-divider">
-      <div class="w-[92px] h-[92px] rounded-full shrink-0 bg-acc text-acc-fg flex items-center justify-center text-[31px] font-bold font-mono tracking-[-1px] border border-border">{t('waitlist.founderInitials')}</div>
-      <div style="flex:1;">
-        <div class="text-[11.5px] font-semibold tracking-[0.14em] uppercase text-acc font-mono mb-2.5">{t('waitlist.founderEyebrow')}</div>
-        <p class="m-0 text-[19px] leading-[1.55] text-fg tracking-[-0.005em]">
-          &ldquo;{t('waitlist.founderBody')}&rdquo;
-        </p>
-        <div class="mt-3.5 text-[13px] text-fg-2">
-          <span class="font-semibold text-fg">{t('waitlist.founderName')}</span>
-          {' · '}
-          <span class="text-fg-3">{t('waitlist.founderRole')}</span>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="mep-section mep-tinted" style="padding:76px 72px;">
-    <div style="max-width:1080px;margin:0 auto;">
-      <div class="mep-eyebrow" style="margin-bottom:14px;">{t('waitlist.pricingEyebrow')}</div>
+  <section class="mep-tinted px-4 py-14 sm:px-8 lg:px-[72px] lg:py-[76px]">
+    <div class="mx-auto max-w-[1080px]">
+      <div class="mep-eyebrow mb-3.5">{t('waitlist.pricingEyebrow')}</div>
       <h2 class="mep-h2">{t('waitlist.pricingTitle')}</h2>
-      <p class="mt-3.5 mx-0 mb-0 max-w-[620px] text-[15px] leading-[1.6] text-fg-2 text-pretty">{t('waitlist.pricingSub')}</p>
+      <p class="mt-3.5 mb-0 max-w-[620px] text-pretty text-[15px] leading-[1.6] text-fg-2">{t('waitlist.pricingSub')}</p>
 
-      <div class="mep-grid-4" style="margin-top:44px;display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-items:stretch;">
-        <div class="card p-[20px_20px_22px] flex flex-col gap-3.5 bg-transparent border-dashed shadow-none">
-          <div class="text-lg font-semibold text-fg tracking-[-0.01em]">{t('billing.tier.trial.name')}</div>
+      <div class="mt-11 grid items-stretch gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="card flex flex-col gap-3.5 border-dashed bg-transparent p-5 shadow-none">
+          <h3 class="m-0 text-lg font-semibold tracking-[-0.01em] text-fg">{t('billing.tier.trial.name')}</h3>
           <div>
-            <div class="num text-[35px] font-semibold tracking-[-0.025em] text-fg leading-[1.1]">{t('waitlist.pricingTrialPrice')}</div>
-            <div class="mt-2 text-[12.5px] text-fg-3">{t('waitlist.pricingTrialLimit')}</div>
+            <div class="num text-[35px] font-semibold leading-[1.1] tracking-[-0.025em] text-fg">{t('waitlist.pricingTrialPrice')}</div>
+            <div class="mt-2 text-[12.5px] text-fg-3">{ti('waitlist.pricingTrialLimit', { days: data.facts.trial.days, docs: data.facts.trial.documents ?? 0 })}</div>
           </div>
-          <div class="text-sm text-fg-2 leading-[1.45] min-h-[34px]">{t('billing.tier.trial.tagline')}</div>
-          <a href="#join" class="btn btn-secondary" style="height:36px;justify-content:center;text-decoration:none;">{t('waitlist.form.submitShort')}</a>
+          <div class="text-sm leading-[1.45] text-fg-2">{t('billing.tier.trial.tagline')}</div>
+          <a href="#join" class="btn btn-secondary mt-auto h-10 justify-center no-underline">{t('waitlist.form.submitShort')}</a>
         </div>
 
         {#each PAID_TIERS as tier}
-          <div class="card p-[20px_20px_22px] flex flex-col gap-3.5 relative shadow-card {tier.recommended ? 'border-acc ring-1 ring-acc' : 'border-border'}">
-            <div style="display:flex;align-items:center;gap:8px;">
-              <div class="text-lg font-semibold text-fg tracking-[-0.01em]">{t(`billing.plan.${tier.id}`)}</div>
-              {#if tier.recommended}
-                <span class="bg-acc text-acc-fg text-xs font-medium py-0.5 px-[7px] rounded-tag">{t('billing.recommended')}</span>
+          <div class="card relative flex flex-col gap-3.5 p-5 shadow-card {tier.featured ? 'border-acc ring-1 ring-acc' : 'border-border'}">
+            <div class="flex flex-wrap items-center gap-2">
+              <h3 class="m-0 text-lg font-semibold tracking-[-0.01em] text-fg">{t(`billing.plan.${tier.id}`)}</h3>
+              {#if tier.featured}
+                <span class="rounded-tag bg-acc px-[7px] py-0.5 text-xs font-medium text-acc-fg">{t('waitlist.pricingFeatured')}</span>
               {/if}
             </div>
             <div>
-              <div style="display:flex;align-items:baseline;gap:6px;">
-                <span class="num text-[35px] font-semibold tracking-[-0.025em] text-fg border-b-2 border-dotted border-b-border-strong leading-[1.1]">{tier.price} €</span>
+              <div class="flex items-baseline gap-1.5">
+                <span class="num text-[35px] font-semibold leading-[1.1] tracking-[-0.025em] text-fg">{fmtEurCompact(tier.price, locale.current)}</span>
                 <span class="text-sm text-fg-3">{t('waitlist.pricingPerMonth')}</span>
               </div>
-              <div style="margin-top:8px;">
-                <span class="inline-flex items-center gap-1 text-[11.5px] font-medium tracking-[0.02em] uppercase text-fg-3 border border-dashed border-border-strong rounded px-[5px] py-px">
-                  {t('billing.provisional')}
-                </span>
-              </div>
+              <span class="mt-2 inline-flex items-center rounded border border-dashed border-border-strong px-[5px] py-px text-[11.5px] font-medium uppercase tracking-[0.02em] text-fg-3">{t('billing.provisional')}</span>
             </div>
-            <div class="text-sm text-fg-2 leading-[1.45] min-h-[34px]">{t(`billing.tier.${tier.id}.tagline`)}</div>
-            <a href="#join" class={tier.recommended ? 'btn btn-primary' : 'btn btn-secondary'} style="height:36px;justify-content:center;text-decoration:none;">{t('waitlist.form.submitShort')}</a>
+            <p class="m-0 text-sm font-semibold leading-[1.45] text-fg">{ti(`waitlist.plan.${tier.id}.audience`, { n: tier.maxLocations })}</p>
+            <p class="m-0 text-sm leading-[1.45] text-fg-2">{t(TIER_COPY[tier.id].tagline)}</p>
+            <a href="#join" class="btn {tier.featured ? 'btn-primary' : 'btn-secondary'} h-10 justify-center no-underline">{t('waitlist.form.submitShort')}</a>
             <div class="h-px bg-divider"></div>
-            <div style="display:flex;flex-direction:column;gap:8px;">
+            <ul class="m-0 flex list-none flex-col gap-2 p-0">
               {#each TIER_COPY[tier.id].bullets(tier.quota) as bullet}
-                <div class="flex gap-2 items-start text-sm text-fg-2">
-                  <span class="mt-px shrink-0 {tier.recommended ? 'text-acc' : 'text-fg-3'}">
-                    <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 10.5l3.5 3.5L16 5.5"/></svg>
-                  </span>
-                  <span style="line-height:1.4;">{bullet.interpolate ? ti(bullet.key, bullet.interpolate) : t(bullet.key)}</span>
-                </div>
+                <li class="flex items-start gap-2 text-sm leading-[1.4] text-fg-2">
+                  <svg class="mt-0.5 shrink-0 {tier.featured ? 'text-acc' : 'text-fg-3'}" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 10.5l3.5 3.5L16 5.5"/></svg>
+                  <span>{bullet.interpolate ? ti(bullet.key, bullet.interpolate) : t(bullet.key)}</span>
+                </li>
               {/each}
-            </div>
+            </ul>
           </div>
         {/each}
       </div>
 
-      <p class="mt-8 mx-0 mb-0 text-[13.5px] text-fg-3 leading-[1.6] max-w-[780px] text-pretty">{t('waitlist.pricingFoot')}</p>
+      <p class="mt-8 mb-0 max-w-[780px] text-pretty text-[14px] font-medium leading-[1.6] text-fg">{t('waitlist.pricingFounder')}</p>
+      <p class="mt-2 mb-0 max-w-[780px] text-pretty text-[13.5px] leading-[1.6] text-fg-3">{t('waitlist.pricingFoot')}</p>
     </div>
   </section>
 
-  <section class="mep-section" style="padding:76px 72px;">
-    <div style="max-width:1000px;margin:0 auto;">
-      <div class="text-[11px] font-semibold tracking-[0.2em] uppercase text-acc font-mono mb-3.5">{t('waitlist.foundingEyebrow')}</div>
-      <h2 class="m-0 max-w-[640px] text-[32px] font-semibold text-fg tracking-[-0.025em] leading-[1.15]">{t('waitlist.foundingHead')}</h2>
-      <p class="mt-3.5 mx-0 mb-0 max-w-[640px] text-base leading-[1.6] text-fg-2 text-pretty">{t('waitlist.foundingSub')}</p>
-
-      <div class="mep-grid-3" style="margin-top:44px;display:grid;grid-template-columns:repeat(3,1fr);gap:24px;">
-        {#each foundingItems as item, i}
-          <div class="rounded-card border border-border bg-surface p-6">
-            <div class="w-[30px] h-[30px] rounded-full bg-acc-soft text-acc flex items-center justify-center text-[13px] font-bold font-mono mb-4">0{i + 1}</div>
-            <div class="text-base font-semibold text-fg tracking-[-0.01em] mb-2">{item.title}</div>
-            <div class="text-[13px] text-fg-2 leading-[1.6]">{item.body}</div>
-          </div>
-        {/each}
-      </div>
+  <section class="px-4 py-14 sm:px-8 lg:px-[72px] lg:py-[76px]">
+    <div class="mx-auto flex max-w-[860px] flex-col items-start gap-6 rounded-2xl border border-divider bg-surface px-6 py-7 sm:flex-row sm:px-9 sm:py-8">
+      <div class="flex h-[76px] w-[76px] shrink-0 items-center justify-center rounded-full border border-border bg-acc font-mono text-[26px] font-bold tracking-[-1px] text-acc-fg sm:h-[92px] sm:w-[92px] sm:text-[31px]" aria-hidden="true">{t('waitlist.founderInitials')}</div>
+      <figure class="m-0 flex-1">
+        <div class="mb-2.5 font-mono text-[11.5px] font-semibold uppercase tracking-[0.14em] text-acc">{t('waitlist.founderEyebrow')}</div>
+        <blockquote class="m-0 text-[18px] leading-[1.55] tracking-[-0.005em] text-fg sm:text-[19px]">
+          &ldquo;{t('waitlist.founderBody')}&rdquo;
+        </blockquote>
+        <figcaption class="mt-3.5 text-[13px] text-fg-2">
+          <span class="font-semibold text-fg">{t('waitlist.founderName')}</span>
+          {' · '}
+          <span class="text-fg-3">{t('waitlist.founderRole')}</span>
+        </figcaption>
+      </figure>
     </div>
   </section>
 
-  <section class="mep-section" style="padding:0 72px 76px;">
-    <div style="max-width:720px;margin:0 auto;">
-      <div class="mep-eyebrow" style="margin-bottom:20px;">{t('waitlist.faqEyebrow')}</div>
+  <section class="px-4 pb-14 sm:px-8 lg:px-[72px] lg:pb-[76px]">
+    <div class="mx-auto max-w-[720px]">
+      <h2 class="mep-eyebrow m-0 mb-5">{t('waitlist.faqEyebrow')}</h2>
       <div>
         {#each faqItems as row, i}
           {@const isOpen = openFaq === i}
-          <div class="border-t border-divider {i === faqItems.length - 1 ? 'border-b border-divider' : ''}">
-            <h3 style="margin:0;">
+          <div class="border-t border-divider {i === faqItems.length - 1 ? 'border-b' : ''}">
+            <h3 class="m-0">
               <button type="button" onclick={() => { openFaq = isOpen ? -1 : i; }}
                 id="{faqUid}-q{i}"
                 aria-expanded={isOpen}
                 aria-controls={isOpen ? `${faqUid}-a${i}` : undefined}
-                style="width:100%;background:transparent;border:0;cursor:pointer;padding:18px 4px;
-                       display:flex;align-items:center;gap:16px;font-family:inherit;text-align:left;">
-                <span class="text-[13px] font-mono text-acc font-semibold w-[30px] shrink-0" aria-hidden="true">0{i + 1}</span>
-                <span class="flex-1 text-[17px] font-medium text-fg tracking-[-0.01em]">{row.q}</span>
-                <span class="w-6 h-6 rounded-full border border-border flex items-center justify-center text-fg-2 shrink-0"
-                  aria-hidden="true"
-                  style="transform:rotate({isOpen ? '45deg' : '0'});transition:transform 180ms;">
+                class="flex w-full cursor-pointer items-center gap-4 border-0 bg-transparent px-1 py-[18px] text-left font-[inherit]">
+                <span class="w-[30px] shrink-0 font-mono text-[13px] font-semibold text-acc" aria-hidden="true">0{i + 1}</span>
+                <span class="flex-1 text-[17px] font-medium tracking-[-0.01em] text-fg">{row.q}</span>
+                <span class="mep-faq-toggle flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border text-fg-2 {isOpen ? 'is-open' : ''}" aria-hidden="true">
                   <svg width="10" height="10" viewBox="0 0 10 10" fill="none" focusable="false">
                     <path d="M5 1v8M1 5h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
                   </svg>
@@ -524,12 +390,11 @@
     </div>
   </section>
 
-  <section class="mep-section" style="padding:0 72px 56px;">
-    <div class="mep-trust-bar max-w-[940px] mx-auto flex border border-divider rounded-card bg-surface overflow-hidden" role="list" aria-label={t('waitlist.trustBarLabel')}>
+  <section class="px-4 pb-14 sm:px-8 lg:px-[72px]">
+    <div class="mep-trust-bar mx-auto flex max-w-[940px] flex-col overflow-hidden rounded-card border border-divider bg-surface md:flex-row" role="list" aria-label={t('waitlist.trustBarLabel')}>
       {#each trustBarItems as item, i}
-        <div class="mep-trust-bar-item" role="listitem"
-          style="flex:1;display:flex;gap:12px;align-items:flex-start;padding:20px 22px;">
-          <div class="w-[30px] h-[30px] rounded-full shrink-0 bg-acc-soft text-acc flex items-center justify-center">
+        <div class="mep-trust-bar-item flex flex-1 items-start gap-3 px-[22px] py-5" role="listitem">
+          <div class="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-acc-soft text-acc">
             {#if i === 0}
               <Clock size={15} />
             {:else if i === 1}
@@ -539,32 +404,27 @@
             {/if}
           </div>
           <div>
-            <div class="text-[13px] font-semibold text-fg tracking-[-0.005em] mb-[3px]">{item.label}</div>
-            <div class="text-[13px] text-fg-2 leading-[1.45]">{item.body}</div>
+            <div class="mb-[3px] text-[13px] font-semibold tracking-[-0.005em] text-fg">{item.label}</div>
+            <div class="text-[13px] leading-[1.45] text-fg-2">{item.body}</div>
           </div>
         </div>
       {/each}
     </div>
   </section>
 
-  <section class="mep-section mep-tinted-top" style="padding:96px 72px;">
-    <div class="mep-close-grid" style="max-width:940px;margin:0 auto;display:grid;grid-template-columns:1fr 420px;
-                gap:64px;align-items:center;">
+  <section class="mep-tinted-top px-4 py-16 sm:px-8 lg:px-[72px] lg:py-24">
+    <div class="mx-auto flex max-w-[940px] flex-col items-start gap-6 md:flex-row md:items-center md:justify-between">
       <div>
-        <h2 class="m-0 text-[clamp(31px,4vw,40px)] font-semibold text-fg tracking-[-0.025em] leading-[1.15] text-balance">{t('waitlist.closeHead')}</h2>
-        <p class="mt-3.5 mx-0 mb-0 text-[17px] leading-[1.6] text-fg-2 max-w-[420px]">{t('waitlist.closeSub')}</p>
+        <h2 class="m-0 text-balance text-[clamp(28px,4vw,40px)] font-semibold leading-[1.15] tracking-[-0.025em] text-fg">{t('waitlist.closeHead')}</h2>
+        <p class="mt-3.5 mb-0 max-w-[460px] text-[17px] leading-[1.6] text-fg-2">{t('waitlist.closeSub')}</p>
       </div>
-      <div style="display:flex;flex-direction:column;gap:16px;">
-        <EmailForm big={true} {form} copy={emailFormCopy} referralBase={data.canonicalUrl} />
-      </div>
+      <a href="#join" class="btn btn-primary h-[52px] shrink-0 px-6 text-base font-semibold no-underline">{t('waitlist.form.submit')}</a>
     </div>
   </section>
 
-  <footer class="mep-footer mep-section py-7 px-[72px] border-t border-divider flex items-center justify-between gap-5">
-    <div style="display:flex;align-items:center;gap:10px;">
-      <Logo size={20} wordmark />
-    </div>
-    <nav class="mep-footer-links flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12.5px]"
+  <footer class="flex flex-col items-start gap-2.5 border-t border-divider px-4 py-7 sm:px-8 md:flex-row md:items-center md:justify-between md:gap-5 lg:px-[72px]">
+    <Logo size={20} wordmark />
+    <nav class="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12.5px]"
          aria-label={t('waitlist.footerLegalLabel')}>
       <a href="/privacy" class="text-fg-2 underline underline-offset-2">{t('waitlist.footerPrivacy')}</a>
       <a href="/terms" class="text-fg-2 underline underline-offset-2">{t('waitlist.footerTerms')}</a>
@@ -572,26 +432,20 @@
       <a href="/refunds" class="text-fg-2 underline underline-offset-2">{t('waitlist.footerRefunds')}</a>
       <a href="/legal" class="text-fg-2 underline underline-offset-2">{t('waitlist.footerLegal')}</a>
     </nav>
-    <div class="text-[12.5px] text-fg-3 font-mono">{t('waitlist.footerNote')}</div>
+    <div class="font-mono text-[12.5px] text-fg-3">{t('waitlist.footerNote')}</div>
   </footer>
 
 </div>
 
 <style>
-  /* The soft tints are calibrated to carry their own colour as text over
-     --mep-surface (ADR-026, issues #720/#749). These cards sit on a plain
-     section, so the tint was compositing over --mep-bg instead and the
-     heading measured 4.31:1 in light. Painting the surface underneath puts
-     the pair back on the background the tint was tuned against. */
-  .mep-compare-card {
-    background-color: var(--mep-surface);
-    background-image: linear-gradient(var(--tint), var(--tint));
-  }
-  .mep-compare-card-neg { --tint: var(--mep-neg-soft); }
-  .mep-compare-card-pos { --tint: var(--mep-pos-soft); }
-
   .mep-trust-bar-item:not(:first-child) {
-    border-left: 1px solid var(--mep-divider);
+    border-top: 1px solid var(--mep-divider);
+  }
+  @media (min-width: 48rem) {
+    .mep-trust-bar-item:not(:first-child) {
+      border-top: none;
+      border-left: 1px solid var(--mep-divider);
+    }
   }
   .mep-tinted {
     background: var(--mep-surface-2);
@@ -613,41 +467,38 @@
   }
   .mep-h2 {
     margin: 0;
-    max-width: 640px;
-    font-size: clamp(31px, 3.8vw, 37.5px);
+    max-width: 680px;
+    font-size: clamp(27px, 3.6vw, 37px);
     font-weight: 600;
     color: var(--mep-fg);
     letter-spacing: -0.025em;
     line-height: 1.15;
+    text-wrap: balance;
   }
   .mep-grid-3 {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 40px;
+    grid-template-columns: 1fr;
+    gap: 24px;
   }
-
-  @media (max-width: 960px) {
-    .mep-grid-4 { grid-template-columns: repeat(2, 1fr) !important; }
-    .mep-hero-grid { grid-template-columns: 1fr !important; gap: 48px !important; }
-    .mep-hero-visual { max-width: 560px; margin: 0 auto; }
+  @media (min-width: 48rem) {
+    .mep-grid-3 { grid-template-columns: repeat(3, 1fr); gap: 32px; }
   }
-
-  @media (max-width: 640px) {
-    .mep-nav { padding: 12px 16px !important; flex-wrap: wrap !important; row-gap: 8px !important; }
-    .mep-nav-signin { flex: 1 0 100% !important; justify-content: flex-end; }
-    .mep-section { padding-left: 20px !important; padding-right: 20px !important; }
-    .mep-hero { padding-top: 56px !important; }
-    .mep-grid-3, .mep-grid-4, .mep-compare-grid { grid-template-columns: 1fr !important; }
-    .mep-trust-bar { flex-direction: column !important; }
-    .mep-trust-bar-item:not(:first-child) {
-      border-left: none !important;
-      border-top: 1px solid var(--mep-divider);
-    }
-    .mep-how-row { grid-template-columns: 1fr !important; gap: 24px !important; }
-    .mep-founder-card { flex-direction: column !important; }
-    .mep-close-grid { grid-template-columns: 1fr !important; gap: 32px !important; }
-    .mep-footer { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
-    .mep-spotbar { flex-wrap: wrap !important; }
-    .mep-hero-visual { display: none !important; }
+  .mep-faq-toggle { transition: transform 180ms; }
+  .mep-faq-toggle.is-open { transform: rotate(45deg); }
+  .mep-spot-progress {
+    display: block;
+    width: 100%;
+    height: 5px;
+    border: 0;
+    border-radius: 3px;
+    background: var(--mep-hover);
+    overflow: hidden;
+    appearance: none;
+  }
+  .mep-spot-progress::-webkit-progress-bar { background: var(--mep-hover); border-radius: 3px; }
+  .mep-spot-progress::-webkit-progress-value { background: var(--mep-acc); border-radius: 3px; }
+  .mep-spot-progress::-moz-progress-bar { background: var(--mep-acc); border-radius: 3px; }
+  @media (prefers-reduced-motion: reduce) {
+    .mep-faq-toggle { transition: none; }
   }
 </style>
