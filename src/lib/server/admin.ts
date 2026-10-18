@@ -5,7 +5,11 @@ const ADMIN_EMAILS = new Set(
 		.filter(Boolean)
 );
 
+export function isAdminEmail(email: string): boolean {
+	return ADMIN_EMAILS.has(email);
+}
+
 export function isAdminUser(user: App.Locals['user']): boolean {
 	if (!user?.email) return false;
-	return ADMIN_EMAILS.has(user.email);
+	return isAdminEmail(user.email);
 }
