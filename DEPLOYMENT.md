@@ -214,11 +214,13 @@ where the Node process is directly internet-facing.
 | Variable | Required | Notes |
 |---|---|---|
 | `STRIPE_SECRET_KEY` | Recommended | `sk_live_…` or `sk_test_…` from Stripe Dashboard → Developers → API Keys. If absent, billing is disabled (users see a "contact support" message). |
-| `STRIPE_PRICE_ID_STARTER` | Recommended | Monthly price ID for the Starter tier (€49). Create in Stripe Dashboard → Products. |
-| `STRIPE_PRICE_ID_PRO` | Recommended | Monthly price ID for the Pro tier (€99). Without it, Pro checkout returns "this plan is not available" (issue #286). |
-| `STRIPE_PRICE_ID_BUSINESS` | Recommended | Monthly price ID for the Business tier (€199). |
+| `STRIPE_PRICE_ID_STARTER` | Recommended | Monthly price ID for the Starter tier (€69, tax-exclusive). Create in Stripe Dashboard → Product catalog. Amounts: `docs/02_product/pricing_decision_2026-10.md`. |
+| `STRIPE_PRICE_ID_PRO` | Recommended | Monthly price ID for the Pro tier (€139). Without it, Pro checkout returns "this plan is not available" (issue #286). |
+| `STRIPE_PRICE_ID_BUSINESS` | Recommended | Monthly price ID for the Business tier (€299). |
+| `STRIPE_PRICE_ID_STARTER_ANNUAL` / `_PRO_ANNUAL` / `_BUSINESS_ANNUAL` | Optional | Yearly price IDs on the same products (€690 / €1,390 / €2,990). The monthly/annual toggle on `/billing` appears only when all three are set. |
+| `STRIPE_TAX_RATE_ID` | Recommended | `txr_…` for IVA 21 % (exclusive). Set, every new subscription charges list price + IVA; unset, no tax is added. |
 | `STRIPE_PRICE_ID` | Legacy | Fallback for `STRIPE_PRICE_ID_STARTER` only. Prefer the per-tier variables. |
-| `STRIPE_FOUNDER_COUPON_ID` | Optional | Coupon applied automatically at checkout for private-beta founders approved from `/admin/access`. Unset: founders keep the longer trial, no discount. |
+| `STRIPE_FOUNDER_COUPON_ID` | Optional | Coupon ID (or a `promo_…` promotion-code ID) applied automatically at checkout for private-beta founders approved from `/admin/access`. Unset: founders keep the longer trial, no discount. |
 | `STRIPE_FOUNDER_PROMO_CODE` | Optional | The customer-facing promotion code for that coupon (Stripe → Coupons → Promotion codes), shown on `/admin/access` approvals so a founder can redeem it themselves. |
 | `STRIPE_WEBHOOK_SECRET` | Recommended | `whsec_…`. Configure the endpoint `{your-origin}/api/stripe-webhook` in Stripe Dashboard → Webhooks; send: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`. |
 

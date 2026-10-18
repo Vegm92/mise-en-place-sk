@@ -37,7 +37,8 @@ currently working in).
 
 - Parent restaurant has an active subscription at a tier with
   `features.multiLocation = true` (currently only `business`,
-  `maxLocations = 5`; see `TIERS` in `src/lib/server/billing.ts`).
+  `maxLocations = 10`, from `TIER_MAX_LOCATIONS` in `src/lib/billing-plans.ts`;
+  see `TIERS` in `src/lib/server/billing.ts`).
 - The acting user is an `owner` member of the parent restaurant.
 - The group has capacity: the user's memberships within the group
   (parent + its locations) are below the tier's `maxLocations`.

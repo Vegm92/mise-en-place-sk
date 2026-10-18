@@ -390,7 +390,7 @@ const INLINE_TOKEN_STYLE_BUDGET = new Map([
 	['src/lib/components/mobile/MobileAnalyticsSpend.svelte', 13],
 	['src/lib/components/mobile/MobileDashboard.svelte', 14],
 	['src/lib/components/waitlist/CaptureMock.svelte', 14],
-	['src/lib/components/mep/BillingPlanCard.svelte', 13],
+	['src/lib/components/mep/BillingPlanCard.svelte', 12],
 	['src/lib/components/waitlist/ExtractMock.svelte', 13],
 	['src/routes/(app)/settings/+page.svelte', 12],
 	['src/lib/components/waitlist/AppDashboardMock.svelte', 11],

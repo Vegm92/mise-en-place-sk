@@ -36,7 +36,7 @@ const FOUNDING_KEYS = [
 
 import { assertSectionUsesTokens } from './helpers/extract-section';
 
-const BARE_PRICE = /\b(29|59|129)\b/;
+const BARE_PRICE = /\b(29|59|129|69|139|299)\b/;
 
 describe('waitlist.founding* keys exist in both locales (issue #403)', () => {
 	for (const key of FOUNDING_KEYS) {
@@ -89,7 +89,7 @@ describe('LandingPage.svelte renders the founding section between pricing and FA
 		}
 	});
 
-	it('never hardcodes a PROVISIONAL_PRICE literal (29/59/129) inside the founding section', () => {
+	it('never hardcodes a PROVISIONAL_PRICE literal (old 29/59/129 or current 69/139/299) inside the founding section', () => {
 		const startIdx = PAGE_SRC.indexOf("t('waitlist.foundingEyebrow')");
 		const sectionStart = PAGE_SRC.lastIndexOf('<section', startIdx);
 		const sectionEnd = PAGE_SRC.indexOf('</section>', startIdx);

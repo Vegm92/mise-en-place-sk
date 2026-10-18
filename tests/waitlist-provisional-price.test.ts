@@ -38,11 +38,11 @@ import { translations, renderTemplate, type Locale } from '../src/lib/i18n-messa
 const ROOT = path.resolve(__dirname, '..');
 const PAGE_SRC = readFileSync(path.join(ROOT, 'src/lib/components/landing/LandingPage.svelte'), 'utf8');
 
-const BARE_PRICE = /\b(29|59|129)\b/;
+const BARE_PRICE = /\b(29|59|129|69|139|299)\b/;
 
 describe('billing-plans.ts stays the single price source (issue #439)', () => {
 	it('exports PROVISIONAL_PRICE with the expected shape and values', () => {
-		expect(PROVISIONAL_PRICE).toEqual({ starter: 29, pro: 59, business: 129 });
+		expect(PROVISIONAL_PRICE).toEqual({ starter: 69, pro: 139, business: 299 });
 	});
 });
 
@@ -365,6 +365,21 @@ const POST_ADR036_QUOTA_BULLET: Record<Locale, Record<string, string>> = {
 	},
 };
 
+/**
+ * Pricing decision 2026-10 (docs/02_product/pricing_decision_2026-10.md).
+ *
+ * Business now covers up to 10 restaurants instead of 5, so a 2–10-location
+ * group fits the top tier. The bullet reads its count from
+ * `TIER_MAX_LOCATIONS.business` in `src/lib/billing-plans.ts`, which is why it
+ * moved here without a copy edit. The page's own `PAID_TIERS` quotas are still
+ * hardcoded in LandingPage.svelte (owned separately), which is why this file's
+ * `TIER_QUOTA` and the Pro quota bullet above still read 300.
+ */
+const POST_PRICING_2026_10_LOCATIONS_BULLET: Record<Locale, string> = {
+	es: 'Hasta 10 restaurantes',
+	en: 'Up to 10 restaurants',
+};
+
 describe('waitlist copy migration is byte-identical to the pre-migration inline object (issue #407)', () => {
 	it('the pinned pre-migration git blob still contains the expected copy object', () => {
 		expect(Object.keys(PRE_MIGRATION_COPY)).toEqual(['es', 'en']);
@@ -396,7 +411,9 @@ describe('waitlist copy migration is byte-identical to the pre-migration inline 
 			const preMigrationTiers = expected.pricingTiers as { name: string; bullets: string[] }[];
 			expected.pricingTiers = preMigrationTiers.map((tier) => {
 				const bullet = POST_ADR036_QUOTA_BULLET[loc][tier.name];
-				return bullet ? { ...tier, bullets: [bullet, ...tier.bullets.slice(1)] } : tier;
+				const bullets = bullet ? [bullet, ...tier.bullets.slice(1)] : tier.bullets;
+				if (tier.name === 'Business') bullets[1] = POST_PRICING_2026_10_LOCATIONS_BULLET[loc];
+				return { ...tier, bullets };
 			});
 			expect(buildMigratedCopy(loc)).toEqual(expected);
 		});

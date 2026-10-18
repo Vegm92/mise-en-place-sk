@@ -6,8 +6,11 @@ import { and, count, eq, inArray, isNotNull, isNull, lte, or, sql } from 'drizzl
 const NODE_ENV: string = process.env.NODE_ENV ?? 'development';
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY ?? '';
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET ?? '';
-const STRIPE_FOUNDER_COUPON_ID = process.env.STRIPE_FOUNDER_COUPON_ID ?? '';
-import { STRIPE_PRICE_ID, STRIPE_PRICE_ID_BUSINESS, STRIPE_PRICE_ID_PRO, STRIPE_PRICE_ID_STARTER } from './env';
+const STRIPE_FOUNDER_COUPON_ID = (process.env.STRIPE_FOUNDER_COUPON_ID ?? '').trim();
+import {
+	STRIPE_PRICE_ID, STRIPE_PRICE_ID_BUSINESS, STRIPE_PRICE_ID_PRO, STRIPE_PRICE_ID_STARTER,
+	STRIPE_PRICE_ID_BUSINESS_ANNUAL, STRIPE_PRICE_ID_PRO_ANNUAL, STRIPE_PRICE_ID_STARTER_ANNUAL, STRIPE_TAX_RATE_ID,
+} from './env';
 import { db, forTenant, runAsSystem } from './db';
 import type { BatchDb } from './batch';
 import { subscriptions, restaurants, settings, systemNotifications, userRestaurants } from './schema';
@@ -15,7 +18,7 @@ import { claimIdempotencyKey, releaseIdempotencyKey, STRIPE_WEBHOOK_SCOPE } from
 import { trackEvent } from './events';
 import { sendEmail, subscriptionConfirmationEmail, subscriptionConsolidatedEmail } from './email';
 import { users } from './schema';
-import { PROVISIONAL_PRICE } from '$lib/billing-plans';
+import { ANNUAL_PRICE, PROVISIONAL_PRICE, TIER_MAX_LOCATIONS, TIER_QUOTA, type BillingInterval } from '$lib/billing-plans';
 import { renderTemplate } from '$lib/i18n-messages';
 import { DAY_MS } from '$lib/constants';
 import { createLogger } from './log';
@@ -72,6 +75,7 @@ export interface TierConfig {
 	nameKey: string;
 	monthlyInvoiceQuota: number | null;
 	stripePriceId: string;
+	stripeAnnualPriceId: string;
 	maxLocations: number;
 	maxRecipes: number | null;
 	features: {
@@ -91,6 +95,7 @@ export const TIERS: Record<PlanTier, TierConfig> = {
 		nameKey: 'billing.plan.trial',
 		monthlyInvoiceQuota: 20,
 		stripePriceId: '',
+		stripeAnnualPriceId: '',
 		maxLocations: 1,
 		maxRecipes: 3,
 		features: { weeklyDigest: false, stockTracking: false, supplierScores: false, multiLocation: false, prioritySupport: false, aiAssistant: false, inventoryTemplate: false },
@@ -98,52 +103,86 @@ export const TIERS: Record<PlanTier, TierConfig> = {
 	starter: {
 		name: 'Starter',
 		nameKey: 'billing.plan.starter',
-		monthlyInvoiceQuota: 100,
+		monthlyInvoiceQuota: TIER_QUOTA.starter,
 		stripePriceId: STRIPE_PRICE_ID_STARTER || STRIPE_PRICE_ID,
-		maxLocations: 1,
+		stripeAnnualPriceId: STRIPE_PRICE_ID_STARTER_ANNUAL,
+		maxLocations: TIER_MAX_LOCATIONS.starter,
 		maxRecipes: 3,
 		features: { weeklyDigest: false, stockTracking: false, supplierScores: false, multiLocation: false, prioritySupport: false, aiAssistant: false, inventoryTemplate: false },
 	},
 	pro: {
 		name: 'Pro',
 		nameKey: 'billing.plan.pro',
-		monthlyInvoiceQuota: 300,
+		monthlyInvoiceQuota: TIER_QUOTA.pro,
 		stripePriceId: STRIPE_PRICE_ID_PRO,
-		maxLocations: 1,
+		stripeAnnualPriceId: STRIPE_PRICE_ID_PRO_ANNUAL,
+		maxLocations: TIER_MAX_LOCATIONS.pro,
 		maxRecipes: null,
 		features: { weeklyDigest: true, stockTracking: true, supplierScores: true, multiLocation: false, prioritySupport: false, aiAssistant: true, inventoryTemplate: true },
 	},
 	business: {
 		name: 'Business',
 		nameKey: 'billing.plan.business',
-		monthlyInvoiceQuota: null,
+		monthlyInvoiceQuota: TIER_QUOTA.business,
 		stripePriceId: STRIPE_PRICE_ID_BUSINESS,
-		maxLocations: 5,
+		stripeAnnualPriceId: STRIPE_PRICE_ID_BUSINESS_ANNUAL,
+		maxLocations: TIER_MAX_LOCATIONS.business,
 		maxRecipes: null,
 		features: { weeklyDigest: true, stockTracking: true, supplierScores: true, multiLocation: true, prioritySupport: true, aiAssistant: true, inventoryTemplate: true },
 	},
 };
 
-export function isTierAvailable(tier: PlanTier): boolean {
-	return !!TIERS[tier].stripePriceId;
+const PAID_TIERS: readonly Exclude<PlanTier, 'trial'>[] = ['starter', 'pro', 'business'];
+
+export function priceIdFor(tier: PlanTier, interval: BillingInterval): string {
+	return interval === 'year' ? TIERS[tier].stripeAnnualPriceId : TIERS[tier].stripePriceId;
 }
 
-export function planMonthlyPriceCents(tier: PlanTier): number {
+function priceEnvName(tier: PlanTier, interval: BillingInterval): string {
+	return `STRIPE_PRICE_ID_${tier.toUpperCase()}${interval === 'year' ? '_ANNUAL' : ''}`;
+}
+
+export function isTierAvailable(tier: PlanTier, interval: BillingInterval = 'month'): boolean {
+	return !!priceIdFor(tier, interval);
+}
+
+export function isAnnualBillingAvailable(): boolean {
+	return PAID_TIERS.every((tier) => isTierAvailable(tier, 'year'));
+}
+
+export function intervalFromPriceId(priceId: string | null | undefined): BillingInterval {
+	if (!priceId) return 'month';
+	return PAID_TIERS.some((tier) => TIERS[tier].stripeAnnualPriceId === priceId) ? 'year' : 'month';
+}
+
+export function planMonthlyPriceCents(tier: PlanTier, interval: BillingInterval = 'month'): number {
 	if (tier === 'trial') return 0;
-	const raw = process.env[`PLAN_PRICE_${tier.toUpperCase()}_EUR`]?.trim();
-	const override = raw ? Number(raw) : NaN;
-	const eur = Number.isFinite(override) && override >= 0 ? override : PROVISIONAL_PRICE[tier];
-	return Math.round(eur * 100);
+	return interval === 'year'
+		? Math.round((ANNUAL_PRICE[tier] * 100) / 12)
+		: Math.round(PROVISIONAL_PRICE[tier] * 100);
+}
+
+export function subscriptionMonthlyPriceCents(tier: PlanTier, stripePriceId: string | null | undefined): number {
+	return planMonthlyPriceCents(tier, intervalFromPriceId(stripePriceId));
+}
+
+export function configuredPriceIdSet(): Set<string> {
+	return new Set(configuredPriceIds().map(([, id]) => id));
+}
+
+export function founderDiscount(id: string): Stripe.Checkout.SessionCreateParams.Discount {
+	return id.startsWith('promo_') ? { promotion_code: id } : { coupon: id };
 }
 
 function stripeAccountFragment(id: string): string | null {
 	return /^[a-z]+_1[A-Za-z0-9]{5}([A-Za-z0-9]{10})/.exec(id)?.[1] ?? null;
 }
 
-function configuredPriceIds(): [PlanTier, string][] {
-	return (Object.entries(TIERS) as [PlanTier, TierConfig][])
-		.filter(([, config]) => config.stripePriceId)
-		.map(([tier, config]) => [tier, config.stripePriceId]);
+function configuredPriceIds(): [string, string][] {
+	return PAID_TIERS.flatMap((tier): [string, string][] => [
+		[tier, TIERS[tier].stripePriceId],
+		[`${tier}_annual`, TIERS[tier].stripeAnnualPriceId],
+	]).filter(([, id]) => id);
 }
 
 const reportedUnknownPriceIds = new Set<string>();
@@ -188,8 +227,8 @@ function reportPaidTierMismatch(priceId: string, subscription: SubscriptionTierC
 
 export function tierFromPriceId(priceId: string | null | undefined, subscription?: SubscriptionTierContext): PlanTier {
 	if (!priceId) return 'trial';
-	for (const [tier, config] of Object.entries(TIERS) as [PlanTier, TierConfig][]) {
-		if (config.stripePriceId && config.stripePriceId === priceId) return tier;
+	for (const tier of PAID_TIERS) {
+		if (TIERS[tier].stripePriceId === priceId || TIERS[tier].stripeAnnualPriceId === priceId) return tier;
 	}
 
 	const configured = configuredPriceIds();
@@ -629,6 +668,7 @@ export interface CreateCheckoutSessionOptions {
 	restaurantId: string;
 	customerId: string;
 	tier: PlanTier;
+	interval?: BillingInterval;
 	successUrl: string;
 	cancelUrl: string;
 	idempotencyKey?: string;
@@ -636,10 +676,10 @@ export interface CreateCheckoutSessionOptions {
 }
 
 export async function createCheckoutSession(opts: CreateCheckoutSessionOptions): Promise<string> {
-	const { restaurantId, customerId, tier, successUrl, cancelUrl, idempotencyKey, userId } = opts;
+	const { restaurantId, customerId, tier, interval = 'month', successUrl, cancelUrl, idempotencyKey, userId } = opts;
 	if (!stripe) throw new Error('Stripe not configured');
-	const priceId = TIERS[tier].stripePriceId;
-	if (!priceId) throw new Error(`STRIPE_PRICE_ID_${tier.toUpperCase()} not configured`);
+	const priceId = priceIdFor(tier, interval);
+	if (!priceId) throw new Error(`${priceEnvName(tier, interval)} not configured`);
 
 	const founder    = await isFounderRestaurant(restaurantId);
 	const useCoupon  = founder && FOUNDER_COUPON_ID !== '';
@@ -654,17 +694,16 @@ export async function createCheckoutSession(opts: CreateCheckoutSessionOptions):
 			subscription_data: {
 				trial_period_days: trialDaysFor(founder),
 				metadata: { restaurantId, ...(userId ? { userId } : {}) },
+				...(STRIPE_TAX_RATE_ID ? { default_tax_rates: [STRIPE_TAX_RATE_ID] } : {}),
 			},
 			success_url: successUrl,
 			cancel_url: cancelUrl,
 			...(useCoupon
-				? { discounts: [{ promotion_code: FOUNDER_COUPON_ID }] }
+				? { discounts: [founderDiscount(FOUNDER_COUPON_ID)] }
 				: { allow_promotion_codes: true }),
 		}, idempotencyKey ? { idempotencyKey } : undefined);
 	} catch (err) {
-		if (err instanceof Stripe.errors.StripeInvalidRequestError && err.code === 'resource_missing') {
-			throw new StaleCustomerError(customerId);
-		}
+		if (isMissingCustomerError(err)) throw new StaleCustomerError(customerId);
 		throw err;
 	}
 
@@ -695,16 +734,17 @@ export async function switchTier(restaurantId: string, newTier: PlanTier): Promi
 	if (!sub?.stripeSubscriptionId) throw new Error('No subscription to switch');
 
 	const stripeSub = await stripe.subscriptions.retrieve(sub.stripeSubscriptionId);
-	const itemId = stripeSub.items.data[0]?.id;
-	if (!itemId) throw new Error('Subscription has no items to switch');
+	const item = stripeSub.items.data[0];
+	if (!item?.id) throw new Error('Subscription has no items to switch');
+	const targetPriceId = priceIdFor(newTier, intervalFromPriceId(item.price?.id)) || priceId;
 
 	await stripe.subscriptions.update(sub.stripeSubscriptionId, {
-		items: [{ id: itemId, price: priceId }],
+		items: [{ id: item.id, price: targetPriceId }],
 		cancel_at_period_end: false,
 	});
 
 	await db.update(subscriptions)
-		.set({ planTier: newTier, stripePriceId: priceId, cancelAtPeriodEnd: false, updatedAt: new Date() })
+		.set({ planTier: newTier, stripePriceId: targetPriceId, cancelAtPeriodEnd: false, updatedAt: new Date() })
 		.where(tdb.scope(subscriptions.restaurantId));
 	await applyTierSettings(restaurantId, newTier);
 	await notifyLocationsLocked(await billingRestaurantId(restaurantId), newTier);
@@ -715,6 +755,12 @@ export class StaleCustomerError extends Error {
 		super(`Stripe customer not found: ${customerId}`);
 		this.name = 'StaleCustomerError';
 	}
+}
+
+export function isMissingCustomerError(err: unknown): boolean {
+	return err instanceof Stripe.errors.StripeInvalidRequestError
+		&& err.code === 'resource_missing'
+		&& (!err.param || err.param === 'customer');
 }
 
 export async function createPortalSession(customerId: string, returnUrl: string): Promise<string> {

@@ -58,10 +58,10 @@ with an ADR if structural. Feature-level detail lives in `docs/03_features/`.
 
 | Rule | Value | Where |
 |---|---|---|
-| Trial | 30 days from first contact; locked when `trialEndsAt` passes | `billing.ts` |
-| Quotas | trial 20, starter 100, pro 300, business unlimited (null) | `billing.ts` |
+| Trial | 14 days from first contact (30 for founders); locked when `trialEndsAt` passes | `billing.ts` |
+| Quotas | trial 20, starter 100, pro 400, business unlimited (null); locations 1 / 1 / 10 | `billing-plans.ts` |
 | Feature flags | digest, stock, supplierScores, multiLocation, aiAssistant per tier | `billing.ts` |
-| Provisional prices | starter 29 / pro 59 / business 129 € (override via `PLAN_PRICE_*_EUR`) | `billing-plans.ts` |
+| List prices | starter 69 / pro 139 / business 299 € a month, 10 × that a year, excl. IVA; no env override (`docs/02_product/pricing_decision_2026-10.md`) | `billing-plans.ts` |
 | Webhook dedup | `idempotency_keys` (`stripe-webhook` scope); claim deleted on error → Stripe retries | `billing.ts` |
 | Out-of-order guard | only apply when `lastEventAt <= event.created` | `billing.ts` |
 

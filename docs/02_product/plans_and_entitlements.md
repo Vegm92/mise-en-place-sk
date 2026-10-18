@@ -6,39 +6,55 @@ related: "[[CONTEXT]]"
 # Plans and Entitlements
 
 How subscription tiers, quotas and feature access work. Canonical source of the
-tier table: `src/lib/server/billing.ts` (`TIERS`, `PlanTier`, `TierConfig`).
-Pricing copy: `src/lib/billing-plans.ts` (`PROVISIONAL_PRICE`, `TIER_COPY`).
-Full billing feature spec: `docs/03_features/billing.md`. Decision record:
+price, quota and location numbers: `src/lib/billing-plans.ts`
+(`PROVISIONAL_PRICE`, `ANNUAL_PRICE`, `TIER_QUOTA`, `TIER_MAX_LOCATIONS`,
+`FOUNDER_OFFER`, `TIER_COPY`). `src/lib/server/billing.ts` (`TIERS`,
+`PlanTier`, `TierConfig`) reads them and adds the Stripe price ids and feature
+flags. Full billing feature spec: `docs/03_features/billing.md`. Decision
+records: `docs/02_product/pricing_decision_2026-10.md` (the price table) and
 `docs/06_decisions/billing/ADR-013-tiers-trial-and-quota.md`.
 
 ## Tiers
 
-| Tier | Monthly invoice quota | Locations | Recipe sheets | `weeklyDigest` | `stockTracking` | `supplierScores` | `multiLocation` | `aiAssistant` | `prioritySupport` | `inventoryTemplate` |
-|---|---|---|---|---|---|---|---|---|---|---|
-| `trial` | 20 | 1 | 3 | — | — | — | — | — | — | — |
-| `starter` | 100 | 1 | 3 | — | — | — | — | — | — | — |
-| `pro` | 300 | 1 | unlimited | ✓ | ✓ | ✓ | — | ✓ | — | ✓ |
-| `business` | unlimited (`null`) | 5 | unlimited | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Tier | Monthly price (excl. IVA) | Annual price (excl. IVA) | Monthly document quota | Locations | Recipe sheets | `weeklyDigest` | `stockTracking` | `supplierScores` | `multiLocation` | `aiAssistant` | `prioritySupport` | `inventoryTemplate` |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| `trial` | 0 | — | 20 | 1 | 3 | — | — | — | — | — | — | — |
+| `starter` | €69 | €690 | 100 | 1 | 3 | — | — | — | — | — | — | — |
+| `pro` | €139 | €1,390 | 400 | 1 | unlimited | ✓ | ✓ | ✓ | — | ✓ | — | ✓ |
+| `business` | €299 | €2,990 | unlimited (`null`) | 10 | unlimited | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 
-- Trial: 30 days (`TRIAL_DAYS`), `subscriptions.status = 'trialing'`,
-  `trialEndsAt = createdAt + 30d`; locked when the window passes unless the
-  subscription is `active`.
+- Annual = 10 × monthly (`ANNUAL_MONTHS_BILLED`, "2 months free").
+- One price per account, not per restaurant: a Business subscription covers the
+  parent restaurant and up to 9 more locations (10 in total). Location creation
+  is additionally gated by the global `multiLocation` beta flag
+  (`docs/03_features/feature_flags.md`), which defaults to off.
+- Founder offer (`FOUNDER_OFFER`): 60 % off, forever, 50 redemptions, redeem by
+  2026-12-13. The discount itself lives in the Stripe coupon
+  (`STRIPE_FOUNDER_COUPON_ID`); `FOUNDER_OFFER` / `FOUNDER_PRICE` only mirror it
+  for display and must match it.
+- Trial: 14 days (`TRIAL_DAYS`), 30 for founders approved from `/admin/access`
+  (`FOUNDER_TRIAL_DAYS`); `subscriptions.status = 'trialing'`; locked when the
+  window passes unless the subscription is `active`.
 - A restaurant with **no** `subscriptions` row is treated as allowed-trialing
   (no lockout); the row appears on first Stripe contact or `getOrCreateCustomer`.
 
 ## Price resolution
 
-- List price per tier: `PROVISIONAL_PRICE` (starter 29, pro 59, business 129 €)
-  unless the env override `PLAN_PRICE_<TIER>_EUR` is set
-  (`planMonthlyPriceCents`). MRR/ARPA/ACV/LTV are computed off this.
-  **One source of truth**: the override → `PROVISIONAL_PRICE` value is what
-  `/billing` renders. `/waitlist` reads `PROVISIONAL_PRICE` directly (issue
-  #439) rather than the resolved override — it is a public page with no
-  access to server env vars, so an `.env` override updates `/billing` but not
-  `/waitlist`; changing `PROVISIONAL_PRICE` itself still updates both.
-- Stripe price ids: `STRIPE_PRICE_ID_STARTER/_PRO/_BUSINESS`; legacy
-  `STRIPE_PRICE_ID` is a fallback for starter. A tier without a price id is
-  "not available" on `/billing` (`isTierAvailable`).
+- List price per tier: `PROVISIONAL_PRICE` (monthly) and `ANNUAL_PRICE`
+  (yearly) in `src/lib/billing-plans.ts` — the only place prices live.
+  `/billing`, `/waitlist` and every landing variant import them, and
+  `/admin/revenue` prices MRR from them (`planMonthlyPriceCents(tier,
+  interval)`; an annual subscription counts as `ANNUAL_PRICE / 12`). The old
+  `PLAN_PRICE_<TIER>_EUR` env override was removed: it let admin MRR drift from
+  the published page, and its deploy values were not visible from the repo.
+- Stripe price ids: `STRIPE_PRICE_ID_STARTER/_PRO/_BUSINESS` (monthly,
+  required) and `STRIPE_PRICE_ID_<TIER>_ANNUAL` (yearly, optional); legacy
+  `STRIPE_PRICE_ID` is a fallback for starter monthly. A tier without a monthly
+  price id is "not available" on `/billing` (`isTierAvailable`). The
+  monthly/annual toggle shows only when all three annual ids are set
+  (`isAnnualBillingAvailable`). Either id maps to the tier in the webhook
+  (`tierFromPriceId`), and the interval is read back from the stored
+  `subscriptions.stripe_price_id` (`intervalFromPriceId`) — no schema column.
 
 ## Quotas
 

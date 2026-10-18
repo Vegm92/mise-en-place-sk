@@ -9,7 +9,7 @@ import {
 	subscriptions,
 	waitlist,
 } from './schema';
-import { TIERS, planMonthlyPriceCents, type PlanTier } from './billing';
+import { TIERS, configuredPriceIdSet, planMonthlyPriceCents, subscriptionMonthlyPriceCents, type PlanTier } from './billing';
 import {
 	DEFAULT_GROSS_MARGIN_PCT,
 	DEFAULT_LTV_HORIZON_MONTHS,
@@ -143,12 +143,14 @@ function historySource(isCurrentMonth: boolean, monthRows: Array<{ source: strin
 	return monthRows.length > 0 ? 'estimated' : 'none';
 }
 
-function mrrOf(sub: { planTier: PlanTier; status: string }): number {
-	return (ACTIVE_STATUSES as readonly string[]).includes(sub.status) ? planMonthlyPriceCents(sub.planTier) : 0;
+type PricedSubscription = { planTier: PlanTier; status: string; stripePriceId: string | null };
+
+function mrrOf(sub: PricedSubscription): number {
+	return (ACTIVE_STATUSES as readonly string[]).includes(sub.status) ? subscriptionMonthlyPriceCents(sub.planTier, sub.stripePriceId) : 0;
 }
 
-function atRiskOf(sub: { planTier: PlanTier; status: string }): number {
-	return (AT_RISK_STATUSES as readonly string[]).includes(sub.status) ? planMonthlyPriceCents(sub.planTier) : 0;
+function atRiskOf(sub: PricedSubscription): number {
+	return (AT_RISK_STATUSES as readonly string[]).includes(sub.status) ? subscriptionMonthlyPriceCents(sub.planTier, sub.stripePriceId) : 0;
 }
 
 export function currentMonth(now: Date = new Date()): string {
@@ -201,7 +203,7 @@ function backfillRowsFor(
 	sub: LiveSubscription,
 	today: string,
 ): Array<typeof mrrSnapshots.$inferInsert> {
-	const price = planMonthlyPriceCents(sub.planTier);
+	const price = subscriptionMonthlyPriceCents(sub.planTier, sub.stripePriceId);
 	if (price === 0) return [];
 
 	const startedAt = sub.trialEndsAt ?? sub.createdAt;
@@ -424,9 +426,7 @@ async function acquisitionFunnel(subs: LiveSubscription[]): Promise<{ funnel: Fu
 }
 
 function syncLeaks(subs: LiveSubscription[], now: Date): LeakItem[] {
-	const configuredPriceIds = new Set(
-		Object.values(TIERS).map(config => config.stripePriceId).filter(Boolean),
-	);
+	const configuredPriceIds = configuredPriceIdSet();
 
 	const unknownPrice = subs.filter(s => s.stripePriceId && !configuredPriceIds.has(s.stripePriceId));
 	const activeWithoutStripe = subs.filter(s => mrrOf(s) > 0 && !s.stripeSubscriptionId);
@@ -439,7 +439,7 @@ function syncLeaks(subs: LiveSubscription[], now: Date): LeakItem[] {
 	const scheduledCancel = subs.filter(s => s.cancelAtPeriodEnd && mrrOf(s) > 0);
 
 	const impact = (rows: LiveSubscription[], fallbackPrice = true) =>
-		rows.reduce((sum, s) => sum + (fallbackPrice ? planMonthlyPriceCents(s.planTier) : 0), 0);
+		rows.reduce((sum, s) => sum + (fallbackPrice ? subscriptionMonthlyPriceCents(s.planTier, s.stripePriceId) : 0), 0);
 
 	return [
 		{ key: 'pastDue', count: pastDue.length, monthlyImpactCents: impact(pastDue), severity: 'error' },

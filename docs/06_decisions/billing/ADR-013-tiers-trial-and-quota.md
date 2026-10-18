@@ -116,6 +116,9 @@ customer is expensive to unpick by hand.
 - **Prices are configurable but have code defaults.** `planMonthlyPriceCents`
   prefers `PLAN_PRICE_<TIER>_EUR` and falls back to `PROVISIONAL_PRICE`, so the
   pricing page renders correctly in an environment with no billing configured.
+  *Amended 2026-10 (`docs/02_product/pricing_decision_2026-10.md`): the env
+  override was removed; `PROVISIONAL_PRICE` / `ANNUAL_PRICE` are the only price
+  table.*
 - **Stripe absent is a supported configuration.** `stripe` is `null` when
   `STRIPE_SECRET_KEY` is unset, `handleWebhookEvent` returns early, and the app
   runs as an unbilled trial. Local development and self-hosting need no Stripe

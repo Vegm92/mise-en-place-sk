@@ -2,7 +2,8 @@ import { redirect, error, fail } from '@sveltejs/kit';
 import * as v from 'valibot';
 import type { Actions, PageServerLoad } from './$types';
 import { parseForm } from '$lib/server/public-form-action';
-import { stripe, billingRestaurantId, countGroupLocations, createCheckoutSession, createPortalSession, getOrCreateCustomer, isAccessAllowed, isTierAvailable, ownedActiveSubscriptions, switchTier, StaleCustomerError, TIERS, type PlanTier } from '$lib/server/billing';
+import { stripe, billingRestaurantId, countGroupLocations, createCheckoutSession, createPortalSession, getOrCreateCustomer, intervalFromPriceId, isAccessAllowed, isAnnualBillingAvailable, isTierAvailable, ownedActiveSubscriptions, switchTier, StaleCustomerError, TIERS, type PlanTier } from '$lib/server/billing';
+import type { BillingInterval } from '$lib/billing-plans';
 import { db, forTenant } from '$lib/server/db';
 import { subscriptions, restaurants } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
@@ -51,6 +52,8 @@ export const load: PageServerLoad = async ({ locals, url, parent }) => {
 		checkoutSuccess: url.searchParams.get('checkout') === 'success',
 		upgradeFor: url.searchParams.get('upgrade'),
 		currentTier,
+		currentInterval: intervalFromPriceId(sub?.stripePriceId),
+		annualAvailable: isAnnualBillingAvailable(),
 		currentTierNameKey: TIERS[currentTier].nameKey,
 		locationsUsed:   Math.min(groupLocations, TIERS[currentTier].maxLocations),
 		lockedLocations: Math.max(0, groupLocations - TIERS[currentTier].maxLocations),
@@ -77,6 +80,7 @@ export const load: PageServerLoad = async ({ locals, url, parent }) => {
 
 const TierForm = v.object({
 	tier: v.optional(v.pipe(v.string(), v.trim())),
+	interval: v.optional(v.picklist(['month', 'year'])),
 	idempotency_key: v.optional(v.string()),
 });
 
@@ -159,9 +163,10 @@ export const actions: Actions = {
 		const parsedForm = parseForm(TierForm, formData);
 		const tierParam = (parsedForm.success ? parsedForm.output.tier : undefined) ?? 'starter';
 		const tier = (tierParam in TIERS && tierParam !== 'trial' ? tierParam : 'starter') as PlanTier;
+		const interval: BillingInterval = parsedForm.success && parsedForm.output.interval === 'year' ? 'year' : 'month';
 
-		if (!isTierAvailable(tier)) {
-			console.error(`[billing] checkout blocked: STRIPE_PRICE_ID_${tier.toUpperCase()} is not configured`);
+		if (!isTierAvailable(tier, interval)) {
+			console.error(`[billing] checkout blocked: no ${interval} Stripe price configured for ${tier}`);
 			return fail(503, { error: 'billing.err.tierUnavailable' });
 		}
 
@@ -204,12 +209,13 @@ export const actions: Actions = {
 		let checkoutUrl: string;
 		try {
 			let customerId = await getOrCreateCustomer(rid, email, restaurant?.name ?? rid);
-			trackEvent('checkout_started', rid, { tier });
+			trackEvent('checkout_started', rid, { tier, interval });
 			try {
 				checkoutUrl = await createCheckoutSession({
 					restaurantId: rid,
 					customerId,
 					tier,
+					interval,
 					successUrl: `${siteOrigin(url)}/billing/confirm?session_id={CHECKOUT_SESSION_ID}`,
 					cancelUrl: `${siteOrigin(url)}/billing`,
 					...(idemKey != null ? { idempotencyKey: idemKey } : {}),
@@ -223,6 +229,7 @@ export const actions: Actions = {
 					restaurantId: rid,
 					customerId,
 					tier,
+					interval,
 					successUrl: `${siteOrigin(url)}/billing/confirm?session_id={CHECKOUT_SESSION_ID}`,
 					cancelUrl: `${siteOrigin(url)}/billing`,
 					userId: locals.user.id,
