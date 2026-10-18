@@ -2461,7 +2461,7 @@ export default {
   'waitlist.founderRole':          'Founder · Barcelona',
   'waitlist.pricingEyebrow':       'Pricing',
   'waitlist.pricingTitle':         'A plan for every size of operation',
-  'waitlist.pricingSub':           'Monthly prices, provisional until public launch. Every plan includes price-rise alerts.',
+  'waitlist.pricingSub':           'Monthly prices per account, excluding VAT, provisional until public launch. Every plan includes price-rise alerts.',
   'waitlist.pricingPerMonth':      '/mo',
   'waitlist.pricingFoot':          'Every plan includes invoice digitisation, spend-by-supplier view, and human support.',
   'waitlist.pricingTrialPrice':    'Free',

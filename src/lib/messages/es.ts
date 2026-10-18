@@ -2459,7 +2459,7 @@ export default {
   'waitlist.founderRole':          'Fundador · Barcelona',
   'waitlist.pricingEyebrow':       'Precios',
   'waitlist.pricingTitle':         'Un plan para cada tamaño de operación',
-  'waitlist.pricingSub':           'Precios mensuales, provisionales hasta el lanzamiento público. Todos los planes incluyen los avisos de subida de precio.',
+  'waitlist.pricingSub':           'Precios mensuales por cuenta, sin IVA, provisionales hasta el lanzamiento público. Todos los planes incluyen los avisos de subida de precio.',
   'waitlist.pricingPerMonth':      '/mes',
   'waitlist.pricingFoot':          'Todos los planes incluyen digitalización de albaranes, vista de gasto por proveedor y soporte en español.',
   'waitlist.pricingTrialPrice':    'Gratis',

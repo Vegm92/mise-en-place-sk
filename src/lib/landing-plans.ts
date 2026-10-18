@@ -21,6 +21,7 @@ export interface LandingTier extends LandingPlanFacts {
 export const PAID_TIER_IDS: readonly TierId[] = ['starter', 'pro', 'business'];
 
 export const ICP_TIER: TierId = 'business';
+export const CALCULATOR_DEFAULT_TIER: TierId = 'pro';
 
 export function landingTiers(plans: Record<TierId, LandingPlanFacts>): LandingTier[] {
 	return PAID_TIER_IDS.map((id) => ({

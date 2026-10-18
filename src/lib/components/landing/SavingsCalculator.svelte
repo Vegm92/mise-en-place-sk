@@ -11,7 +11,7 @@
     planShareOfStake,
     stakeAt,
   } from '$lib/savings-calculator';
-  import { ICP_TIER, type LandingTier } from '$lib/landing-plans';
+  import { CALCULATOR_DEFAULT_TIER, type LandingTier } from '$lib/landing-plans';
 
   let { tiers }: { tiers: LandingTier[] } = $props();
 
@@ -22,7 +22,7 @@
 
   let spendText = $state(formatSpendInput(DEFAULT_MONTHLY_SPEND, locale.current));
   let drift = $state<number>(DEFAULT_DRIFT);
-  let planId = $state(ICP_TIER);
+  let planId = $state(CALCULATOR_DEFAULT_TIER);
 
   const stake = $derived(stakeAt(parseMonthlySpend(spendText), drift));
   const plan = $derived(tiers.find((tier) => tier.id === planId) ?? tiers[tiers.length - 1]);
