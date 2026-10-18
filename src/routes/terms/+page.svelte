@@ -56,6 +56,14 @@
         <p>
           {section.textPre[loc]}<em>{section.emphasis[loc]}</em>{section.textPost[loc]}
         </p>
+      {:else if section.id === 'dataProcessing'}
+        <p>{section.intro[loc]}</p>
+        <ul>
+          {#each section.items as item}
+            <li>{item[loc]}</li>
+          {/each}
+        </ul>
+        <p>{section.outroPre[loc]}<a href="mailto:{termsMeta.contactEmail}">{termsMeta.contactEmail}</a>{section.outroPost[loc]}</p>
       {:else if section.id === 'contact'}
         <p>
           {section.textPre[loc]}<a href="mailto:{termsMeta.contactEmail}">{termsMeta.contactEmail}</a>

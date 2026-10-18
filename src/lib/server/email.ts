@@ -1,12 +1,10 @@
 import { Resend } from 'resend';
 import * as Sentry from '@sentry/sveltekit';
+import { emailFooterLines } from '$lib/legal-entity';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY ?? '';
 const EMAIL_FROM = process.env.EMAIL_FROM ?? 'Mise en Place <noreply@mise-place.com>';
 const APP_BASE_URL = process.env.APP_BASE_URL || 'https://mise-place.com';
-const COMPANY_LEGAL_NAME = process.env.COMPANY_LEGAL_NAME ?? '';
-const COMPANY_ADDRESS = process.env.COMPANY_ADDRESS ?? '';
-const COMPANY_NIF = process.env.COMPANY_NIF ?? '';
 
 const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 
@@ -132,11 +130,7 @@ function renderEmailLayout(opts: LayoutOptions): string {
 		<a href="${APP_BASE_URL}/privacy" style="color:${COLOR_FG3};text-decoration:none;border-bottom:1px solid rgba(20,20,24,.14);padding-bottom:1px;">Privacidad</a>
 	</div>` : '';
 
-	const legalLines = [
-		COMPANY_LEGAL_NAME ? escapeHtml(COMPANY_LEGAL_NAME) : BRAND_NAME,
-		COMPANY_ADDRESS ? escapeHtml(COMPANY_ADDRESS) : '',
-		COMPANY_NIF ? `NIF ${escapeHtml(COMPANY_NIF)}` : '',
-	].filter(Boolean).join('<br>');
+	const legalLines = emailFooterLines().map(escapeHtml).join('<br>');
 
 	return `<!DOCTYPE html>
 <html lang="es">
