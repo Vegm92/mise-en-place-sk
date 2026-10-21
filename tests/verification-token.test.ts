@@ -89,6 +89,24 @@ describeDb('consumeVerificationToken', () => {
 });
 
 describeDb('createVerificationToken', () => {
+	it('RULE-271: a fresh token expires one hour from now', async () => {
+		const identifier = uniqueIdentifier('ttl');
+		const token = await createVerificationToken(identifier);
+		const [row] = await testSql`
+			SELECT extract(epoch FROM (expires - now())) AS secs FROM verification_tokens
+			WHERE identifier = ${identifier} AND token = ${sha256(token)}
+		`;
+		expect(Number(row!.secs)).toBeGreaterThan(3590);
+		expect(Number(row!.secs)).toBeLessThanOrEqual(3600);
+	});
+
+	it('RULE-271: a token only works for the identifier it was issued to', async () => {
+		const identifier = uniqueIdentifier('bound');
+		const token = await createVerificationToken(identifier);
+		expect(await consumeVerificationToken(uniqueIdentifier('other'), token)).toBe(false);
+		expect(await consumeVerificationToken(identifier, token)).toBe(true);
+	});
+
 	it('invalidates any prior token for the same identifier (issue #503)', async () => {
 		const identifier = uniqueIdentifier('invalidate');
 		const first = await createVerificationToken(identifier);
