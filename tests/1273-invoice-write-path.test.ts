@@ -155,6 +155,29 @@ describe.skipIf(!hasDbEnv)('no supplier, balance or phone write before the dupli
 	});
 });
 
+describe.skipIf(!hasDbEnv)('line category overrides posted with a save', () => {
+	async function overrideFor(invoiceId: number): Promise<string | null> {
+		const [row] = await testSql`SELECT category_override FROM invoice_line_items WHERE invoice_id = ${invoiceId}`;
+		return row?.category_override ?? null;
+	}
+
+	it('keeps an override that names one of the restaurant categories', async () => {
+		const fd = minimalInvoiceForm('__wp_cat__', 'WP-CAT-OK');
+		fd.append('line_category_overrides', 'Bebidas');
+		const out = await save(fd);
+		if (out.type !== 'saved') throw new Error(out.type);
+		expect(await overrideFor(out.invoiceId)).toBe('Bebidas');
+	});
+
+	it('drops an override naming a category the restaurant does not have', async () => {
+		const fd = minimalInvoiceForm('__wp_cat__', 'WP-CAT-BAD');
+		fd.append('line_category_overrides', 'No such category');
+		const out = await save(fd);
+		if (out.type !== 'saved') throw new Error(out.type);
+		expect(await overrideFor(out.invoiceId)).toBeNull();
+	});
+});
+
 describe.skipIf(!hasDbEnv)('soft delete and its audit entry share one transaction (RULE-274)', () => {
 	afterEach(async () => {
 		await testSql.unsafe('DROP TRIGGER IF EXISTS fail_soft_delete_audit_1273 ON invoice_audit_log');

@@ -8,7 +8,7 @@ import { isSameSupplierName } from './normalize';
 import type { Alert } from './alerts';
 import { getOrCreateSupplierId, type SupplierContactInfo } from './supplier';
 import { UNCATEGORIZED_CATEGORY } from '$lib/constants';
-import { resolveCategoryFor } from './categories';
+import { resolveCategoryFor, selectableCategoryNames } from './categories';
 import type { ExtractedInvoice } from './contracts/extraction-contract.js';
 import type { BatchDb } from './batch';
 import { toMoneyString } from './money';
@@ -83,6 +83,9 @@ export async function enrichLineItems(
 			li.unitVal ? resolveUnit(supplierName, li.desc, li.unitVal, rid) : Promise.resolve(null)
 		)
 	);
+	const overrideNames = lineInputs.some((li) => li.categoryOverride)
+		? new Set(await selectableCategoryNames(rid))
+		: null;
 
 	return lineInputs.map((li, i) => {
 		const rule = unitRules[i];
@@ -110,6 +113,9 @@ export async function enrichLineItems(
 				baseUnit: pack?.baseUnit ?? null,
 				normalizedUnitPrice: toMoneyString(normalizedUnitPrice(li.unitPriceFloat, pack)),
 				supplierSku: li.supplierSku,
+				categoryOverride: li.categoryOverride && overrideNames?.has(li.categoryOverride) && li.categoryOverride !== UNCATEGORIZED_CATEGORY
+					? li.categoryOverride
+					: null,
 			},
 			item: {
 				description: li.desc,

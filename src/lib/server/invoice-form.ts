@@ -42,6 +42,7 @@ export type LineFormInput = {
 	taxRateVal: number | null;
 	pack: PackInfo | null;
 	supplierSku: string | null;
+	categoryOverride?: string | null;
 	productId?: number | null;
 	formIndex?: number;
 };
@@ -145,6 +146,7 @@ export function parseLineInputs(formData: FormData): LineFormInput[] {
 	const totalPrices  = formData.getAll('line_total_prices').map(String);
 	const taxRates     = formData.getAll('line_tax_rates').map(String);
 	const supplierSkus = formData.getAll('line_supplier_skus').map(String);
+	const categoryOverrides = formData.getAll('line_category_overrides').map(String);
 	const productIds   = formData.getAll('line_product_ids').map(String);
 
 	const out: LineFormInput[] = [];
@@ -162,6 +164,7 @@ export function parseLineInputs(formData: FormData): LineFormInput[] {
 			taxRateVal: parsePlainNumber(taxRates[i]),
 			pack: parsePack(desc, unitVal),
 			supplierSku: supplierSkus[i]?.trim() || null,
+			categoryOverride: categoryOverrides[i]?.trim() || null,
 			productId: Number.isInteger(productId) && productId > 0 ? productId : null,
 			formIndex: i,
 		});
