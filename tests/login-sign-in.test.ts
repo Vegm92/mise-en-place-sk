@@ -59,7 +59,7 @@ function signInEvent(fields: Record<string, string>, protocol = 'https:') {
 
 async function run(fields: Record<string, string>, protocol?: string) {
 	try {
-		return { result: await actions.signIn(signInEvent(fields, protocol)) as { status: number; data: Record<string, unknown> } };
+		return { result: await actions.signIn!(signInEvent(fields, protocol)) as { status: number; data: Record<string, unknown> } };
 	} catch (e) {
 		return { thrown: e as { status: number; location: string } };
 	}
