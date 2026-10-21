@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { db } from './db';
+import { isProduction } from './config';
 
 export interface DbRoleInfo {
 	role: string;
@@ -47,4 +48,15 @@ export function dbRoleDetail(info: DbRoleInfo): string {
 	return info.scoped
 		? `${info.role} · not table owner (${info.tableOwner}) · RLS active`
 		: `${info.role} · ${why || 'unscoped'} · RLS inert — runtime-role cutover pending (#464)`;
+}
+
+export async function assertScopedDbRole(
+	env: NodeJS.ProcessEnv = process.env,
+	read: () => Promise<DbRoleInfo> = readDbRole,
+): Promise<void> {
+	if (!isProduction(env)) return;
+	const info = await read();
+	if (!info.scoped) {
+		throw new Error(`[boot] database role is not scoped (${dbRoleDetail(info)}) — refusing to start in production. Connect as mep_runtime so RLS applies (#464).`);
+	}
 }

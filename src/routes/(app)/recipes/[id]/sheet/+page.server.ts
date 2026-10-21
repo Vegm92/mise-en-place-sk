@@ -76,7 +76,7 @@ export const actions: Actions = {
 			return fail(502, { error: 'rec.sheet.emailFailed' });
 		}
 
-		trackEvent('recipe_sheet_emailed', rid, { recipeId: id });
+		await trackEvent('recipe_sheet_emailed', rid, { recipeId: id });
 		return { sentTo: to };
 	},
 };

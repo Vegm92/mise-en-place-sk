@@ -113,7 +113,7 @@ export const actions: Actions = {
 			}
 		}));
 
-		trackEvent('budget_set', rid, { categories_with_limit: setCount });
+		await trackEvent('budget_set', rid, { categories_with_limit: setCount });
 
 		redirect(303, '/budgets');
 	},

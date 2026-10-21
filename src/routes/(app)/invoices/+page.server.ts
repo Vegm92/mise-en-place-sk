@@ -249,7 +249,7 @@ export const actions: Actions = {
 		const id = Number(data.get('id'));
 		const rid = locals.restaurantId!;
 		const ok = await markInvoiceReviewed(id, rid);
-		if (ok) trackEvent('invoice_review_state_changed', rid, { to: 'revisado' }, id);
+		if (ok) await trackEvent('invoice_review_state_changed', rid, { to: 'revisado' }, id);
 		redirect(303, ok ? '/invoices' : '/invoices?conflict=1');
 	},
 	deleteInvoice: async ({ request, locals }) => {
@@ -272,7 +272,7 @@ export const actions: Actions = {
 			userId:       uid,
 			snapshot:     JSON.stringify(inv),
 		});
-		trackEvent('invoice_status_changed', rid, { to: 'deleted' }, id);
+		await trackEvent('invoice_status_changed', rid, { to: 'deleted' }, id);
 		redirect(303, '/invoices');
 	},
 	bulkReviewed: async ({ request, locals }) => {

@@ -127,7 +127,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	await db.insert(chatMessages).values({ restaurantId: rid, sessionId: resolvedSessionId, role: 'user', text: message });
-	trackEvent('chat_message_sent', rid, { session_id: resolvedSessionId, length: message.length });
+	await trackEvent('chat_message_sent', rid, { session_id: resolvedSessionId, length: message.length });
 
 	const context = await buildChatContext(rid);
 

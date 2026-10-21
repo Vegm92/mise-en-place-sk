@@ -201,7 +201,7 @@ function applySentryContext(deps: RequestPolicyDeps, user: App.Locals['user'], r
 
 function enforceAdminRedirect(deps: RequestPolicyDeps, path: string, user: App.Locals['user']): void {
 	if ((path === '/admin' || path.startsWith('/admin/')) && !deps.isAdminUser(user)) {
-		redirect(303, '/');
+		redirect(303, user ? '/' : `/login?redirectTo=${encodeURIComponent(path)}`);
 	}
 }
 
@@ -255,7 +255,9 @@ async function resolveWithContext(
 	const runResolve = async () => resolveEvent(event);
 	return isAdminPath || SYSTEM_CONTEXT_PATHS.has(path)
 		? await deps.runAsSystem(runResolve)
-		: await deps.runWithTenantContext(event.locals.restaurantId, runResolve);
+		: event.locals.restaurantId
+			? await deps.runWithTenantContext(event.locals.restaurantId, runResolve)
+			: await runResolve();
 }
 
 export function applySecurityHeaders(path: string, response: Response, event: RequestEvent): Response {

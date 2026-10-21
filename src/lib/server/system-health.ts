@@ -15,6 +15,7 @@ import { TENANT_FANOUT_QUEUES } from './tenant-notification-jobs';
 import { lastJobRuns, type JobRunSummary } from './tenant-fanout';
 import { readWorkerHeartbeat, workerLiveness, type WorkerLiveness } from './worker-heartbeat';
 import { dbRoleDetail, readDbRole, type DbRoleInfo } from './db-role';
+import { isProduction } from './config';
 import { describeMigrationState, migrationState, type MigrationState } from './migration-state';
 import { envGaps, type EnvGaps } from './env-report';
 import {
@@ -152,10 +153,10 @@ async function checkDatabase(): Promise<{ checks: HealthCheck[]; ok: boolean }> 
 	}
 }
 
-export function dbRoleCheck(info: DbRoleInfo): HealthCheck {
+export function dbRoleCheck(info: DbRoleInfo, production: boolean = isProduction()): HealthCheck {
 	return {
 		name: 'DB role',
-		status: !info.role ? 'warn' : info.scoped ? 'ok' : 'warn',
+		status: !info.role ? 'warn' : info.scoped ? 'ok' : production ? 'error' : 'warn',
 		detail: dbRoleDetail(info),
 	};
 }

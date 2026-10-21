@@ -863,7 +863,7 @@ async function handleCheckoutCompleted(event: Stripe.Event, eventCreatedAt: Date
 	if (applied.length === 0) return;
 
 	await applyTierSettings(restaurantId, tier);
-	trackEvent('plan_upgraded', restaurantId, { tier, price_id: priceId });
+	await trackEvent('plan_upgraded', restaurantId, { tier, price_id: priceId });
 	console.info(`[billing] checkout.session.completed applied — restaurant=${restaurantId}, tier=${tier}, status=${sub.status}, subscription=${subscriptionId}`);
 
 	if (userId) {
@@ -930,7 +930,7 @@ async function handleSubscriptionChanged(event: Stripe.Event, eventCreatedAt: Da
 
 	await applyStatusSettings(restaurantId, sub.status, tier);
 	await notifyLocationsLocked(restaurantId, effectiveTier({ planTier: tier, status: sub.status, trialEndsAt: null }));
-	trackSubscriptionEvent(event, restaurantId, tier, sub.status);
+	await trackSubscriptionEvent(event, restaurantId, tier, sub.status);
 	console.info(`[billing] ${event.type} applied — restaurant=${restaurantId}, tier=${tier}, status=${sub.status}, subscription=${sub.id}`);
 }
 
@@ -942,15 +942,15 @@ async function applyStatusSettings(restaurantId: string, status: string, tier: P
 	}
 }
 
-function trackSubscriptionEvent(event: Stripe.Event, restaurantId: string, tier: PlanTier, status: string): void {
+async function trackSubscriptionEvent(event: Stripe.Event, restaurantId: string, tier: PlanTier, status: string): Promise<void> {
 	if (event.type === 'customer.subscription.deleted' || status === 'canceled') {
-		trackEvent('subscription_canceled', restaurantId, { tier, status });
+		await trackEvent('subscription_canceled', restaurantId, { tier, status });
 	} else if (status === 'past_due') {
-		trackEvent('payment_past_due', restaurantId, { tier, status });
+		await trackEvent('payment_past_due', restaurantId, { tier, status });
 	} else if (event.type === 'customer.subscription.paused') {
-		trackEvent('subscription_paused', restaurantId, { tier, status });
+		await trackEvent('subscription_paused', restaurantId, { tier, status });
 	} else if (event.type === 'customer.subscription.resumed') {
-		trackEvent('subscription_resumed', restaurantId, { tier, status });
+		await trackEvent('subscription_resumed', restaurantId, { tier, status });
 	}
 }
 
@@ -960,7 +960,7 @@ async function handleTrialWillEnd(event: Stripe.Event): Promise<void> {
 	if (missingSubscriptionMetadata(event.type, sub.id, restaurantId)) return;
 	if (!restaurantId) return;
 
-	trackEvent('trial_will_end', restaurantId, { subscription_id: sub.id });
+	await trackEvent('trial_will_end', restaurantId, { subscription_id: sub.id });
 }
 
 export async function syncSubscriptionFromStripe(restaurantId: string): Promise<void> {
