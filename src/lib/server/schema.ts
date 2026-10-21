@@ -542,6 +542,7 @@ export const extractionResults = pgTable('extraction_results', {
 	pipelineVersion:  text('pipeline_version'),
 	model:            text('model'),
 	extractedData:    jsonb('extracted_data').$type<Record<string, unknown>>().notNull(),
+	rawOutput:        jsonb('raw_output').$type<Record<string, unknown>>(),
 	fieldConfidences: jsonb('field_confidences').$type<Record<string, number>>(),
 	confidence:       real('confidence'),
 	conversionNotes:  jsonb('conversion_notes').$type<string[]>(),

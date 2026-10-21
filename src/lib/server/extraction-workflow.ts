@@ -46,11 +46,14 @@ const batchState = { getItem, getBatchItems, addItems, markQueued, markExtractin
 const segmentation = { isSegmentableDocument, segmentDocument };
 const quotaGate = { checkExtractionQuota, claimMonthlyExtraction, releaseMonthlyExtraction, reserveMonthlyExtractions, attributeReservation, recordLlmUsage };
 const geminiExtraction = { extractInvoice, extractWithProvider };
+const corpusGate = { recordExtractionResult };
 const deadLetterGate = { recordDeadLetter, runWithDeadLetter, deadLetterRefFromJob };
 
 export type InvoicePersistenceOutcome = SaveOutcome;
 
 export const productFollowUp = annotateLineItems;
+
+const ARCHIVE_ATTEMPTS = 3;
 
 const DEGRADATION_ERRORS = new Set([
 	'extract.err.rateLimited',
@@ -161,26 +164,39 @@ async function archiveExtraction(
 	filePath: string,
 	model: string | null,
 	extractedData: Record<string, unknown>,
+	rawOutput: Record<string, unknown>,
 	conversionNotes: string[],
 ): Promise<void> {
 	const isXml = path.extname(filePath).toLowerCase() === '.xml';
-	try {
-		await recordExtractionResult({
-			restaurantId,
-			batchItemId: item.id,
-			fileKey: item.fileKey,
-			displayName: item.displayName,
-			source: item.source,
-			runKind: 'live',
-			promptVersion: isXml ? EINVOICE_PARSER_VERSION : EXTRACTION_PROMPT_VERSION,
-			pipelineVersion: isXml ? null : getPipelineVersion(),
-			model,
-			extractedData,
-			conversionNotes,
-		});
-	} catch (err) {
-		log.error('extraction corpus write failed (continuing)', { itemId: item.id, restaurantId, err });
+	const input = {
+		restaurantId,
+		batchItemId: item.id,
+		fileKey: item.fileKey,
+		displayName: item.displayName,
+		source: item.source,
+		runKind: 'live' as const,
+		promptVersion: isXml ? EINVOICE_PARSER_VERSION : EXTRACTION_PROMPT_VERSION,
+		pipelineVersion: isXml ? null : getPipelineVersion(),
+		model,
+		extractedData,
+		rawOutput,
+		conversionNotes,
+	};
+	let lastError: unknown;
+	for (let attempt = 1; attempt <= ARCHIVE_ATTEMPTS; attempt++) {
+		try {
+			await corpusGate.recordExtractionResult(input);
+			return;
+		} catch (err) {
+			lastError = err;
+			log.warn('extraction corpus write failed', { itemId: item.id, restaurantId, attempt, err });
+		}
 	}
+	log.error('extraction corpus write failed for good', { itemId: item.id, restaurantId, err: lastError });
+	Sentry.captureMessage('extraction.archive_failed', {
+		level: 'warning',
+		tags: { itemId: item.id, restaurantId },
+	});
 }
 
 async function inspectDocumentStructure(
@@ -393,6 +409,8 @@ export async function runExtractionWorkflow(
 			await slot.release();
 		}
 
+		const rawOutput = structuredClone(result) as unknown as Record<string, unknown>;
+
 		const parties = resolveInvoiceParties(result, await ownPartyIdentity(restaurantId));
 		result = parties.invoice;
 		if (parties.swapped) {
@@ -442,7 +460,7 @@ export async function runExtractionWorkflow(
 		};
 
 		await batchState.markDone(itemId, extractedData, conversionNotes);
-		await archiveExtraction(item, restaurantId, filePath, model, extractedData, conversionNotes);
+		await archiveExtraction(item, restaurantId, filePath, model, extractedData, rawOutput, conversionNotes);
 		if (totalMismatch) {
 			log.warn('Total mismatch detected (lines + tax vs. extracted total)', { itemId, restaurantId, requestId });
 		}
