@@ -14,6 +14,7 @@ import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import { explicitDeletionEntries, rootEntry } from '$lib/server/tenant-data-map';
 import { and, eq, inArray, isNotNull, ne } from 'drizzle-orm';
 import { userMemberships } from '$lib/server/locations';
+import { forTenant } from '$lib/server/tenant';
 
 async function collectTenantFileKeys(restaurantIds: string[]): Promise<string[]> {
 	if (restaurantIds.length === 0) return [];
@@ -139,7 +140,7 @@ export const POST: RequestHandler = async ({ locals, request, cookies }) => {
 		for (const t of transfers) {
 			await tx.update(userRestaurants)
 				.set({ role: 'owner' })
-				.where(and(eq(userRestaurants.restaurantId, t.restaurantId), eq(userRestaurants.userId, t.toUserId)));
+				.where(forTenant(t.restaurantId).scope(userRestaurants.restaurantId, eq(userRestaurants.userId, t.toUserId)));
 		}
 		if (soleOwnedIds.length > 0) {
 			for (const entry of explicitDeletionEntries()) {
