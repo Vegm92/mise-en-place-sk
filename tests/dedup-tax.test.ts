@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { computeInvoiceContentHash, canonicalTaxBands } from '../src/lib/server/dedup';
-import { computeFormContentHash } from '../src/lib/server/invoice-save';
+import { computeFormContentHash } from '../src/lib/server/invoice-form';
 import { hashForStoredInvoice } from '../src/lib/server/rehash';
 import type { TaxBand } from '../src/lib/tax';
 
