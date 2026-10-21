@@ -1,15 +1,13 @@
 import { getStorage } from './storage.js';
 import { cancelSubscription } from './billing.js';
+import {
+	accountCleanupUserId,
+	type AccountCleanupJobData,
+	type LegacyAccountCleanupJobData,
+} from './contracts/account-cleanup-contract.js';
 
-export interface AccountCleanupJobData {
-	itemId: string;
-	restaurantId: string | null;
-	stripeSubscriptionIds: string[];
-	storageKeys: string[];
-	requestId?: string;
-}
-
-export async function processAccountCleanupJob(data: AccountCleanupJobData): Promise<void> {
+export async function processAccountCleanupJob(data: AccountCleanupJobData | LegacyAccountCleanupJobData): Promise<void> {
+	const userId = accountCleanupUserId(data);
 	const errors: unknown[] = [];
 
 	for (const subscriptionId of data.stripeSubscriptionIds) {
@@ -17,7 +15,7 @@ export async function processAccountCleanupJob(data: AccountCleanupJobData): Pro
 			await cancelSubscription(subscriptionId);
 		} catch (err) {
 			errors.push(err);
-			console.error(`[account-cleanup] Stripe cancel failed for subscription=${subscriptionId} user=${data.itemId}:`, err);
+			console.error(`[account-cleanup] Stripe cancel failed for subscription=${subscriptionId} user=${userId}:`, err);
 		}
 	}
 
@@ -27,12 +25,12 @@ export async function processAccountCleanupJob(data: AccountCleanupJobData): Pro
 			await storage.delete(key);
 		} catch (err) {
 			errors.push(err);
-			console.error(`[account-cleanup] file delete failed for key=${key} user=${data.itemId}:`, err);
+			console.error(`[account-cleanup] file delete failed for key=${key} user=${userId}:`, err);
 		}
 	}
 
 	if (errors.length > 0) {
 		const total = data.stripeSubscriptionIds.length + data.storageKeys.length;
-		throw new AggregateError(errors, `account-cleanup: ${errors.length}/${total} step(s) failed for user=${data.itemId}`);
+		throw new AggregateError(errors, `account-cleanup: ${errors.length}/${total} step(s) failed for user=${userId}`);
 	}
 }

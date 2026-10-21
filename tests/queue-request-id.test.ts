@@ -57,7 +57,7 @@ describe('enqueue* functions carry the caller\'s requestId into the pg-boss job 
 
 	it('enqueueAccountCleanup', async () => {
 		await enqueueAccountCleanup('user-1', 'rest-1', ['sub-1'], ['key-1'], 'req-abc');
-		expect(payloadOf()).toEqual(expect.objectContaining({ itemId: 'user-1', restaurantId: 'rest-1', requestId: 'req-abc' }));
+		expect(payloadOf()).toEqual(expect.objectContaining({ userId: 'user-1', restaurantId: 'rest-1', requestId: 'req-abc' }));
 	});
 
 	it('omits nothing but the id itself when the caller has none to give', async () => {

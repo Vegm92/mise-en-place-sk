@@ -9,13 +9,13 @@ export const WHATSAPP_INBOUND_DEAD_LETTER_QUEUE = `${WHATSAPP_INBOUND_QUEUE}-dea
 export interface WhatsAppNotifyJobData {
 	itemId: string;
 	restaurantId: string;
-	requestId?: string;
+	requestId?: string | undefined;
 }
 
 export interface WhatsAppInboundJobData {
 	messageId: string;
 	msg: WhatsAppInboundMessage;
-	requestId?: string;
+	requestId?: string | undefined;
 }
 
 export const WHATSAPP_NOTIFY_OPTIONS = (itemId: string) => ({

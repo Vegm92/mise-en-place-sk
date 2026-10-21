@@ -238,7 +238,7 @@ export function deadLetterRefFromJob(
 	const data = (job.data ?? {}) as Record<string, unknown>;
 	const restaurantId = typeof data.restaurantId === 'string' ? data.restaurantId : null;
 	const productId = firstString(data.productId);
-	const sourceId = firstString(data.itemId, data.sessionId)
+	const sourceId = firstString(data.itemId, data.userId, data.sessionId)
 		?? (restaurantId && productId ? `${restaurantId}:${productId}` : productId);
 	const retryCount = job.retryCount ?? 0;
 	const retryLimit = job.retryLimit ?? 0;

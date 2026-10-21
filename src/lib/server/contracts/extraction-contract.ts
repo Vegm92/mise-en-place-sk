@@ -4,9 +4,14 @@ export const EXTRACTION_DEAD_LETTER_QUEUE = `${EXTRACTION_QUEUE}-dead-letter`;
 export interface ExtractionJobData {
 	itemId: string;
 	restaurantId: string;
-	requestId?: string;
+	requestId?: string | undefined;
 	storageFingerprint?: string;
 }
+
+export type LegacyExtractionJobData = Omit<ExtractionJobData, 'itemId'> & {
+	itemId?: string;
+	sessionId?: string;
+};
 
 export const EXTRACTION_OPTIONS = (itemId: string) => ({
 	retryLimit: 2,

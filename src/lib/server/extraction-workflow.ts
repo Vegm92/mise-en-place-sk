@@ -30,7 +30,10 @@ import {
 import { getAccessState } from './billing.js';
 import { isLocationLocked } from './locations.js';
 import { deadLetterRefFromJob, recordDeadLetter, runWithDeadLetter } from './dead-letter.js';
-import { EXTRACTION_QUEUE } from './contracts/extraction-contract.js';
+import {
+	EXTRACTION_QUEUE,
+	type LegacyExtractionJobData,
+} from './contracts/extraction-contract.js';
 import { enqueueExtraction, enqueueWhatsAppNotify } from './queue.js';
 import { acquireExtractionSlot, ExtractionSlotUnavailableError } from './rate-limiter.js';
 import { createLogger } from './log.js';
@@ -48,14 +51,6 @@ const deadLetterGate = { recordDeadLetter, runWithDeadLetter, deadLetterRefFromJ
 export type InvoicePersistenceOutcome = SaveOutcome;
 
 export const productFollowUp = annotateLineItems;
-
-export interface ExtractionJobData {
-	itemId?: string;
-	sessionId?: string;
-	restaurantId: string;
-	requestId?: string;
-	storageFingerprint?: string;
-}
 
 const DEGRADATION_ERRORS = new Set([
 	'extract.err.rateLimited',
@@ -280,7 +275,7 @@ function removeTmpFile(tmpPath: string): void {
 export type ExtractionOutcome = 'completed' | 'failed';
 
 export async function runExtractionWorkflow(
-	jobData: ExtractionJobData,
+	jobData: LegacyExtractionJobData,
 	generateOverride?: GenerateFn,
 	retryInfo?: { retryCount: number; retryLimit: number },
 ): Promise<ExtractionOutcome> {
@@ -472,7 +467,7 @@ export async function runExtractionWorkflow(
 
 export async function runExtractionJobForBoss(job: {
 	id: string;
-	data: ExtractionJobData;
+	data: LegacyExtractionJobData;
 	retryCount?: number | null;
 	retryLimit?: number | null;
 }): Promise<{ id: string; status: 'completed' | 'failed' | 'deadletter' }> {
