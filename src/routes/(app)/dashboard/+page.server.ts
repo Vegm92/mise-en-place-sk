@@ -4,7 +4,7 @@ import { localToday, monthRange } from '$lib/server/period-range';
 import { daysBetween, monthOf, previousRange } from '$lib/period';
 import { db, forTenant } from '$lib/server/db';
 import { invoices, categoryBudgets, settings, systemNotifications } from '$lib/server/schema';
-import { describedLine, lineAmountExpr, lineCategoryExpr, lineProductJoin } from '$lib/server/category-spend';
+import { describedLine, lineAmountExpr, lineCategoryExpr, lineProductJoin, uncategorizedSummary } from '$lib/server/category-spend';
 import { desc, eq, isNull, sql, and } from 'drizzle-orm';
 import { detectMissingInvoices } from '$lib/server/supplier-cadence';
 import { moneyToNumber } from '$lib/server/money';
@@ -167,9 +167,10 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 
 		const rawThreshold = thresholdRow[0] ? parseFloat(thresholdRow[0].value) : NaN;
 		const threshold = Number.isFinite(rawThreshold) && rawThreshold > 0 ? rawThreshold : DEFAULT_DEVIATION_THRESHOLD;
-		const [deviations, missingInvoices] = await Promise.all([
+		const [deviations, missingInvoices, uncategorizedLines] = await Promise.all([
 			priceDeviations(rid, rangeFrom, rangeTo, threshold),
 			detectMissingInvoices(rid, today),
+			uncategorizedSummary(rid, rangeFrom, rangeTo),
 		]);
 		const turnoPriceShocks: PriceShockInput[] = deviations.slice(0, 10).map((d) => ({
 			id: `${d.key}|${d.supplierId ?? d.supplierName}`,
@@ -203,6 +204,7 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 			budgets, total_budget: totalBudget,
 			missing_invoices: missingInvoices,
 			uncategorized_suppliers: uncategorized,
+			uncategorized_lines: uncategorizedLines,
 			turno_price_shocks: turnoPriceShocks,
 			is_current_month: isCurrentMonth,
 			mom: { this_month: Number(mom.this_month), last_month: Number(mom.last_month), pct_change: momPct },

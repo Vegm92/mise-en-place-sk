@@ -30,6 +30,7 @@
     projection: Projection | null;
     is_current_month: boolean;
     uncategorized_suppliers: UncategorizedInput[];
+    uncategorized_lines: { count: number; amount: number };
     turno_price_shocks: PriceShockInput[];
     missing_invoices: MissingInput[];
     invoices_outside_month: number;
@@ -56,6 +57,7 @@
     review: data.review,
     missing: data.missing_invoices,
     uncategorized: data.uncategorized_suppliers,
+    uncategorizedLines: data.uncategorized_lines,
   });
 
   const worklist = $derived(buildWorklist(turnoInput));
