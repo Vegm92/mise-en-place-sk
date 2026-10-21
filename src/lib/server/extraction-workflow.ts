@@ -409,7 +409,7 @@ export async function runExtractionWorkflow(
 			await slot.release();
 		}
 
-		const rawOutput = structuredClone(result) as unknown as Record<string, unknown>;
+		const rawOutput: Record<string, unknown> = { ...structuredClone(result) };
 
 		const parties = resolveInvoiceParties(result, await ownPartyIdentity(restaurantId));
 		result = parties.invoice;
