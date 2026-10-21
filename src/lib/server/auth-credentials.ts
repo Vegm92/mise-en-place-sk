@@ -2,8 +2,7 @@ import bcrypt from 'bcryptjs';
 import { eq } from 'drizzle-orm';
 import { db } from './db';
 import { users } from './schema';
-
-type SessionUser = { id: string; email: string; name: string | null; image: string | null };
+import type { SessionUser } from './auth-session';
 
 async function matchPassword(email: string, password: string) {
 	const normalizedEmail = email.toLowerCase().trim();

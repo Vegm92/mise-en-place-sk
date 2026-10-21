@@ -1,11 +1,7 @@
 import { getItem } from '../../batch';
 import { batchLink, setReviewStatus } from './jobs';
 import type { WhatsAppMessageContext } from './transport';
-
-export interface WhatsAppNotifyJobData {
-	itemId: string;
-	restaurantId: string;
-}
+import type { WhatsAppNotifyJobData } from '../../contracts/whatsapp-contract.js';
 
 function money(value: unknown): string {
 	const n = typeof value === 'number' ? value : Number(value);

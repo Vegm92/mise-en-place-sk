@@ -38,7 +38,7 @@ beforeEach(() => {
 describe('processAccountCleanupJob (issue #492)', () => {
 	it('cancels every Stripe subscription and deletes every stored file', async () => {
 		await processAccountCleanupJob({
-			itemId: 'user-1',
+			userId: 'user-1',
 			restaurantId: 'rest-1',
 			stripeSubscriptionIds: ['sub_a', 'sub_b'],
 			storageKeys: ['invoices/a.pdf', 'invoices/b.pdf'],
@@ -52,7 +52,7 @@ describe('processAccountCleanupJob (issue #492)', () => {
 
 	it('is a no-op when there is nothing to clean up', async () => {
 		await expect(processAccountCleanupJob({
-			itemId: 'user-1',
+			userId: 'user-1',
 			restaurantId: null,
 			stripeSubscriptionIds: [],
 			storageKeys: [],
@@ -65,7 +65,7 @@ describe('processAccountCleanupJob (issue #492)', () => {
 		cancelSubscriptionMock.mockRejectedValueOnce(new Error('stripe unavailable'));
 
 		await expect(processAccountCleanupJob({
-			itemId: 'user-1',
+			userId: 'user-1',
 			restaurantId: 'rest-1',
 			stripeSubscriptionIds: ['sub_a'],
 			storageKeys: ['invoices/a.pdf'],
@@ -78,7 +78,7 @@ describe('processAccountCleanupJob (issue #492)', () => {
 		deleteMock.mockRejectedValueOnce(new Error('storage unavailable'));
 
 		await expect(processAccountCleanupJob({
-			itemId: 'user-1',
+			userId: 'user-1',
 			restaurantId: 'rest-1',
 			stripeSubscriptionIds: ['sub_a'],
 			storageKeys: ['invoices/a.pdf'],
@@ -92,7 +92,7 @@ describe('processAccountCleanupJob (issue #492)', () => {
 		deleteMock.mockResolvedValue(undefined);
 
 		await expect(processAccountCleanupJob({
-			itemId: 'user-1',
+			userId: 'user-1',
 			restaurantId: 'rest-1',
 			stripeSubscriptionIds: ['sub_a', 'sub_b'],
 			storageKeys: ['invoices/a.pdf'],

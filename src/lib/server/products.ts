@@ -18,6 +18,8 @@ import { renderTemplate } from '$lib/i18n-messages';
 import { toAllergenList } from '$lib/recipes';
 import { moneyToNullableNumber } from './money';
 import { yoyChangeForYear, type YearlyPriceInput } from '$lib/price-yoy';
+import type { CategorizeJobData, NormalizeJobData } from './contracts/products-contract.js';
+import type { ProductMatch } from '$lib/batch-form';
 
 type Database = PostgresJsDatabase<typeof schema>;
 
@@ -755,15 +757,7 @@ async function insertAlias(
 
 export type ProductMatchStatus = 'exact' | 'fuzzy' | 'pending' | 'new';
 
-export interface ProductMatch {
-	description: string;
-	productId: number | null;
-	productName: string;
-	status: ProductMatchStatus;
-	score: number | null;
-	suggestedTaxRate: number | null;
-	suggestion?: { candidateName: string; candidateProductId: number } | null;
-}
+export type { ProductMatch };
 
 export interface ProductMatchInput {
 	description: string;
@@ -1244,13 +1238,6 @@ export async function deleteProductAlias(
 export const LLM_MATCH_THRESHOLD = 0.8;
 const MAX_CANDIDATES = 50;
 
-export interface NormalizeJobData {
-	restaurantId: string;
-	productId: number;
-	rawText: string;
-	requestId?: string;
-}
-
 export interface Candidate { id: number; name: string }
 
 export interface NormalizeVerdict { matchId: number | null; confidence: number }
@@ -1395,12 +1382,6 @@ export async function processNormalizeJob(data: NormalizeJobData, deps: Normaliz
 	}
 }
 
-export interface CategorizeJobData {
-	restaurantId: string;
-	productId: number;
-	canonicalName: string;
-	requestId?: string;
-}
 
 export function buildCategorizePrompt(canonicalName: string): string {
 	return [
