@@ -218,7 +218,7 @@ describe('effectiveTier', () => {
 
 	it('keeps the paid tier while the subscription is live', () => {
 		expect(effectiveTier({ planTier: 'pro', status: 'active', trialEndsAt: null })).toBe('pro');
-		expect(effectiveTier({ planTier: 'business', status: 'past_due', trialEndsAt: null })).toBe('business');
+		expect(effectiveTier({ planTier: 'business', status: 'past_due', trialEndsAt: null, pastDueSince: new Date() })).toBe('business');
 	});
 
 	it('drops to trial when the subscription is no longer paying', () => {
