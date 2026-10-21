@@ -1,4 +1,4 @@
-export const WORK_KINDS = ['price', 'budget', 'review', 'missing', 'supplier'] as const;
+export const WORK_KINDS = ['price', 'budget', 'review', 'missing', 'supplier', 'lines'] as const;
 
 export type WorkKind = (typeof WORK_KINDS)[number];
 
@@ -65,6 +65,7 @@ export interface TurnoInput {
 	review: { count: number; amount: number; incidencias: number };
 	missing: MissingInput[];
 	uncategorized: UncategorizedInput[];
+	uncategorizedLines?: { count: number; amount: number };
 }
 
 export const MAX_WORK_ITEMS = 6;
@@ -268,6 +269,26 @@ function pushSupplierItems(input: TurnoInput, out: WorkItem[]): void {
 	});
 }
 
+function pushLinesItem(input: TurnoInput, out: WorkItem[]): void {
+	const lines = input.uncategorizedLines;
+	if (!lines || lines.count <= 0) return;
+	out.push({
+		id: 'lines',
+		kind: 'lines',
+		severity: 'low',
+		eur: lines.amount,
+		urgencyRank: 95,
+		urgencyKey: 'turno.when.whenYouCan',
+		urgencyVars: {},
+		titleKey: 'turno.lines.title',
+		titleVars: { n: lines.count },
+		whyKey: 'turno.lines.why',
+		whyVars: {},
+		actionKey: 'turno.lines.action',
+		href: '/categorize',
+	});
+}
+
 export function buildWorklist(input: TurnoInput): WorkItem[] {
 	const items: WorkItem[] = [];
 	pushPriceItems(input, items);
@@ -275,6 +296,7 @@ export function buildWorklist(input: TurnoInput): WorkItem[] {
 	pushReviewItems(input, items);
 	pushMissingItems(input, items);
 	pushSupplierItems(input, items);
+	pushLinesItem(input, items);
 
 	sortWorklistInPlace(items, 'money');
 	if (items.length > MAX_WORK_ITEMS) {

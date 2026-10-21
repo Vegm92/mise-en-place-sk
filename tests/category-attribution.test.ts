@@ -272,7 +272,8 @@ describeDb('category attribution — the shared criterion', () => {
 		const rows = await testDb.execute<{ category: string }>(sql`
 			SELECT ${lineCategoryExpr()} AS category
 			FROM (SELECT NULL::text AS category) AS suppliers,
-			     (SELECT NULL::text AS category) AS products
+			     (SELECT NULL::text AS category) AS products,
+			     (SELECT NULL::text AS category_override) AS invoice_line_items
 		`);
 		expect(rows[0]!.category).toBe(UNCATEGORIZED_CATEGORY);
 	});
@@ -281,7 +282,8 @@ describeDb('category attribution — the shared criterion', () => {
 		const rows = await testDb.execute<{ category: string }>(sql`
 			SELECT ${lineCategoryExpr()} AS category
 			FROM (SELECT 'Bebidas'::text AS category) AS suppliers,
-			     (SELECT 'Frutas y Verduras'::text AS category) AS products
+			     (SELECT 'Frutas y Verduras'::text AS category) AS products,
+			     (SELECT NULL::text AS category_override) AS invoice_line_items
 		`);
 		expect(rows[0]!.category).toBe('Frutas y Verduras');
 	});

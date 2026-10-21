@@ -2,7 +2,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { randomBytes } from 'crypto';
 import path from 'node:path';
-import { saveUploadedFiles } from '$lib/server/sessions';
+import { countUploadItems, saveUploadedFiles } from '$lib/server/sessions';
 import { createBatch, getItem, getBatchItems, markQueued } from '$lib/server/batch';
 import { enqueueExtraction } from '$lib/server/queue';
 import { enqueueBatchExtraction } from '$lib/server/extract-batch';
@@ -85,8 +85,14 @@ export const actions: Actions = {
 			return fail(429, { error: 'upload.err.rateLimited' });
 		}
 
-		const remaining = await remainingMonthlyQuota(rid, entitlements?.monthlyQuota ?? null);
-		if (remaining !== null && files.length > remaining) {
+		let remaining: number | null;
+		try {
+			remaining = await remainingMonthlyQuota(rid, entitlements?.monthlyQuota ?? null);
+		} catch (err) {
+			console.error('[upload] monthly usage read failed, refusing upload:', err);
+			return fail(503, { error: 'upload.err.quotaUnknown' });
+		}
+		if (remaining !== null && (await countUploadItems(files)) > remaining) {
 			redirect(303, remaining === 0
 				? '/?error=upload.err.quotaExhausted&upgrade=1'
 				: `/?error=upload.err.quotaRemaining&remaining=${remaining}&upgrade=1`);

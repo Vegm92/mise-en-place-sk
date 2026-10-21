@@ -58,6 +58,7 @@ export const ROUTE_POLICY = {
 	'/(app)/billing':                    'open',
 	'/(app)/billing/confirm':              'open',
 	'/(app)/budgets':                    'open',
+	'/(app)/categorize':                 'open',
 	'/(app)/chat':                       'open',
 	'/(app)/dashboard':                  'open',
 	'/(app)/digest':                     'open',

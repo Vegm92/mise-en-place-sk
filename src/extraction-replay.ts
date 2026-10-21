@@ -65,8 +65,9 @@ async function replayEntry(entry: CorpusEntry): Promise<FieldDiff[] | null> {
 			promptVersion: EXTRACTION_PROMPT_VERSION,
 			model: usage.model,
 			extractedData: candidate,
+			rawOutput: candidate,
 		});
-		return diffExtractions(entry.extractedData, candidate);
+		return diffExtractions(entry.rawOutput ?? entry.extractedData, candidate);
 	} finally {
 		try { fs.unlinkSync(tmpPath); } catch { }
 	}
