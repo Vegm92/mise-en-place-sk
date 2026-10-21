@@ -1,0 +1,2 @@
+DROP INDEX "uq_invoices_rid_supplier_number";--> statement-breakpoint
+CREATE UNIQUE INDEX "uq_invoices_rid_supplier_number" ON "invoices" USING btree ("restaurant_id","supplier_id","invoice_number") WHERE "invoices"."invoice_number" IS NOT NULL AND "invoices"."deleted_at" IS NULL;

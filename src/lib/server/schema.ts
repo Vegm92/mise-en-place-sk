@@ -113,7 +113,7 @@ export const invoices = pgTable('invoices', {
 }, (t) => [
 	uniqueIndex('uq_invoices_rid_supplier_number')
 		.on(t.restaurantId, t.supplierId, t.invoiceNumber)
-		.where(sql`${t.invoiceNumber} IS NOT NULL`),
+		.where(sql`${t.invoiceNumber} IS NOT NULL AND ${t.deletedAt} IS NULL`),
 	index('idx_invoices_linked_invoice_id')
 		.on(t.linkedInvoiceId)
 		.where(sql`${t.linkedInvoiceId} IS NOT NULL`),

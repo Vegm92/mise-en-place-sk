@@ -1,7 +1,7 @@
 import { computeInvoiceContentHash } from './dedup';
 import { db, forTenant } from './db';
 import { invoices, invoiceLineItems, invoiceAuditLog, extractionCorrections, settings, suppliers, restaurants } from './schema';
-import { eq, and, isNull, inArray, notInArray } from 'drizzle-orm';
+import { eq, and, isNull, inArray, notInArray, TransactionRollbackError } from 'drizzle-orm';
 import { normalizePhoneNumber } from '$lib/phone';
 import { normalizeTaxId, taxIdDecidesIdentity } from '$lib/tax-id';
 import { resolveUnit, resolveLineProducts, parsePack, normalizedUnitPrice, applyExtractedAllergens, assignLineProduct, getProductName } from './products';
@@ -13,7 +13,8 @@ import { maybeSendQuotaWarning } from './quota-warning';
 import { trackEvent } from './events';
 import { runDetached } from './tenant-context';
 import { claimRequest, releaseRequest, isValidKey } from './idempotency';
-import { getOrCreateSupplierId, type SupplierContactInfo } from './supplier';
+import { findSupplierId, getOrCreateSupplierId, type SupplierContactInfo } from './supplier';
+import { findContentHashDuplicate, findInvoiceDuplicate, type DuplicateOutcome } from './invoice-dedup';
 import { UNCATEGORIZED_CATEGORY, isValidPaymentMethod } from '$lib/constants';
 import { resolveCategoryFor } from './categories';
 import type { EnrichedLineItem, PackInfo } from './products';
@@ -235,20 +236,6 @@ async function insertEnrichedLines(
 	}
 }
 
-async function invoiceNumberTaken(
-	tx: BatchDb,
-	tdb: TenantScope,
-	supplierId: number,
-	invoiceNumber: string,
-): Promise<boolean> {
-	const dup = await tx
-		.select({ id: invoices.id })
-		.from(invoices)
-		.where(and(tdb.scope(invoices.restaurantId), eq(invoices.supplierId, supplierId), eq(invoices.invoiceNumber, invoiceNumber)))
-		.limit(1);
-	return dup.length > 0;
-}
-
 export async function findExistingFilenames(restaurantId: string): Promise<Set<string>> {
 	const tdb = forTenant(restaurantId);
 	const rows = await db
@@ -256,19 +243,6 @@ export async function findExistingFilenames(restaurantId: string): Promise<Set<s
 		.from(invoices)
 		.where(and(tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt)));
 	return new Set(rows.map((r) => r.sourceFile?.toLowerCase()).filter((n): n is string => !!n));
-}
-
-async function findContentHashDuplicate(
-	tx: BatchDb,
-	tdb: TenantScope,
-	contentHash: string,
-): Promise<number | null> {
-	const dup = await tx
-		.select({ id: invoices.id })
-		.from(invoices)
-		.where(and(tdb.scope(invoices.restaurantId), eq(invoices.contentHash, contentHash), isNull(invoices.deletedAt)))
-		.limit(1);
-	return dup.length > 0 ? dup[0]!.id : null;
 }
 
 export type LineFormInput = {
@@ -1005,98 +979,100 @@ export async function saveReviewedInvoice(
 
 	let supplierId = 0;
 	let invoiceId: number | null = null;
-	let duplicateOutcome: Extract<SaveOutcome, { type: 'contentDuplicate' | 'numberDuplicate' }> | null = null;
+	let duplicateOutcome: DuplicateOutcome | null = null;
 	let isReplay = false;
 	let restaurantPhoneMismatch: ProfileMismatch | null = null;
 	let restaurantTaxIdMismatch: ProfileMismatch | null = null;
 	const savedItems: EnrichedLineItem[] = [];
 	const unitConversionAlerts: Alert[] = [];
 
-	await db.transaction(async (tx) => {
-		if (idemKey && !(await claimRequest(idemKey, rid, tx))) {
-			isReplay = true;
-			return;
-		}
+	try {
+		await db.transaction(async (tx) => {
+			if (idemKey && !(await claimRequest(idemKey, rid, tx))) {
+				isReplay = true;
+				return;
+			}
 
-		const hashDuplicateId = await findContentHashDuplicate(tx, tdb, contentHash);
-		if (hashDuplicateId !== null) {
-			duplicateOutcome = { type: 'contentDuplicate', duplicateId: hashDuplicateId };
-			if (idemKey) await releaseRequest(idemKey, tx);
-			return;
-		}
-
-		supplierId = await getOrCreateSupplierId(rid, supplierName, tx, proposedCategory, proposedContact, contactTrusted);
-		restaurantPhoneMismatch = await resolveRestaurantPhoneSignal(tx, rid, extracted?.receiver_phone ?? null);
-		restaurantTaxIdMismatch = await resolveRestaurantTaxIdSignal(
-			tx, rid, extracted?.receiver_nif ?? null, extracted?.field_confidences?.receiver_nif ?? null,
-		);
-
-		const outstandingBalance = typeof extracted?.outstanding_balance === 'number' ? String(extracted.outstanding_balance) : null;
-		if (outstandingBalance !== null) {
-			await tx.update(suppliers).set({ outstandingBalance }).where(eq(suppliers.id, supplierId));
-		}
-
-		if (invoiceNumber.trim() && await invoiceNumberTaken(tx, tdb, supplierId, invoiceNumber.trim())) {
-			duplicateOutcome = { type: 'numberDuplicate' };
-			if (idemKey) await releaseRequest(idemKey, tx);
-			return;
-		}
-
-		const insertedInvoice = await tx
-			.insert(invoices)
-			.values({
-				restaurantId: rid,
-				supplierId,
-				invoiceNumber: invoiceNumber || null,
-				documentType,
-				invoiceDate,
-				dueDate,
-				totalAmount,
-				taxBase,
-				taxBreakdown,
-				grossAmount,
-				discountAmount,
-				retentionRate,
-				retentionAmount,
-				paymentMethod,
-				paymentTerms,
-				status: 'pending',
-				reviewState,
-				incidenceKind,
-				incidenceReasons,
-				sourceFile: primaryFile,
-				confidence: confidenceRaw,
+			const knownSupplierId = await findSupplierId(rid, supplierName, tx, proposedContact, contactTrusted);
+			const preInsertDuplicate = await findInvoiceDuplicate(tx, tdb, {
 				contentHash,
-				notes,
-				qrUrl: qrResult?.url ?? null,
-				qrMismatch: qrMismatches.length > 0,
-				purchaseOrder,
-				sellerName,
-				deliveryDate,
-				deliveryAddress,
-				printedNotes,
-			})
-			.onConflictDoNothing()
-			.returning({ id: invoices.id });
+				supplierId: knownSupplierId,
+				invoiceNumber: invoiceNumber.trim(),
+			});
+			if (preInsertDuplicate) {
+				duplicateOutcome = preInsertDuplicate;
+				if (idemKey) await releaseRequest(idemKey, tx);
+				return;
+			}
 
-		if (!insertedInvoice.length) {
-			const raceHashDuplicateId = await findContentHashDuplicate(tx, tdb, contentHash);
-			duplicateOutcome = raceHashDuplicateId !== null
-				? { type: 'contentDuplicate', duplicateId: raceHashDuplicateId }
-				: { type: 'numberDuplicate' };
-			if (idemKey) await releaseRequest(idemKey, tx);
-			return;
-		}
-		invoiceId = insertedInvoice[0]!.id;
+			supplierId = await getOrCreateSupplierId(rid, supplierName, tx, proposedCategory, proposedContact, contactTrusted);
+			restaurantPhoneMismatch = await resolveRestaurantPhoneSignal(tx, rid, extracted?.receiver_phone ?? null);
+			restaurantTaxIdMismatch = await resolveRestaurantTaxIdSignal(
+				tx, rid, extracted?.receiver_nif ?? null, extracted?.field_confidences?.receiver_nif ?? null,
+			);
 
-		await insertEnrichedLines(tx, { invoiceId: invoiceId!, rid, supplierId, supplierName }, enrichedLines, savedItems, unitConversionAlerts);
+			const outstandingBalance = typeof extracted?.outstanding_balance === 'number' ? String(extracted.outstanding_balance) : null;
+			if (outstandingBalance !== null) {
+				await tx.update(suppliers).set({ outstandingBalance }).where(eq(suppliers.id, supplierId));
+			}
 
-		await tx.insert(invoiceAuditLog).values({
-			restaurantId: rid, invoiceId: invoiceId!, action: 'create', userId, sourceFile: primaryFile,
+			const insertedInvoice = await tx
+				.insert(invoices)
+				.values({
+					restaurantId: rid,
+					supplierId,
+					invoiceNumber: invoiceNumber || null,
+					documentType,
+					invoiceDate,
+					dueDate,
+					totalAmount,
+					taxBase,
+					taxBreakdown,
+					grossAmount,
+					discountAmount,
+					retentionRate,
+					retentionAmount,
+					paymentMethod,
+					paymentTerms,
+					status: 'pending',
+					reviewState,
+					incidenceKind,
+					incidenceReasons,
+					sourceFile: primaryFile,
+					confidence: confidenceRaw,
+					contentHash,
+					notes,
+					qrUrl: qrResult?.url ?? null,
+					qrMismatch: qrMismatches.length > 0,
+					purchaseOrder,
+					sellerName,
+					deliveryDate,
+					deliveryAddress,
+					printedNotes,
+				})
+				.onConflictDoNothing()
+				.returning({ id: invoices.id });
+
+			if (!insertedInvoice.length) {
+				const raceHashDuplicateId = await findContentHashDuplicate(tx, tdb, contentHash);
+				duplicateOutcome = raceHashDuplicateId !== null
+					? { type: 'contentDuplicate', duplicateId: raceHashDuplicateId }
+					: { type: 'numberDuplicate' };
+				tx.rollback();
+			}
+			invoiceId = insertedInvoice[0]!.id;
+
+			await insertEnrichedLines(tx, { invoiceId: invoiceId!, rid, supplierId, supplierName }, enrichedLines, savedItems, unitConversionAlerts);
+
+			await tx.insert(invoiceAuditLog).values({
+				restaurantId: rid, invoiceId: invoiceId!, action: 'create', userId, sourceFile: primaryFile,
+			});
+
+			if (onSaved) await onSaved(tx, invoiceId!);
 		});
-
-		if (onSaved) await onSaved(tx, invoiceId!);
-	});
+	} catch (err) {
+		if (!(err instanceof TransactionRollbackError)) throw err;
+	}
 
 	if (isReplay) return { type: 'replay' };
 
