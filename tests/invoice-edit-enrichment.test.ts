@@ -37,7 +37,7 @@ const DESC = 'Aceite Oliva 6x1L';
 const SKU = 'SKU-481-AOV';
 
 /** Columns that identify the row rather than describe the goods. */
-const IDENTITY_COLUMNS = new Set(['id', 'restaurantId', 'invoiceId']);
+const IDENTITY_COLUMNS = new Set(['id', 'restaurantId', 'invoiceId', 'categoryOverride']);
 
 /** Columns the edit form posts back, so the user's own edit is meant to win. */
 const FORM_COLUMNS = new Set(['description', 'quantity', 'unit', 'unitPrice', 'totalPrice', 'taxRate']);

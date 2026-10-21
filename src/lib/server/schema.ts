@@ -153,6 +153,7 @@ export const invoiceLineItems = pgTable('invoice_line_items', {
 	baseUnit:               text('base_unit'),
 	normalizedUnitPrice:    numeric('normalized_unit_price', { precision: 12, scale: 2 }),
 	supplierSku:            text('supplier_sku'),
+	categoryOverride:       text('category_override'),
 }, (t) => [
 	index('idx_invoice_line_items_invoice_id').on(t.invoiceId),
 	index('idx_invoice_line_items_rid_description').on(t.restaurantId, t.description),
@@ -541,6 +542,7 @@ export const extractionResults = pgTable('extraction_results', {
 	pipelineVersion:  text('pipeline_version'),
 	model:            text('model'),
 	extractedData:    jsonb('extracted_data').$type<Record<string, unknown>>().notNull(),
+	rawOutput:        jsonb('raw_output').$type<Record<string, unknown>>(),
 	fieldConfidences: jsonb('field_confidences').$type<Record<string, number>>(),
 	confidence:       real('confidence'),
 	conversionNotes:  jsonb('conversion_notes').$type<string[]>(),

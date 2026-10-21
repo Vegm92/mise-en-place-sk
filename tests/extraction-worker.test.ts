@@ -137,6 +137,9 @@ const segmentationMocks = vi.hoisted(() => ({
 }));
 vi.mock('../src/lib/server/document-segmentation.js', () => segmentationMocks);
 
+const corpusMocks = vi.hoisted(() => ({ recordExtractionResult: vi.fn() }));
+vi.mock('../src/lib/server/extraction-corpus.js', () => corpusMocks);
+
 const queueMocks = vi.hoisted(() => ({
 	EXTRACTION_QUEUE: 'extract-invoice',
 	enqueueExtraction: vi.fn().mockResolvedValue(true),
@@ -158,6 +161,7 @@ beforeEach(() => {
 	quotaMocks.reserveMonthlyExtractions.mockResolvedValue({ reserved: true });
 	quotaMocks.attributeReservation.mockResolvedValue(undefined);
 	partyMocks.ownPartyIdentity.mockResolvedValue({ taxId: null, names: [] });
+	corpusMocks.recordExtractionResult.mockResolvedValue('archive-1');
 });
 
 describe('processExtractionJob retry policy (#482)', () => {
@@ -876,5 +880,50 @@ describe('processExtractionJob — emisor/receptor assignment (#905)', () => {
 		await processExtractionJob({ itemId: item.id, restaurantId: 'r1' }, undefined, { retryCount: 0, retryLimit: 2 });
 
 		expect(batchMocks.markDone).toHaveBeenCalledWith(item.id, expect.objectContaining(expected), expect.anything());
+	});
+});
+
+/**
+ * RULE-269: the archive is what replays and evals compare against, so it holds
+ * the model's raw answer AND the cleaned result (labelled), and a write that
+ * keeps failing is raised as a warning instead of vanishing into a log line.
+ */
+describe('processExtractionJob — extraction archive (RULE-269)', () => {
+	const run = () => processExtractionJob({ itemId: item.id, restaurantId: 'r1' }, undefined, { retryCount: 0, retryLimit: 2 });
+
+	beforeEach(() => {
+		batchMocks.markExtracting.mockResolvedValue(true);
+		partyMocks.ownPartyIdentity.mockResolvedValue({ taxId: '47306879L', names: ['Clínica Dental Víctor Granda'] });
+		extractMocks.extractWithProvider.mockResolvedValue({ invoice: structuredClone(swappedInvoice), usage: { model: 'm' } });
+	});
+
+	it('archives the raw model output next to the cleaned result', async () => {
+		await run();
+
+		const archived = corpusMocks.recordExtractionResult.mock.calls[0]![0];
+		expect(archived.rawOutput).toMatchObject({ supplier_name: 'Clínica Dental Víctor Granda', supplier_nif: '47306879L' });
+		expect(archived.extractedData).toMatchObject({ supplier_name: 'Elaboradental SL', supplier_nif: 'B99999997' });
+		expect(archived.rawOutput).not.toHaveProperty('total_mismatch');
+	});
+
+	it('retries a failed archive write and stays quiet when a retry lands', async () => {
+		corpusMocks.recordExtractionResult.mockRejectedValueOnce(new Error('connection reset'));
+
+		const outcome = await run();
+
+		expect(outcome).toBe('completed');
+		expect(corpusMocks.recordExtractionResult).toHaveBeenCalledTimes(2);
+		expect(sentryMocks.captureMessage).not.toHaveBeenCalledWith('extraction.archive_failed', expect.anything());
+	});
+
+	it('raises a warning when every attempt fails, and still completes the extraction', async () => {
+		corpusMocks.recordExtractionResult.mockRejectedValue(new Error('db down'));
+
+		const outcome = await run();
+
+		expect(outcome).toBe('completed');
+		expect(batchMocks.markDone).toHaveBeenCalledTimes(1);
+		expect(corpusMocks.recordExtractionResult).toHaveBeenCalledTimes(3);
+		expect(sentryMocks.captureMessage).toHaveBeenCalledWith('extraction.archive_failed', expect.objectContaining({ level: 'warning' }));
 	});
 });

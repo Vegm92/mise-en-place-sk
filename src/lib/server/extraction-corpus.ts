@@ -27,6 +27,7 @@ export interface ExtractionResultInput {
 	pipelineVersion?: string | null;
 	model?: string | null;
 	extractedData: Record<string, unknown>;
+	rawOutput?: Record<string, unknown> | null;
 	conversionNotes?: string[] | null;
 }
 
@@ -41,6 +42,7 @@ export interface CorpusEntry {
 	promptVersion: string;
 	model: string | null;
 	extractedData: Record<string, unknown>;
+	rawOutput: Record<string, unknown> | null;
 	confidence: number | null;
 	createdAt: Date | null;
 }
@@ -56,6 +58,7 @@ const entryColumns = {
 	promptVersion: extractionResults.promptVersion,
 	model: extractionResults.model,
 	extractedData: extractionResults.extractedData,
+	rawOutput: extractionResults.rawOutput,
 	confidence: extractionResults.confidence,
 	createdAt: extractionResults.createdAt,
 };
@@ -87,6 +90,7 @@ function toInsertRow(input: ExtractionResultInput): typeof extractionResults.$in
 		pipelineVersion: input.pipelineVersion ?? null,
 		model: input.model ?? null,
 		extractedData: input.extractedData,
+		rawOutput: input.rawOutput ?? null,
 		fieldConfidences: fieldConfidences(input.extractedData),
 		confidence: asNumber(input.extractedData.confidence),
 		conversionNotes: input.conversionNotes ?? null,

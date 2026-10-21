@@ -3,6 +3,7 @@ import Wallet from '@lucide/svelte/icons/wallet';
 import FileCheck from '@lucide/svelte/icons/file-check';
 import CalendarOff from '@lucide/svelte/icons/calendar-off';
 import Truck from '@lucide/svelte/icons/truck';
+import Tags from '@lucide/svelte/icons/tags';
 import type { Severity, WorkKind } from '$lib/dashboard-turno';
 import { fmtDateShort, type Locale } from '$lib/formatters';
 
@@ -12,6 +13,7 @@ export const WORK_ICON: Record<WorkKind, typeof TrendingUp> = {
 	review: FileCheck,
 	missing: CalendarOff,
 	supplier: Truck,
+	lines: Tags,
 };
 
 export const WORK_TONE: Record<Severity, [string, string]> = {
