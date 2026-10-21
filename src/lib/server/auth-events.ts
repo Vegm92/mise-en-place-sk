@@ -13,6 +13,7 @@ export type AuthEventKind =
 	| 'password_reset_rate_limited'
 	| 'password_reset_completed'
 	| 'password_changed'
+	| 'ownership_transferred'
 	| 'verify_email_rate_limited';
 
 export function hashIp(ip: string | null | undefined): string {

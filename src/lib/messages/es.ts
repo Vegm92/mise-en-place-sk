@@ -2710,4 +2710,10 @@ export default {
   'wa.digest.push':            '📊 Resumen semanal de {name}. Gasto y precios de esta semana:\n{link}\nEscribe BAJA para dejar de recibir este resumen por WhatsApp.',
   'wa.digest.optInConfirm':    '✅ Recibirás el resumen semanal de gasto por WhatsApp cada lunes. Escribe BAJA cuando quieras dejar de recibirlo.',
   'wa.digest.optOutConfirm':   '✅ No recibirás más resúmenes semanales por WhatsApp.',
+  'email.ownerTransfer.subject':   'Ahora eres el propietario de {restaurant}',
+  'email.ownerTransfer.preheader': 'El propietario anterior cerró su cuenta, así que {restaurant} ahora es tuyo.',
+  'email.ownerTransfer.eyebrow':   'Propiedad',
+  'email.ownerTransfer.headline':  'Ahora eres el propietario.',
+  'email.ownerTransfer.body':      'El propietario anterior de {restaurant} eliminó su cuenta. Como el miembro más antiguo, ahora eres su propietario: gestionas sus datos, sus miembros y su suscripción.',
+  'email.ownerTransfer.cta':       'Abrir Mise en Place',
 } satisfies Record<string, string>;

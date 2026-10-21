@@ -2712,4 +2712,10 @@ export default {
   'wa.digest.push':            '📊 Weekly digest for {name}. This week\'s spend and prices:\n{link}\nReply STOP to stop receiving this digest on WhatsApp.',
   'wa.digest.optInConfirm':    '✅ You will receive the weekly spend digest on WhatsApp every Monday. Reply STOP any time to stop.',
   'wa.digest.optOutConfirm':   '✅ You will no longer receive weekly digests on WhatsApp.',
+  'email.ownerTransfer.subject':   'You are now the owner of {restaurant}',
+  'email.ownerTransfer.preheader': 'The previous owner closed their account, so {restaurant} is now yours.',
+  'email.ownerTransfer.eyebrow':   'Ownership',
+  'email.ownerTransfer.headline':  'You are now the owner.',
+  'email.ownerTransfer.body':      'The previous owner of {restaurant} deleted their account. As the member who has been there longest, you are now its owner: you manage its data, its members and its subscription.',
+  'email.ownerTransfer.cta':       'Open Mise en Place',
 } satisfies Record<keyof typeof es, string>;

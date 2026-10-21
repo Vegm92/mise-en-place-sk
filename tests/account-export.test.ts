@@ -4,8 +4,9 @@
  * These tests prove the refactor did not change the exported JSON's shape —
  * same top-level keys, same key order, same per-table field selection
  * (including the invoices `deletedAt IS NULL` filter) — for a seeded tenant,
- * and that a table with no `exportKey` in the map (e.g. `products`) still
- * does not leak into the export, exactly as before #390.
+ * and that a table with no `exportKey` in the map (e.g. `mrr_snapshots`) still
+ * does not leak into the export, exactly as before #390. Products, categories
+ * and both alias tables are exported since RULE-356 (Phase 5).
  *
  * DB-backed: the db singleton is swapped for the real test client. Skipped
  * without DATABASE_URL.
@@ -31,7 +32,8 @@ const EXPECTED_KEYS = [
 	'exported_at', 'user', 'memberships',
 	'restaurants', 'suppliers', 'invoices', 'invoice_line_items', 'category_budgets',
 	'unit_conversions', 'chat_sessions', 'chat_messages', 'extraction_corrections',
-	'extraction_results', 'stock_levels', 'settings', 'recipes', 'recipe_items',
+	'extraction_results', 'stock_levels', 'settings', 'products', 'product_aliases',
+	'supplier_aliases', 'recipes', 'recipe_items', 'categories',
 ];
 
 async function makeUser(suffix: string) {
@@ -71,7 +73,7 @@ afterAll(async () => {
 });
 
 describe.skipIf(!hasDbEnv)('GET /api/user/export (issue #390)', () => {
-	it('produces exactly the pre-#390 top-level key set, in the pre-#390 order, for a seeded tenant', async () => {
+	it('produces exactly the expected top-level key set, in order, for a seeded tenant', async () => {
 		const { id: userId, email } = await makeUser('shape');
 		const rid = await makeRestaurant('shape');
 		await membership(userId, rid, 'owner');
@@ -86,9 +88,36 @@ describe.skipIf(!hasDbEnv)('GET /api/user/export (issue #390)', () => {
 		expect(body.suppliers).toHaveLength(1);
 		expect(body.suppliers[0].name).toBe('ACME Foods');
 		expect(body.settings).toHaveLength(1);
-		expect(body).not.toHaveProperty('products');
+		expect(body).not.toHaveProperty('mrr_snapshots');
 
 		await cleanup(userId, [rid]);
+	});
+
+	it('includes products, categories and supplier/product aliases for the tenant, and nothing from another tenant (RULE-356)', async () => {
+		const { id: userId, email } = await makeUser('catalog');
+		const rid = await makeRestaurant('catalog');
+		const otherRid = await makeRestaurant('catalog-other');
+		await membership(userId, rid, 'owner');
+		const [product] = await testSql`
+			INSERT INTO products (restaurant_id, canonical_name, name_key) VALUES (${rid}, 'Aceite', 'aceite-catalog') RETURNING id
+		`;
+		await testSql`INSERT INTO product_aliases (restaurant_id, product_id, raw_key) VALUES (${rid}, ${product!.id}, 'aceite-raw')`;
+		const [supplier] = await testSql`INSERT INTO suppliers (restaurant_id, name) VALUES (${rid}, 'ACME') RETURNING id`;
+		await testSql`INSERT INTO supplier_aliases (restaurant_id, supplier_id, name, normalized_name) VALUES (${rid}, ${supplier!.id}, 'Acme SL', 'acme sl')`;
+		await testSql`
+			INSERT INTO categories (restaurant_id, name, name_key, slug) VALUES (${rid}, 'Bebidas', 'bebidas', 'bebidas')
+		`;
+		await testSql`INSERT INTO products (restaurant_id, canonical_name, name_key) VALUES (${otherRid}, 'Ajeno', 'ajeno')`;
+
+		const res = await GET(exportEvent(userId, email));
+		const body = await res.json();
+
+		expect(body.products.map((p: { canonicalName: string }) => p.canonicalName)).toEqual(['Aceite']);
+		expect(body.product_aliases).toHaveLength(1);
+		expect(body.supplier_aliases).toHaveLength(1);
+		expect(body.categories.map((c: { name: string }) => c.name)).toEqual(['Bebidas']);
+
+		await cleanup(userId, [rid, otherRid]);
 	});
 
 	it('excludes soft-deleted invoices, matching the pre-#390 isNull(deletedAt) filter', async () => {
