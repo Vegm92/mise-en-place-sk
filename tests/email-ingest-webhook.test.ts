@@ -8,7 +8,7 @@
  * this feature fixes, so signature rejection gets its own describe block
  * with a real HMAC, not a stub.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createHmac } from 'node:crypto';
 
 const { ingestMock } = vi.hoisted(() => ({
@@ -173,5 +173,72 @@ describe('POST — signature verification (issue #236)', () => {
 		expect(res.status).toBe(401);
 		vi.doUnmock('$lib/server/env');
 		vi.doUnmock('$lib/server/email-ingest');
+	});
+});
+
+describe('RULE-157 — fresh Svix signature, 300s tolerance', () => {
+	const SECRET = `whsec_${Buffer.from('secret-bytes-for-testing').toString('base64')}`;
+	const body = JSON.stringify(envelope(VALID_DATA));
+
+	function sig(id: string, timestamp: string): string {
+		const key = Buffer.from(SECRET.replace(/^whsec_/, ''), 'base64');
+		return `v1,${createHmac('sha256', key).update(`${id}.${timestamp}.${body}`).digest('base64')}`;
+	}
+	const ago = (seconds: number) => String(Math.floor(Date.now() / 1000) - seconds);
+	const signed = (timestamp: string, signature = sig('msg_1', timestamp)) =>
+		postEvent(envelope(VALID_DATA), { headers: { 'svix-id': 'msg_1', 'svix-timestamp': timestamp, 'svix-signature': signature } });
+
+	async function loadRoute(secret: string, nodeEnv?: string) {
+		vi.resetModules();
+		if (nodeEnv) vi.stubEnv('NODE_ENV', nodeEnv);
+		vi.doMock('$lib/server/env', () => ({ RESEND_WEBHOOK_SECRET: secret }));
+		vi.doMock('$lib/server/email-ingest', () => ({ ingestInboundEmail: ingestMock, fetchResendAttachment: vi.fn() }));
+		return (await import('../src/routes/api/email-ingest/webhook/+server')).POST;
+	}
+
+	afterEach(() => {
+		vi.unstubAllEnvs();
+		vi.doUnmock('$lib/server/env');
+		vi.doUnmock('$lib/server/email-ingest');
+	});
+
+	it('accepts a correct signature 200s old and rejects the same kind of request 400s old', async () => {
+		const P = await loadRoute(SECRET);
+		expect((await P(signed(ago(200)))).status).toBe(200);
+		expect((await P(signed(ago(400)))).status).toBe(401);
+	});
+
+	it('applies the tolerance to future timestamps too', async () => {
+		const P = await loadRoute(SECRET);
+		expect((await P(signed(ago(-400)))).status).toBe(401);
+		expect((await P(signed(ago(-200)))).status).toBe(200);
+	});
+
+	it('rejects a non-numeric timestamp and a missing id', async () => {
+		const P = await loadRoute(SECRET);
+		expect((await P(signed('soon', sig('msg_1', 'soon')))).status).toBe(401);
+		const ts = ago(0);
+		const noId = postEvent(envelope(VALID_DATA), { headers: { 'svix-timestamp': ts, 'svix-signature': sig('msg_1', ts) } });
+		expect((await P(noId)).status).toBe(401);
+		expect(ingestMock).not.toHaveBeenCalled();
+	});
+
+	it('accepts when any one space-separated candidate matches', async () => {
+		const P = await loadRoute(SECRET);
+		const ts = ago(0);
+		expect((await P(signed(ts, `v1,AAAA ${sig('msg_1', ts)}`))).status).toBe(200);
+	});
+
+	it('rejects a signature made with another secret', async () => {
+		const P = await loadRoute(`whsec_${Buffer.from('another-secret').toString('base64')}`);
+		expect((await P(signed(ago(0)))).status).toBe(401);
+	});
+
+	it('production without a secret rejects everything; non-production skips verification', async () => {
+		const prod = await loadRoute('', 'production');
+		expect((await prod(postEvent(envelope(VALID_DATA)))).status).toBe(401);
+		expect(ingestMock).not.toHaveBeenCalled();
+		const dev = await loadRoute('', 'development');
+		expect((await dev(postEvent(envelope(VALID_DATA)))).status).toBe(200);
 	});
 });

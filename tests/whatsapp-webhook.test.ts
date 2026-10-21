@@ -14,7 +14,8 @@
  * The enqueue function and env token are mocked so this isolates the route
  * plumbing.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { createHmac } from 'node:crypto';
 
 const { enqueueMock, accountEventMock, runAsSystemMock } = vi.hoisted(() => ({
 	enqueueMock: vi.fn().mockResolvedValue(true),
@@ -233,5 +234,88 @@ describe('POST — signature verification', () => {
 		expect(enqueueMock).not.toHaveBeenCalled();
 		vi.doUnmock('$lib/server/env');
 		vi.doUnmock('$lib/server/queue');
+	});
+});
+
+describe('RULE-159 — signature against the app secret', () => {
+	const SECRET = 'super-secret';
+	const envelope = {
+		entry: [{ changes: [{ value: { messaging_product: 'whatsapp', messages: [{ from: '34600000005', id: 'wamid.5', type: 'text', text: { body: 'hi' } }] } }] }],
+	};
+	const sign = (raw: string) => `sha256=${createHmac('sha256', SECRET).update(raw).digest('hex')}`;
+
+	async function loadRoute(opts: { secret: string; nodeEnv?: string }) {
+		vi.resetModules();
+		if (opts.nodeEnv) vi.stubEnv('NODE_ENV', opts.nodeEnv);
+		vi.doMock('$lib/server/env', () => ({ WHATSAPP_VERIFY_TOKEN: 'verify-me', WHATSAPP_APP_SECRET: opts.secret }));
+		vi.doMock('$lib/server/queue', () => ({ enqueueWhatsAppInbound: enqueueMock }));
+		vi.doMock('$lib/server/whatsapp-health', () => ({ recordAccountEvent: accountEventMock }));
+		vi.doMock('$lib/server/db', () => ({ runAsSystem: runAsSystemMock }));
+		return import('../src/routes/api/whatsapp/webhook/+server');
+	}
+
+	afterEach(() => {
+		vi.unstubAllEnvs();
+		vi.doUnmock('$lib/server/env');
+		vi.doUnmock('$lib/server/queue');
+		vi.doUnmock('$lib/server/whatsapp-health');
+		vi.doUnmock('$lib/server/db');
+		vi.doUnmock('node:crypto');
+	});
+
+	it('accepts a body signed with the app secret and enqueues it', async () => {
+		const { POST: P } = await loadRoute({ secret: SECRET });
+		const res = await P(postEvent(envelope, { signature: sign(JSON.stringify(envelope)) }));
+		expect(res.status).toBe(200);
+		expect(enqueueMock).toHaveBeenCalledTimes(1);
+	});
+
+	it('rejects a valid HMAC computed over a different body', async () => {
+		const { POST: P } = await loadRoute({ secret: SECRET });
+		const res = await P(postEvent(envelope, { signature: sign('{"other":true}') }));
+		expect(res.status).toBe(401);
+		expect(enqueueMock).not.toHaveBeenCalled();
+	});
+
+	it('rejects a missing signature header', async () => {
+		const { POST: P } = await loadRoute({ secret: SECRET });
+		expect((await P(postEvent(envelope))).status).toBe(401);
+		expect(enqueueMock).not.toHaveBeenCalled();
+	});
+
+	it('rejects a header without the sha256= prefix, even if the digest is right', async () => {
+		const { POST: P } = await loadRoute({ secret: SECRET });
+		const bare = sign(JSON.stringify(envelope)).slice('sha256='.length);
+		expect((await P(postEvent(envelope, { signature: bare }))).status).toBe(401);
+		expect(enqueueMock).not.toHaveBeenCalled();
+	});
+
+	it('answers 400 for invalid JSON only after the signature checked out', async () => {
+		const { POST: P } = await loadRoute({ secret: SECRET });
+		expect((await P(postEvent(null, { invalidJson: true, signature: sign('{ not valid json') }))).status).toBe(400);
+		expect((await P(postEvent(null, { invalidJson: true, signature: 'sha256=00' }))).status).toBe(401);
+	});
+
+	it('production without an app secret rejects everything', async () => {
+		const { POST: P } = await loadRoute({ secret: '', nodeEnv: 'production' });
+		expect((await P(postEvent(envelope))).status).toBe(401);
+		expect(enqueueMock).not.toHaveBeenCalled();
+	});
+
+	it('non-production without an app secret skips verification', async () => {
+		const { POST: P } = await loadRoute({ secret: '', nodeEnv: 'development' });
+		expect((await P(postEvent(envelope))).status).toBe(200);
+	});
+
+	it('SEC-010: the GET hub.verify_token check goes through timingSafeEqual', async () => {
+		const spy = vi.fn((a: Uint8Array, b: Uint8Array) => Buffer.compare(a as Buffer, b as Buffer) === 0);
+		vi.doMock('node:crypto', async (orig) => ({ ...(await orig<typeof import('node:crypto')>()), timingSafeEqual: spy }));
+		const { GET: G } = await loadRoute({ secret: SECRET });
+		const ok = await G(getEvent('hub.mode=subscribe&hub.verify_token=verify-me&hub.challenge=c1'));
+		expect(ok.status).toBe(200);
+		expect(spy).toHaveBeenCalledTimes(1);
+		const bad = await G(getEvent('hub.mode=subscribe&hub.verify_token=verify-mX&hub.challenge=c1'));
+		expect(bad.status).toBe(403);
+		expect(spy).toHaveBeenCalledTimes(2);
 	});
 });

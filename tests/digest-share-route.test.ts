@@ -96,6 +96,13 @@ describeDb('/s/[token] load() — public anonymised digest view (issue #329)', (
 		await expect(load(requestEvent('00000000000000000000000000000000'))).rejects.toMatchObject({ status: 404 });
 	});
 
+	it('404s for a token that does not match the share-token format', async () => {
+		const { load } = await import('../src/routes/s/[token]/+page.server');
+		for (const bad of ['short', 'has spaces in it 123456', `${'a'.repeat(129)}`]) {
+			await expect(load(requestEvent(bad))).rejects.toMatchObject({ status: 404 });
+		}
+	});
+
 	it('404s for a revoked token', async () => {
 		const { randomBytes } = await import('node:crypto');
 		const revoked = randomBytes(24).toString('base64url');

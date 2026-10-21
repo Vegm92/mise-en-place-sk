@@ -149,8 +149,11 @@ export async function redeemPairingCode(phone: string, rawCode: string): Promise
 	const code = normalizeCode(rawCode);
 	if (!code) return { ok: false, reason: 'invalid' };
 
+	const sender = normalizePhoneNumber(phone);
+	if (!sender.ok) return { ok: false, reason: 'invalid' };
+
 	try {
-		if (!(await checkRateLimit(`whatsapp-pair:${phone}`, REDEEM_ATTEMPTS, REDEEM_WINDOW_S, { authCritical: true }))) {
+		if (!(await checkRateLimit(`whatsapp-pair:${sender.phone}`, REDEEM_ATTEMPTS, REDEEM_WINDOW_S, { authCritical: true }))) {
 			return { ok: false, reason: 'rateLimited' };
 		}
 		if (!(await checkRateLimit('whatsapp-pair-redeem', REDEEM_GLOBAL_LIMIT, REDEEM_WINDOW_S, { authCritical: true }))) {
@@ -185,8 +188,7 @@ export async function redeemPairingCode(phone: string, rawCode: string): Promise
 	if (!claimed) return { ok: false, reason: 'invalid' };
 
 	if (claimed.phoneNumber) {
-		const senderPhone = normalizePhoneNumber(phone);
-		if (!senderPhone.ok || senderPhone.phone !== claimed.phoneNumber) {
+		if (sender.phone !== claimed.phoneNumber) {
 			await db
 				.update(whatsappPairingCodes)
 				.set({ redeemedAt: null, redeemedBy: null })
