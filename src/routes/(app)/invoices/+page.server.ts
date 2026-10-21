@@ -263,14 +263,16 @@ export const actions: Actions = {
 			.where(and(eq(invoices.id, id), tdb.scope(invoices.restaurantId, isNull(invoices.deletedAt))));
 		if (!inv) redirect(303, '/invoices');
 		const now = new Date();
-		await db.update(invoices).set({ deletedAt: now })
-			.where(tdb.scope(invoices.restaurantId, eq(invoices.id, id)));
-		await db.insert(invoiceAuditLog).values({
-			restaurantId: rid,
-			invoiceId:    id,
-			action:       'soft_delete',
-			userId:       uid,
-			snapshot:     JSON.stringify(inv),
+		await db.transaction(async (tx) => {
+			await tx.update(invoices).set({ deletedAt: now })
+				.where(tdb.scope(invoices.restaurantId, eq(invoices.id, id)));
+			await tx.insert(invoiceAuditLog).values({
+				restaurantId: rid,
+				invoiceId:    id,
+				action:       'soft_delete',
+				userId:       uid,
+				snapshot:     JSON.stringify(inv),
+			});
 		});
 		await trackEvent('invoice_status_changed', rid, { to: 'deleted' }, id);
 		redirect(303, '/invoices');
@@ -297,17 +299,19 @@ export const actions: Actions = {
 			if (owned.length > 0) {
 				const now = new Date();
 				const ownedIds = owned.map(o => o.id);
-				await db.update(invoices).set({ deletedAt: now })
-					.where(and(inArray(invoices.id, ownedIds), tdb.scope(invoices.restaurantId)));
-				await db.insert(invoiceAuditLog).values(
-					owned.map(inv => ({
-						restaurantId: rid,
-						invoiceId:    inv.id,
-						action:       'soft_delete' as const,
-						userId:       uid,
-						snapshot:     JSON.stringify(inv),
-					}))
-				);
+				await db.transaction(async (tx) => {
+					await tx.update(invoices).set({ deletedAt: now })
+						.where(and(inArray(invoices.id, ownedIds), tdb.scope(invoices.restaurantId)));
+					await tx.insert(invoiceAuditLog).values(
+						owned.map(inv => ({
+							restaurantId: rid,
+							invoiceId:    inv.id,
+							action:       'soft_delete' as const,
+							userId:       uid,
+							snapshot:     JSON.stringify(inv),
+						}))
+					);
+				});
 			}
 		}
 		redirect(303, '/invoices');

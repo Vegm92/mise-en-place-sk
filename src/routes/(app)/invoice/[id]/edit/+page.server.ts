@@ -3,12 +3,16 @@ import { handleLoad } from '$lib/server/load-guard';
 import type { Actions, PageServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
 import { invoices, invoiceLineItems, invoiceAuditLog, suppliers } from '$lib/server/schema';
-import { asc, eq, and, ne, sql, isNull } from 'drizzle-orm';
+import { asc, eq, and, sql } from 'drizzle-orm';
 import { claimRequest, releaseRequest, isValidKey } from '$lib/server/idempotency';
-import { getOrCreateSupplierId } from '$lib/server/supplier';
+import { findSupplierId, getOrCreateSupplierId } from '$lib/server/supplier';
+import { findInvoiceDuplicate } from '$lib/server/invoice-dedup';
 import { toMoneyString, moneyToNullableNumber } from '$lib/server/money';
 import { isBlankOrIsoDate, toIsoDate } from '$lib/server/dates';
-import { parseLineInputs, enrichLineItems, computeFormContentHash, linkProductsToInvoice, findInvalidMonetaryField, documentReferenceColumns, type DocumentReferenceFields } from '$lib/server/invoice-save';
+import { parseLineInputs, computeFormContentHash, findInvalidMonetaryField } from '$lib/server/invoice-form';
+import { enrichLineItems, documentReferenceColumns } from '$lib/server/invoice-persist';
+import { linkProductsToInvoice } from '$lib/server/invoice-effects';
+import type { DocumentReferenceFields } from '$lib/server/contracts/extraction-contract';
 import { reevaluateInvoiceAlerts } from '$lib/server/alerts';
 import { requirePositiveIntId } from '$lib/server/route-params';
 import { rateLimitScoped } from '$lib/server/rate-limit-scope';
@@ -30,22 +34,6 @@ async function storedTaxBands(tdb: TenantDb, id: number): Promise<TaxBand[] | nu
 	}
 }
 
-async function checkDuplicateInvoice(
-	tx: Tx, tdb: TenantDb, id: number,
-	supplierId: number | null, invoiceNumber: string | null, contentHash: string,
-): Promise<boolean> {
-	if (supplierId && invoiceNumber) {
-		const dup = await tx.select({ id: invoices.id }).from(invoices)
-			.where(and(tdb.scope(invoices.restaurantId), eq(invoices.supplierId, supplierId), eq(invoices.invoiceNumber, invoiceNumber), ne(invoices.id, id)))
-			.limit(1);
-		if (dup.length > 0) return true;
-	}
-	const hashMatch = await tx.select({ id: invoices.id }).from(invoices)
-		.where(and(tdb.scope(invoices.restaurantId), eq(invoices.contentHash, contentHash), ne(invoices.id, id), isNull(invoices.deletedAt)))
-		.limit(1);
-	return hashMatch.length > 0;
-}
-
 async function executeEditTransaction(
 	tx: Tx, tdb: TenantDb, id: number, rid: string, uid: string,
 	idemKey: string | null, supplierName: string, invoiceNumber: string | null,
@@ -63,12 +51,13 @@ async function executeEditTransaction(
 		.where(tdb.scope(invoiceLineItems.restaurantId, eq(invoiceLineItems.invoiceId, id)))
 		.orderBy(asc(invoiceLineItems.id));
 	const documentType = (preEditInvoice?.documentType as 'factura' | 'albaran' | null) ?? null;
-	let supplierId: number | null = null;
-	if (supplierName) supplierId = await getOrCreateSupplierId(rid, supplierName, tx);
-	if (await checkDuplicateInvoice(tx, tdb, id, supplierId, invoiceNumber, contentHash)) {
+	const knownSupplierId = supplierName ? await findSupplierId(rid, supplierName, tx) : null;
+	const duplicate = await findInvoiceDuplicate(tx, tdb, { contentHash, supplierId: knownSupplierId, invoiceNumber, excludeInvoiceId: id });
+	if (duplicate) {
 		if (idemKey) await releaseRequest(idemKey, tx);
 		return { conflict: 'duplicate', savedSupplierId: null, documentType };
 	}
+	const supplierId = supplierName ? await getOrCreateSupplierId(rid, supplierName, tx) : null;
 	const updated = await tx.update(invoices)
 		.set({
 			supplierId, invoiceNumber, invoiceDate, dueDate, totalAmount, notes, contentHash,
@@ -136,6 +125,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				total_price: invoiceLineItems.totalPrice,
 				tax_rate:    invoiceLineItems.taxRate,
 				supplier_sku: invoiceLineItems.supplierSku,
+				category_override: invoiceLineItems.categoryOverride,
 			})
 				.from(invoiceLineItems)
 				.where(tdb.scope(invoiceLineItems.restaurantId, eq(invoiceLineItems.invoiceId, id)))

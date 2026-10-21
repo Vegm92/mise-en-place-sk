@@ -23,7 +23,8 @@ import {
 	amountsAreSimilar, isoDateOffset, findSimilarInvoice,
 } from '../src/lib/server/dedup';
 
-import { computeFormContentHash, saveReviewedInvoice } from '../src/lib/server/invoice-save';
+import { computeFormContentHash } from '../src/lib/server/invoice-form';
+import { saveReviewedInvoice } from '../src/lib/server/invoice-save';
 import type { BatchItem } from '../src/lib/server/batch';
 import {
 	closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv,

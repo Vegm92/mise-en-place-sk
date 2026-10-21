@@ -60,18 +60,26 @@ async function recordAlias(
 	`);
 }
 
-async function findByTaxId(
+async function selectByTaxId(
 	exec: BatchDb,
 	restaurantId: string,
 	normalizedCif: string,
 ): Promise<{ id: number; name: string } | null> {
-	await exec.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${restaurantId}), hashtext(${normalizedCif}))`);
 	const rows = await exec.execute<{ id: number; name: string }>(sql`
 		SELECT id, name FROM suppliers
 		WHERE restaurant_id = ${restaurantId} AND normalized_cif = ${normalizedCif}
 		LIMIT 1
 	`);
 	return rows[0] ?? null;
+}
+
+async function findByTaxId(
+	exec: BatchDb,
+	restaurantId: string,
+	normalizedCif: string,
+): Promise<{ id: number; name: string } | null> {
+	await exec.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${restaurantId}), hashtext(${normalizedCif}))`);
+	return selectByTaxId(exec, restaurantId, normalizedCif);
 }
 
 async function findByAlias(
@@ -95,6 +103,32 @@ async function findByAlias(
 	return rows[0]?.supplier_id ?? null;
 }
 
+function identityTaxId(contact: SupplierContactInfo, contactTrusted: boolean): string | null {
+	const normalizedCif = normalizeTaxId(contact.cif?.trim() || null);
+	return contactTrusted && taxIdDecidesIdentity(normalizedCif, contact.cifConfidence) ? normalizedCif : null;
+}
+
+export async function findSupplierId(
+	restaurantId: string,
+	name: string,
+	exec: BatchDb = db,
+	contact: SupplierContactInfo = {},
+	contactTrusted: boolean = true,
+): Promise<number | null> {
+	const trimmed = name.trim();
+	const identityCif = identityTaxId(contact, contactTrusted);
+	if (identityCif) {
+		const byTaxId = await selectByTaxId(exec, restaurantId, identityCif);
+		if (byTaxId) return byTaxId.id;
+	}
+	const byAlias = await findByAlias(exec, restaurantId, trimmed);
+	if (byAlias !== null) return byAlias;
+	const rows = await exec.execute<{ id: number }>(sql`
+		SELECT id FROM suppliers WHERE restaurant_id = ${restaurantId} AND lower(name) = lower(${trimmed}) LIMIT 1
+	`);
+	return rows[0]?.id ?? null;
+}
+
 export async function getOrCreateSupplierId(
 	restaurantId: string,
 	name: string,
@@ -111,10 +145,7 @@ export async function getOrCreateSupplierId(
 	const address = contact.address?.trim() || null;
 	const iban = contact.iban?.trim() || null;
 	const paymentTerms = contact.paymentTerms?.trim() || null;
-	const normalizedCif = normalizeTaxId(cif);
-	const identityCif = contactTrusted && taxIdDecidesIdentity(normalizedCif, contact.cifConfidence)
-		? normalizedCif
-		: null;
+	const identityCif = identityTaxId(contact, contactTrusted);
 	const merge: ContactMerge = {
 		cif: contactTrusted ? cif : null,
 		normalizedCif: identityCif,
