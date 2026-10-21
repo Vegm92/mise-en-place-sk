@@ -11,12 +11,6 @@ vi.hoisted(() => {
 	process.env.STRIPE_PRICE_ID_PRO = 'price_pro_test';
 });
 
-vi.mock('../src/lib/server/email', () => ({
-	sendEmail: vi.fn().mockResolvedValue(undefined),
-	subscriptionConfirmationEmail: vi.fn(() => ({ to: '', subject: '', html: '' })),
-	subscriptionConsolidatedEmail: vi.fn((to: string) => ({ to, subject: '', html: '' })),
-}));
-
 vi.mock('$lib/server/db', async () => {
 	const { testDb } = await import('./helpers/test-db');
 	const { forTenant } = await import('../src/lib/server/tenant');
