@@ -24,12 +24,7 @@ export async function getMonthlyUsage(restaurantId: string): Promise<number> {
 
 export async function remainingMonthlyQuota(restaurantId: string, limit: number | null): Promise<number | null> {
 	if (limit === null) return null;
-	try {
-		return Math.max(0, limit - (await getMonthlyUsage(restaurantId)));
-	} catch (err) {
-		console.error('[llm-quota] monthly usage check failed (allowing request):', err);
-		return null;
-	}
+	return Math.max(0, limit - (await getMonthlyUsage(restaurantId)));
 }
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
