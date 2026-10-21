@@ -12,6 +12,7 @@ import { startWorkerLivenessMonitor } from '$lib/server/worker-liveness-monitor'
 import { createLogger } from '$lib/server/log';
 import { startMetricFlush } from '$lib/server/metrics';
 import { createAppHandle } from '$lib/server/request-policy';
+import { assertScopedDbRole } from '$lib/server/db-role';
 
 export { applySecurityHeaders } from '$lib/server/request-policy';
 
@@ -62,6 +63,10 @@ if (addressWarning) log.warn(addressWarning);
 if (!process.env.VITEST && NODE_ENV !== 'test') {
 	cleanupStaleBatches().catch(e => { if (!isNetworkUnreachable(e)) log.error('batch cleanup error', { err: e }); });
 }
+assertScopedDbRole().catch(e => {
+	log.error('boot check failed', { err: e });
+	process.exit(1);
+});
 seedAdminUser().catch(e => { if (!isNetworkUnreachable(e)) log.error('seed error', { err: e }); });
 startWorkerLivenessMonitor();
 startMetricFlush();

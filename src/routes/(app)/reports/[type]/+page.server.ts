@@ -39,10 +39,10 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
 
 	const isCurrentWeek = type === 'weekly' && period === isoWeek(new Date());
 	const digest = isCurrentWeek ? await getOrGenerateWeeklyDigest(rid, period!) : null;
-	if (digest) trackEvent('digest_viewed', rid, { week: period });
+	if (digest) await trackEvent('digest_viewed', rid, { week: period });
 
 	const doc = await buildReport(type, rid, period, digest);
-	trackEvent('report_viewed', rid, { type, style });
+	await trackEvent('report_viewed', rid, { type, style });
 
 	const shareToken = isCurrentWeek ? await currentDigestShareToken(rid, period!) : null;
 

@@ -116,7 +116,7 @@ export const actions: Actions = {
 		});
 
 		const exts = [...new Set(saved.map(f => path.extname(f).toLowerCase()))];
-		trackEvent('file_uploaded', rid, { count: saved.length, exts });
+		await trackEvent('file_uploaded', rid, { count: saved.length, exts });
 
 		redirect(303, `/batch/${batchId}`);
 	},

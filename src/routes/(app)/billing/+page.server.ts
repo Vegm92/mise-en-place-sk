@@ -120,7 +120,7 @@ async function createCheckoutUrl(args: {
 	const successUrl = `${args.origin}/billing/confirm?session_id={CHECKOUT_SESSION_ID}`;
 	const cancelUrl = `${args.origin}/billing`;
 	let customerId = await getOrCreateCustomer(args.rid, args.email, args.restaurantName);
-	trackEvent('checkout_started', args.rid, { tier: args.tier });
+	await trackEvent('checkout_started', args.rid, { tier: args.tier });
 	try {
 		return await createCheckoutSession({
 			restaurantId: args.rid,
@@ -204,7 +204,7 @@ export const actions: Actions = {
 		let checkoutUrl: string;
 		try {
 			let customerId = await getOrCreateCustomer(rid, email, restaurant?.name ?? rid);
-			trackEvent('checkout_started', rid, { tier });
+			await trackEvent('checkout_started', rid, { tier });
 			try {
 				checkoutUrl = await createCheckoutSession({
 					restaurantId: rid,
@@ -290,7 +290,7 @@ export const actions: Actions = {
 			console.error(`[billing] switch failed for ${rid}:`, err);
 			return fail(500, { error: 'billing.err.switchFailed' });
 		}
-		trackEvent('plan_switched', rid, { tier });
+		await trackEvent('plan_switched', rid, { tier });
 		redirect(303, '/billing');
 	},
 };

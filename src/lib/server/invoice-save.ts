@@ -193,7 +193,7 @@ async function logExtractionCorrections(
 
 	if (rows.length > 0) {
 		await db.insert(extractionCorrections).values(rows);
-		trackEvent('invoice_corrected', restaurantId, {
+		await trackEvent('invoice_corrected', restaurantId, {
 			field_count: rows.length,
 			fields: rows.map((r) => r.fieldName),
 		}, invoiceId);
@@ -876,7 +876,7 @@ async function runPostSaveEffects(params: {
 		});
 	}
 
-	trackEvent('invoice_saved', rid, { confidence: confidenceRaw, line_count: lineInputs.length }, invoiceId);
+	await trackEvent('invoice_saved', rid, { confidence: confidenceRaw, line_count: lineInputs.length }, invoiceId);
 
 	runDetached(rid, () => maybeSendQuotaWarning(rid))
 		.catch((e) => console.error('[invoice-save] quota warning failed (non-fatal):', e));
@@ -1101,7 +1101,7 @@ export async function saveReviewedInvoice(
 	if (isReplay) return { type: 'replay' };
 
 	if (duplicateOutcome) {
-		trackEvent('duplicate_detected', rid, { supplier: supplierName, amount: totalAmount });
+		await trackEvent('duplicate_detected', rid, { supplier: supplierName, amount: totalAmount });
 		return duplicateOutcome;
 	}
 

@@ -258,7 +258,7 @@ export async function runWithDeadLetter<T>(
 	run: () => Promise<T>,
 ): Promise<T> {
 	try {
-		return await runWithTenantContext(ref.restaurantId, run);
+		return await (ref.restaurantId ? runWithTenantContext(ref.restaurantId, run) : run());
 	} catch (err) {
 		if ((ref.retriesLeft ?? 0) > 0) throw err;
 		log.error('job dead-lettered', {
