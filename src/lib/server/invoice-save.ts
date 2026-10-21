@@ -21,7 +21,7 @@ import type { ExtractedInvoice, DocumentReferenceFields } from './contracts/extr
 export type { DocumentReferenceFields };
 import type { BatchDb, BatchItem } from './batch';
 import { parseQrUrl, detectVerifactuMismatch } from './qr';
-import { toMoneyString, moneyToNumber, parseAmount } from './money';
+import { toMoneyString, moneyToNumber, parseAmount, parsePlainNumber } from './money';
 import { bandsFromInputs, taxableBaseMoney, detectTotalMismatch as detectAmountMismatch, type TaxBand } from '$lib/tax';
 import { renderTemplate } from '$lib/i18n-messages';
 import { isBlankOrIsoDate, toIsoDate } from './dates';
@@ -317,11 +317,11 @@ export function computeFormContentHash(
 	return computeInvoiceContentHash({
 		...header,
 		lineDescriptions: kept.map(i => descriptions[i] ?? ''),
-		lineQuantities:   kept.map(i => parseAmount(quantities[i] ?? '')),
+		lineQuantities:   kept.map(i => parsePlainNumber(quantities[i] ?? '')),
 		lineUnits:        kept.map(i => units[i]?.trim() || null),
 		lineUnitPrices:   kept.map(i => toMoneyString(unitPrices[i])),
 		lineTotalPrices:  kept.map(i => toMoneyString(totalPrices[i])),
-		lineTaxRates:     kept.map(i => parseAmount(taxRates[i])),
+		lineTaxRates:     kept.map(i => parsePlainNumber(taxRates[i])),
 		taxBands,
 	});
 }
@@ -377,7 +377,7 @@ export function resolveTotalsBreakdown(
 	return {
 		grossAmount: toMoneyString(rawGross as string | number | null | undefined),
 		discountAmount: toMoneyString(rawDiscount as string | number | null | undefined),
-		retentionRate: parseAmount(rawRetentionRate),
+		retentionRate: parsePlainNumber(rawRetentionRate),
 		retentionAmount: toMoneyString(rawRetentionAmount as string | number | null | undefined),
 	};
 }
@@ -400,11 +400,11 @@ export function parseLineInputs(formData: FormData): LineFormInput[] {
 		const productId = Number.parseInt(productIds[i] ?? '', 10);
 		out.push({
 			desc,
-			qtyFloat: parseAmount(quantities[i]),
+			qtyFloat: parsePlainNumber(quantities[i]),
 			unitPriceFloat: parseAmount(unitPrices[i]),
 			unitVal,
 			totalPriceVal: parseAmount(totalPrices[i]),
-			taxRateVal: parseAmount(taxRates[i]),
+			taxRateVal: parsePlainNumber(taxRates[i]),
 			pack: parsePack(desc, unitVal),
 			supplierSku: supplierSkus[i]?.trim() || null,
 			productId: Number.isInteger(productId) && productId > 0 ? productId : null,
@@ -935,7 +935,7 @@ export async function saveReviewedInvoice(
 	const dueDate = toIsoDate(dueDateRaw);
 	const deliveryDate = toIsoDate(deliveryDateRaw);
 	const totalAmount = toMoneyString(formData.get('total_amount') as string | null);
-	const confidenceRaw = parseAmount(formData.get('confidence'));
+	const confidenceRaw = parsePlainNumber(formData.get('confidence'));
 	const notesRaw = (formData.get('notes') as string) ?? '';
 	const notes = notesRaw.slice(0, 250) || null;
 

@@ -1,4 +1,5 @@
 import { str } from './formatters';
+import { toMoneyString } from './money';
 import { percentInputValue, percentToFraction, isTaxType } from './tax';
 import { isoDateOffset } from './dates';
 
@@ -31,8 +32,7 @@ export type BandRow = { rate: string; type: string; base: string; amount: string
 const NET_30_DAYS = 30;
 
 export function priceStr(v: number | string | null | undefined): string {
-	const n = typeof v === 'number' ? v : parseFloat(String(v ?? ''));
-	return isNaN(n) ? str(v) : n.toFixed(2);
+	return toMoneyString(v) ?? str(v);
 }
 
 export function normalizeLine(item: LineItem, match?: ProductMatch): LineItem {

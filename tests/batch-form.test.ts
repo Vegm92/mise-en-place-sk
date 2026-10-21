@@ -11,6 +11,16 @@ describe('priceStr', () => {
 	it('parses a numeric string to two decimals', () => {
 		expect(priceStr('12.5')).toBe('12.50');
 	});
+	it('reads a Spanish decimal comma instead of truncating it (RULE-001, issue #1270)', () => {
+		expect(priceStr('1,50')).toBe('1.50');
+		expect(priceStr('12,5')).toBe('12.50');
+	});
+	it('reads a lone dot plus three digits as a thousands group (RULE-002, issue #1270)', () => {
+		expect(priceStr('1.234')).toBe('1234.00');
+		expect(priceStr('1.234,56')).toBe('1234.56');
+		expect(priceStr('1.23')).toBe('1.23');
+		expect(priceStr(1.234)).toBe('1.23');
+	});
 	it('falls back to the raw string when unparseable', () => {
 		expect(priceStr('n/a')).toBe('n/a');
 	});

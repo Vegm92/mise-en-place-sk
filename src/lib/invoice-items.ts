@@ -1,3 +1,5 @@
+import { parseAmount, parsePlainNumber } from '$lib/money';
+
 export interface Row {
 	description: string | null;
 	quantity: string | null;
@@ -16,9 +18,9 @@ export function calcTotal(
 	price: string | number | null
 ): number | null {
 	if (qty == null || price == null) return null;
-	const q = typeof qty === 'number' ? qty : parseFloat(qty);
-	const p = typeof price === 'number' ? price : parseFloat(price);
-	if (isNaN(q) || isNaN(p)) return null;
+	const q = parsePlainNumber(qty);
+	const p = parseAmount(price);
+	if (q === null || p === null) return null;
 	return Math.round(q * p * 100) / 100;
 }
 

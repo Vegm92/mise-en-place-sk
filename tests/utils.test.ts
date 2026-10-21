@@ -55,7 +55,7 @@ describe('str', () => {
 describe('calcTotal', () => {
 	it('multiplies qty by price and rounds to 2 dp', () => {
 		expect(calcTotal(5, 3.5)).toBe(17.5);
-		expect(calcTotal('3', '1.334')).toBe(4.0); // 3 * 1.334 = 4.002 → rounds to 4.00
+		expect(calcTotal('3', '1,334')).toBe(4.0); // 3 * 1.334 = 4.002 → rounds to 4.00
 	});
 	it('returns null when either value is missing or non-numeric', () => {
 		expect(calcTotal(null, 10)).toBeNull();
