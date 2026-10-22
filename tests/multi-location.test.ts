@@ -41,7 +41,7 @@ vi.mock('$lib/server/db', () => {
 	const db = {
 		select: (fields?: Record<string, unknown>) => resolving(() => {
 			const keys = fields ?? {};
-			if ('planTier' in keys) return [{ planTier: state.subscriptionTier }];
+			if ('planTier' in keys) return [{ planTier: state.subscriptionTier, status: 'active' }];
 			if ('role' in keys) return state.ownerRole ? [{ role: state.ownerRole }] : [];
 			if ('cnt' in keys) return [{ cnt: state.groupCount ?? state.memberships.length }];
 			if ('value' in keys) return [{ value: 'true' }];

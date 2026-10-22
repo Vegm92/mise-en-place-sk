@@ -281,7 +281,7 @@ guard; quota arithmetic.
 
 **`function getEntitlements`**
 
-- Returns the effective tier for runtime gating (features, `maxLocations`, layout nav). The stored `planTier` column reflects the Stripe price and stays at the paid tier even after cancellation (the price is still Pro until the sub is deleted), so the returned tier degrades to `trial` on explicit terminal states — `canceled`/`paused`/`incomplete`, or a `trialing` row whose trial has lapsed — while keeping the paid tier during an active/trialing cancel-at-period-end window and for `past_due` (recoverable payment). This is what makes features, the nav, and the sidebar quota fall back to the trial tier once a plan is canceled.
+- Returns the effective tier for runtime gating (features, `maxLocations`, layout nav). The stored `planTier` column reflects the Stripe price and stays at the paid tier even after cancellation (the price is still Pro until the sub is deleted), so the returned tier degrades to `trial` on explicit terminal states — `canceled`/`paused`/`incomplete`, or a `trialing` row whose trial has lapsed — while keeping the paid tier during an active/trialing cancel-at-period-end window and for `past_due` inside its 7-day grace window (`PAST_DUE_GRACE_DAYS`, counted from `subscriptions.past_due_since`, which the webhook stamps on the first `past_due` and clears on recovery). The access gate (`isAccessAllowed`) and this function use the same rule, so a status never has paid features without access or the reverse (RULE-267, issue #1274). This is what makes features, the nav, and the sidebar quota fall back to the trial tier once a plan is canceled.
 
 **`function isTierAvailable`**
 

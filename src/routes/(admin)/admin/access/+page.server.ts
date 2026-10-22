@@ -5,7 +5,7 @@ import { db } from '$lib/server/db';
 import { users, waitlist } from '$lib/server/schema';
 import { isAdminUser } from '$lib/server/admin';
 import { safe } from '$lib/server/load-guard';
-import { isAccessOpen, setAccessOpen } from '$lib/server/app-flags';
+import { isAccessOpen, isFounderSignup, setAccessOpen } from '$lib/server/app-flags';
 import { sendEmail, accessApprovedEmail, waitlistInviteEmail, promoCodeEmail } from '$lib/server/email';
 import * as v from 'valibot';
 import { sqlRows } from '$lib/server/sql-rows';
@@ -98,11 +98,14 @@ export const actions: Actions = {
 		const userId = (data.get('userId') as string ?? '').trim();
 		if (!userId) return fail(422, { error: 'missing_user' });
 
-		const founder = !(await isAccessOpen());
+		const [target] = await db.select({ createdAt: users.createdAt }).from(users).where(eq(users.id, userId)).limit(1);
+		if (!target) return fail(404, { error: 'not_found' });
+
+		const founder = await isFounderSignup(target.createdAt);
 
 		const [updated] = await db
 			.update(users)
-			.set({ accessStatus: 'approved', ...(founder ? { founder: true } : {}) })
+			.set({ accessStatus: 'approved', founder })
 			.where(eq(users.id, userId))
 			.returning({ email: users.email });
 
@@ -123,7 +126,12 @@ export const actions: Actions = {
 		const userId = (data.get('userId') as string ?? '').trim();
 		if (!userId) return fail(422, { error: 'missing_user' });
 
-		await db.update(users).set({ accessStatus: 'pending' }).where(eq(users.id, userId));
+		const [updated] = await db
+			.update(users)
+			.set({ accessStatus: 'pending', founder: false })
+			.where(eq(users.id, userId))
+			.returning({ id: users.id });
+		if (!updated) return fail(404, { error: 'not_found' });
 		return { success: true };
 	},
 

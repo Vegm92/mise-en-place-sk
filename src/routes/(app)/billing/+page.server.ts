@@ -33,7 +33,7 @@ export const load: PageServerLoad = async ({ locals, url, parent }) => {
 
 	const status = (sub?.status ?? 'trialing') as 'trialing' | 'active' | 'past_due' | 'paused' | 'canceled' | 'incomplete';
 	const trialEndsAt = sub?.trialEndsAt ?? null;
-	const hasAccess = isAccessAllowed(status, trialEndsAt);
+	const hasAccess = isAccessAllowed(status, trialEndsAt, sub?.pastDueSince ?? null);
 	const stripeConfigured = !!stripe;
 	const currentTier = (sub?.planTier ?? 'trial') as PlanTier;
 	const hasSubscription = !!sub?.stripeSubscriptionId;
@@ -106,44 +106,6 @@ async function redirectExistingSubscriber(
 		}
 	}
 	redirect(303, '/billing');
-}
-
-async function createCheckoutUrl(args: {
-	rid: string;
-	email: string;
-	restaurantName: string;
-	tier: PlanTier;
-	origin: string;
-	idemKey: string | null;
-	userId: string;
-}): Promise<string> {
-	const successUrl = `${args.origin}/billing/confirm?session_id={CHECKOUT_SESSION_ID}`;
-	const cancelUrl = `${args.origin}/billing`;
-	let customerId = await getOrCreateCustomer(args.rid, args.email, args.restaurantName);
-	await trackEvent('checkout_started', args.rid, { tier: args.tier });
-	try {
-		return await createCheckoutSession({
-			restaurantId: args.rid,
-			customerId,
-			tier: args.tier,
-			successUrl,
-			cancelUrl,
-			...(args.idemKey != null ? { idempotencyKey: args.idemKey } : {}),
-			userId: args.userId,
-		});
-	} catch (err) {
-		if (!(err instanceof StaleCustomerError)) throw err;
-		await clearStaleCustomer(args.rid);
-		customerId = await getOrCreateCustomer(args.rid, args.email, args.restaurantName);
-		return createCheckoutSession({
-			restaurantId: args.rid,
-			customerId,
-			tier: args.tier,
-			successUrl,
-			cancelUrl,
-			userId: args.userId,
-		});
-	}
 }
 
 export const actions: Actions = {

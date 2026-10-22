@@ -20,6 +20,7 @@ interface AllowanceRow {
 	planTier: string | null;
 	status: string | null;
 	trialEndsAt: Date | null;
+	pastDueSince: Date | null;
 	rank: number | null;
 }
 
@@ -29,7 +30,7 @@ export function isRankLocked(rank: number, maxLocations: number): boolean {
 
 function lockedFromRow(row: AllowanceRow): boolean {
 	const sub = row.planTier != null || row.status != null
-		? { planTier: row.planTier ?? null, status: row.status ?? '', trialEndsAt: row.trialEndsAt ?? null }
+		? { planTier: row.planTier ?? null, status: row.status ?? '', trialEndsAt: row.trialEndsAt ?? null, pastDueSince: row.pastDueSince }
 		: undefined;
 	return isRankLocked(row.rank ?? 0, TIERS[effectiveTier(sub)].maxLocations);
 }
@@ -53,6 +54,7 @@ export async function memberLocations(userId: string): Promise<MemberLocation[]>
 		planTier:     subscriptions.planTier,
 		status:       subscriptions.status,
 		trialEndsAt:  subscriptions.trialEndsAt,
+		pastDueSince: subscriptions.pastDueSince,
 		rank:         LOCATION_RANK,
 	})
 		.from(userRestaurants)
@@ -72,6 +74,7 @@ export async function isLocationLocked(restaurantId: string): Promise<boolean> {
 		planTier:    subscriptions.planTier,
 		status:      subscriptions.status,
 		trialEndsAt: subscriptions.trialEndsAt,
+		pastDueSince: subscriptions.pastDueSince,
 		rank:        LOCATION_RANK,
 	})
 		.from(restaurants)
