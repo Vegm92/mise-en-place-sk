@@ -214,14 +214,11 @@ export async function checkLlmQuota(restaurantId: string, use: LlmUse): Promise<
 		const monthStart = new Date();
 		monthStart.setUTCDate(1);
 		monthStart.setUTCHours(0, 0, 0, 0);
-		const thisUse = and(
-			tdb.scope(llmUsageLog.restaurantId),
-			gte(llmUsageLog.createdAt, monthStart),
-			usageForUse(use),
-		);
+		const thisMonth = gte(llmUsageLog.createdAt, monthStart);
+		const thisUse = usageForUse(use);
 
 		if (quota.monthlyExtractions != null) {
-			const used = await db.$count(llmUsageLog, thisUse);
+			const used = await db.$count(llmUsageLog, and(tdb.scope(llmUsageLog.restaurantId), thisMonth, thisUse));
 			if (used >= quota.monthlyExtractions) {
 				return { allowed: false, reason: 'monthly_extraction_limit', limit: quota.monthlyExtractions, used };
 			}
@@ -232,7 +229,7 @@ export async function checkLlmQuota(restaurantId: string, use: LlmUse): Promise<
 			const [row] = await db
 				.select({ total: sql<string>`coalesce(sum(estimated_cost_usd), '0')` })
 				.from(llmUsageLog)
-				.where(thisUse);
+				.where(and(tdb.scope(llmUsageLog.restaurantId), thisMonth, thisUse));
 			const used = parseFloat(row?.total ?? '0');
 			if (used >= limit) {
 				return { allowed: false, reason: 'monthly_cost_limit', limit, used };
