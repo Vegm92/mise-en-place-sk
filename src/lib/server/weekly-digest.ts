@@ -4,7 +4,7 @@ import { settings, restaurants } from './schema';
 import { GEMINI_TIMEOUT_MS } from './env';
 import { buildChatContext } from './chat-context';
 import { createGeminiProvider } from './llm-provider';
-import { checkExtractionQuota, recordLlmUsage } from './llm-quota';
+import { checkLlmQuota, recordLlmUsage } from './llm-quota';
 
 const VENUE_TYPE_PROMPT_LABEL: Record<string, string> = {
 	menu_del_dia: 'a fixed-price menú del día restaurant',
@@ -96,7 +96,7 @@ export async function getOrGenerateWeeklyDigest(
 			return await getSetting(restaurantId, 'weekly_digest_text');
 		}
 
-		const quota = await checkExtractionQuota(restaurantId);
+		const quota = await checkLlmQuota(restaurantId, 'digest');
 		if (!quota.allowed) {
 			console.warn(`[weekly-digest] quota exceeded for restaurant ${restaurantId}: ${quota.reason}`);
 			return null;
