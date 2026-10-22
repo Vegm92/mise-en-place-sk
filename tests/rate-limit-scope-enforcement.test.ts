@@ -22,7 +22,7 @@
  *   number, a channel identity with no Auth.js session
  * - src/lib/server/whatsapp-pairing.ts — redeemPairingCode() is phone-keyed (the
  *   generate side, restaurant-keyed, is migrated to rateLimitScoped())
- * - src/routes/(app)/settings/+page.server.ts — email-change is deliberately dual-keyed
+ * - src/lib/server/account-security.ts — email-change is deliberately dual-keyed
  *   (user AND address, #496); password-change in the same file is migrated
  * - src/routes/s/[token]/+page.server.ts, src/routes/s/[token]/og.png/+server.ts —
  *   the public, no-auth digest-share view (#329) and its OG image; ip-keyed,
@@ -44,7 +44,7 @@ const ALLOWED_DIRECT_CALL_FILES = new Set([
 	'src/lib/server/request-policy.ts',
 	'src/lib/server/integrations/whatsapp/message-handler.ts',
 	'src/lib/server/whatsapp-pairing.ts',
-	'src/routes/(app)/settings/+page.server.ts',
+	'src/lib/server/account-security.ts',
 	'src/routes/s/[token]/+page.server.ts',
 	'src/routes/s/[token]/og.png/+server.ts',
 	'src/routes/cookie-consent/+server.ts',
@@ -143,7 +143,7 @@ describe('checkRateLimit() call sites go through rateLimitScoped() (issue #440)'
 			'src/routes/(app)/analytics/extraction/csv/+server.ts',
 			'src/routes/(app)/products/inventory-template/+server.ts',
 			'src/lib/server/whatsapp-pairing.ts',
-			'src/routes/(app)/settings/+page.server.ts',
+			'src/lib/server/account-security.ts',
 		];
 		for (const relFile of mustUseHelper) {
 			const src = fs.readFileSync(path.join(process.cwd(), relFile), 'utf8');

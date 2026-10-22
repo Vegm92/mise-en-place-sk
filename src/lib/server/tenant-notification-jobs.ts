@@ -1,6 +1,7 @@
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { db, forTenant } from './db';
-import { invoices, settings, userRestaurants, users } from './schema';
+import { invoices, userRestaurants, users } from './schema';
+import { claimSetting } from './settings-store';
 import { sendEmail, weeklyDigestEmail, incidenciaDigestEmail, trialExpiryEmail, trialExpiredEmail } from './email';
 import { getOrGenerateWeeklyDigest, isoWeek } from './weekly-digest';
 import { pushWeeklyDigestOverWhatsApp } from './whatsapp-digest-push';
@@ -22,18 +23,6 @@ export const TENANT_FANOUT_QUEUES = [DIGEST_TENANT_QUEUE, REMINDERS_TENANT_QUEUE
 export const DIGEST_CRON = '0 6 * * 1';
 export const REMINDERS_CRON = '30 6 * * *';
 export const TRIAL_CRON = '0 7 * * *';
-
-async function claimOnce(restaurantId: string, key: string, value: string): Promise<boolean> {
-	const rows = await db.insert(settings)
-		.values({ restaurantId, key, value })
-		.onConflictDoUpdate({
-			target: [settings.restaurantId, settings.key],
-			set: { value },
-			setWhere: sql`${settings.value} <> ${value}`,
-		})
-		.returning({ value: settings.value });
-	return rows.length > 0;
-}
 
 async function ownerEmail(restaurantId: string): Promise<string | null> {
 	const tdb = forTenant(restaurantId);
@@ -82,9 +71,9 @@ export async function sendWeeklyDigest(data: WeeklyDigestJobData): Promise<boole
 	const digest = await getOrGenerateWeeklyDigest(data.restaurantId, data.week);
 	if (!digest) return false;
 
-	if (!(await claimOnce(data.restaurantId, 'weekly_digest_email_week', data.week))) return false;
+	if (!(await claimSetting(data.restaurantId, 'weekly_digest_email_week', data.week))) return false;
 
-	if (await claimOnce(data.restaurantId, 'weekly_digest_whatsapp_week', data.week)) {
+	if (await claimSetting(data.restaurantId, 'weekly_digest_whatsapp_week', data.week)) {
 		await pushWeeklyDigestOverWhatsApp(data.restaurantId, data.name, data.week, digest);
 	}
 
@@ -130,7 +119,7 @@ export async function sendOverdueReminder(data: OverdueReminderJobData): Promise
 		.where(tdb.scope(invoices.restaurantId, tenantWhere));
 	const totalAmount = totalRow?.total ?? 0;
 
-	if (!(await claimOnce(data.restaurantId, 'incidencia_digest_sent_day', data.day))) return false;
+	if (!(await claimSetting(data.restaurantId, 'incidencia_digest_sent_day', data.day))) return false;
 
 	const email = await ownerEmail(data.restaurantId);
 	if (!email) return false;
@@ -169,7 +158,7 @@ export async function runTrialNoticesJob(boss: PgBoss): Promise<DispatchResult> 
 }
 
 export async function sendTrialNotice(data: TrialNoticeJobData): Promise<boolean> {
-	if (!(await claimOnce(data.restaurantId, 'trial_notice_sent', data.claim))) return false;
+	if (!(await claimSetting(data.restaurantId, 'trial_notice_sent', data.claim))) return false;
 
 	const email = await ownerEmail(data.restaurantId);
 	if (!email) return false;

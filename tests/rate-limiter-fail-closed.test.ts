@@ -108,7 +108,7 @@ describe('auth-critical call sites carry the flag (source scan)', () => {
 	it.each([
 		'src/lib/server/public-form-action.ts',
 		'src/lib/server/resend-verification-action.ts',
-		'src/routes/(app)/settings/+page.server.ts',
+		'src/lib/server/account-security.ts',
 		'src/lib/server/whatsapp-pairing.ts',
 	])('%s passes authCritical: true and maps RateLimitBackendUnavailableError to a denial', (relFile) => {
 		const src = fs.readFileSync(path.join(process.cwd(), relFile), 'utf8');
