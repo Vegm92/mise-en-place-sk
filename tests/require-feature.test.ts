@@ -28,7 +28,7 @@ describe('requireFeature', () => {
 		for (const feature of FEATURE_NAMES) {
 			const allowed = TIERS[tier].features[feature];
 			it(`${tier} × ${feature}: ${allowed ? 'allows' : 'rejects with 403'}`, async () => {
-				subscriptionRow.value = { planTier: tier };
+				subscriptionRow.value = { planTier: tier, status: 'active' };
 				if (allowed) {
 					await expect(requireFeature(feature, 'rid')).resolves.toBeUndefined();
 				} else {
