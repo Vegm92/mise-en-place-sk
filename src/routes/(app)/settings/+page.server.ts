@@ -25,7 +25,10 @@ const respond = (section: string, outcome: ActionOutcome) =>
 
 const activeRestaurant = (locals: App.Locals) => locals.restaurantId ?? redirect(303, '/onboarding');
 
-export const load: PageServerLoad = ({ locals }) => loadSettingsPage(locals);
+export const load: PageServerLoad = async ({ locals }) => ({
+	title: 'nav.settings',
+	...(await loadSettingsPage(locals)),
+});
 
 export const actions: Actions = {
 	saveAlertPreferences: async ({ request, locals }) => {

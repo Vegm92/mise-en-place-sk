@@ -66,7 +66,6 @@ export function loadSettingsPage(locals: App.Locals) {
 		const isOwner = membership[0]?.role === 'owner';
 
 		return {
-			title: 'nav.settings',
 			threshold:      thresholdRaw !== null ? parseInt(thresholdRaw, 10)          : 80,
 			priceThreshold: priceRaw     !== null ? Math.round(parseFloat(priceRaw) * 100) : 15,
 			alertPreferences,
