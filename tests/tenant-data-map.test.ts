@@ -76,11 +76,12 @@ describe('tenantDataMap (issue #390)', () => {
 		expect(rootEntry().tableName).toBe('restaurants');
 	});
 
-	it('exports the same 11-table set the pre-#390 export handler produced, plus recipes/recipe_items (escandallos, Phase 0)', () => {
+	it('exports the pre-#390 set, recipes/recipe_items (Phase 0), and products, aliases and categories (RULE-356)', () => {
 		expect(exportableEntries().map((entry) => entry.exportKey)).toEqual([
 			'restaurants', 'suppliers', 'invoices', 'invoice_line_items', 'category_budgets',
 			'unit_conversions', 'chat_sessions', 'chat_messages', 'extraction_corrections',
-			'extraction_results', 'stock_levels', 'settings', 'recipes', 'recipe_items',
+			'extraction_results', 'stock_levels', 'settings', 'products', 'product_aliases',
+			'supplier_aliases', 'recipes', 'recipe_items', 'categories',
 		]);
 	});
 

@@ -1,5 +1,6 @@
 import { Resend } from 'resend';
 import * as Sentry from '@sentry/sveltekit';
+import { renderTemplate, type Locale } from '$lib/i18n-messages';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY ?? '';
 const EMAIL_FROM = process.env.EMAIL_FROM ?? 'Mise en Place <noreply@mise-place.com>';
@@ -18,7 +19,7 @@ export type EmailKind =
 	| 'welcome' | 'waitlist_invite' | 'weekly_digest' | 'incidencia_digest'
 	| 'trial_expiry' | 'trial_expired' | 'subscription_confirmation' | 'subscription_consolidated'
 	| 'quota_warning' | 'verify_email' | 'password_reset' | 'access_approved' | 'promo_code_dispatch'
-	| 'recipe_sheet' | 'supplier_claim' | 'email_ingest_rejected';
+	| 'recipe_sheet' | 'supplier_claim' | 'email_ingest_rejected' | 'ownership_transfer';
 
 export interface EmailPayload {
 	to: string;
@@ -494,6 +495,24 @@ ${p(`Detectamos que tu cuenta tenía dos suscripciones activas. Como cada cuenta
 ${downgradedParagraph}`,
 			cta: { href: `${APP_BASE_URL}/billing`, label: 'Ver facturación' },
 			footerLinks: true,
+		}),
+	};
+}
+
+export function ownershipTransferEmail(email: string, restaurantName: string, locale: Locale): EmailPayload {
+	const t = (key: string, restaurant: string) => renderTemplate(locale, `email.ownerTransfer.${key}`, { restaurant });
+	const plainName = sanitizeForHeader(restaurantName);
+	const name = escapeHtml(restaurantName);
+	return {
+		to: email,
+		kind: 'ownership_transfer',
+		subject: t('subject', plainName),
+		html: renderEmailLayout({
+			preheader: t('preheader', plainName),
+			eyebrow: t('eyebrow', plainName),
+			headline: t('headline', plainName),
+			bodyHtml: p(t('body', strong(name))),
+			cta: { href: APP_BASE_URL, label: t('cta', plainName) },
 		}),
 	};
 }

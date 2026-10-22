@@ -37,11 +37,11 @@ export const tenantDataMap: readonly TenantDataMapEntry[] = [
 	{ tableName: 'extraction_results', table: extractionResults, scopeColumn: extractionResults.restaurantId, deletion: 'cascade-via-restaurants', exportKey: 'extraction_results' },
 	{ tableName: 'stock_levels', table: stockLevels, scopeColumn: stockLevels.restaurantId, deletion: 'cascade-via-restaurants', exportKey: 'stock_levels' },
 	{ tableName: 'settings', table: settings, scopeColumn: settings.restaurantId, deletion: 'cascade-via-restaurants', exportKey: 'settings' },
-	{ tableName: 'products', table: products, scopeColumn: products.restaurantId, deletion: 'cascade-via-restaurants', exportKey: null },
+	{ tableName: 'products', table: products, scopeColumn: products.restaurantId, deletion: 'cascade-via-restaurants', exportKey: 'products' },
 	{ tableName: 'system_notifications', table: systemNotifications, scopeColumn: systemNotifications.restaurantId, deletion: 'cascade-via-restaurants', exportKey: null },
 	{ tableName: 'invoice_audit_log', table: invoiceAuditLog, scopeColumn: invoiceAuditLog.restaurantId, deletion: 'cascade-via-restaurants', exportKey: null },
-	{ tableName: 'product_aliases', table: productAliases, scopeColumn: productAliases.restaurantId, deletion: 'cascade-via-restaurants', exportKey: null },
-	{ tableName: 'supplier_aliases', table: supplierAliases, scopeColumn: supplierAliases.restaurantId, deletion: 'cascade-via-restaurants', exportKey: null },
+	{ tableName: 'product_aliases', table: productAliases, scopeColumn: productAliases.restaurantId, deletion: 'cascade-via-restaurants', exportKey: 'product_aliases' },
+	{ tableName: 'supplier_aliases', table: supplierAliases, scopeColumn: supplierAliases.restaurantId, deletion: 'cascade-via-restaurants', exportKey: 'supplier_aliases' },
 	{ tableName: 'supplier_metrics', table: supplierMetrics, scopeColumn: supplierMetrics.restaurantId, deletion: 'cascade-via-restaurants', exportKey: null },
 	{ tableName: 'llm_usage_log', table: llmUsageLog, scopeColumn: llmUsageLog.restaurantId, deletion: 'cascade-via-restaurants', exportKey: null },
 	{ tableName: 'tenant_llm_quotas', table: tenantLlmQuotas, scopeColumn: tenantLlmQuotas.restaurantId, deletion: 'cascade-via-restaurants', exportKey: null },
@@ -58,7 +58,7 @@ export const tenantDataMap: readonly TenantDataMapEntry[] = [
 	{ tableName: 'digest_shares', table: digestShares, scopeColumn: digestShares.restaurantId, deletion: 'cascade-via-restaurants', exportKey: null },
 	{ tableName: 'recipes', table: recipes, scopeColumn: recipes.restaurantId, deletion: 'cascade-via-restaurants', exportKey: 'recipes' },
 	{ tableName: 'recipe_items', table: recipeItems, scopeColumn: recipeItems.restaurantId, deletion: 'cascade-via-restaurants', exportKey: 'recipe_items' },
-	{ tableName: 'categories', table: categories, scopeColumn: categories.restaurantId, deletion: 'cascade-via-restaurants', exportKey: null },
+	{ tableName: 'categories', table: categories, scopeColumn: categories.restaurantId, deletion: 'cascade-via-restaurants', exportKey: 'categories' },
 ];
 
 export function exportableEntries(): TenantDataMapEntry[] {
