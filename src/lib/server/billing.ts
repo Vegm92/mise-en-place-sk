@@ -11,6 +11,7 @@ import { STRIPE_PRICE_ID, STRIPE_PRICE_ID_BUSINESS, STRIPE_PRICE_ID_PRO, STRIPE_
 import { db, forTenant, runAsSystem } from './db';
 import type { BatchDb } from './batch';
 import { subscriptions, restaurants, settings, systemNotifications, userRestaurants } from './schema';
+import { putSetting } from './settings-store';
 import { claimIdempotencyKey, releaseIdempotencyKey, STRIPE_WEBHOOK_SCOPE } from './idempotency';
 import { trackEvent } from './events';
 import { sendEmail, subscriptionConfirmationEmail, subscriptionConsolidatedEmail } from './email';
@@ -370,13 +371,9 @@ export async function notifyLocationsLocked(billingRestaurantId: string, tier: P
 export async function applyTierSettings(restaurantId: string, tier: PlanTier): Promise<void> {
 	const config = TIERS[tier];
 	const quota = config.monthlyInvoiceQuota ?? UNLIMITED_QUOTA_SETTING;
-	const upsert = (key: string, value: string) =>
-		db.insert(settings)
-			.values({ restaurantId, key, value })
-			.onConflictDoUpdate({ target: [settings.restaurantId, settings.key], set: { value } });
 	await Promise.all([
-		upsert('plan_name', config.name),
-		upsert('plan_quota', String(quota)),
+		putSetting(restaurantId, 'plan_name', config.name),
+		putSetting(restaurantId, 'plan_quota', String(quota)),
 	]);
 }
 

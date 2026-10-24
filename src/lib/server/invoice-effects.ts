@@ -1,5 +1,6 @@
 import { db, forTenant } from './db';
-import { invoices, invoiceLineItems, extractionCorrections, settings } from './schema';
+import { invoices, invoiceLineItems, extractionCorrections } from './schema';
+import { getSetting, putSetting } from './settings-store';
 import { eq, and, inArray, notInArray } from 'drizzle-orm';
 import { resolveLineProducts, applyExtractedAllergens, assignLineProduct, getProductName, type EnrichedLineItem, type PackInfo } from './products';
 import { enqueueCategorize, enqueueNormalize } from './queue';
@@ -462,19 +463,9 @@ export async function runPostSaveEffects(params: {
 	));
 
 	return isolated('onboarding flag', false, async () => {
-		const onboardingRows = await db
-			.select({ value: settings.value })
-			.from(settings)
-			.where(tdb.scope(settings.restaurantId, eq(settings.key, 'has_completed_onboarding')))
-			.limit(1);
-		const isFirstInvoice = onboardingRows[0]?.value !== 'true';
+		const isFirstInvoice = (await getSetting(rid, 'has_completed_onboarding')) !== 'true';
 		if (isFirstInvoice) {
-			await db.insert(settings)
-				.values({ restaurantId: rid, key: 'has_completed_onboarding', value: 'true' })
-				.onConflictDoUpdate({
-					target: [settings.restaurantId, settings.key],
-					set: { value: 'true' },
-				});
+			await putSetting(rid, 'has_completed_onboarding', 'true');
 		}
 		return isFirstInvoice;
 	});
