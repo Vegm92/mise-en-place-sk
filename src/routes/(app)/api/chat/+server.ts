@@ -5,7 +5,7 @@ import { apiError, invalidBody } from '$lib/server/api-response';
 import { parseJson } from '$lib/server/public-form-action';
 import { GEMINI_API_KEY, CHAT_RATE_LIMIT_RPM, GEMINI_TIMEOUT_MS } from '$lib/server/env';
 import { createGeminiProvider } from '$lib/server/llm-provider';
-import { checkExtractionQuota, recordLlmUsage } from '$lib/server/llm-quota';
+import { checkLlmQuota, recordLlmUsage } from '$lib/server/llm-quota';
 import { buildChatContext } from '$lib/server/chat-context';
 import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import { trackEvent } from '$lib/server/events';
@@ -105,7 +105,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		return apiError(429, 'Too many requests — please wait a moment before trying again');
 	}
 
-	const quota = await checkExtractionQuota(rid);
+	const quota = await checkLlmQuota(rid, 'chat');
 	if (!quota.allowed) {
 		return json({ error: 'quota_exceeded', reason: quota.reason }, { status: 402 });
 	}
