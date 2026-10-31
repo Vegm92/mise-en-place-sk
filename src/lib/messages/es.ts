@@ -476,7 +476,6 @@ export default {
   'set.profile.err.currentWrong':      'La contraseña actual no es correcta.',
   'set.profile.err.passwordFailed':    'No se pudo cambiar la contraseña. Inténtalo de nuevo.',
   'set.profile.err.rateLimited':       'Demasiados intentos. Espera un minuto y vuelve a intentarlo.',
-  'set.profile.err.serviceUnavailable': 'El servicio no está disponible temporalmente. Inténtalo de nuevo en unos minutos.',
   'set.profile.err.restaurantRequired':'El nombre del restaurante no puede estar vacío.',
   'set.profile.err.restaurantTooLong': 'El nombre es demasiado largo (máximo 120 caracteres).',
   'set.profile.err.notOwner':          'Solo el propietario puede cambiar el nombre del restaurante.',
