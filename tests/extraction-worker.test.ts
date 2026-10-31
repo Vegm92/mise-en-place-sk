@@ -90,35 +90,9 @@ vi.mock('../src/lib/server/rate-limiter.js', async (importOriginal) => ({
 	acquireExtractionSlot: slotMocks.acquireExtractionSlot,
 }));
 
-const deadLetterMocks = vi.hoisted(() => ({ recordDeadLetter: vi.fn() }));
 vi.mock('../src/lib/server/dead-letter.js', () => ({
-	recordDeadLetter: deadLetterMocks.recordDeadLetter,
-	deadLetterRefFromJob: (queue: string, job: { id?: string | null; data?: unknown; retryCount?: number | null; retryLimit?: number | null }) => {
-		const data = (job.data ?? {}) as Record<string, unknown>;
-		const retryCount = job.retryCount ?? 0;
-		const retryLimit = job.retryLimit ?? 0;
-		return {
-			queue,
-			jobId: job.id ?? null,
-			restaurantId: typeof data.restaurantId === 'string' ? data.restaurantId : null,
-			sourceId: typeof data.itemId === 'string' ? data.itemId : null,
-			attempt: retryCount + 1,
-			retriesLeft: Math.max(0, retryLimit - retryCount),
-			payload: job.data,
-		};
-	},
-	runWithDeadLetter: async <T,>(
-		ref: { retriesLeft?: number; queue?: string; jobId?: string | null; attempt?: number },
-		run: () => Promise<T>,
-	): Promise<T> => {
-		try {
-			return await run();
-		} catch (err) {
-			if ((ref.retriesLeft ?? 0) > 0) throw err;
-			await deadLetterMocks.recordDeadLetter({ ...ref, error: err });
-			throw err;
-		}
-	},
+	runJob: async <T,>(_job: unknown, run: () => Promise<T>): Promise<T> => run(),
+	describeError: (err: unknown) => ({ message: err instanceof Error ? err.message : String(err), stack: null }),
 }));
 
 vi.mock('../src/lib/server/sessions.js', () => ({
@@ -225,8 +199,10 @@ const FINAL_ATTEMPT = { retryCount: 2, retryLimit: 2 };
 async function runFailing(err: unknown, retryInfo: { retryCount: number; retryLimit: number } | undefined) {
 	batchMocks.markExtracting.mockResolvedValue(true);
 	extractMocks.extractWithProvider.mockRejectedValue(err);
-	await processExtractionJob(job, undefined, retryInfo);
+	return processExtractionJob(job, undefined, retryInfo);
 }
+
+const failedForGood = (errorClass: string) => ({ deadletter: expect.objectContaining({ errorClass }) });
 
 describe('processExtractionJob — which failures earn a redelivery (#520)', () => {
 	it.each(ERROR_CLASSES.filter((c) => c.transient))(
@@ -287,10 +263,8 @@ describe('processExtractionJob — a full concurrency cap returns the job to the
 		expect(extractMocks.extractWithProvider).not.toHaveBeenCalled();
 	});
 
-	it('does not dead-letter a cap that is merely full', async () => {
-		await processExtractionJob(job, undefined, RETRIES_LEFT);
-
-		expect(deadLetterMocks.recordDeadLetter).not.toHaveBeenCalled();
+	it('does not fail the job for good when a cap is merely full', async () => {
+		expect(await processExtractionJob(job, undefined, RETRIES_LEFT)).toBe('failed');
 	});
 
 	it('gives up with a message the user can read once the retries are spent', async () => {
@@ -363,43 +337,27 @@ describe('processExtractionJob — storage fingerprint mismatch (#1049)', () => 
 	});
 });
 
-describe('processExtractionJob — dead-letter routing follows the same classification (#520)', () => {
+describe('processExtractionJob — failing the job for good follows the same classification (#520)', () => {
 	it.each(ERROR_CLASSES.filter((c) => c.transient))(
-		'$label is a degradation, not a dead letter',
+		'$label is a degradation, not a failed job',
 		async ({ err }) => {
-			await runFailing(err, FINAL_ATTEMPT);
-
-			expect(deadLetterMocks.recordDeadLetter).not.toHaveBeenCalled();
+			expect(await runFailing(err, FINAL_ATTEMPT)).toBe('completed');
 			expect(sentryMocks.captureException).toHaveBeenCalled();
 		}
 	);
 
 	it.each(ERROR_CLASSES.filter((c) => !c.transient))(
-		'$label goes to the dead-letter queue with its class',
+		'$label fails the job for good with its class, even with retries left',
 		async ({ err, key }) => {
-			await runFailing(err, RETRIES_LEFT);
-
-			expect(deadLetterMocks.recordDeadLetter).toHaveBeenCalledWith(
-				expect.objectContaining({ errorClass: key, restaurantId: 'r1', sourceId: item.id })
-			);
+			expect(await runFailing(err, RETRIES_LEFT)).toEqual(failedForGood(key));
 		}
 	);
-
-	it('carries enough payload to replay the job', async () => {
-		await runFailing(new Error('boom'), FINAL_ATTEMPT);
-
-		const payload = deadLetterMocks.recordDeadLetter.mock.calls[0]![0].payload;
-		expect(payload).toMatchObject({ itemId: item.id, restaurantId: 'r1', fileKey: item.fileKey });
-	});
 });
 
 describe('processExtractionJob — a job it cannot even start (#520)', () => {
 	it('dead-letters a job carrying no item id without claiming anything', async () => {
-		await processExtractionJob({ restaurantId: 'r1' }, undefined, RETRIES_LEFT);
-
-		expect(deadLetterMocks.recordDeadLetter).toHaveBeenCalledWith(
-			expect.objectContaining({ errorClass: 'corrupt.missingItemId' })
-		);
+		expect(await processExtractionJob({ restaurantId: 'r1' }, undefined, RETRIES_LEFT))
+			.toEqual(failedForGood('corrupt.missingItemId'));
 		expect(batchMocks.markExtracting).not.toHaveBeenCalled();
 		expect(quotaMocks.claimMonthlyExtraction).not.toHaveBeenCalled();
 	});
@@ -407,11 +365,8 @@ describe('processExtractionJob — a job it cannot even start (#520)', () => {
 	it('dead-letters a job whose item no longer exists', async () => {
 		batchMocks.getItem.mockResolvedValue(null);
 
-		await processExtractionJob(job, undefined, RETRIES_LEFT);
-
-		expect(deadLetterMocks.recordDeadLetter).toHaveBeenCalledWith(
-			expect.objectContaining({ errorClass: 'corrupt.itemNotFound', sourceId: item.id })
-		);
+		expect(await processExtractionJob(job, undefined, RETRIES_LEFT))
+			.toEqual(failedForGood('corrupt.itemNotFound'));
 		expect(batchMocks.markExtracting).not.toHaveBeenCalled();
 	});
 });
@@ -598,14 +553,17 @@ describe('runExtractionJobForBoss — the pg-boss redelivery pg-boss never got (
 		expect(batchMocks.markFailed).toHaveBeenCalledWith(item.id, 'extract.err.rateLimited');
 	});
 
-	it('reports "completed" for a permanent error even with retries left — the app already dead-lettered it', async () => {
+	it('reports "deadletter" for a permanent error even with retries left, so pg-boss fails it for good with why', async () => {
 		batchMocks.markExtracting.mockResolvedValue(true);
 		extractMocks.extractWithProvider.mockRejectedValue(new Error('boom'));
 
 		const result = await runExtractionJobForBoss(pgBossJob(0, 2));
 
-		expect(result).toEqual({ id: 'pgboss-job-1', status: 'completed' });
-		expect(deadLetterMocks.recordDeadLetter).toHaveBeenCalledTimes(1);
+		expect(result).toEqual({
+			id: 'pgboss-job-1',
+			status: 'deadletter',
+			output: expect.objectContaining({ errorClass: 'extract.err.generic', message: 'boom' }),
+		});
 	});
 
 	it('reports "completed" on a successful extraction', async () => {
@@ -619,17 +577,14 @@ describe('runExtractionJobForBoss — the pg-boss redelivery pg-boss never got (
 		expect(result).toEqual({ id: 'pgboss-job-1', status: 'completed' });
 	});
 
-	it('routes a genuinely unexpected exception through the shared retriesLeft policy, not the extraction classifier', async () => {
+	it('leaves a genuinely unexpected exception to the pg-boss retry policy, not the extraction classifier', async () => {
 		batchMocks.getItem.mockRejectedValueOnce(new Error('connection reset'));
 
-		const retried = await runExtractionJobForBoss(pgBossJob(0, 2));
-		expect(retried).toEqual({ id: 'pgboss-job-1', status: 'failed' });
-		expect(deadLetterMocks.recordDeadLetter).not.toHaveBeenCalled();
+		const failed = { id: 'pgboss-job-1', status: 'failed', output: expect.objectContaining({ message: 'connection reset' }) };
+		expect(await runExtractionJobForBoss(pgBossJob(0, 2))).toEqual(failed);
 
 		batchMocks.getItem.mockRejectedValueOnce(new Error('connection reset'));
-		const final = await runExtractionJobForBoss(pgBossJob(2, 2));
-		expect(final).toEqual({ id: 'pgboss-job-1', status: 'deadletter' });
-		expect(deadLetterMocks.recordDeadLetter).toHaveBeenCalledTimes(1);
+		expect(await runExtractionJobForBoss(pgBossJob(2, 2))).toEqual(failed);
 	});
 });
 
