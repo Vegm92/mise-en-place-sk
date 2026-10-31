@@ -2,6 +2,7 @@ import type { PageServerLoad } from './$types';
 import { handleLoad } from '$lib/server/load-guard';
 import { db } from '$lib/server/db';
 import { sql } from 'drizzle-orm';
+import { liveExtractionStats } from '$lib/server/analytics-live';
 
 interface KpisRow extends Record<string, unknown> {
 	total_invoices: number;
@@ -42,6 +43,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	return handleLoad('analytics/extraction', async () => {
 		const [kpisRows, fieldRows, supplierRows, trendRows] = await Promise.all([
 			db.execute<KpisRow>(sql`
+				WITH stats AS (${liveExtractionStats(rid)})
 				SELECT
 					COUNT(DISTINCT es.invoice_id) AS total_invoices,
 					SUM(CASE WHEN es.correction_count = 0 THEN 1 ELSE 0 END) AS auto_confirmed,
@@ -54,10 +56,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 					) AS avg_corrections,
 					(
 						SELECT s.name
-						FROM mv_extraction_stats es2
+						FROM stats es2
 						JOIN suppliers s ON s.id = es2.supplier_id
-						WHERE es2.restaurant_id = ${rid}
-						  AND es2.supplier_id IS NOT NULL
+						WHERE es2.supplier_id IS NOT NULL
 						GROUP BY s.id, s.name
 						ORDER BY (
 							SUM(CASE WHEN es2.correction_count = 0 THEN 1 ELSE 0 END)::float /
@@ -65,8 +66,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 						) DESC
 						LIMIT 1
 					) AS most_accurate_supplier
-				FROM mv_extraction_stats es
-				WHERE es.restaurant_id = ${rid}
+				FROM stats es
 			`),
 
 			db.execute<FieldRow>(sql`
@@ -91,6 +91,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			`),
 
 			db.execute<SupplierRow>(sql`
+				WITH stats AS (${liveExtractionStats(rid)})
 				SELECT
 					s.name AS supplier_name,
 					COUNT(DISTINCT es.invoice_id) AS total_invoices,
@@ -102,16 +103,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 					ROUND(
 						(SUM(es.correction_count)::float / NULLIF(COUNT(DISTINCT es.invoice_id), 0))::numeric, 2
 					) AS avg_corrections
-				FROM mv_extraction_stats es
+				FROM stats es
 				JOIN suppliers s ON s.id = es.supplier_id
-				WHERE es.restaurant_id = ${rid}
-				  AND es.supplier_id IS NOT NULL
+				WHERE es.supplier_id IS NOT NULL
 				GROUP BY s.name
 				ORDER BY total_invoices DESC
 				LIMIT 20
 			`),
 
 			db.execute<TrendRow>(sql`
+				WITH stats AS (${liveExtractionStats(rid)})
 				SELECT
 					TO_CHAR(es.month, 'YYYY-MM') AS month,
 					COUNT(DISTINCT es.invoice_id) AS total_invoices,
@@ -120,8 +121,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 						(SUM(CASE WHEN es.correction_count = 0 THEN 1 ELSE 0 END)::float /
 						NULLIF(COUNT(DISTINCT es.invoice_id), 0) * 100)::numeric, 1
 					) AS auto_confirmed_rate
-				FROM mv_extraction_stats es
-				WHERE es.restaurant_id = ${rid}
+				FROM stats es
 				GROUP BY es.month
 				ORDER BY es.month ASC
 				LIMIT 12
