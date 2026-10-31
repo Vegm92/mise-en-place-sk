@@ -179,7 +179,7 @@ describe('tenantless authenticated user', () => {
 	});
 
 	it('answers 409 for an api request', async () => {
-		const event = makeEvent({ path: '/api/trend', routeId: '/(app)/api/trend', user: APPROVED_USER });
+		const event = makeEvent({ path: '/api/notifications', routeId: '/(app)/api/notifications', user: APPROVED_USER });
 		const resolve = vi.fn(async () => new Response('ok'));
 
 		const outcome = await run(event, resolve, { readAccessStatus: async () => [{ accessStatus: 'approved' }] });
@@ -222,7 +222,7 @@ describe('webhook / system path', () => {
 
 describe('rate-limited api route', () => {
 	it('answers 429 with Retry-After and security headers, before resolve runs', async () => {
-		const event = makeEvent({ path: '/api/trend', routeId: '/(app)/api/trend', user: null });
+		const event = makeEvent({ path: '/api/notifications', routeId: '/(app)/api/notifications', user: null });
 		const resolve = vi.fn(async () => new Response('ok'));
 
 		const outcome = await run(event, resolve, { checkRateLimit: async () => false });

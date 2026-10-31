@@ -97,15 +97,7 @@ State machine (guarded transitions, no lost writes): see
 ## Data flow for analytics
 
 Raw invoices → materialized views (`mv_*`) refreshed on a nightly pg-boss cron →
-`/analytics/*`, dashboard trend, supplier/product detail. `trend.ts`'s
-`getTrendDataByRange(rid, range, granularity)` builds the dashboard spend-trend
-buckets: range (`7d`/`30d`/`90d`/`1y`/`all`) and granularity
-(`daily`/`weekly`/`monthly`) are independent axes, capped at 400 buckets for
-pathological combos like daily+all. Bucket keys use a local-timezone `isoDate()`
-— never `toISOString()`, which rolls the calendar date back a day on any UTC+
-server and silently breaks weekly bucketing. `dashboard/+page.server.ts` calls
-it at SSR and seeds `TrendChart`'s `initialData` so the chart never flashes
-"Loading…"; `/api/trend` refetches when the range or granularity changes. See
+`/analytics/*`, dashboard trend, supplier/product detail. See
 `docs/03_features/analytics.md`.
 
 ## Frontend conventions

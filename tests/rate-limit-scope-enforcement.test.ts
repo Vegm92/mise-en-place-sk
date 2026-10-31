@@ -124,7 +124,6 @@ describe('checkRateLimit() call sites go through rateLimitScoped() (issue #440)'
 			'src/routes/(app)/api/product-aliases/+server.ts',
 			'src/routes/(app)/api/supplier-category/+server.ts',
 			'src/routes/(app)/api/stock-levels/+server.ts',
-			'src/routes/(app)/api/trend/+server.ts',
 			'src/routes/(app)/api/active-restaurant/+server.ts',
 			'src/routes/(app)/api/sidebar/+server.ts',
 			'src/routes/(app)/products/+page.server.ts',

@@ -53,7 +53,6 @@ export const ROUTES = [
 	'/chat',
 	'/billing',
 	'/reports',
-	'/plantilla-lista',
 	'/analytics/spend',
 	'/analytics/prices',
 	'/analytics/extraction',

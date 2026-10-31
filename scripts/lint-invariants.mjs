@@ -435,7 +435,6 @@ const INLINE_TOKEN_STYLE_BUDGET = new Map([
 	['src/lib/components/FileTypeBadge.svelte', 1],
 	['src/lib/components/mep/ErrorBoundary.svelte', 1],
 	['src/lib/components/mep/RecipeLineRow.svelte', 1],
-	['src/routes/(app)/plantilla-lista/+page.svelte', 1],
 	['src/routes/(app)/recipes/[id]/cocina/+page.svelte', 1],
 ]);
 

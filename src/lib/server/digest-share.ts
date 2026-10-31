@@ -6,7 +6,6 @@ import { describedLine, lineAmountExpr, lineCategoryExpr, lineProductJoin } from
 import { moneyToNumber } from './money';
 import { isoWeekRange, pctDelta, shiftIsoWeek } from './reports/shared';
 import { landingVariantForVenueType } from '../landing-variants';
-import { isoWeek } from './weekly-digest';
 
 const TOKEN_BYTES = 24;
 const TOP_CATEGORY_MOVERS = 3;
@@ -44,10 +43,6 @@ export async function getOrCreateActiveShare(restaurantId: string, week: string)
 		.limit(1);
 	if (!winner) throw new Error('digest-share: insert conflicted on the active-share index but no active row was found afterwards');
 	return { token: winner.token, week };
-}
-
-export async function getOrCreateCurrentWeekShare(restaurantId: string): Promise<{ token: string; week: string }> {
-	return getOrCreateActiveShare(restaurantId, isoWeek(new Date()));
 }
 
 export interface ResolvedDigestShare {

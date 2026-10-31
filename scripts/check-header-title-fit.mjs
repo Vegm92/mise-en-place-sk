@@ -49,7 +49,6 @@ const ROUTES = [
 	'/chat',
 	'/settings',
 	'/billing',
-	'/plantilla-lista',
 	'/invoice/1',
 	'/invoice/1/edit',
 ];

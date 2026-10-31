@@ -35,7 +35,6 @@ import { invoiceLineItems, invoices, products, suppliers } from '../src/lib/serv
 import {
 	describedLine, invoiceMatchesCategory, lineAmountExpr, lineCategoryExpr, lineProductJoin,
 } from '../src/lib/server/category-spend';
-import { getTrendDataByRange } from '../src/lib/server/trend';
 import { runBudgetCheck } from '../src/lib/server/alerts';
 import { categoryBudgets } from '../src/lib/server/schema';
 import { forTenant } from '../src/lib/server/db';
@@ -183,17 +182,6 @@ describeDb('category attribution — the generalist wholesaler', () => {
 
 	it('the materialised view carries the same split as the live query', async () => {
 		expect(await mvSpend(rid, MONTH)).toEqual(await spendByLineCategory(rid, MONTH));
-	});
-
-	it('the spend trend stacks the same segments', async () => {
-		const data = await getTrendDataByRange(rid, 'all', 'monthly');
-		const segments = data.buckets.flatMap((b) => b.segments);
-		const byCategory: Spend = {};
-		for (const s of segments) {
-			const key = s.category ?? UNCATEGORIZED_CATEGORY;
-			byCategory[key] = (byCategory[key] ?? 0) + s.amount;
-		}
-		expect(byCategory).toEqual(await spendByLineCategory(rid, MONTH));
 	});
 });
 

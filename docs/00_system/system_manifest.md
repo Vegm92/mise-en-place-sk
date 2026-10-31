@@ -166,7 +166,6 @@ Full map with file locations: `docs/01_architecture/routing_and_navigation.md`.
 - `billing.ts` — tiers, quotas, Stripe checkout + webhooks (ADR-013)
 - `billing-plans.ts` — `PROVISIONAL_PRICE`, `TIER_COPY` (client-facing)
 - `products.ts` — product identity in three tiers (ADR-009)
-- `trend.ts` — trend buckets for analytics/dashboard
 - `chat-context.ts` — the shared snapshot (ADR-018)
 - `weekly-digest.ts` — weekly digest generation
 - `whatsapp-bot.ts` / `whatsapp-pairing.ts` — WhatsApp ingestion (ADR-004/019)

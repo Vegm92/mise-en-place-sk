@@ -29,7 +29,7 @@ either side; follow `docs/07_ai/specification_audit.md`.
 | [recipes.md](../03_features/recipes.md) | Escandallo costing sheets, merma/bruto/neto, food cost, elaboraciones | `recipes-sheet.ts`, `recipes`/`recipe_items` |
 | [multi_locations.md](../03_features/multi_locations.md) | Second restaurant via `parentId`, location switcher, Business-tier gate | `restaurants.parentId`, `settings` `addLocation` action |
 | [feature_flags.md](../03_features/feature_flags.md) | Beta feature flags freezing recipes/stock/budgets/multiLocation site-wide | `feature-flags.ts`, `hooks.server.ts` (`enforceFeatureFlag`), `/admin/feature-flags` |
-| [analytics.md](../03_features/analytics.md) | Spend/prices/extraction analytics, trend buckets, materialized views | `trend.ts`, `mv_*`, `analytics/*` routes |
+| [analytics.md](../03_features/analytics.md) | Spend/prices/extraction analytics, trend buckets, materialized views | `mv_*`, `analytics/*` routes |
 | [dashboard.md](../03_features/dashboard.md) | Desktop worklist dashboard: euros at stake, month pace, category risk, cash out | `dashboard-turno.ts`, `dashboard` route, `desktop/turno/*`, `mep/Bullet`, `mep/PaceChart` |
 | [notifications.md](../03_features/notifications.md) | Notification lifecycle, bell, badge, reminders hub, i18n rendering | `system_notifications`, `notification-display.ts`, `reminders` routes |
 | [chat.md](../03_features/chat.md) | Chat assistant, context snapshot, actions, session persistence | `chat-context.ts`, `api/chat`, `chat` routes |
