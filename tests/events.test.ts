@@ -18,7 +18,6 @@ vi.mock('$lib/server/db', () => ({
 // Mock schema — value doesn't matter, just needs to be a reference
 vi.mock('../src/lib/server/schema', () => ({
 	systemNotifications: {},
-	funnelEvents: {},
 }));
 
 // Issue #1272 (SEC-011): trackEvent is awaited by its callers. Inside a scope

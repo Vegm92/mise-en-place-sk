@@ -5,8 +5,8 @@
  * join action against the same mocked seams, so the mock instances, the
  * module-mock factories, the cookie/join event fakes and the reset live here
  * once. Consume the module mocks from a `vi.mock` async factory, e.g.
- * vi.mock('$lib/server/events', async () =>
- *   (await import('./helpers/waitlist-route-mocks')).eventsMock);
+ * vi.mock('$lib/server/waitlist-db', async () =>
+ *   (await import('./helpers/waitlist-route-mocks')).waitlistDbMock);
  */
 import { vi } from 'vitest';
 
@@ -14,7 +14,6 @@ export const insertWaitlistEmailMock = vi.fn().mockResolvedValue(true);
 export const countWaitlistEmailsMock = vi.fn().mockResolvedValue(0);
 export const getReferralCodeMock = vi.fn().mockResolvedValue('fake-referral-code');
 export const resolveReferralOwnerEmailMock = vi.fn().mockResolvedValue(null);
-export const trackAnonymousEventMock = vi.fn();
 
 export const waitlistDbMock = {
 	insertWaitlistEmail: insertWaitlistEmailMock,
@@ -22,7 +21,6 @@ export const waitlistDbMock = {
 	getReferralCode: getReferralCodeMock,
 	resolveReferralOwnerEmail: resolveReferralOwnerEmailMock,
 };
-export const eventsMock = { trackAnonymousEvent: trackAnonymousEventMock };
 export const rateLimiterMock = { checkRateLimit: vi.fn().mockResolvedValue(true) };
 
 export function resetWaitlistRouteMocks() {
@@ -30,7 +28,6 @@ export function resetWaitlistRouteMocks() {
 	countWaitlistEmailsMock.mockClear().mockResolvedValue(0);
 	getReferralCodeMock.mockClear().mockResolvedValue('fake-referral-code');
 	resolveReferralOwnerEmailMock.mockClear().mockResolvedValue(null);
-	trackAnonymousEventMock.mockClear();
 }
 
 /** Defaults to a jar that has already granted cookie consent, so a caller

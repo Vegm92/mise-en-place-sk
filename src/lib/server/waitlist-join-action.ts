@@ -2,7 +2,6 @@ import { fail } from '@sveltejs/kit';
 import * as v from 'valibot';
 import { insertWaitlistEmail, getReferralCode, resolveReferralOwnerEmail } from './waitlist-db';
 import { publicFormAction } from './public-form-action';
-import { trackAnonymousEvent } from './events';
 import { ATTRIBUTION_COOKIE, parseAttributionCookie } from '$lib/attribution';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@][^\s@.]*\.[^\s@]*[^\s@]$/;
@@ -29,14 +28,6 @@ export const joinWaitlistAction = publicFormAction(
 		if (!inserted) {
 			return { success: true, alreadyRegistered: true, referralCode: await getReferralCode(email) };
 		}
-
-		trackAnonymousEvent('waitlist_joined', {
-			source: attribution.source,
-			campaign: attribution.campaign,
-			variant: attribution.variant,
-			segment: attribution.segment,
-			referredBy: attributionForInsert.referredBy,
-		});
 
 		return { success: true, referralCode: await getReferralCode(email) };
 	},
