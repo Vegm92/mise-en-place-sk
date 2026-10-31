@@ -12,8 +12,6 @@ import { resolveCategoryFor } from './category-resolver';
 import { GEMINI_API_KEY } from './env';
 import { createGeminiProvider, Type, type Schema } from './llm-provider';
 import { recordLlmUsage } from './llm-quota';
-import { recordDeadLetter } from './dead-letter';
-import { CATEGORIZE_QUEUE, NORMALIZE_QUEUE } from './contracts/products-contract.js';
 import { renderTemplate } from '$lib/i18n-messages';
 import { toAllergenList } from '$lib/recipes';
 import { moneyToNullableNumber } from './money';
@@ -1292,7 +1290,6 @@ export function parseNormalizeResponse(text: string, validIds: Set<number>): Nor
 export interface NormalizeDeps {
 	provider?: ReturnType<typeof createGeminiProvider>;
 	recordUsage?: typeof recordLlmUsage;
-	recordFailure?: typeof recordDeadLetter;
 }
 
 export async function applyExtractedAllergens(
@@ -1316,70 +1313,59 @@ export async function applyExtractedAllergens(
 }
 
 export async function processNormalizeJob(data: NormalizeJobData, deps: NormalizeDeps = {}): Promise<void> {
-	const { restaurantId, productId, rawText, requestId } = data;
-	try {
-		const provider = deps.provider ?? (GEMINI_API_KEY ? createGeminiProvider() : null);
-		if (!provider) return;
+	const { restaurantId, productId, rawText } = data;
+	const provider = deps.provider ?? (GEMINI_API_KEY ? createGeminiProvider() : null);
+	if (!provider) return;
 
-		const candRows = await db.execute<{ id: number; canonical_name: string }>(sql`
-			SELECT id, canonical_name FROM products
-			WHERE restaurant_id = ${restaurantId} AND id <> ${productId}
-			ORDER BY created_at DESC
-			LIMIT ${MAX_CANDIDATES}
-		`);
-		if (candRows.length === 0) return;
+	const candRows = await db.execute<{ id: number; canonical_name: string }>(sql`
+		SELECT id, canonical_name FROM products
+		WHERE restaurant_id = ${restaurantId} AND id <> ${productId}
+		ORDER BY created_at DESC
+		LIMIT ${MAX_CANDIDATES}
+	`);
+	if (candRows.length === 0) return;
 
-		const candidates: Candidate[] = candRows.map((r) => ({ id: r.id, name: r.canonical_name }));
-		const validIds = new Set(candidates.map((c) => c.id));
+	const candidates: Candidate[] = candRows.map((r) => ({ id: r.id, name: r.canonical_name }));
+	const validIds = new Set(candidates.map((c) => c.id));
 
-		const resp = await provider.generate(buildNormalizePrompt(rawText, candidates), undefined, undefined, NORMALIZE_VERDICT_SCHEMA);
-		const recordUsage = deps.recordUsage ?? recordLlmUsage;
-		await recordUsage(restaurantId, resp.usage, 'normalize');
+	const resp = await provider.generate(buildNormalizePrompt(rawText, candidates), undefined, undefined, NORMALIZE_VERDICT_SCHEMA);
+	const recordUsage = deps.recordUsage ?? recordLlmUsage;
+	await recordUsage(restaurantId, resp.usage, 'normalize');
 
-		const verdict = parseNormalizeResponse(resp.text, validIds);
-		if (verdict.matchId == null || verdict.confidence < LLM_MATCH_THRESHOLD) return;
+	const verdict = parseNormalizeResponse(resp.text, validIds);
+	if (verdict.matchId == null || verdict.confidence < LLM_MATCH_THRESHOLD) return;
 
-		const candidate = candidates.find((c) => c.id === verdict.matchId);
-		if (!candidate) return;
+	const candidate = candidates.find((c) => c.id === verdict.matchId);
+	if (!candidate) return;
 
-		const rawKey = normalizeProductKey(rawText);
-		const existing = await db.execute<{ id: number }>(sql`
-			SELECT id FROM system_notifications
-			WHERE restaurant_id = ${restaurantId}
-			  AND notification_type = 'product_suggestion'
-			  AND status = 'pending'
-			  AND mep_norm_key(payload->>'description') = ${rawKey}
-			LIMIT 1
-		`);
-		if (existing.length > 0) return;
+	const rawKey = normalizeProductKey(rawText);
+	const existing = await db.execute<{ id: number }>(sql`
+		SELECT id FROM system_notifications
+		WHERE restaurant_id = ${restaurantId}
+		  AND notification_type = 'product_suggestion'
+		  AND status = 'pending'
+		  AND mep_norm_key(payload->>'description') = ${rawKey}
+		LIMIT 1
+	`);
+	if (existing.length > 0) return;
 
-		const productSuggestionAiVars = { description: rawText, candidateName: candidate.name };
-		await db.insert(systemNotifications).values({
-			restaurantId,
-			notificationType: 'product_suggestion',
-			message: renderTemplate('es', 'notif.msg.productSuggestionAi', productSuggestionAiVars),
-			payload: {
-				description: rawText,
-				productId,
-				candidateName: candidate.name,
-				candidateProductId: candidate.id,
-				score: Math.round(verdict.confidence * 100) / 100,
-				source: 'llm',
-				messageKey: 'notif.msg.productSuggestionAi',
-				messageVars: productSuggestionAiVars,
-			},
-			status: 'pending',
-		});
-	} catch (err) {
-		console.error('[normalize] product normalization job failed (non-fatal):', err);
-		await (deps.recordFailure ?? recordDeadLetter)({
-			queue: NORMALIZE_QUEUE,
-			error: err,
-			restaurantId,
-			sourceId: `${restaurantId}:${productId}`,
-			payload: { restaurantId, productId, rawText, requestId },
-		});
-	}
+	const productSuggestionAiVars = { description: rawText, candidateName: candidate.name };
+	await db.insert(systemNotifications).values({
+		restaurantId,
+		notificationType: 'product_suggestion',
+		message: renderTemplate('es', 'notif.msg.productSuggestionAi', productSuggestionAiVars),
+		payload: {
+			description: rawText,
+			productId,
+			candidateName: candidate.name,
+			candidateProductId: candidate.id,
+			score: Math.round(verdict.confidence * 100) / 100,
+			source: 'llm',
+			messageKey: 'notif.msg.productSuggestionAi',
+			messageVars: productSuggestionAiVars,
+		},
+		status: 'pending',
+	});
 }
 
 
@@ -1434,7 +1420,6 @@ export function parseCategorizeResponse(text: string): string | null {
 export interface CategorizeDeps {
 	provider?: ReturnType<typeof createGeminiProvider>;
 	recordUsage?: typeof recordLlmUsage;
-	recordFailure?: typeof recordDeadLetter;
 	database?: Database;
 }
 
@@ -1442,41 +1427,30 @@ export async function processCategorizeJob(
 	data: CategorizeJobData,
 	deps: CategorizeDeps = {},
 ): Promise<void> {
-	const { restaurantId, productId, canonicalName, requestId } = data;
+	const { restaurantId, productId, canonicalName } = data;
 	const database = deps.database ?? db;
-	try {
-		const pending = await database.execute<{ id: number }>(sql`
-			SELECT id FROM products
-			WHERE id = ${productId} AND restaurant_id = ${restaurantId} AND category IS NULL
-			LIMIT 1
-		`);
-		if (pending.length === 0) return;
+	const pending = await database.execute<{ id: number }>(sql`
+		SELECT id FROM products
+		WHERE id = ${productId} AND restaurant_id = ${restaurantId} AND category IS NULL
+		LIMIT 1
+	`);
+	if (pending.length === 0) return;
 
-		const provider = deps.provider ?? (GEMINI_API_KEY ? createGeminiProvider() : null);
-		if (!provider) return;
+	const provider = deps.provider ?? (GEMINI_API_KEY ? createGeminiProvider() : null);
+	if (!provider) return;
 
-		const resp = await provider.generate(buildCategorizePrompt(canonicalName), undefined, undefined, CATEGORIZE_VERDICT_SCHEMA);
-		const recordUsage = deps.recordUsage ?? recordLlmUsage;
-		await recordUsage(restaurantId, resp.usage, 'categorize');
+	const resp = await provider.generate(buildCategorizePrompt(canonicalName), undefined, undefined, CATEGORIZE_VERDICT_SCHEMA);
+	const recordUsage = deps.recordUsage ?? recordLlmUsage;
+	await recordUsage(restaurantId, resp.usage, 'categorize');
 
-		const category = parseCategorizeResponse(resp.text);
-		if (!category) return;
+	const category = parseCategorizeResponse(resp.text);
+	if (!category) return;
 
-		const visibleCategory = await resolveCategoryFor(restaurantId, category, undefined, database);
-		if (visibleCategory === UNCATEGORIZED_CATEGORY) return;
+	const visibleCategory = await resolveCategoryFor(restaurantId, category, undefined, database);
+	if (visibleCategory === UNCATEGORIZED_CATEGORY) return;
 
-		await database.execute(sql`
-			UPDATE products SET category = ${visibleCategory}
-			WHERE id = ${productId} AND restaurant_id = ${restaurantId} AND category IS NULL
-		`);
-	} catch (err) {
-		console.error('[categorize] product categorization job failed (non-fatal):', err);
-		await (deps.recordFailure ?? recordDeadLetter)({
-			queue: CATEGORIZE_QUEUE,
-			error: err,
-			restaurantId,
-			sourceId: `${restaurantId}:${productId}`,
-			payload: { restaurantId, productId, canonicalName, requestId },
-		});
-	}
+	await database.execute(sql`
+		UPDATE products SET category = ${visibleCategory}
+		WHERE id = ${productId} AND restaurant_id = ${restaurantId} AND category IS NULL
+	`);
 }

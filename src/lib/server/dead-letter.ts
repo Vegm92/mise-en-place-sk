@@ -1,18 +1,13 @@
-import * as Sentry from '@sentry/sveltekit';
-import { and, desc, eq, gte, inArray, lt, or, sql } from 'drizzle-orm';
-import { db, forTenant, runAsSystem, runWithTenantContext } from './db';
+import { sql } from 'drizzle-orm';
+import * as v from 'valibot';
+import { db, runWithTenantContext } from './db';
 import { createLogger } from './log';
-import { deadLetterQueue, restaurants } from './schema';
+import { sqlRows } from './sql-rows';
+import { getBoss } from './queue';
+import { markQueued } from './batch';
+import { EXTRACTION_QUEUE } from './contracts/extraction-contract.js';
 
 const log = createLogger('dlq');
-
-export const DEAD_LETTER_STATUSES = ['pending', 'reviewed', 'replayed', 'discarded'] as const;
-export type DeadLetterStatus = (typeof DEAD_LETTER_STATUSES)[number];
-
-const RESOLVED_STATUSES: DeadLetterStatus[] = ['reviewed', 'replayed', 'discarded'];
-
-export const DEAD_LETTER_RESOLVED_RETENTION_DAYS = 90;
-export const DEAD_LETTER_PENDING_RETENTION_DAYS = 180;
 
 const MAX_STRING_CHARS = 512;
 const MAX_MESSAGE_CHARS = 1000;
@@ -25,13 +20,6 @@ const REDACTED = '[redacted]';
 
 const SENSITIVE_KEY = /pass|secret|token|api[-_]?key|auth|cookie|credential|signature|session|dsn/i;
 const EMAIL_RE = /(?<![^\s@"'])[^\s@"']+@[^\s@"'][^\s@"'.]*\.[^\s@"']+/g;
-
-const CORRUPTION_PATTERNS: Array<[RegExp, string]> = [
-	[/invalid json|is not valid json|unexpected token|json at position/i, 'corrupt.invalidJson'],
-	[/unrecognised xml|unrecognized xml|\bfacturae\b|\bubl\b/i, 'corrupt.unknownEinvoiceFormat'],
-	[/malformed|corrupt|unsupported (file|mime|format)/i, 'corrupt.malformedFile'],
-	[/no such file|enoent/i, 'corrupt.missingFile'],
-];
 
 export function redactString(value: string, max = MAX_STRING_CHARS): string {
 	const masked = value.replace(EMAIL_RE, REDACTED);
@@ -112,259 +100,94 @@ export function describeError(err: unknown): { message: string; stack: string | 
 	}
 }
 
-function rawErrorMessage(err: unknown): string {
-	if (err instanceof Error) return err.message;
-	return typeof err === 'string' ? err : '';
-}
-
-export function classifyDeadLetterError(err: unknown): string {
-	const message = rawErrorMessage(err);
-	for (const [pattern, errorClass] of CORRUPTION_PATTERNS) {
-		if (pattern.test(message)) return errorClass;
-	}
-	const code = (err as { code?: unknown } | null | undefined)?.code;
-	if (typeof code === 'string' && code) return `error.${code}`;
-	const status = (err as { status?: unknown } | null | undefined)?.status;
-	if (typeof status === 'number') return `error.http${status}`;
-	if (err instanceof Error && err.name) return `error.${err.name}`;
-	return 'error.unknown';
-}
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-export function tenantColumnValue(restaurantId: string | null | undefined): string | null {
-	return typeof restaurantId === 'string' && UUID_RE.test(restaurantId) ? restaurantId : null;
-}
-
-export interface DeadLetterInput {
-	queue: string;
-	error: unknown;
-	errorClass?: string;
-	restaurantId?: string | null;
-	sourceId?: string | null;
-	jobId?: string | null;
-	attempt?: number;
-	payload?: unknown;
-	skipIfJobRecorded?: boolean;
-}
-
-export async function recordDeadLetter(input: DeadLetterInput): Promise<number | null> {
-	const errorClass = input.errorClass ?? classifyDeadLetterError(input.error);
-	const { message, stack } = describeError(input.error);
-	try {
-		return await runAsSystem(async () => {
-			const payload = serializePayload(input.payload);
-			const attempt = Number.isInteger(input.attempt) ? (input.attempt as number) : 1;
-			const sourceId = typeof input.sourceId === 'string' ? input.sourceId : null;
-
-			if (input.skipIfJobRecorded && input.jobId) {
-				// tenant-scope-ok: keyed by pg-boss's globally-unique job id, which
-				// already identifies one tenant's job; this is the worker drain asking
-				// whether the handler got there first.
-				const [already] = await db
-					.select({ id: deadLetterQueue.id })
-					.from(deadLetterQueue)
-					.where(eq(deadLetterQueue.jobId, input.jobId))
-					.limit(1);
-				if (already) return already.id;
-			}
-
-			if (sourceId) {
-				const bumped = await db
-					.update(deadLetterQueue)
-					.set({
-						errorMessage: message,
-						stack,
-						payload,
-						attempt,
-						lastSeenAt: new Date(),
-						occurrences: sql`${deadLetterQueue.occurrences} + 1`,
-					})
-					.where(and(
-						eq(deadLetterQueue.queue, input.queue),
-						eq(deadLetterQueue.sourceId, sourceId),
-						eq(deadLetterQueue.errorClass, errorClass),
-						eq(deadLetterQueue.status, 'pending'),
-					))
-					.returning({ id: deadLetterQueue.id });
-				if (bumped.length > 0) return bumped[0]!.id;
-			}
-
-			const [row] = await db
-				.insert(deadLetterQueue)
-				.values({
-					queue: input.queue,
-					restaurantId: tenantColumnValue(input.restaurantId),
-					sourceId,
-					jobId: input.jobId ?? null,
-					errorClass,
-					errorMessage: message,
-					stack,
-					payload,
-					attempt,
-				})
-				.returning({ id: deadLetterQueue.id });
-			return row?.id ?? null;
-		});
-	} catch (err) {
-		log.error('could not record dead letter (non-fatal)', { queue: input.queue, errorClass, err });
-		Sentry.captureException(err, { tags: { deadLetter: input.queue, errorClass } });
-		return null;
-	}
-}
-
-export interface DeadLetterJobRef {
-	queue: string;
-	jobId?: string | null;
-	restaurantId?: string | null;
-	sourceId?: string | null;
-	attempt?: number;
-	retriesLeft?: number;
-	payload?: unknown;
-}
-
-function firstString(...values: unknown[]): string | null {
-	for (const value of values) {
-		if (typeof value === 'string' && value) return value;
-		if (typeof value === 'number' && Number.isFinite(value)) return String(value);
-	}
-	return null;
-}
-
-export function deadLetterRefFromJob(
-	queue: string,
-	job: { id?: string | null; data?: unknown; retryCount?: number | null; retryLimit?: number | null },
-): DeadLetterJobRef {
-	const data = (job.data ?? {}) as Record<string, unknown>;
-	const restaurantId = typeof data.restaurantId === 'string' ? data.restaurantId : null;
-	const productId = firstString(data.productId);
-	const sourceId = firstString(data.itemId, data.userId, data.sessionId)
-		?? (restaurantId && productId ? `${restaurantId}:${productId}` : productId);
-	const retryCount = job.retryCount ?? 0;
-	const retryLimit = job.retryLimit ?? 0;
-	return {
-		queue,
-		jobId: job.id ?? null,
-		restaurantId,
-		sourceId,
-		attempt: retryCount + 1,
-		retriesLeft: Math.max(0, retryLimit - retryCount),
-		payload: job.data,
-	};
-}
-
-export async function runWithDeadLetter<T>(
-	ref: DeadLetterJobRef,
+export async function runJob<T>(
+	job: { name: string; id: string; data?: unknown },
 	run: () => Promise<T>,
 ): Promise<T> {
+	const restaurantId = (job.data as { restaurantId?: unknown } | null | undefined)?.restaurantId;
 	try {
-		return await (ref.restaurantId ? runWithTenantContext(ref.restaurantId, run) : run());
+		return await (typeof restaurantId === 'string' && restaurantId ? runWithTenantContext(restaurantId, run) : run());
 	} catch (err) {
-		if ((ref.retriesLeft ?? 0) > 0) throw err;
-		log.error('job dead-lettered', {
-			queue: ref.queue,
-			jobId: ref.jobId ?? null,
-			attempt: ref.attempt ?? 1,
-			requestId: (ref.payload as { requestId?: string } | undefined)?.requestId,
-			err,
-		});
-		await recordDeadLetter({ ...ref, error: err });
+		log.error('job failed', { queue: job.name, jobId: job.id, err });
 		throw err;
 	}
 }
 
 export interface DeadLetterRow {
-	id: number;
+	id: string;
 	queue: string;
-	restaurantId: string | null;
 	restaurantName: string | null;
-	sourceId: string | null;
-	jobId: string | null;
-	errorClass: string;
+	errorClass: string | null;
 	errorMessage: string;
-	stack: string | null;
 	payload: unknown;
-	attempt: number;
-	occurrences: number;
-	status: string;
-	firstSeenAt: Date;
-	lastSeenAt: Date;
-	reviewedAt: Date | null;
-	reviewedBy: string | null;
+	retryCount: number;
+	createdOn: Date;
+	failedOn: Date;
 }
 
-export interface DeadLetterFilter {
-	queue?: string;
-	status?: string;
-	restaurantId?: string;
+const Timestamp = v.pipe(v.union([v.string(), v.date()]), v.transform((t) => new Date(t)));
+
+const FailedJobRow = v.object({
+	id: v.string(),
+	name: v.string(),
+	restaurant_name: v.nullable(v.string()),
+	error_class: v.nullable(v.string()),
+	error_message: v.nullable(v.string()),
+	data: v.unknown(),
+	retry_count: v.number(),
+	created_on: Timestamp,
+	completed_on: Timestamp,
+});
+
+function queueClause(queue?: string) {
+	return queue ? sql`AND j.name = ${queue}` : sql``;
 }
 
-function filterClause(filter: DeadLetterFilter) {
-	const clauses = [
-		filter.queue ? eq(deadLetterQueue.queue, filter.queue) : undefined,
-		filter.status ? eq(deadLetterQueue.status, filter.status) : undefined,
-		filter.restaurantId ? forTenant(filter.restaurantId).scope(deadLetterQueue.restaurantId) : undefined,
-	].filter(Boolean);
-	return clauses.length > 0 ? and(...clauses) : undefined;
+export async function listDeadLetters(queue = '', limit = 50, offset = 0): Promise<DeadLetterRow[]> {
+	// tenant-scope-ok: admin audit view over every tenant's failed pg-boss jobs;
+	// reachable only from the (admin) route group, which isAdminUser() gates.
+	const rows = sqlRows(await db.execute(sql`
+		SELECT j.id::text AS id, j.name, r.name AS restaurant_name,
+			j.output->>'errorClass' AS error_class,
+			COALESCE(j.output->>'message', j.output->>'error', j.output::text) AS error_message,
+			j.data, j.retry_count, j.created_on, j.completed_on
+		FROM pgboss.job j
+		LEFT JOIN restaurants r ON r.id::text = j.data->>'restaurantId'
+		WHERE j.state = 'failed' ${queueClause(queue)}
+		ORDER BY j.completed_on DESC
+		LIMIT ${limit} OFFSET ${offset}
+	`), FailedJobRow);
+	return rows.map((r) => ({
+		id: r.id,
+		queue: r.name,
+		restaurantName: r.restaurant_name,
+		errorClass: r.error_class,
+		errorMessage: redactString(r.error_message ?? '', MAX_MESSAGE_CHARS),
+		payload: serializePayload(r.data),
+		retryCount: r.retry_count,
+		createdOn: r.created_on,
+		failedOn: r.completed_on,
+	}));
 }
 
-export async function listDeadLetters(
-	filter: DeadLetterFilter = {},
-	limit = 50,
-	offset = 0,
-): Promise<DeadLetterRow[]> {
-	// tenant-scope-ok: admin audit view over every tenant's failed jobs; reachable
-	// only from the (admin) route group, which isAdminUser() already gates.
-	const rows = await db
-		.select({
-			id: deadLetterQueue.id,
-			queue: deadLetterQueue.queue,
-			restaurantId: deadLetterQueue.restaurantId,
-			restaurantName: restaurants.name,
-			sourceId: deadLetterQueue.sourceId,
-			jobId: deadLetterQueue.jobId,
-			errorClass: deadLetterQueue.errorClass,
-			errorMessage: deadLetterQueue.errorMessage,
-			stack: deadLetterQueue.stack,
-			payload: deadLetterQueue.payload,
-			attempt: deadLetterQueue.attempt,
-			occurrences: deadLetterQueue.occurrences,
-			status: deadLetterQueue.status,
-			firstSeenAt: deadLetterQueue.firstSeenAt,
-			lastSeenAt: deadLetterQueue.lastSeenAt,
-			reviewedAt: deadLetterQueue.reviewedAt,
-			reviewedBy: deadLetterQueue.reviewedBy,
-		})
-		.from(deadLetterQueue)
-		.leftJoin(restaurants, eq(restaurants.id, deadLetterQueue.restaurantId))
-		.where(filterClause(filter))
-		.orderBy(desc(deadLetterQueue.lastSeenAt))
-		.limit(limit)
-		.offset(offset);
-	return rows as DeadLetterRow[];
+const CountRow = v.object({ name: v.string(), failed: v.number() });
+
+export async function deadLetterQueueBreakdown(windowHours?: number): Promise<Array<{ queue: string; failed: number }>> {
+	const since = windowHours ? sql`AND completed_on > now() - ${`${windowHours} hours`}::interval` : sql``;
+	// tenant-scope-ok: platform-wide ops counter over pg-boss's own job table.
+	const rows = sqlRows(await db.execute(sql`
+		SELECT name, COUNT(*)::int AS failed
+		FROM pgboss.job
+		WHERE state = 'failed' ${since}
+		GROUP BY name
+		ORDER BY COUNT(*) DESC
+	`), CountRow);
+	return rows.map((r) => ({ queue: r.name, failed: r.failed }));
 }
 
-export async function countDeadLetters(filter: DeadLetterFilter = {}): Promise<number> {
-	// tenant-scope-ok: admin audit counter across every tenant, same gate as listDeadLetters.
-	return db.$count(deadLetterQueue, filterClause(filter));
-}
-
-export async function deadLetterQueueBreakdown(): Promise<Array<{ queue: string; pending: number; total: number }>> {
-	// tenant-scope-ok: admin dashboard rollup across every tenant, same gate as listDeadLetters.
-	const rows = await db
-		.select({
-			queue: deadLetterQueue.queue,
-			pending: sql<number>`count(*) filter (where ${deadLetterQueue.status} = 'pending')::int`,
-			total: sql<number>`count(*)::int`,
-		})
-		.from(deadLetterQueue)
-		.groupBy(deadLetterQueue.queue)
-		.orderBy(desc(sql`count(*)`));
-	return rows;
-}
-
-export async function pendingDeadLetterCount(): Promise<number> {
-	return countDeadLetters({ status: 'pending' });
+export async function countDeadLetters(queue = ''): Promise<number> {
+	const breakdown = await deadLetterQueueBreakdown();
+	return breakdown.filter((q) => !queue || q.queue === queue).reduce((n, q) => n + q.failed, 0);
 }
 
 export interface DeadLetterGrowth {
@@ -374,61 +197,32 @@ export interface DeadLetterGrowth {
 }
 
 export async function deadLetterGrowth(windowHours = 24): Promise<DeadLetterGrowth> {
-	const since = new Date(Date.now() - windowHours * 60 * 60 * 1000);
-	// tenant-scope-ok: platform-wide ops counter, same gate as deadLetterQueueBreakdown.
-	const rows = await db
-		.select({
-			queue: deadLetterQueue.queue,
-			pending: sql<number>`count(*)::int`,
-		})
-		.from(deadLetterQueue)
-		.where(and(eq(deadLetterQueue.status, 'pending'), gte(deadLetterQueue.lastSeenAt, since)))
-		.groupBy(deadLetterQueue.queue)
-		.orderBy(desc(sql`count(*)`));
-	return {
-		windowHours,
-		pending: rows.reduce((sum, r) => sum + Number(r.pending), 0),
-		byQueue: rows.map((r) => ({ queue: r.queue, pending: Number(r.pending) })),
-	};
+	const byQueue = (await deadLetterQueueBreakdown(windowHours)).map((q) => ({ queue: q.queue, pending: q.failed }));
+	return { windowHours, pending: byQueue.reduce((n, q) => n + q.pending, 0), byQueue };
 }
 
-export type DeadLetterEntry = Omit<DeadLetterRow, 'restaurantName'>;
+export type DeadLetterActionResult = { ok: true } | { ok: false; error: 'notFound' | 'itemNotRequeueable' };
 
-export async function getDeadLetter(id: number): Promise<DeadLetterEntry | null> {
-	if (!Number.isInteger(id) || id <= 0) return null;
-	// tenant-scope-ok: admin audit lookup by primary key; the caller is admin-gated.
-	const [row] = await db
-		.select()
-		.from(deadLetterQueue)
-		.where(eq(deadLetterQueue.id, id))
-		.limit(1);
-	return (row as DeadLetterEntry | undefined) ?? null;
+async function failedJob(queue: string, id: string) {
+	const boss = await getBoss();
+	const job = await boss.getJobById<{ itemId?: unknown }>(queue, id);
+	return job?.state === 'failed' ? { boss, job } : null;
 }
 
-export async function setDeadLetterStatus(
-	id: number,
-	status: DeadLetterStatus,
-	reviewedBy: string | null,
-): Promise<boolean> {
-	if (!Number.isInteger(id) || id <= 0) return false;
-	const rows = await db
-		.update(deadLetterQueue)
-		.set({ status, reviewedAt: new Date(), reviewedBy })
-		.where(eq(deadLetterQueue.id, id))
-		.returning({ id: deadLetterQueue.id });
-	return rows.length > 0;
+export async function retryDeadLetter(queue: string, id: string): Promise<DeadLetterActionResult> {
+	const found = await failedJob(queue, id);
+	if (!found) return { ok: false, error: 'notFound' };
+	const itemId = found.job.data?.itemId;
+	if (queue === EXTRACTION_QUEUE && typeof itemId === 'string' && !(await markQueued(itemId))) {
+		return { ok: false, error: 'itemNotRequeueable' };
+	}
+	await found.boss.retry(queue, id);
+	return { ok: true };
 }
 
-export async function purgeDeadLetters(now: Date = new Date()): Promise<{ purged: number }> {
-	const dayMs = 24 * 60 * 60 * 1000;
-	const resolvedCutoff = new Date(now.getTime() - DEAD_LETTER_RESOLVED_RETENTION_DAYS * dayMs);
-	const pendingCutoff = new Date(now.getTime() - DEAD_LETTER_PENDING_RETENTION_DAYS * dayMs);
-	const rows = await db
-		.delete(deadLetterQueue)
-		.where(or(
-			and(inArray(deadLetterQueue.status, RESOLVED_STATUSES), lt(deadLetterQueue.lastSeenAt, resolvedCutoff)),
-			and(eq(deadLetterQueue.status, 'pending'), lt(deadLetterQueue.lastSeenAt, pendingCutoff)),
-		))
-		.returning({ id: deadLetterQueue.id });
-	return { purged: rows.length };
+export async function discardDeadLetter(queue: string, id: string): Promise<DeadLetterActionResult> {
+	const found = await failedJob(queue, id);
+	if (!found) return { ok: false, error: 'notFound' };
+	await found.boss.deleteJob(queue, id);
+	return { ok: true };
 }

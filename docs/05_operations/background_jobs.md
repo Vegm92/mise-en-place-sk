@@ -19,8 +19,8 @@ scheduled jobs. Changing async behaviour must account for this process split.
 | `tenant-weekly-digest` | `src/lib/server/tenant-fanout.ts` | One tenant's weekly digest — generate + email + WhatsApp push to opted-in contacts (`sendWeeklyDigest`, #331) | Fanned out by the cron dispatcher, one job per tenant; `batchSize` = `SCHEDULED_FANOUT_CONCURRENCY` (default 5) with `perJobResults`, 2 retries 120 s apart, then dead-letter (ADR-025) |
 | `tenant-overdue-reminder` | `src/lib/server/tenant-fanout.ts` | One tenant's overdue-invoice email (`sendOverdueReminder`) | Same fan-out contract |
 | `tenant-trial-notice` | `src/lib/server/tenant-fanout.ts` | One tenant's trial notice at T-7 / T-1 / lapsed (`sendTrialNotice`) | Same fan-out contract |
-| `whatsapp-notify` | `src/worker.ts` | `notifyWhatsAppSender` — sends the extracted-data summary (or the failure notice) back to the number that sent the invoice, and opens it for review | Registered only when a WhatsApp transport is running; `batchSize` 1; 3 retries 60 s apart, `expireInSeconds` 300, `singletonKey` = itemId; failure → `dead-letter` sibling queue |
-| `*:dead-letter` | `src/worker.ts`, `tenant-fanout.ts` | Rows that failed; payload redacted (secrets/emails stripped) | Inspect via `/admin` or DB |
+| `whatsapp-notify` | `src/worker.ts` | `notifyWhatsAppSender` — sends the extracted-data summary (or the failure notice) back to the number that sent the invoice, and opens it for review | Registered only when a WhatsApp transport is running; `batchSize` 1; 3 retries 60 s apart, `expireInSeconds` 300, `singletonKey` = itemId; failure → pg-boss `failed` state |
+| Dead letters | pg-boss itself | Jobs left in `state = 'failed'` after their last retry, on their own queue. No separate dead-letter queue or table | `/admin/dead-letters` (retry / discard); the 5 job queues keep failed jobs 30 days (`deleteAfterSeconds`) |
 
 State machine lives in `batch.ts` (pending → queued → extracting → done |
 failed → confirmed | discarded). Enqueueing is `enqueueBatchExtraction`.
@@ -86,7 +86,7 @@ rather than where extraction got to. Web uploads leave it null.
 
 All nine are registered from the `JOBS` array in `src/lib/server/alerts.ts`
 (`registerScheduledJobs`); the cron strings live beside it. A job that throws is
-Sentry-reported and dead-lettered, then re-thrown so pg-boss records the failure.
+Sentry-reported, then re-thrown so pg-boss marks it failed.
 
 | Cron (UTC) | Job | Runner |
 |---|---|---|
@@ -95,7 +95,6 @@ Sentry-reported and dead-lettered, then re-thrown so pg-boss records the failure
 | `0 7 * * *` | Trial-notice **dispatcher** — one `tenant-trial-notice` job per tenant at a milestone | `runTrialNoticesJob` — `alerts.ts`; handler `sendTrialNotice` |
 | `0 3 * * *` | File retention purge | `runFilePurgeJob` — `alerts.ts` |
 | `15 2 * * *` | MRR snapshot (`mrr_snapshots`) for `/admin/revenue` | `runMrrSnapshotJob` — `revenue-metrics.ts` |
-| `20 3 * * *` | Dead-letter retention purge | `runDeadLetterPurgeJob` — `alerts.ts` / `dead-letter.ts` |
 | `10 3 * * *` | `refresh_analytics_rollups()` — MV refresh (`mv_*` CONCURRENTLY) | `runAnalyticsRefreshJob` — `alerts.ts` (ADR-012) |
 | `40 3 * * *` | `sweepIdempotencyKeys` — expire claims per scope (48 h; 96 h for `stripe-webhook`) | `runIdempotencySweepJob` — `alerts.ts` / `idempotency.ts` (#389) |
 | `50 3 * * *` | Orphan-subscription reconciliation — root restaurants (`parent_id IS NULL`) with no `subscriptions` row get a dated trial auto-provisioned, reported to Sentry | `runOrphanSubscriptionsJob` — `billing.ts` (#486) |
@@ -117,7 +116,7 @@ occurrence is a dispatcher:
    dispatch cannot double-queue a tenant.
 3. The consumer settles every job in a batch individually
    (`perJobResults: true`): one tenant's failure is retried and eventually
-   dead-lettered without touching its batch-mates.
+   marked failed without touching its batch-mates.
 
 `SCHEDULED_FANOUT_CONCURRENCY` (default 5) caps how many tenants one worker
 processes at once. It is a Gemini/Resend rate-limit ceiling, not a throughput
@@ -135,8 +134,9 @@ the silent failure mode before #518.
   two workers or a redeploy can't double-process.
 - **Idempotent consumers**: extraction is re-runnable (content-hash gate
   prevents duplicate invoices); normalization upserts by key.
-- **Dead-letter on failure**: unhandled job errors route to the dead-letter
-  queue; payloads are redacted before landing there.
+- **Fail the job, don't swallow**: a handler that cannot finish throws (or returns
+  `deadletter` from a `perJobResults` batch) so pg-boss marks the job failed;
+  `/admin/dead-letters` redacts payloads when it shows them.
 - **Startup order**: the worker runs `db:migrate` before registering jobs
   (see `DEPLOYMENT.md`); it must not run with a drifted schema.
 - **No transport imports in job code**: `extraction-worker.ts` enqueues
@@ -180,7 +180,7 @@ Not symmetrical, and worth knowing before deciding how urgent a restart is:
 
 ## Operations pointers
 
-- Check queue health: `/admin` shows worker/job status and dead-letter counts
+- Check queue health: `/admin` shows worker/job status and failed-job counts
   (`docs/05_operations/monitoring.md`).
 - Testing: `tests/scheduler.test.ts` covers dispatcher eligibility and the
   per-tenant handlers; `tests/tenant-fanout.test.ts` covers keyset paging (up to
@@ -213,71 +213,27 @@ Not symmetrical, and worth knowing before deciding how urgent a restart is:
 
 ### `src/lib/server/dead-letter.ts`
 
-**`function tenantColumnValue`**
+**_module level_**
 
-- A dead letter's whole input domain is malformed job data, so a blank or non-uuid `restaurantId` must not cost us the audit row: Postgres would reject the insert and the record would be lost exactly when it matters most. Non-uuid values become NULL in the column; the raw value still reaches the audit trail inside `payload`.
+- Dead letters are pg-boss's own failed jobs, read from `pgboss.job` where `state = 'failed'` across every queue. Retry is `boss.retry()` (adds one attempt and re-runs the original job with its full data); discard is `boss.deleteJob()`. There is no triage status: the old reviewed/replayed/discarded column only mirrored what retry and discard now do on the job itself.
+- `retryDeadLetter` walks an `extract-invoice` batch item back to `queued` via `markQueued` first, because the handler skips items that are not queued; an item that will not go back returns `itemNotRequeueable` (409).
+- Payloads are redacted on the way to the page (`serializePayload`), not on the way in, since pg-boss keeps the real job data so retry runs the same work.
+- `dead_letter_queue` stays in the schema, unwritten, until a later contract migration drops it.
 
-**`function deadLetterGrowth`**
+**`function runJob`**
 
-- Pending rows *last seen* inside a window, split by queue (#1001). Counts distinct failures rather than retries of one, because rows collapse on `(queue, source_id, error_class, status)` with an `occurrences` counter — which is what makes the count-based threshold in `monitoring.md` meaningful instead of noisy.
+- Runs one job inside its tenant's context when it has a `restaurantId`, logs, and rethrows so pg-boss retries and finally marks it failed.
 
 ### `src/lib/server/alerts.ts` — scheduled jobs
 
 **`function deadLetterAlert`**
 
-- Pure, so both thresholds are testable without a database or Sentry (#1001). `> 10` distinct pending rows in 24 h is a `warning`; any pending `account-cleanup` row is an `error`, because that is the GDPR deletion job — one dead-lettered row means a user who asked to be forgotten has not been, and nothing else in the system counts down on that. The 10 is deliberately the figure already used for failed scheduled jobs in `monitoring.md`, so ops has one number to remember.
+- Pure, so both thresholds are testable without a database or Sentry (#1001). `> 10` failed jobs in 24 h is a `warning`; any failed `account-cleanup` job is an `error`, because that is the GDPR deletion job — one failed job means a user who asked to be forgotten has not been, and nothing else in the system counts down on that. The 10 is deliberately the figure already used for failed scheduled jobs in `monitoring.md`, so ops has one number to remember.
 
 **`function runDeadLetterAlertJob`**
 
 - One Sentry fingerprint per reason (`dead-letter-threshold` / `dead-letter-zeroTolerance`), so a queue that stays over the line keeps updating a single issue rather than opening one an hour.
 - Cron `5 * * * *` — hourly, though the threshold is stated over 24 h, because a GDPR deletion sitting in the queue should not wait until tomorrow morning for somebody to notice.
-
-**`function runMetricSampleJob`**
-
-- Persists the `extract-invoice` depth `/api/health` already computes, so the worker-replica trigger in #1004 has a series to fire on rather than a single reading nobody kept (#1003). Cron `*/5 * * * *` — fine enough to watch a burst build, coarse enough that a month of samples is a few thousand rows.
-- Records `queue.oldest_seconds` alongside the depth: 50 items that arrived a second ago and 50 that have been waiting ten minutes are the same number and different incidents.
-
-### `src/lib/server/dead-letter-replay.ts`
-
-**_module level_**
-
-- Replay for every queue that can be replayed safely (#1001). Before this it existed for `extract-invoice` alone; the other five queues had no exit but a manual status change or the 180-day purge — including `account-cleanup`, the GDPR deletion job.
-- The constraint that shapes the whole module: the stored `payload` is **redacted** before it is written (`redactPayload` — emails masked, strings truncated at 512 chars, arrays capped at 25 items). Re-enqueuing it verbatim would run a job with quietly different data and report success. So a queue is replayable here only when its job data is identifiers that survive redaction unchanged, and anything textual is re-read from its own table.
-
-**`const NON_REPLAYABLE_QUEUES`**
-
-- `whatsapp-inbound`: the payload *is* the message — free text and media references that redaction masks and truncates, so a replay would deliver something other than what the sender wrote.
-- `account-cleanup`: `stripeSubscriptionIds` and `storageKeys` are arrays, and redaction caps arrays at 25 items. Replaying a GDPR deletion from a truncated list would report success having removed part of the account.
-- Both surface as *No replay* on `/admin/dead-letters` with the reason on hover, rather than a button that silently does the wrong thing — the alternative the issue explicitly allowed.
-
-**`const REPLAYERS`**
-
-- `extract-invoice`: the batch item is a state machine, not just a job, so it is walked back to `queued` via `markQueued` before a worker may claim it again; a row that will not go back returns `itemNotRequeueable` (409).
-- `normalize-product` / `categorize-product`: the job's text is the product's own name, so it is re-read from `products` by id and the redacted copy in the payload is ignored. A product that is gone, or whose `restaurant_id` does not match the dead-letter row's, returns `sourceMissing` (409) rather than replaying across tenants.
-- `whatsapp-notify`: two uuids and nothing else, so redaction leaves them byte-identical and the payload is used directly — after a valibot parse, so a malformed payload is a 400 rather than an enqueue of nonsense.
-
-### `src/lib/server/metrics.ts`
-
-**_module level_**
-
-- The coarse time series behind the audit's unmeasured numbers (#1003): route latency, `extract-invoice` depth, extraction latency. Producers bucket in memory and flush one row per `(name, label)` per window rather than writing a row per event — at production traffic a row per request would be ~200k rows a month to answer questions a per-minute rollup answers just as well. The cost is resolution below the flush interval and no exact percentiles: count/sum/min/max only.
-- Recording is best-effort by construction. A metric write must never fail the request or job it is measuring, so both `flushMetrics` and `recordGauge` log and swallow.
-
-**`const buckets`**
-
-- Keyed by name + label, but each entry carries them as *fields* rather than re-parsing a composite key. A route id is arbitrary text (`/(app)/batch/[id]`) and should never have to survive a round trip through a delimiter.
-
-**`function drain`**
-
-- The seam the tests drive: what a flush would write, without writing it.
-
-**`function flushMetrics`**
-
-- A failed write drops the window rather than retrying into the buffer. Retaining it would grow the buffer without bound for as long as the database stays unhappy — exactly when the process can least afford it.
-
-**`function startMetricFlush`**
-
-- A no-op under test, so a suite never opens a timer it has to remember to close.
 
 ### `src/lib/server/extraction-worker.ts`
 
@@ -437,9 +393,8 @@ Not symmetrical, and worth knowing before deciding how urgent a restart is:
 
 **`function registerTenantFanout`**
 
-- `perJobResults` is what makes one tenant's failure survivable: pg-boss settles each job in the batch on its own, so a throw fails that job (retry, then dead-letter) while its batch-mates complete. Throwing out of the handler itself would fail the whole batch, which is why `settleTenantJob` catches.
+- `perJobResults` is what makes one tenant's failure survivable: pg-boss settles each job in the batch on its own, so a throw fails that job (retry, then `failed`) while its batch-mates complete. Throwing out of the handler itself would fail the whole batch, which is why `settleTenantJob` catches.
 - `batchSize` is `SCHEDULED_FANOUT_CONCURRENCY` — a Gemini/Resend rate-limit ceiling, not a throughput target.
-- The dead-letter drain mirrors the extraction one: a job pg-boss abandoned or exhausted retries on lands in the audit dead-letter table with its tenant id attached.
 
 **`function settleTenantJob`**
 

@@ -10,7 +10,6 @@ import { resolveTracesSampleRate } from '$lib/sentry-sample-rate';
 import { assertProductionEnv, addressHeaderWarning, validateAdminSeedConfig } from '$lib/server/config';
 import { startWorkerLivenessMonitor } from '$lib/server/worker-liveness-monitor';
 import { createLogger } from '$lib/server/log';
-import { startMetricFlush } from '$lib/server/metrics';
 import { createAppHandle } from '$lib/server/request-policy';
 import { assertScopedDbRole } from '$lib/server/db-role';
 
@@ -69,6 +68,5 @@ assertScopedDbRole().catch(e => {
 });
 seedAdminUser().catch(e => { if (!isNetworkUnreachable(e)) log.error('seed error', { err: e }); });
 startWorkerLivenessMonitor();
-startMetricFlush();
 
 export const handle: Handle = sequence(Sentry.sentryHandle(), authHandle, createAppHandle(), entitlementHandle);

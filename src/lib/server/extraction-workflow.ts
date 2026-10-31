@@ -29,12 +29,13 @@ import {
 } from './llm-quota.js';
 import { getAccessState } from './billing.js';
 import { isLocationLocked } from './locations.js';
-import { deadLetterRefFromJob, recordDeadLetter, runWithDeadLetter } from './dead-letter.js';
+import { describeError, runJob } from './dead-letter.js';
 import {
 	EXTRACTION_QUEUE,
 	type LegacyExtractionJobData,
 } from './contracts/extraction-contract.js';
 import { enqueueExtraction, enqueueWhatsAppNotify } from './queue.js';
+import type { JobResult } from 'pg-boss';
 import { whatsappBotEnabled } from './integrations/whatsapp/whatsapp-config.js';
 import { acquireExtractionSlot, ExtractionSlotUnavailableError } from './rate-limiter.js';
 import { createLogger } from './log.js';
@@ -48,7 +49,6 @@ const segmentation = { isSegmentableDocument, segmentDocument };
 const quotaGate = { checkExtractionQuota, claimMonthlyExtraction, releaseMonthlyExtraction, reserveMonthlyExtractions, attributeReservation, recordLlmUsage };
 const geminiExtraction = { extractInvoice, extractWithProvider };
 const corpusGate = { recordExtractionResult };
-const deadLetterGate = { recordDeadLetter, runWithDeadLetter, deadLetterRefFromJob };
 
 export type InvoicePersistenceOutcome = SaveOutcome;
 
@@ -125,14 +125,22 @@ async function claimExtractionAllowance(itemId: string, restaurantId: string, re
 	return true;
 }
 
+export type ExtractionOutcome =
+	| 'completed'
+	| 'failed'
+	| { deadletter: { errorClass: string; message: string; stack: string | null } };
+
+function deadLetter(errorClass: string, err: unknown): ExtractionOutcome {
+	return { deadletter: { errorClass, ...describeError(err) } };
+}
+
 async function reportExtractionFailure(
 	err: unknown,
 	itemId: string,
 	restaurantId: string,
-	payload: unknown,
 	attempt: { isFinalAttempt: boolean; claimedMonthlySlot: boolean },
 	requestId?: string,
-): Promise<boolean> {
+): Promise<ExtractionOutcome> {
 	const extractError = classifyExtractionError(err);
 	const willRetry = DEGRADATION_ERRORS.has(extractError) && !attempt.isFinalAttempt;
 	log.error('Extraction failed', { itemId, restaurantId, errorClass: extractError, willRetry, requestId, err });
@@ -146,18 +154,11 @@ async function reportExtractionFailure(
 			level: 'error',
 			tags: { itemId, errorClass: extractError, restaurantId, requestId },
 		});
-		await deadLetterGate.recordDeadLetter({
-			queue: EXTRACTION_QUEUE,
-			errorClass: extractError,
-			error: err,
-			restaurantId,
-			sourceId: itemId,
-			payload,
-		});
 	}
 	if (!willRetry) await batchState.markFailed(itemId, extractError);
 	if (attempt.claimedMonthlySlot) await quotaGate.releaseMonthlyExtraction(restaurantId, itemId, extractError);
-	return !willRetry;
+	if (willRetry) return 'failed';
+	return DEGRADATION_ERRORS.has(extractError) ? 'completed' : deadLetter(extractError, err);
 }
 
 async function archiveExtraction(
@@ -290,8 +291,6 @@ function removeTmpFile(tmpPath: string): void {
 	try { fs.unlinkSync(tmpPath); } catch { }
 }
 
-export type ExtractionOutcome = 'completed' | 'failed';
-
 export async function runExtractionWorkflow(
 	jobData: LegacyExtractionJobData,
 	generateOverride?: GenerateFn,
@@ -301,29 +300,14 @@ export async function runExtractionWorkflow(
 	const { restaurantId, requestId } = jobData;
 	const isFinalAttempt = !retryInfo || retryInfo.retryCount >= retryInfo.retryLimit;
 	if (!itemId) {
-		log.warn('Job without itemId — routing to the dead-letter queue', { restaurantId, requestId });
-		await deadLetterGate.recordDeadLetter({
-			queue: EXTRACTION_QUEUE,
-			errorClass: 'corrupt.missingItemId',
-			error: new Error('Extraction job carries neither itemId nor sessionId'),
-			restaurantId: restaurantId || null,
-			payload: jobData,
-		});
-		return 'completed';
+		log.warn('Job without itemId — failing it for good', { restaurantId, requestId });
+		return deadLetter('corrupt.missingItemId', new Error('Extraction job carries neither itemId nor sessionId'));
 	}
 
 	const item = await batchState.getItem(itemId);
 	if (!item) {
-		log.warn('Batch item not found — routing to the dead-letter queue', { itemId, restaurantId, requestId });
-		await deadLetterGate.recordDeadLetter({
-			queue: EXTRACTION_QUEUE,
-			errorClass: 'corrupt.itemNotFound',
-			error: new Error(`Batch item ${itemId} referenced by the job no longer exists`),
-			restaurantId: restaurantId || null,
-			sourceId: itemId,
-			payload: jobData,
-		});
-		return 'completed';
+		log.warn('Batch item not found — failing it for good', { itemId, restaurantId, requestId });
+		return deadLetter('corrupt.itemNotFound', new Error(`Batch item ${itemId} referenced by the job no longer exists`));
 	}
 
 	const claimed = await batchState.markExtracting(itemId);
@@ -470,16 +454,15 @@ export async function runExtractionWorkflow(
 		await notifyWhatsAppIfSource(item, restaurantId, requestId);
 		return 'completed';
 	} catch (err) {
-		const failedForGood = await reportExtractionFailure(
+		const outcome = await reportExtractionFailure(
 			err,
 			itemId,
 			restaurantId,
-			{ ...jobData, fileKey: item.fileKey, displayName: item.displayName },
 			{ isFinalAttempt, claimedMonthlySlot },
 			requestId,
 		);
-		if (failedForGood) await notifyWhatsAppIfSource(item, restaurantId, requestId);
-		return failedForGood ? 'completed' : 'failed';
+		if (outcome !== 'failed') await notifyWhatsAppIfSource(item, restaurantId, requestId);
+		return outcome;
 	} finally {
 		cleanupTmp?.();
 	}
@@ -490,17 +473,18 @@ export async function runExtractionJobForBoss(job: {
 	data: LegacyExtractionJobData;
 	retryCount?: number | null;
 	retryLimit?: number | null;
-}): Promise<{ id: string; status: 'completed' | 'failed' | 'deadletter' }> {
-	const ref = deadLetterGate.deadLetterRefFromJob(EXTRACTION_QUEUE, job);
+}): Promise<JobResult> {
 	try {
-		const status = await deadLetterGate.runWithDeadLetter(ref, () =>
+		const outcome = await runJob({ ...job, name: EXTRACTION_QUEUE }, () =>
 			runExtractionWorkflow(job.data, undefined, {
 				retryCount: job.retryCount ?? 0,
 				retryLimit: job.retryLimit ?? 0,
 			}),
 		);
-		return { id: job.id, status };
-	} catch {
-		return { id: job.id, status: (ref.retriesLeft ?? 0) > 0 ? 'failed' : 'deadletter' };
+		return typeof outcome === 'string'
+			? { id: job.id, status: outcome }
+			: { id: job.id, status: 'deadletter', output: outcome.deadletter };
+	} catch (err) {
+		return { id: job.id, status: 'failed', output: describeError(err) };
 	}
 }

@@ -13,15 +13,15 @@ chat to confirm with `OK` or reject with `NO`.
 
 ## Transports
 
-There are two, behind one interface (`integrations/whatsapp/transport.ts`,
-ADR-025). Everything below the interface — routing, pairing, media, job codes,
-review replies — is shared; only the two driver files differ.
+One transport runs today: Baileys, a worker-held socket (`driver-baileys.ts`,
+QR pairing, no verified business needed). It sits behind one interface
+(`integrations/whatsapp/transport.ts`, ADR-025), so routing, pairing, media,
+job codes and review replies never learn which transport they are on.
 
-| | Meta Cloud API | Baileys |
-|---|---|---|
-| Entry | `api/whatsapp/webhook` → `whatsapp-bot.ts` | worker socket → `driver-baileys.ts` |
-| Credentials | verified business required | QR pairing, no business |
-| Status | built, cannot be provisioned yet | what the MVP runs on |
+The Meta Cloud API inbound path (webhook, `whatsapp-inbound` queue, Graph media
+download, account-event health) was dormant and has been removed; ADR-025 says
+where to restore it from. Only `sendWhatsAppMessage` in `whatsapp.ts` remains,
+for the weekly digest push.
 
 `message-handler.ts` takes a `WhatsAppMessageContext` (`sendText` +
 `downloadMedia`) and never learns which one it is on, which is also how the
@@ -30,22 +30,19 @@ tests drive the round trip without a network.
 ## Actors
 
 - WhatsApp staff numbers (authorized via pairing codes).
-- Meta (webhook delivery) or the Baileys socket in the worker.
+- The Baileys socket in the worker.
 - Owner (generates pairing codes in `/settings`).
 - Admin (`/admin/whatsapp`: QR pairing, kill switch, connection status).
 
 ## Preconditions
 
-- Meta path: `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`,
-  `WHATSAPP_VERIFY_TOKEN` set; `WHATSAPP_APP_SECRET` in production.
-- Baileys path: `WHATSAPP_BOT_ENABLED=true` on the worker, the number paired by
+- Baileys: `WHATSAPP_BOT_ENABLED=true` on the worker, the number paired by
   QR, and `app_flags.whatsapp_bot_enabled` not `'false'`.
 - Sender's phone already paired (`whatsapp_contacts`).
 
 ## Inputs
 
-- Webhook GET `hub.mode/verify_token/challenge`.
-- Webhook POST with inbound `messages` (image/document) or account events.
+- Inbound messages (text/image/document) from the Baileys socket.
 
 ## Outputs
 
@@ -56,13 +53,10 @@ tests drive the round trip without a network.
   review outcomes; guidance for unusable text; pairing outcomes.
 - `whatsapp-notify` pg-boss jobs (worker → sender).
 - `system_notifications` rows: `whatsapp_pending_save` / `whatsapp_needs_review`.
-- `whatsapp_pairing_codes` (generated/redeemed); `whatsapp_account_events`.
+- `whatsapp_pairing_codes` (generated/redeemed).
 
 ## Business rules
 
-- **Verification**: GET challenge vs `WHATSAPP_VERIFY_TOKEN` (403 otherwise);
-  POST HMAC-SHA256 of raw body vs `x-hub-signature-256` via `timingSafeEqual`
-  (skipped with warning when secret unset, non-prod).
 - **Tenant key** (ADR-019): sender `msg.from` looked up in `whatsapp_contacts`
   (`phoneNumber` unique → `restaurantId`).
 - **Dedup**: `claimMessageId` inserts PK with `onConflictDoNothing`; empty
@@ -113,9 +107,6 @@ tests drive the round trip without a network.
 - **Kill switch**: `WHATSAPP_BOT_ENABLED` gates the Baileys transport at boot;
   `app_flags.whatsapp_bot_enabled` can stop it without a redeploy and is
   re-read before every inbound message.
-- **Health**: `parseAccountEvent` → severity (RED/YELLOW/ban/restriction) into
-  `whatsapp_account_events` + Sentry message for non-info; `getNumberHealth` =
-  worst severity in 30 days.
 
 ## State transitions
 
@@ -125,7 +116,7 @@ n/a for contacts; batches follow `invoice_ingestion.md`; pairing codes
 ## Data dependencies
 
 `whatsapp_contacts`, `whatsapp_pairing_codes` (`phone_number` optionally
-targets an invite to one number, migration `0045`), `whatsapp_account_events`,
+targets an invite to one number, migration `0045`),
 `whatsapp_session` (Baileys credentials), `idempotency_keys` (`whatsapp` scope),
 `upload_batches`, `batch_items` (`source`, `source_ref`, `job_code`,
 `review_status`), `system_notifications` (also carries
@@ -133,7 +124,7 @@ targets an invite to one number, migration `0045`), `whatsapp_account_events`,
 
 ## API dependencies
 
-`api/whatsapp/webhook`; settings WhatsApp section (owner-only pairing UI);
+Settings WhatsApp section (owner-only pairing UI);
 `/admin/whatsapp` `releaseContact` action (support force-release by phone).
 
 ## UI dependencies
@@ -144,19 +135,19 @@ force-release-by-phone form for support, issue #498).
 
 ## Background dependencies
 
-Media handling is synchronous in the webhook; extraction runs via pg-boss as
+Media handling is synchronous in the socket handler; extraction runs via pg-boss as
 usual. Batch-status polling works for WhatsApp batches too. The hand-back is a
 `whatsapp-notify` job (dead-letter sibling, 3 retries, 60 s apart), registered
 in `src/worker.ts` only when a transport is running.
 
 ## External dependencies
 
-Meta WhatsApp Cloud API (v25.0 default) or `@whiskeysockets/baileys` (ADR-025),
-storage driver.
+`@whiskeysockets/baileys` (ADR-025), storage driver; the Graph API (v25.0
+default) only for the digest push.
 
 ## Validation
 
-HMAC signature; phone format (`phone.ts`); media MIME mapping; pairing code
+Phone format (`phone.ts`); media MIME mapping; pairing code
 normalization; rate limits.
 
 ## Error states
@@ -172,16 +163,13 @@ normalization; rate limits.
 
 ## Edge cases
 
-- Same message redelivered by Meta → dedup skip.
+- Same message delivered twice → dedup skip.
 - Two senders, one number → phone is globally unique (pairing binds one tenant).
 - Pairing code conflict → retried up to 5×.
-- Unset `WHATSAPP_APP_SECRET` in prod → POST webhook refuses to verify (see
-  security; deployment must set it).
 
 ## Security rules
 
-- Webhook HMAC verification is the gate (ADR-019 tenant binding).
-- Always return 200 after handling so Meta doesn't retry unhandled edges.
+- The sender's paired number is the gate (ADR-019 tenant binding).
 - Pairing is owner-initiated, rate-limited, short-TTL, single-redeem.
 - Binding requires proof of control: only `redeemPairingCode` writes
   `whatsapp_contacts`; the manual Settings form pre-authorises, it never binds
@@ -200,20 +188,19 @@ normalization; rate limits.
 
 ## Observability
 
-- `whatsapp_account_events` severity + Sentry for health drops; `/admin`
-  displays number health.
+- `/admin/whatsapp` shows the Baileys connection status; `/admin/health` shows
+  the transport check and authorised senders per tenant.
 
 ## Acceptance criteria
 
-- GET challenge verifies; an invoice image creates a batch and is acknowledged;
+- An invoice image creates a batch and is acknowledged;
   the summary comes back with a job code; `OK <code>` marks it reviewed and
   raises a reminder; a duplicate message is skipped; a failure before the commit
   point releases the claim so a resend works; pairing codes redeem once and
   expire.
-- Tests: `tests/whatsapp-webhook.test.ts`, `tests/whatsapp-bot.test.ts`,
+- Tests: `tests/whatsapp-bot.test.ts`,
   `tests/whatsapp-pairing.test.ts`, `tests/whatsapp-contacts.test.ts`,
-  `tests/whatsapp-bridge.test.ts`, `tests/whatsapp-health.test.ts`,
-  `tests/whatsapp-api.test.ts`, `tests/whatsapp-jobs.test.ts`,
+  `tests/whatsapp-bridge.test.ts`, `tests/whatsapp-api.test.ts`, `tests/whatsapp-jobs.test.ts`,
   `tests/whatsapp-notify.test.ts`, `tests/whatsapp-review-reply.test.ts`.
 
 ## Code notes
@@ -275,31 +262,6 @@ socket it cannot establish as `connecting` and then stays silent forever: the
 across retries so the panel does not flicker back to `connecting` every minute. The JID is normalised with `normalizePhoneNumber`
 before the handler sees it, because contacts are stored as digits (ADR-019).
 
-### `src/routes/api/whatsapp/webhook/+server.ts`
-
-**`function verifySignature`**
-
-- WhatsApp Cloud API webhook: GET answers the Meta verify-token challenge (`WHATSAPP_VERIFY_TOKEN`); POST receives inbound messages. Subscribed fields: messages, account_update, phone_number_quality_update — the account fields turn a shared-number quality downgrade from a support-ticket discovery into something delivered (#321).
-- Verifies Meta's X-Hub-Signature-256 HMAC over the raw body. Bad/missing signature with a configured secret is rejected; a missing secret is tolerated only outside production — in production the webhook fails CLOSED: an unauthenticated POST could impersonate a registered number, inject invoices into that tenant, and burn Gemini quota.
-
-**`function verifyToken`**
-
-- Compares `hub.verify_token` with `timingSafeEqual` (length-guarded), mirroring `verifySignature`'s POST check (#1083) — a plain `===` leaks the token byte-by-byte through response timing.
-
-**`const GET`**
-
-- Meta calls GET to verify the webhook endpoint during setup.
-
-**`const POST`**
-
-- WhatsApp delivers message events here; return 200 immediately. Read the raw body first (HMAC over the exact bytes); process asynchronously — Meta expects a 200 within 5 s. Account-level events (#321) are delivered here too: ingest for every tenant runs through one shared number, so a downgrade or restriction must arrive this way rather than via support tickets.
-- Account events are recorded fire-and-forget, so each `recordAccountEvent` call is wrapped in `runAsSystem()` (issue #1073): `hooks.server.ts` runs this route under a system context whose reserved connection is released as soon as the response resolves, and a detached insert on that handle would otherwise land on a connection already back in the pool. `runAsSystem` reserves one of its own for the insert, which is tenant-less (`whatsapp_account_events` has no `restaurant_id`) and already in ADR-030's system-context table. The response is not delayed: the wrap is started, not awaited.
-
-**`function extractChanges`**
-
-- Split the payload into inbound messages and account-level events. Meta multiplexes every subscribed field through the same endpoint, distinguished by `changes[].field`; reading `value.messages` regardless of field silently discarded everything else — including the quality/restriction notices #321 exists to catch.
-- Skip statuses (sent/delivered/read receipts) — high volume, no health signal. Anything else subscribed is health-relevant by definition; record unrecognised events rather than drop them.
-
 ### `src/lib/server/qr-svg.ts`
 
 **`const ERROR_CORRECTION`**
@@ -310,105 +272,6 @@ before the handler sees it, because contacts are stored as digits (ADR-019).
 **`function renderQrSvg`**
 
 - Scalable inline SVG QR (viewBox, no fixed size — caller sizes via CSS). Returns null when the string is too long — callers treat the QR as an enhancement and drop it rather than failing the page. Type 0 = smallest symbol version that fits.
-
-### `src/lib/server/whatsapp-bot.ts`
-
-**`const SESSION_TTL_MS`**
-
-- WhatsApp invoice bot — handles incoming messages, runs extraction, asks for confirmation, persists invoices as pending.
-
-**`const UNAUTHORIZED_REPLY_COOLDOWN_S`**
-
-- 6 hours — how long an unknown number waits before the bot answers it again (#322).
-
-**`interface WhatsAppInboundMessage`**
-
-- Inbound message shape as delivered by the webhook.
-
-**`function claimMessageId`**
-
-- Claims a WhatsApp message id so a redelivered webhook is processed once (#245); false when already seen. Fails open on a DB error — a rare duplicate beats silently dropping a real invoice. Since #389 the claim lives in the shared ledger under the whatsapp scope; the wrapper survives only for that fail-open behaviour the generic helper deliberately lacks.
-
-**`function handleWhatsAppMessage`**
-
-- Dedup on the message id before any side effect — Meta redelivers and a duplicate "SÍ" must not save twice. Then resolve the restaurant from the number.
-- An enrolling number is by definition unauthorised, so pairing runs here rather than before the lookup (#320) — an authorised sender's "SÍ"/"NO" can never be mistaken for a code.
-- Reply at most once per number per cooldown (#322), key `whatsapp-unauth:${from}` — otherwise a wrong/spam number gets an answer to every message: unbounded billable traffic from 1 Oct 2026 plus poor anti-abuse. A genuine mistype still gets told the first time.
-
-**`function handlePairingAttempt`**
-
-- Redeem a pairing code from a not-yet-authorised number. Unknown/expired/used codes get one identical answer so a guess never reveals whether a code exists. Exhausting the per-sender budget is met with silence — "too many attempts" is itself a signal, and every reply goes to an unauthenticated number at our expense.
-
-**`function handleMediaUpload`**
-
-- Money gate: reserve a monthly extraction slot BEFORE any Gemini spend (#318) — without it WhatsApp was an unmetered lane around the web quota, and under the shared-number model the cost lands on us. Claimed after the pending-session guard so a rejected duplicate never burns a slot; same aggregation as the worker (#257).
-- No "procesando…" ack (#322): WhatsApp already shows delivery and the summary lands in ~10 s, so the ack made a successful invoice cost three outbound messages instead of two — billable from 1 Oct 2026. Nothing extracted, or a Gemini failure → release the slot (#318, mirrors the worker).
-- Write to a temp file for the existing extractor; persist the file to storage for web review; store a session awaiting confirmation.
-
-**`function handleTextReply`**
-
-- Strip accents, lowercase, trim. Claim the session before saving (guarded awaiting_confirmation → confirmed) so duplicate "SÍ" deliveries can't both save (#245); the content-hash index is the final backstop. If the save doesn't land, roll the claim back to discarded so the session isn't 'confirmed' with no invoice behind it.
-
-**`function getPendingSession`**
-
-- Session helpers.
-
-**`type SaveResult`**
-
-- Invoice persistence outcome type.
-
-**`function saveWhatsAppInvoice`**
-
-- Atomic supplier get-or-create (#238), tagged with the category extraction proposed (#315). Nothing here is user-reviewed, so an unnamed supplier ('Desconocido') keeps the uncategorised bucket and its nudge rather than inheriting a guess. Invoice-number duplicate guard; fire-and-forget quota warning.
-
-**`function buildSummaryMessage`**
-
-- Message formatting.
-### `src/lib/server/whatsapp-health.ts`
-
-**`type Severity`**
-
-- WhatsApp number health (#321). One Business number shared by every tenant (per-tenant numbers would need a spare number + Meta business verification each) concentrates reputation risk: Meta's quality rating per number is driven by blocks/reports, so one restaurant's staff degrades it for all, and a restricted number stops ingest for everyone. Reputational, not throughput-bound: the bot only *replies* inside the 24h service window. These events make a downgrade *delivered* instead of a support-ticket discovery.
-
-**`const CRITICAL_EVENTS`**
-
-- Events meaning the number is (or is about to be) unusable; under `account_update`; any stops or threatens ingest for everyone.
-
-**`const WARNING_EVENTS`**
-
-- Degraded but still delivering — worth a look before it becomes critical.
-
-**`interface AccountEventInput`**
-
-- Meta webhook field name ('account_update') and the `value` object.
-
-**`function parseAccountEvent`**
-
-- Reduce a webhook `value` to the fields worth acting on; payloads vary by event and API version, so read defensively and keep the raw payload — unrecognised events still land as rows. Quality arrives as `current_quality_rating`, nested, or as a plain GREEN/YELLOW/RED event; ban/restriction is critical regardless of event name; FLAGGED is a warning but its recovery (UNFLAGGED, back to GREEN) is info.
-
-**`function recordAccountEvent`**
-
-- Persist + page Sentry when it matters. Never throws: it runs inside the webhook handler, which must keep answering Meta within 5 s and must not fail real messages over a bookkeeping write. A drop is an incident, not a metric — ingest for the whole base runs through this one number.
-
-**`interface NumberHealth`**
-
-- Latest quality rating and messaging tier (if ever reported); worst severity in the window; the event behind it; everReported.
-
-**`const HEALTH_WINDOW_DAYS`**
-
-- 30 — how far back "current" reaches; a red flag from last quarter is history.
-
-**`function getNumberHealth`**
-
-- `everReported: false` is normal before the account fields are subscribed — the admin page reports that as "not subscribed" rather than "healthy", because silence is absence of data. Most recent event wins on the *current* rating; the window's worst severity drives the badge so a RED that flipped back is still visible. Ratings aren't sent on every event — fall back through the window.
-
-**`function recentAccountEvents`**
-
-- Most recent events, newest first — the admin timeline.
-
-**`function contactsPerTenant`**
-
-- Authorised senders per tenant, to find and de-authorise a block-heavy restaurant quickly (Settings needs to know which tenant first). Read-only: removing a number stays an explicit act in the owner's Settings.
 
 ### `src/lib/server/whatsapp-contacts.ts`
 
@@ -427,6 +290,10 @@ before the handler sees it, because contacts are stored as digits (ADR-019).
 **`function releaseContactByPhone`** (#498)
 
 - Support's force-release: deletes by phone number alone, so it works without knowing which restaurant holds the number — the whole point of a support path. Deliberately cross-tenant (`tenant-scope-ok`), gated by `isAdminUser` in the calling `/admin/whatsapp` route rather than by tenant scoping here. Same audit event as `removeContact`, tagged `method: 'support'`.
+
+**`function contactsPerTenant`**
+
+- Authorised senders per tenant, shown on `/admin/health`, to find and de-authorise a block-heavy restaurant quickly (Settings needs to know which tenant first). Read-only: removing a number stays an explicit act in the owner's Settings.
 
 **`digestOptedInContacts` / `isDigestOptedIn` / `setDigestOptIn`** (#331)
 
@@ -495,11 +362,6 @@ before the handler sees it, because contacts are stored as digits (ADR-019).
 **`function maskPhone`**
 
 - Mask for logs — keep only the last 4 digits (#254).
-
-**`function downloadWhatsAppMedia`**
-
-- Step 1 resolve the media download URL (Graph API, `/{mediaId}`); step 2 download the bytes.
-- The `/{mediaId}` metadata call always targets `GRAPH_API_BASE`, a constant built from env — `mediaId` only ever reaches it as a path segment, so there is nothing to allowlist there. The `meta.url` it returns is attacker-reachable in principle (a redirect, DNS/TLS interception, or a future untrusted `mediaId` source), and the bearer token is a permanent WhatsApp system-user secret, so before the token is attached: `meta.url` must be a string (a missing/malformed value is a clean error, not a `TypeError` from `new URL(undefined)`); the parsed URL must be `https:`; and its host must match `ALLOWED_MEDIA_HOSTS` (#505). The allowlist is `facebook.com`, `fbcdn.net`, `fbsbx.com`, `whatsapp.net` — `fbsbx.com` (Meta's lookaside CDN, e.g. `lookaside.fbsbx.com`) is what the tests simulate and matches what the Graph API actually returns for media today; `facebook.com`/`whatsapp.net` are kept for the metadata host itself and other Meta-owned media hosts. The second fetch uses `redirect: 'manual'` and treats any 3xx as an error rather than following it — Meta's CDN isn't expected to redirect, and Node's `fetch` does not strip `Authorization` on a cross-origin redirect, so silently following one would leak the token to whatever host the redirect names.
 
 ### `src/lib/phone.ts`
 

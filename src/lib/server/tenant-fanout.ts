@@ -5,7 +5,7 @@ import { db, runAsSystem, runWithTenantContext } from './db';
 import { appFlags, restaurants, subscriptions } from './schema';
 import type { PlanTier } from './billing';
 import { SCHEDULED_FANOUT_CONCURRENCY } from './env';
-import { deadLetterRefFromJob, recordDeadLetter, redactString } from './dead-letter';
+import { redactString } from './dead-letter';
 
 export interface TenantSummary {
 	id: string;
@@ -60,10 +60,6 @@ export const TENANT_JOB_EXPIRE_SECONDS = 600;
 export const TENANT_JOB_RETENTION_SECONDS = 172_800;
 const JOB_RUN_FLAG_PREFIX = 'job_run:';
 
-export function tenantDeadLetterQueue(queue: string): string {
-	return `${queue}-dead-letter`;
-}
-
 export async function tenantPage(
 	afterId: string | null,
 	pageSize: number = TENANT_PAGE_SIZE,
@@ -97,7 +93,6 @@ export async function dispatchTenantJobs<D extends TenantJobData>(
 	spec: TenantFanoutSpec<D>,
 ): Promise<DispatchResult> {
 	const pageSize = spec.pageSize ?? TENANT_PAGE_SIZE;
-	const deadLetter = tenantDeadLetterQueue(spec.queue);
 	let cursor: string | null = null;
 	let scanned = 0;
 	let considered = 0;
@@ -118,7 +113,6 @@ export async function dispatchTenantJobs<D extends TenantJobData>(
 					retryLimit: TENANT_JOB_RETRY_LIMIT,
 					retryDelay: TENANT_JOB_RETRY_DELAY_SECONDS,
 					expireInSeconds: TENANT_JOB_EXPIRE_SECONDS,
-					deadLetter,
 				}));
 			considered += jobs.length;
 
@@ -170,50 +164,21 @@ export async function registerTenantFanout<D extends TenantJobData>(
 	boss: PgBoss,
 	handler: TenantFanoutHandler<D>,
 ): Promise<void> {
-	const deadLetter = tenantDeadLetterQueue(handler.queue);
 	const options = {
 		policy: 'short' as const,
-		deadLetter,
 		retryLimit: TENANT_JOB_RETRY_LIMIT,
 		retryDelay: TENANT_JOB_RETRY_DELAY_SECONDS,
 		expireInSeconds: TENANT_JOB_EXPIRE_SECONDS,
 		retentionSeconds: TENANT_JOB_RETENTION_SECONDS,
 	};
-	await boss.createQueue(deadLetter);
 	await boss.createQueue(handler.queue, options);
+	await boss.updateQueue(handler.queue, { deadLetter: null });
 
 	await boss.work(
 		handler.queue,
 		{ batchSize: SCHEDULED_FANOUT_CONCURRENCY, includeMetadata: true, perJobResults: true },
 		(jobs: JobWithMetadata<D>[]) => Promise.all(jobs.map(job => settleTenantJob(handler, job))),
 	);
-
-	await boss.work(
-		deadLetter,
-		{ batchSize: 10, includeMetadata: true },
-		async (jobs: JobWithMetadata<Record<string, unknown>>[]) => {
-			for (const job of jobs) {
-				await recordDeadLetter({
-					...deadLetterRefFromJob(handler.queue, {
-						id: job.sourceId ?? job.id,
-						data: job.data,
-						retryCount: job.sourceRetryCount ?? 0,
-						retryLimit: 0,
-					}),
-					restaurantId: tenantIdOf(job.data),
-					sourceId: tenantIdOf(job.data),
-					errorClass: 'scheduler.abandoned',
-					error: new Error(`pg-boss dead-lettered a "${handler.queue}" job (expired, abandoned or out of retries)`),
-					skipIfJobRecorded: true,
-				});
-			}
-		},
-	);
-}
-
-function tenantIdOf(data: unknown): string | null {
-	const rid = (data as Record<string, unknown> | null)?.restaurantId;
-	return typeof rid === 'string' ? rid : null;
 }
 
 async function settleTenantJob<D extends TenantJobData>(

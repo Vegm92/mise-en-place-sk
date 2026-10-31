@@ -1,8 +1,10 @@
-import { asc, eq } from 'drizzle-orm';
+import * as v from 'valibot';
+import { asc, eq, sql } from 'drizzle-orm';
 import { db, forTenant } from './db';
 import { whatsappContacts } from './schema';
 import { maskPhoneNumber, normalizePhoneNumber } from '$lib/phone';
 import { trackEvent } from './events';
+import { sqlRows } from './sql-rows';
 
 export interface WhatsAppContact {
 	id: number;
@@ -136,4 +138,18 @@ export async function releaseContactByPhone(rawPhone: string, releasedBy: string
 		method: 'support',
 	});
 	return { ok: true, restaurantId: deleted.restaurantId };
+}
+
+const TenantContactsRow = v.object({ restaurant_id: v.string(), name: v.nullable(v.string()), contacts: v.number() });
+
+export async function contactsPerTenant(limit = 20) {
+	const rows = sqlRows(await db.execute(sql`
+		SELECT r.id AS restaurant_id, r.name, COUNT(wc.id)::int AS contacts
+		FROM whatsapp_contacts wc
+		JOIN restaurants r ON r.id = wc.restaurant_id
+		GROUP BY r.id, r.name
+		ORDER BY COUNT(wc.id) DESC
+		LIMIT ${limit}
+	`), TenantContactsRow);
+	return rows.map(r => ({ restaurantId: r.restaurant_id, name: r.name ?? '—', contacts: r.contacts }));
 }

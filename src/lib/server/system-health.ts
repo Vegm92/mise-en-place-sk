@@ -3,14 +3,9 @@ import { and, asc, eq, inArray, lt, sql } from 'drizzle-orm';
 import { batchItems, restaurants } from './schema';
 import * as v from 'valibot';
 import { sqlRows } from './sql-rows';
-import {
-	contactsPerTenant,
-	getNumberHealth,
-	recentAccountEvents,
-	type NumberHealth,
-} from './whatsapp-health';
+import { contactsPerTenant } from './whatsapp-contacts';
 import { getIssueSummary, isSentryConfigured } from './sentry-api';
-import { pendingDeadLetterCount } from './dead-letter';
+import { countDeadLetters } from './dead-letter';
 import { TENANT_FANOUT_QUEUES } from './tenant-notification-jobs';
 import { lastJobRuns, type JobRunSummary } from './tenant-fanout';
 import { readWorkerHeartbeat, workerLiveness, type WorkerLiveness } from './worker-heartbeat';
@@ -27,7 +22,7 @@ import { probeGemini, probeResend, probeStripe, probeWhatsAppCloud, type ProbeRe
 import { ANALYTICS_ROLLUP_REFRESHED_FLAG, getFlag } from './app-flags';
 import { WHATSAPP_STATUS_FLAG } from './integrations/whatsapp/runtime';
 import {
-	GEMINI_MODEL, STORAGE_DRIVER, WHATSAPP_ACCESS_TOKEN, WHATSAPP_BOT_ENABLED, WHATSAPP_PHONE_NUMBER_ID,
+	GEMINI_MODEL, STORAGE_DRIVER, WHATSAPP_BOT_ENABLED,
 } from './env';
 
 const NODE_ENV: string = process.env.NODE_ENV ?? 'development';
@@ -65,8 +60,6 @@ export interface HealthCheck {
 }
 
 export interface WhatsAppDetail {
-	health: NumberHealth;
-	events: Awaited<ReturnType<typeof recentAccountEvents>>;
 	tenants: Awaited<ReturnType<typeof contactsPerTenant>>;
 }
 
@@ -438,13 +431,13 @@ async function checkJobs(): Promise<{ checks: HealthCheck[]; jobs: JobFailureSta
 
 async function checkDeadLetterQueue(): Promise<{ checks: HealthCheck[]; pending: number }> {
 	try {
-		const pending = await pendingDeadLetterCount();
+		const pending = await countDeadLetters();
 		return {
 			pending,
 			checks: [{
 				name: 'Dead letter queue',
 				status: thresholdStatus(pending, DEAD_LETTER_ERROR_THRESHOLD),
-				detail: pending > 0 ? `${pending} record(s) parked for audit` : 'No parked records',
+				detail: pending > 0 ? `${pending} failed job(s) kept by pg-boss` : 'No failed jobs',
 				href: '/admin/dead-letters',
 			}],
 		};
@@ -566,53 +559,30 @@ const TRANSPORT_STATUS: Record<string, HealthStatus> = {
 	ready: 'ok', connecting: 'warn', pairing: 'warn', reconnecting: 'warn', logged_out: 'error', unreachable: 'error',
 };
 
-export function whatsAppTransportCheck(botEnabled: boolean, cloudConfigured: boolean, flag: string | null): HealthCheck | null {
+export function whatsAppTransportCheck(botEnabled: boolean, flag: string | null): HealthCheck {
 	if (botEnabled) {
 		const status = flag ? (TRANSPORT_STATUS[flag] ?? 'warn') : 'warn';
 		return { name: 'WhatsApp transport', status, detail: flag ? `Baileys socket: ${flag}` : 'Baileys enabled, no status reported yet', href: '/admin/whatsapp' };
 	}
-	if (cloudConfigured) return null;
-	return { name: 'WhatsApp transport', status: 'warn', detail: 'No transport configured — set WHATSAPP_BOT_ENABLED=true on the worker or the Cloud API variables', href: '/admin/whatsapp' };
+	return { name: 'WhatsApp transport', status: 'warn', detail: 'No transport configured — set WHATSAPP_BOT_ENABLED=true on the worker', href: '/admin/whatsapp' };
 }
 
 async function checkWhatsAppTransport(): Promise<HealthCheck[]> {
 	try {
 		const botEnabled = WHATSAPP_BOT_ENABLED === 'true';
 		const flag = botEnabled ? await getFlag(WHATSAPP_STATUS_FLAG) : null;
-		const check = whatsAppTransportCheck(botEnabled, Boolean(WHATSAPP_ACCESS_TOKEN && WHATSAPP_PHONE_NUMBER_ID), flag);
-		return check ? [check] : [];
+		return [whatsAppTransportCheck(botEnabled, flag)];
 	} catch (e) {
 		return [failedCheck('WhatsApp transport', e)];
 	}
 }
 
-function whatsAppStatus(health: NumberHealth): HealthStatus {
-	if (!health.everReported) return 'warn';
-	if (health.severity === 'critical') return 'error';
-	if (health.severity === 'warning') return 'warn';
-	return 'ok';
-}
-
-function whatsAppDetail(health: NumberHealth): string {
-	if (!health.everReported) return 'No account events received — subscribe to account_update / phone_number_quality_update';
-	return `Quality ${health.qualityRating ?? 'unknown'}`
-		+ (health.messagingLimit ? `, limit ${health.messagingLimit}` : '')
-		+ (health.lastEvent ? ` · last: ${health.lastEvent}` : '');
-}
-
-async function checkWhatsApp(): Promise<{ checks: HealthCheck[]; detail: WhatsAppDetail | null }> {
+async function whatsAppDetail(): Promise<WhatsAppDetail | null> {
 	try {
-		const [health, events, tenants] = await Promise.all([
-			getNumberHealth(),
-			recentAccountEvents(),
-			contactsPerTenant(),
-		]);
-		return {
-			detail: { health, events, tenants },
-			checks: [{ name: 'WhatsApp number', status: whatsAppStatus(health), detail: whatsAppDetail(health) }],
-		};
+		return { tenants: await contactsPerTenant() };
 	} catch (e) {
-		return { detail: null, checks: [failedCheck('WhatsApp number', e)] };
+		console.error('[system-health] whatsapp contacts per tenant failed:', e);
+		return null;
 	}
 }
 
@@ -712,12 +682,12 @@ export async function runSystemChecks(): Promise<SystemHealth> {
 			checkScheduledJobs(),
 			checkStripeWebhooks(),
 			checkAccess(),
-			checkWhatsApp(),
+			whatsAppDetail(),
 			checkWhatsAppTransport(),
 		]);
 		checks.push(
 			...role.checks, ...mig.checks, ...heartbeat.checks, ...queue.checks, ...stats.checks, ...review.checks, ...rollup.checks, ...jobStats.checks,
-			...deadLetter.checks, ...scheduled.checks, ...stripeHooks.checks, ...access.checks, ...wa.checks, ...transport,
+			...deadLetter.checks, ...scheduled.checks, ...stripeHooks.checks, ...access.checks, ...transport,
 		);
 		dbRole = role.dbRole;
 		migrations = mig.migrations;
@@ -733,7 +703,7 @@ export async function runSystemChecks(): Promise<SystemHealth> {
 		scheduledJobs = scheduled.detail;
 		stripeWebhooks = stripeHooks.fresh;
 		pendingAccess = access.pending;
-		whatsapp = wa.detail;
+		whatsapp = wa;
 	}
 
 	const [probes, sentry] = await Promise.all([checkProbes(), checkSentry()]);

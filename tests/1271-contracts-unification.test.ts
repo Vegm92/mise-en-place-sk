@@ -6,17 +6,16 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { cancelSubscriptionMock, deleteMock, captureMessageMock, growthMock } = vi.hoisted(() => ({
+const { cancelSubscriptionMock, deleteMock, captureMessageMock } = vi.hoisted(() => ({
 	cancelSubscriptionMock: vi.fn().mockResolvedValue(undefined),
 	deleteMock: vi.fn().mockResolvedValue(undefined),
 	captureMessageMock: vi.fn(),
-	growthMock: vi.fn(),
 }));
 
 vi.mock('../src/lib/server/billing.js', () => ({ cancelSubscription: cancelSubscriptionMock }));
 vi.mock('../src/lib/server/storage.js', () => ({ getStorage: () => ({ delete: deleteMock }) }));
 vi.mock('@sentry/sveltekit', () => ({ captureMessage: captureMessageMock, captureException: vi.fn() }));
-vi.mock('../src/lib/server/dead-letter', () => ({ deadLetterGrowth: growthMock, purgeDeadLetters: vi.fn() }));
+vi.mock('../src/lib/server/dead-letter', () => ({ deadLetterGrowth: vi.fn() }));
 
 import {
 	ACCOUNT_CLEANUP_OPTIONS,
@@ -73,26 +72,18 @@ describe('account-cleanup payload', () => {
 });
 
 describe('a dead-lettered account deletion alerts an admin straight away', () => {
-	beforeEach(() => {
-		vi.clearAllMocks();
-		growthMock.mockResolvedValue({
-			windowHours: 24,
-			pending: 1,
-			byQueue: [{ queue: ACCOUNT_CLEANUP_QUEUE, pending: 1 }],
-		});
-	});
+	beforeEach(() => vi.clearAllMocks());
 
-	it('runs the dead-letter alert job for account-cleanup', async () => {
-		await alertOnDeadLetter(ACCOUNT_CLEANUP_QUEUE);
+	it('raises the zero-tolerance alert for account-cleanup', () => {
+		alertOnDeadLetter(ACCOUNT_CLEANUP_QUEUE);
 		expect(captureMessageMock).toHaveBeenCalledWith(
 			'Dead-lettered account deletion',
 			expect.objectContaining({ level: 'error' }),
 		);
 	});
 
-	it('leaves every other queue to the hourly schedule', async () => {
-		await alertOnDeadLetter(NORMALIZE_QUEUE);
-		expect(growthMock).not.toHaveBeenCalled();
+	it('leaves every other queue to the hourly schedule', () => {
+		alertOnDeadLetter(NORMALIZE_QUEUE);
 		expect(captureMessageMock).not.toHaveBeenCalled();
 	});
 });
