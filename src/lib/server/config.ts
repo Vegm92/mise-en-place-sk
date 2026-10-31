@@ -40,10 +40,6 @@ export function assertProductionEnv(env: NodeJS.ProcessEnv = process.env): void 
 
 	const missing: string[] = REQUIRED_IN_PRODUCTION.filter(key => !env[key]);
 
-	if (env.WHATSAPP_ACCESS_TOKEN && !env.WHATSAPP_APP_SECRET) {
-		missing.push('WHATSAPP_APP_SECRET');
-	}
-
 	for (const name of roleConfigGaps('web', env)) {
 		if (!missing.includes(name)) missing.push(name);
 	}

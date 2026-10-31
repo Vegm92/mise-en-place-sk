@@ -1,0 +1,1 @@
+CREATE INDEX "idx_invoice_line_items_rid_item_key" ON "invoice_line_items" USING btree ("restaurant_id",mep_norm_key("description"));

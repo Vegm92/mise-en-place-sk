@@ -49,7 +49,6 @@ describe('resolveTenantGate', () => {
 		expect(resolveTenantGate('/(admin)/admin')).toBe('allow');
 		expect(resolveTenantGate('/api/user/delete')).toBe('allow');
 		expect(resolveTenantGate('/api/health')).toBe('allow');
-		expect(resolveTenantGate('/api/whatsapp/webhook')).toBe('allow');
 	});
 
 	it('denies every real (app)/api/* endpoint with deny-api', () => {

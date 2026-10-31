@@ -23,7 +23,7 @@ times a day.
 
 | View | Grain | Feeds |
 |---|---|---|
-| `mv_supplier_monthly_spend` | restaurant × supplier × month | Dashboard supplier cards |
+| `mv_supplier_monthly_spend` | restaurant × supplier × month | Nothing — no longer refreshed (migration 0091); nothing reads it, the view stays until a later drop |
 | `mv_item_monthly_spend` | restaurant × normalised item × month | Spend analytics: top items, sparklines |
 | `mv_category_monthly_spend` | restaurant × category × month | Category breakdown |
 | `mv_price_snapshots` | restaurant × item × observation | Price evolution charts |

@@ -64,9 +64,9 @@ Owner-email gated. Provides:
 | Concern | Check |
 |---|---|
 | Extractions pending | `batch_items` status counts; `extract-invoice` queue |
-| Route latency | `metric_samples` where `name = 'route.latency_ms'`, `label` = the SvelteKit route id. Bucketed per 60 s flush in the web process (`src/lib/server/metrics.ts`) — count/sum/min/max, no exact percentiles; real p50/p95/p99 latency comes from Sentry's performance traces (`GET /(app)`, `GET /waitlist`, …), not this table (issue #1077) |
-| Query latency (per statement) | Sentry performance traces, `span.op:db`, child spans of the route transaction above — since #1077, this is where application query latency lives, not `metric_samples` (which has never recorded per-query timing and isn't the honest fix for it; see the Sentry section above and `src/lib/server/db-client.ts`) |
-| `extract-invoice` depth over time | `metric_samples` where `name = 'queue.depth'` (`label` `extract-invoice`, and `extract-invoice:pgboss` for the job table) plus `queue.oldest_seconds`. Sampled every 5 min by `scheduled-metric-sample` |
+| Route latency | Sentry performance traces (`GET /(app)`, `GET /waitlist`, …) — real p50/p95/p99 per route (issue #1077). The old `metric_samples` route-latency buckets were write-only and have been removed |
+| Query latency (per statement) | Sentry performance traces, `span.op:db`, child spans of the route transaction above — since #1077, this is where application query latency lives (see the Sentry section above and `src/lib/server/db-client.ts`) |
+| `extract-invoice` depth | Live reading only: `extractionQueueDepth()` on `/api/health` and `/admin/health`. No stored series — the 5-min `metric_samples` sampler was write-only and has been removed |
 | Extraction end-to-end latency | `batch_items.extracted_at - queued_at` on the row; `extractionStats()` reports p50/p95 over it. Covers failures too, unlike the extraction_results join it replaced |
 | Gemini call latency | `llm_usage_log.duration_ms`, written by `recordLlmUsage` for every caller (the provider times its own call) |
 | Worker up? | `worker_heartbeats.last_seen_at` — stale > 2 min means down or wedged, whatever the queue depth says |
@@ -169,20 +169,20 @@ Without that, an absence is indistinguishable from an oversight.
 
 | Component | Today | Add it when | Baseline |
 |---|---|---|---|
-| CDN / edge cache | none — `response-cache.ts` sets `private, no-store` on every routed response (`hooks.server.ts`) | web p95 > **300 ms** for 3 consecutive 60 s buckets (`metric_samples`, `route.latency_ms`) | p95 30–140 ms |
+| CDN / edge cache | none — `response-cache.ts` sets `private, no-store` on every routed response (`hooks.server.ts`) | web p95 > **300 ms** sustained (Sentry route transactions) | p95 30–140 ms |
 | Web replicas | pinned to 1 (`railway.json:10`) | web CPU > **60% for 15 min** **and** `UPSTASH_REDIS_REST_*` configured — the in-memory rate limiter does not survive a second instance (`DEPLOYMENT.md:350`, `rate-limiter.ts:33-37`) | 0.0012 of 8 vCPU (0.015%) |
-| Worker replicas | pinned to 1 (`railway.worker.json:10`) | `extract-invoice` depth > **50** (`metric_samples`, `queue.depth`) **or** queue wait p95 > **120 s** (`EXTRACTION_STALL_WARN_MS`, `env.ts:26`) | depth ~0 |
+| Worker replicas | pinned to 1 (`railway.worker.json:10`) | `extract-invoice` depth > **50** (`/admin/health`, live) **or** queue wait p95 > **120 s** (`EXTRACTION_STALL_WARN_MS`, `env.ts:26`) | depth ~0 |
 | `MAX_CONCURRENT_EXTRACTIONS` | 3 (`env.ts:22`) | Gemini p95 (`llm_usage_log.duration_ms`) stays under the 120 s timeout (`env.ts:20`) **and** slot-wait shows in the queue-wait p95 above. Raising it without both numbers is guesswork | ≈90 docs/hour ceiling; past it the 15-min stall reaper turns a burst into `extract.err.stalled`, not backpressure |
 | Read replica | none | primary CPU > **60% sustained 15 min** | 0.014 of 8 vCPU (0.17%) |
 | Aggregate cache | none | aggregate query p95 > **500 ms** — before that, add the index the plan wants instead | — |
-| Rollup staleness | nightly `10 3 * * *` (`alerts.ts`), five MVs (`drizzle/0005_analytics_rollups.sql:193-197`) | *Rollup freshness* on `/admin/health` warns past **26 h** (one missed run plus margin) and errors past **48 h** (two). Past 48 h, spend analytics is showing numbers older than the reporting period it claims to cover | daily |
+| Rollup staleness | nightly `10 3 * * *` (`alerts.ts`), four MVs (`drizzle/0091_refresh_rollups_skip_supplier_monthly_spend.sql`) | *Rollup freshness* on `/admin/health` warns past **26 h** (one missed run plus margin) and errors past **48 h** (two). Past 48 h, spend analytics is showing numbers older than the reporting period it claims to cover | daily |
 | DB pool | max 20 (`db.ts:11`) | `pg_stat_activity` for the app role sustained above **15** connections | 1 web + 1 worker process |
 | Index additions | as needed | any sequential scan on `invoices`, `invoice_line_items`, `batch_items` or `products` in `pg_stat_user_tables` — a new FK also needs its own covering index on arrival (#996, `docs/04_engineering/database_changes.md`) | — |
 
 Two caveats:
 
-- **Most of these cannot fire yet.** Route latency and queue depth land in
-  `metric_samples` (#1003); Gemini latency is in `llm_usage_log`; CPU and
+- **Most of these cannot fire yet.** Route latency is in Sentry traces, queue
+  depth is a live reading with no stored series; Gemini latency is in `llm_usage_log`; CPU and
   connection counts live in Railway/Postgres and have no series in this repo.
   The thresholds are written first *because* they are the specification the
   instrumentation aims at — an unmeasurable threshold is a gap with a number
@@ -194,10 +194,6 @@ Two caveats:
   or it does not ship.
 
 ## Code notes
-
-### `src/lib/server/metrics.ts`
-**`keyOf`**
-- Uses null-byte string concatenation (`label === null ? name : \`${name}\\0\${label}\`) rather than `JSON.stringify([name, label])` for bucket Map keys in `observe()`. This eliminates `JSON.stringify` overhead and intermediate array creation on hot per-request/job telemetry paths (~98x speedup on key generation).
 
 ### `src/lib/server/db-client.ts`
 **`withQuerySpan`** (issue #1077)

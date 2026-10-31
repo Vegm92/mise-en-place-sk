@@ -76,7 +76,7 @@ every other tenant table (migration 0057), keyed on `app.restaurant_id`/`app.adm
 
 | View | Purpose |
 |---|---|
-| `mv_supplier_monthly_spend` | Spend per supplier per month |
+| `mv_supplier_monthly_spend` | Spend per supplier per month — no longer refreshed (migration 0091); nothing reads it, the view stays until a later drop |
 | `mv_item_monthly_spend` | Spend per line item per month |
 | `mv_category_monthly_spend` | Spend per category per month — category from the line's product, `COALESCE(products.category, suppliers.category, 'Other')` (ADR-027) |
 | `mv_price_snapshots` | Latest unit + normalized €/base-unit price per supplier-item with previous price (LEAD) |
@@ -209,7 +209,7 @@ directly at write time. Source of the trend/analytics pages.
 **`const metricSamples`**
 
 - The coarse time series behind route latency, queue depth and their thresholds (#1003). Pre-aggregated by design: producers bucket in memory and flush one row per `(name, label)` per window, because a row per request would be ~200k rows a month at production traffic to answer questions a per-minute rollup answers just as well. A gauge writes `count = 1` with `sum = min = max` = the reading.
-- Platform-wide, not tenant data: it holds route ids and queue names, never tenant rows, so it carries no `restaurant_id`, is absent from `tenant-data-map.ts`, and needs no RLS policy. `scheduled-metric-purge` reaps samples older than `METRIC_RETENTION_DAYS` (30).
+- Platform-wide, not tenant data: it holds route ids and queue names, never tenant rows, so it carries no `restaurant_id`, is absent from `tenant-data-map.ts`, and needs no RLS policy. Nothing writes or reads it any more: the sampler, flush loop and `scheduled-metric-purge` were removed as write-only. The table stays until a later contract migration drops it.
 
 **`const llmUsageLog.durationMs`**
 
