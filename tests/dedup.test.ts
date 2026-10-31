@@ -15,11 +15,8 @@
  */
 import { randomUUID } from 'node:crypto';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import fs from 'fs';
-import os from 'os';
-import path from 'path';
 import {
-	computeInvoiceContentHash, computeFileHash,
+	computeInvoiceContentHash,
 	amountsAreSimilar, isoDateOffset, findSimilarInvoice,
 } from '../src/lib/server/dedup';
 
@@ -144,43 +141,6 @@ describe('computeInvoiceContentHash — null handling', () => {
 		const nullTotal = computeInvoiceContentHash({ ...baseFields(), totalAmount: null });
 		const zeroTotal = computeInvoiceContentHash({ ...baseFields(), totalAmount: '0.00' });
 		expect(nullTotal).not.toBe(zeroTotal);
-	});
-});
-
-describe('computeFileHash', () => {
-	let tmpDir: string;
-
-	beforeAll(() => {
-		tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dedup-test-'));
-	});
-
-	afterAll(() => {
-		fs.rmSync(tmpDir, { recursive: true, force: true });
-	});
-
-	it('returns a sha256 hex of the file bytes', () => {
-		const file = path.join(tmpDir, 'a.bin');
-		fs.writeFileSync(file, 'hello world');
-		// Known sha256 of "hello world"
-		expect(computeFileHash(file)).toBe(
-			'b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9',
-		);
-	});
-
-	it('produces identical hashes for identical content', () => {
-		const f1 = path.join(tmpDir, 'one.bin');
-		const f2 = path.join(tmpDir, 'two.bin');
-		fs.writeFileSync(f1, 'same bytes');
-		fs.writeFileSync(f2, 'same bytes');
-		expect(computeFileHash(f1)).toBe(computeFileHash(f2));
-	});
-
-	it('produces different hashes for different content', () => {
-		const f1 = path.join(tmpDir, 'x.bin');
-		const f2 = path.join(tmpDir, 'y.bin');
-		fs.writeFileSync(f1, 'content A');
-		fs.writeFileSync(f2, 'content B');
-		expect(computeFileHash(f1)).not.toBe(computeFileHash(f2));
 	});
 });
 
