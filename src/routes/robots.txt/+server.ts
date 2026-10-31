@@ -21,7 +21,6 @@ const DISALLOW = [
 	'/help',
 	'/pending',
 	'/logout',
-	'/plantilla-lista',
 	'/verify-email',
 	'/forgot-password',
 	'/reset-password',
