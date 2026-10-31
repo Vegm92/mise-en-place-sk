@@ -43,7 +43,6 @@ export const ROUTE_POLICY = {
 	'/(app)/analytics/spend':            'open',
 	'/(app)/api':                        'open',
 	'/(app)/api/active-restaurant':      'open',
-	'/(app)/api/alert-share':            'open',
 	'/(app)/api/chat':                   { feature: 'aiAssistant', access: true },
 	'/(app)/api/notifications':          'open',
 	'/(app)/api/product-aliases':        'open',

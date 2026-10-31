@@ -156,7 +156,6 @@ that are only sound because `enforceAuth` (`hooks.server.ts:128`) and `enforceTe
 | POST | `/(app)/api/supplier-category` | tenant | `SupplierCategoryBody` schema via `parseJson` | n/a | optional `idempotency_key` | `{error}` |
 | POST | `/(app)/api/tutorial` | `locals.restaurantId` | `TutorialBody` picklist schema via `parseJson` | n/a | upsert | `{error}` |
 | POST | `/(app)/api/unit-conversions` | tenant | `UnitConversionBody` schema via `parseJson` | n/a | optional `idempotency_key` | `{error}` |
-| POST | `/(app)/api/alert-share` | tenant + rate limit | no body | n/a | one-active-per-week unique (`schema.ts:695`) | `{error}` |
 | GET | `/(app)/invoice/[id]/file` | tenant + `forTenant` scoped select (`:26-30`) | integer id | n/a | n/a | `error()` |
 | GET | `/(app)/invoices/export/download` | tenant + rate limit (`:30`) | ids / supplier_id / dates validated (`:41-61`) | **cap** `EXPORT_ROW_CAP+1` (`:91`) | n/a | `error(400)` |
 | GET | `/(app)/analytics/extraction/csv` | tenant (`:23`) | none | **cap** `MAX_ROWS` 5000 (`:9,40`) | n/a | — |
