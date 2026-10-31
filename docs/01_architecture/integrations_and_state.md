@@ -18,7 +18,6 @@ map for agents.
 | **Resend** | Outbound email (reset, verify, digest, billing/quota) | `RESEND_API_KEY`; unset → no-op log | Emails silently no-op in dev |
 | **Meta WhatsApp** | Inbound webhook `/api/whatsapp/webhook` (GET verify, POST HMAC-SHA256 + `timingSafeEqual`); outbound messages/media | `WHATSAPP_APP_SECRET`; `idempotency_keys` (`whatsapp` scope) dedup | Unset secret → warn + skip (non-prod); always returns 200 |
 | **Sentry** | Outbound (SDK capture) + inbound (REST read-back for `/admin/errors`) | `SENTRY_DSN` (SDK no-ops empty); `SENTRY_AUTH_TOKEN`+`SENTRY_ORG` for REST | Degrades to "not configured" |
-| **Upstash Redis** | Outbound rate limiting | `UPSTASH_REDIS_REST_URL/_TOKEN`; unset → in-memory token bucket | Single-instance fallback (documented) |
 | **Railway Buckets** | Outbound file storage | `STORAGE_DRIVER=railway`, `AWS_*`; unset → local disk | Worker pulls to temp for non-local drivers |
 
 ## AI usage rationale
