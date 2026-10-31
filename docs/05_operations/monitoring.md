@@ -175,7 +175,7 @@ Without that, an absence is indistinguishable from an oversight.
 | `MAX_CONCURRENT_EXTRACTIONS` | 3 (`env.ts:22`) | Gemini p95 (`llm_usage_log.duration_ms`) stays under the 120 s timeout (`env.ts:20`) **and** slot-wait shows in the queue-wait p95 above. Raising it without both numbers is guesswork | ≈90 docs/hour ceiling; past it the 15-min stall reaper turns a burst into `extract.err.stalled`, not backpressure |
 | Read replica | none | primary CPU > **60% sustained 15 min** | 0.014 of 8 vCPU (0.17%) |
 | Aggregate cache | none | aggregate query p95 > **500 ms** — before that, add the index the plan wants instead | — |
-| Rollup staleness | nightly `10 3 * * *` (`alerts.ts`), five MVs (`drizzle/0005_analytics_rollups.sql:193-197`) | *Rollup freshness* on `/admin/health` warns past **26 h** (one missed run plus margin) and errors past **48 h** (two). Past 48 h, spend analytics is showing numbers older than the reporting period it claims to cover | daily |
+| Rollup staleness | nightly `10 3 * * *` (`alerts.ts`), four MVs (`drizzle/0091_refresh_rollups_skip_supplier_monthly_spend.sql`) | *Rollup freshness* on `/admin/health` warns past **26 h** (one missed run plus margin) and errors past **48 h** (two). Past 48 h, spend analytics is showing numbers older than the reporting period it claims to cover | daily |
 | DB pool | max 20 (`db.ts:11`) | `pg_stat_activity` for the app role sustained above **15** connections | 1 web + 1 worker process |
 | Index additions | as needed | any sequential scan on `invoices`, `invoice_line_items`, `batch_items` or `products` in `pg_stat_user_tables` — a new FK also needs its own covering index on arrival (#996, `docs/04_engineering/database_changes.md`) | — |
 

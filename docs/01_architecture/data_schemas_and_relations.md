@@ -76,7 +76,7 @@ every other tenant table (migration 0057), keyed on `app.restaurant_id`/`app.adm
 
 | View | Purpose |
 |---|---|
-| `mv_supplier_monthly_spend` | Spend per supplier per month |
+| `mv_supplier_monthly_spend` | Spend per supplier per month — no longer refreshed (migration 0091); nothing reads it, the view stays until a later drop |
 | `mv_item_monthly_spend` | Spend per line item per month |
 | `mv_category_monthly_spend` | Spend per category per month — category from the line's product, `COALESCE(products.category, suppliers.category, 'Other')` (ADR-027) |
 | `mv_price_snapshots` | Latest unit + normalized €/base-unit price per supplier-item with previous price (LEAD) |
