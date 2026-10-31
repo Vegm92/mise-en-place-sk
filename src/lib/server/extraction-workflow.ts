@@ -36,7 +36,6 @@ import {
 } from './contracts/extraction-contract.js';
 import { enqueueExtraction, enqueueWhatsAppNotify } from './queue.js';
 import { whatsappBotEnabled } from './integrations/whatsapp/whatsapp-config.js';
-import { acquireExtractionSlot, ExtractionSlotUnavailableError } from './rate-limiter.js';
 import { createLogger } from './log.js';
 import { detectTotalMismatch, type TaxBand } from '$lib/tax';
 import type { SaveOutcome } from './invoice-save.js';
@@ -60,7 +59,6 @@ const DEGRADATION_ERRORS = new Set([
 	'extract.err.rateLimited',
 	'extract.err.unavailable',
 	'extract.err.timeout',
-	'extract.err.tooMany',
 ]);
 
 async function notifyWhatsAppIfSource(item: BatchItem, restaurantId: string, requestId?: string): Promise<void> {
@@ -75,7 +73,6 @@ function classifyExtractionError(err: unknown): string {
 	const message = (err as { message?: string }).message ?? '';
 	const code = (err as { code?: string }).code;
 	const name = (err as { name?: string }).name;
-	if (err instanceof ExtractionSlotUnavailableError) return 'extract.err.tooMany';
 	if (status === 429) return 'extract.err.rateLimited';
 	if (status === 503) return 'extract.err.unavailable';
 	if (
@@ -272,7 +269,6 @@ async function routeCompositeDocument(
 ): Promise<ExtractionRoute> {
 	if (!segmentation.isSegmentableDocument(item.fileKey)) return { action: 'extract' };
 
-	const slot = await acquireExtractionSlot();
 	try {
 		return asRoute(
 			await inspectDocumentStructure(item, filePath, restaurantId, claimedMonthlySlot, generateOverride, requestId),
@@ -281,8 +277,6 @@ async function routeCompositeDocument(
 		if (DEGRADATION_ERRORS.has(classifyExtractionError(err))) throw err;
 		log.warn('Structure detection failed — extracting as one document', { itemId: item.id, restaurantId, requestId, err });
 		return { action: 'extract' };
-	} finally {
-		await slot.release();
 	}
 }
 
@@ -396,19 +390,14 @@ export async function runExtractionWorkflow(
 
 		let result;
 		let model: string | null = null;
-		const slot = await acquireExtractionSlot();
-		try {
-			if (generateOverride) {
-				const invoice = await geminiExtraction.extractInvoice(filePath, generateOverride);
-				result = invoice;
-			} else {
-				const { invoice, usage } = await geminiExtraction.extractWithProvider(filePath);
-				result = invoice;
-				model = usage.model;
-				await quotaGate.recordLlmUsage(restaurantId, usage, 'extraction-worker');
-			}
-		} finally {
-			await slot.release();
+		if (generateOverride) {
+			const invoice = await geminiExtraction.extractInvoice(filePath, generateOverride);
+			result = invoice;
+		} else {
+			const { invoice, usage } = await geminiExtraction.extractWithProvider(filePath);
+			result = invoice;
+			model = usage.model;
+			await quotaGate.recordLlmUsage(restaurantId, usage, 'extraction-worker');
 		}
 
 		const rawOutput: Record<string, unknown> = { ...structuredClone(result) };
