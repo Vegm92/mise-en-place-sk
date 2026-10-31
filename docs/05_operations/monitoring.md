@@ -93,35 +93,33 @@ Owner-email gated. Provides:
   severity RED/YELLOW, failed per-tenant scheduled jobs (`/admin/health` warns
   above 0, errors above 10 in 24 h).
 - **Dead-letter growth.** `scheduled-dead-letter-alert` (`5 * * * *` UTC,
-  `runDeadLetterAlertJob` in `src/lib/server/alerts.ts`) counts *pending* rows
-  last seen in the trailing 24 h and captures a Sentry event when it crosses a
-  threshold. Two thresholds:
+  `runDeadLetterAlertJob` in `src/lib/server/alerts.ts`) counts pg-boss jobs
+  that went `failed` in the trailing 24 h and captures a Sentry event when it
+  crosses a threshold. Two thresholds:
 
   | Rule | Threshold | Sentry level · fingerprint |
   |---|---|---|
-  | Any queue | **> 10** distinct pending rows / 24 h | `warning` · `dead-letter-threshold` |
+  | Any queue | **> 10** failed jobs / 24 h | `warning` · `dead-letter-threshold` |
   | `account-cleanup` | **> 0** | `error` · `dead-letter-zeroTolerance` |
 
   The 10 is the same figure used for failed scheduled jobs above, deliberately —
-  one number for ops to remember. It is a count of *distinct* failures, not
-  retries: rows collapse on `(queue, source_id, error_class, status)` with an
-  `occurrences` counter (`dead-letter.ts`), so a repeating failure is one row.
+  one number for ops to remember. It counts jobs, not attempts: pg-boss marks a
+  job failed once, after its last retry. Discarding a job on `/admin/dead-letters`
+  takes it out of the count.
   `account-cleanup` gets its own rule because it is the GDPR deletion job: one
-  dead-lettered row means a user who asked to be forgotten has not been, and
+  failed job means a user who asked to be forgotten has not been, and
   nothing else in the system is counting down on that.
 
   Set a Sentry alert rule on each fingerprint. The stable fingerprints mean a
   queue that stays over the line updates one issue rather than opening one an
-  hour.
-- **Replaying a dead letter.** `/admin/dead-letters` offers Replay for
-  `extract-invoice`, `normalize-product`, `categorize-product` and
-  `whatsapp-notify`. `whatsapp-inbound` and `account-cleanup` show *No replay*
-  with the reason on hover: the stored payload is redacted before it is written
-  (`redactPayload` — emails masked, strings cut at 512 chars, arrays capped at
-  25 items), so replaying either would run a job with quietly different data.
-  For those two, re-run the work from its own tooling. The two product queues
-  re-read the product name from `products` rather than trusting the redacted
-  copy in the payload.
+  hour. The worker also raises the `account-cleanup` alert straight away when
+  that job's last attempt throws.
+- **Retrying a dead letter.** `/admin/dead-letters` lists every pg-boss job in
+  `failed` state, with its error and (redacted) payload. Retry re-runs the
+  original job with its full data (`boss.retry()`), so every queue can be
+  retried, `account-cleanup` included; Discard deletes it (`boss.deleteJob()`).
+  The 5 job queues keep failed jobs 30 days; the scheduled and per-tenant
+  queues keep pg-boss's 7-day default.
 - **Worker down.** The heartbeat exists (`worker_heartbeats`, stale after
   `WORKER_HEARTBEAT_STALE_MS`, default 2 min) and `workerLiveness()` renders it
   on `/admin/health` and `/api/health`. The push half lives in the **web**
