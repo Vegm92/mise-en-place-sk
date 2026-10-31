@@ -35,6 +35,7 @@ import {
 	type LegacyExtractionJobData,
 } from './contracts/extraction-contract.js';
 import { enqueueExtraction, enqueueWhatsAppNotify } from './queue.js';
+import { whatsappBotEnabled } from './integrations/whatsapp/whatsapp-config.js';
 import { acquireExtractionSlot, ExtractionSlotUnavailableError } from './rate-limiter.js';
 import { createLogger } from './log.js';
 import { detectTotalMismatch, type TaxBand } from '$lib/tax';
@@ -64,6 +65,7 @@ const DEGRADATION_ERRORS = new Set([
 
 async function notifyWhatsAppIfSource(item: BatchItem, restaurantId: string, requestId?: string): Promise<void> {
 	if (item.source !== 'whatsapp') return;
+	if (!(await whatsappBotEnabled())) return;
 	await enqueueWhatsAppNotify(item.id, restaurantId, requestId)
 		.catch((e) => log.error('whatsapp notify enqueue failed', { itemId: item.id, restaurantId, requestId, err: e }));
 }

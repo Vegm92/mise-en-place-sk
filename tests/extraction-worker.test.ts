@@ -147,6 +147,9 @@ const queueMocks = vi.hoisted(() => ({
 }));
 vi.mock('../src/lib/server/queue.js', () => queueMocks);
 
+const botMocks = vi.hoisted(() => ({ whatsappBotEnabled: vi.fn().mockResolvedValue(true) }));
+vi.mock('../src/lib/server/integrations/whatsapp/whatsapp-config.js', () => botMocks);
+
 const { processExtractionJob, runExtractionJobForBoss } = await import('../src/lib/server/extraction-worker');
 
 const rateLimited = Object.assign(new Error('rate limited'), { status: 429 });
@@ -533,6 +536,16 @@ describe('WhatsApp notification hand-off', () => {
 		mockSuccessfulExtraction();
 
 		await runNotifyJob();
+
+		expect(queueMocks.enqueueWhatsAppNotify).not.toHaveBeenCalled();
+	});
+
+	it('does not enqueue while the Baileys bot is off, since no consumer would drain the job', async () => {
+		botMocks.whatsappBotEnabled.mockResolvedValueOnce(false);
+		batchMocks.getItem.mockResolvedValue(whatsappItem);
+		mockSuccessfulExtraction();
+
+		await expect(runNotifyJob()).resolves.toBe('completed');
 
 		expect(queueMocks.enqueueWhatsAppNotify).not.toHaveBeenCalled();
 	});
