@@ -5,15 +5,14 @@
  * first-party `mep_attr` cookie so it survives the /waitlist -> /signup hop;
  * `join` reads that same cookie (not the POST's own query string, which a
  * SvelteKit form action like `action="?/join"` replaces) and persists it
- * onto the waitlist row. insertWaitlistEmail, countWaitlistEmails and
- * trackAnonymousEvent are mocked so this is a pure wiring test, not a
+ * onto the waitlist row. insertWaitlistEmail and countWaitlistEmails
+ * are mocked so this is a pure wiring test, not a
  * DB-backed one — see tests/waitlist-attribution.test.ts for the real-row
  * persistence proof and tests/attribution.test.ts for the parser itself.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('$lib/server/waitlist-db', async () => (await import('./helpers/waitlist-route-mocks')).waitlistDbMock);
-vi.mock('$lib/server/events', async () => (await import('./helpers/waitlist-route-mocks')).eventsMock);
 vi.mock('$lib/server/rate-limiter', async () => (await import('./helpers/waitlist-route-mocks')).rateLimiterMock);
 
 import { load, actions } from '../src/routes/waitlist/+page.server';
@@ -22,7 +21,6 @@ import {
 	countWaitlistEmailsMock,
 	getReferralCodeMock,
 	resolveReferralOwnerEmailMock,
-	trackAnonymousEventMock,
 	resetWaitlistRouteMocks,
 	fakeCookies,
 	joinEvent,
@@ -116,26 +114,11 @@ describe('/waitlist join action — persists attribution from the cookie', () =>
 		);
 	});
 
-	it('tracks an anonymous waitlist_joined funnel event on a real join', async () => {
-		const cookies = fakeCookies({
-			mep_attr: JSON.stringify({
-				source: 'google', campaign: 'y', variant: null, segment: null,
-				referrer: null, landingPath: '/waitlist', referredBy: null,
-			}),
-		});
-		await actions.join!(joinEvent('chef@example.com', cookies));
-		expect(trackAnonymousEventMock).toHaveBeenCalledWith(
-			'waitlist_joined',
-			expect.objectContaining({ source: 'google', campaign: 'y' }),
-		);
-	});
-
-	it('does not track a funnel event for an already-registered email', async () => {
+	it('reports an already-registered email without a second insert', async () => {
 		insertWaitlistEmailMock.mockResolvedValueOnce(false);
 		const cookies = fakeCookies();
 		const result = await actions.join!(joinEvent('chef@example.com', cookies));
 		expect(result).toEqual({ success: true, alreadyRegistered: true, referralCode: 'fake-referral-code' });
-		expect(trackAnonymousEventMock).not.toHaveBeenCalled();
 	});
 });
 

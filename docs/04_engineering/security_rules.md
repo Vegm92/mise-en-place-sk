@@ -79,8 +79,8 @@ Immutable subset is in `docs/00_system/architectural_invariants.md`.
 
 ## WhatsApp security
 
-- GET challenge vs `WHATSAPP_VERIFY_TOKEN`; POST HMAC-SHA256 vs
-  `x-hub-signature-256` via `timingSafeEqual`.
+- Inbound arrives only over the paired Baileys socket; the Meta webhook (and
+  its HMAC check) was removed with the dormant Cloud API path (ADR-025).
 - Phone number = tenant key (ADR-019); pairing is owner-initiated, 6-char
   codes, 15-min TTL, rate-limited, single-redeem.
 - `idempotency_keys` (`whatsapp` scope) dedup prevents double-processing.

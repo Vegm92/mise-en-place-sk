@@ -26,7 +26,6 @@ import {
 	enqueueNormalize,
 	enqueueCategorize,
 	enqueueWhatsAppNotify,
-	enqueueWhatsAppInbound,
 	enqueueAccountCleanup,
 } from '../src/lib/server/queue';
 import { EXTRACTION_STALL_TIMEOUT_MS } from '../src/lib/server/env';
@@ -58,11 +57,6 @@ describe('every queue backs off between retries', () => {
 
 	it('whatsapp-notify', async () => {
 		await enqueueWhatsAppNotify('item-1', 'rest-1');
-		expect(optionsOf()).toEqual(expect.objectContaining({ retryBackoff: true, retryDelayMax: 600 }));
-	});
-
-	it('whatsapp-inbound', async () => {
-		await enqueueWhatsAppInbound({ from: '+34600000001', id: 'wamid.abc', type: 'text' });
 		expect(optionsOf()).toEqual(expect.objectContaining({ retryBackoff: true, retryDelayMax: 600 }));
 	});
 
