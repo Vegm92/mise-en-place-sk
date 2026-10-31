@@ -84,8 +84,6 @@
 		"@lucide/svelte": "^1.46.0",
 		"@sentry/sveltekit": "^10.74.0",
 		"@sveltejs/kit": "^2.70.3",
-		"@upstash/ratelimit": "^2.1.0",
-		"@upstash/redis": "^1.38.4",
 		"@whiskeysockets/baileys": "7.0.0-rc14",
 		"bcryptjs": "^3.0.3",
 		"dotenv": "^17.4.2",

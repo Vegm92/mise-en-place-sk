@@ -1,6 +1,6 @@
 import { fail, type RequestEvent } from '@sveltejs/kit';
 import * as v from 'valibot';
-import { checkRateLimit, RateLimitBackendUnavailableError } from '$lib/server/rate-limiter';
+import { checkRateLimit } from '$lib/server/rate-limiter';
 import { logAuthEvent, hashIp, type AuthEventKind } from '$lib/server/auth-events';
 import { verifyTurnstileToken } from '$lib/server/turnstile';
 import { isProduction } from '$lib/server/config';
@@ -96,14 +96,7 @@ export function publicFormAction<TSchema extends v.GenericSchema | undefined, T>
 
 		const rules = (options.limits?.(ctx) ?? []).slice().sort(byIpScopeFirst);
 		for (const rule of rules) {
-			let allowed: boolean;
-			try {
-				allowed = await checkRateLimit(rule.key, rule.max, undefined, { authCritical: true });
-			} catch (e) {
-				if (!(e instanceof RateLimitBackendUnavailableError)) throw e;
-				return fail(503, { error: 'service_unavailable', ...extra() });
-			}
-			if (allowed) continue;
+			if (await checkRateLimit(rule.key, rule.max)) continue;
 
 			if (options.rateLimitEvent) {
 				logAuthEvent(options.rateLimitEvent, {

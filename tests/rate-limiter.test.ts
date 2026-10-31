@@ -1,8 +1,7 @@
 /**
  * Rate limiter (waitlist abuse guard #180 + extraction concurrency).
  *
- * Without UPSTASH_REDIS_REST_* env the module uses its in-process token-bucket
- * fallback — which is exactly what these tests exercise. Each test uses a unique
+ * The module's only store is an in-process token bucket. Each test uses a unique
  * key so the module-global bucket map can't leak state between cases.
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
