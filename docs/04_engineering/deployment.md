@@ -79,9 +79,9 @@ complete inventory the app and worker actually read, grouped by area.
   `stripe listen --forward-to localhost:5173/api/stripe-webhook`),
   `PLAN_PRICE_STARTER_EUR` / `PLAN_PRICE_PRO_EUR` / `PLAN_PRICE_BUSINESS_EUR`
   (MRR pricing for `/admin/revenue`; falls back to `PROVISIONAL_PRICE`).
-- **WhatsApp (prod)** — `WHATSAPP_ACCESS_TOKEN` + `WHATSAPP_PHONE_NUMBER_ID` +
-  `WHATSAPP_VERIFY_TOKEN` + `WHATSAPP_APP_SECRET` (the webhook fails closed
-  without them), plus `WHATSAPP_API_VERSION` and `WHATSAPP_DISPLAY_NUMBER`.
+- **WhatsApp (prod)** — `WHATSAPP_ACCESS_TOKEN` + `WHATSAPP_PHONE_NUMBER_ID`
+  (Graph API send for the digest push), plus `WHATSAPP_API_VERSION` and
+  `WHATSAPP_DISPLAY_NUMBER`. Inbound runs on Baileys (`WHATSAPP_BOT_ENABLED`).
 - **Observability / proxy** — `SENTRY_AUTH_TOKEN` (+ `SENTRY_ORG`,
   `SENTRY_PROJECT`, `SENTRY_DSN`, `VITE_SENTRY_DSN`, `SENTRY_RELEASE`),
   `ADDRESS_HEADER`/`XFF_DEPTH` behind a proxy, `APP_BASE_URL` (WhatsApp batch
@@ -191,10 +191,6 @@ pnpm db:studio       # open Drizzle Studio browser UI
 **`const WHATSAPP_ACCESS_TOKEN`**
 
 - WhatsApp Cloud API bearer token.
-
-**`const WHATSAPP_APP_SECRET`**
-
-- App secret from Meta App Dashboard — used to verify `X-Hub-Signature-256` on inbound webhook POSTs. Without it, the webhook cannot authenticate Meta.
 
 **`const WHATSAPP_API_VERSION`**
 
