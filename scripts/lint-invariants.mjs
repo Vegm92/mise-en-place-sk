@@ -806,43 +806,32 @@ function runGate(name, gate) {
 	return true;
 }
 
-const requested = process.argv[2]?.startsWith('--') ? undefined : process.argv[2];
-const names = requested
-	? [requested]
-	: [...Object.keys(GATES), 'unscoped-tenant-query', 'action-authz', 'inline-token-style', 'sql-row-cast', 'svelte-business-logic', 'migration-expand-contract'];
+const SPECIAL = {
+	'unscoped-tenant-query': runUnscopedQueryGate,
+	'action-authz': runActionAuthzGate,
+	'inline-token-style': runInlineTokenStyleGate,
+	'sql-row-cast': runSqlRowCastGate,
+	'svelte-business-logic': runSvelteBusinessLogicGate,
+	'migration-expand-contract': runMigrationExpandContractGate
+};
 
-let ok = true;
+const requested = process.argv[2]?.startsWith('--') ? undefined : process.argv[2];
+const all = requested === undefined || requested === 'all';
+const names = all ? [...Object.keys(GATES), ...Object.keys(SPECIAL)] : [requested];
+
+const results = [];
 for (const name of names) {
-	if (name === 'unscoped-tenant-query') {
-		if (!runUnscopedQueryGate()) ok = false;
-		continue;
-	}
-	if (name === 'action-authz') {
-		if (!runActionAuthzGate()) ok = false;
-		continue;
-	}
-	if (name === 'inline-token-style') {
-		if (!runInlineTokenStyleGate()) ok = false;
-		continue;
-	}
-	if (name === 'sql-row-cast') {
-		if (!runSqlRowCastGate()) ok = false;
-		continue;
-	}
-	if (name === 'svelte-business-logic') {
-		if (!runSvelteBusinessLogicGate()) ok = false;
-		continue;
-	}
-	if (name === 'migration-expand-contract') {
-		if (!runMigrationExpandContractGate()) ok = false;
-		continue;
-	}
-	const gate = GATES[name];
-	if (!gate) {
+	const run = SPECIAL[name] ?? (GATES[name] && (() => runGate(name, GATES[name])));
+	if (!run) {
 		console.error(`Unknown lint gate: ${name}`);
 		process.exit(1);
 	}
-	if (!runGate(name, gate)) ok = false;
+	results.push([name, run()]);
 }
 
-process.exit(ok ? 0 : 1);
+if (all) {
+	console.log('\nLint invariants summary:');
+	for (const [name, passed] of results) console.log(`  ${passed ? 'PASS' : 'FAIL'}  ${name}`);
+}
+
+process.exit(results.every(([, passed]) => passed) ? 0 : 1);
