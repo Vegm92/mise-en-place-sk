@@ -13,7 +13,7 @@ scheduled jobs. Changing async behaviour must account for this process split.
 
 | Queue | Consumer | What it does | Retries / notes |
 |---|---|---|---|
-| `extract-invoice` | `src/worker.ts` | Pulls an uploaded file → `extractInvoice` (classify → OCR/pages → Gemini lines → product identity) → save draft | `batchSize` = `MAX_CONCURRENT_EXTRACTIONS` (default 3, parallel up to the cap); global Gemini cap via `acquireExtractionSlot()` (distributed with Redis, in-process fallback); failure → `dead-letter` sibling queue |
+| `extract-invoice` | `src/worker.ts` | Pulls an uploaded file → `extractInvoice` (classify → OCR/pages → Gemini lines → product identity) → save draft | `batchSize` = `MAX_CONCURRENT_EXTRACTIONS` (default 3, parallel up to the cap); failure → `dead-letter` sibling queue |
 | `normalize-product` | `src/worker.ts` | `normalizeProductForSupplier` — canonical product upsert keyed by supplier+norm-key | Idempotent upsert |
 | `categorize-product` | `src/worker.ts` | `processCategorizeJob` — asks Gemini for one category from `VALID_CATEGORIES` for a product's canonical name and fills `products.category` (ADR-027) | `batchSize` 1, priority −10, 1 retry 60 s apart, `expireInSeconds` 900, `singletonKey` = `<rid>:<productId>`; only ever fills a NULL, so it is idempotent and never overwrites a human's choice; failure → `dead-letter` sibling queue |
 | `tenant-weekly-digest` | `src/lib/server/tenant-fanout.ts` | One tenant's weekly digest — generate + email + WhatsApp push to opted-in contacts (`sendWeeklyDigest`, #331) | Fanned out by the cron dispatcher, one job per tenant; `batchSize` = `SCHEDULED_FANOUT_CONCURRENCY` (default 5) with `perJobResults`, 2 retries 120 s apart, then dead-letter (ADR-025) |
@@ -298,7 +298,7 @@ Not symmetrical, and worth knowing before deciding how urgent a restart is:
 - Aggregate quota exhaustion is Sentry-reported, not a lone console.warn, so a tenant hitting the wall is visible (#257).
 - Claim the item; a false means it is no longer queued (discarded or already processed) — drop the job and release the slot, since no extraction happened.
 - Resolve the file to a local path the extraction engine can read: the Railway bucket driver downloads to a temp file; local storage computes the path directly.
-- Global Gemini concurrency gate (issue #454): acquire a slot immediately before the model call and release it in the `finally` around that call only — not around annotate/markDone, which are DB-only and would just hold the slot longer. The semaphore is the single place `MAX_CONCURRENT_EXTRACTIONS` is enforced, holds across several worker processes (Redis-backed), and survives the timeout-abort path (#455).
+- Gemini concurrency (issue #454): no per-call gate; `MAX_CONCURRENT_EXTRACTIONS` is enforced only by the pg-boss `batchSize`, which is per worker instance.
 - Test path uses the legacy GenerateFn (no token tracking); production uses the LLMProvider with token usage tracking.
 - Tag Gemini degradation (timeout / 429 / 503) with its errorClass so an alert rule can catch a rate spike (#257). Activates once the worker initializes Sentry (#252); a no-op until then.
 - Report every other failure too, but WITHOUT the raw error — extract.ts embeds invoice text in some messages and that must not reach Sentry (PII, #254). Ship only the error class + ids.
@@ -477,7 +477,7 @@ Not symmetrical, and worth knowing before deciding how urgent a restart is:
 
 **`property batchSize`**
 
-- `batchSize` = `MAX_CONCURRENT_EXTRACTIONS` (issue #454). The batch of jobs is processed concurrently, but the true cap on live Gemini calls is `acquireExtractionSlot()` inside each job, not the batch size — a larger `batchSize` only helps if the semaphore's global cap is also raised. Default 3 lets a small upload extract in parallel; set the cap to 1 for the historical strictly-sequential behaviour. `runWithDeadLetter` catches per-job, so one job's failure can't reject the shared handler promise and drag the rest of the batch down.
+- `batchSize` = `MAX_CONCURRENT_EXTRACTIONS` (issue #454). The batch of jobs is processed concurrently and the worker awaits the batch before fetching the next, so `batchSize` is the cap on live Gemini calls for the single worker instance (`numReplicas: 1`); a second worker instance would need a real cross-process cap. Default 3 lets a small upload extract in parallel; set the cap to 1 for the historical strictly-sequential behaviour. `runWithDeadLetter` catches per-job, so one job's failure can't reject the shared handler promise and drag the rest of the batch down.
 - Normalize-product consumer (issue #300): low-priority, best-effort — the handler swallows its own errors, so a failed suggestion never retries noisily.
 
 **`function shutdown`**

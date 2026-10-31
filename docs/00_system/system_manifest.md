@@ -33,7 +33,7 @@ Spanish-first, bilingual (es/en). Product definition:
 - pg-boss background jobs in a separate worker process
 - Baileys (`@whiskeysockets/baileys`) — unofficial WhatsApp client, worker-side,
   behind the transport seam in `src/lib/server/integrations/whatsapp/` (ADR-025)
-- Stripe, Resend, Meta WhatsApp Cloud API, Sentry, Upstash Redis (optional),
+- Stripe, Resend, Meta WhatsApp Cloud API, Sentry,
   Railway Buckets (S3-compatible, `t3.storageapi.dev`) — invoice storage via
   `STORAGE_DRIVER=railway`
 - pdf-parse (text-PDF classification before sending to Gemini)
@@ -104,8 +104,8 @@ Full map with file locations: `docs/01_architecture/routing_and_navigation.md`.
   `normalize-product` and `whatsapp-notify` (each with a dead-letter sibling),
   all drained to the `dead_letter_queue` audit table. The WhatsApp transport is
   hosted here too when `WHATSAPP_BOT_ENABLED=true`, and stopped on shutdown. Extraction runs up to
-  `MAX_CONCURRENT_EXTRACTIONS` (default 3) in parallel, capped globally by the
-  `acquireExtractionSlot()` semaphore (`worker.ts` `batchSize` follows the cap).
+  `MAX_CONCURRENT_EXTRACTIONS` (default 3) in parallel (`worker.ts`
+  `batchSize` = the cap; one worker instance).
 - Scheduled cron jobs (see `docs/05_operations/background_jobs.md`):
   weekly digest, overdue reminders, trial-expiry notices, file purge,
   MRR snapshot, dead-letter purge, analytics MV refresh, orphan-subscription
@@ -130,7 +130,6 @@ Full map with file locations: `docs/01_architecture/routing_and_navigation.md`.
 | Resend | transactional email | `RESEND_API_KEY`, `EMAIL_FROM` | no-op w/o key |
 | Meta WhatsApp | invoice ingestion channel | `WHATSAPP_*` | `api/whatsapp/webhook` |
 | Sentry | error tracking + admin errors page | `SENTRY_*` | no-op w/o DSN |
-| Upstash Redis | distributed rate limiting (optional) | `UPSTASH_REDIS_*` | falls back in-memory |
 | Railway Buckets | object storage (optional) | `STORAGE_DRIVER=railway`, `AWS_*` | falls back local disk |
 | Railway Postgres | data | `DATABASE_URL` / `_POOL_URL` | |
 
@@ -186,8 +185,9 @@ Full map with file locations: `docs/01_architecture/routing_and_navigation.md`.
   is the AI-facing summary.
 - Two processes (web + worker), one image; shared uploads volume
   (`docker-compose.yml`) or `STORAGE_DRIVER=railway`.
-- Single-instance constraints: in-memory rate-limit fallback, in-process
-  extraction semaphore (`MAX_CONCURRENT_EXTRACTIONS`).
+- Single-instance constraints: in-memory rate limiter (per process), and
+  extraction concurrency capped only by the worker's `batchSize`
+  (`MAX_CONCURRENT_EXTRACTIONS`).
 
 ## Where to look next
 
@@ -206,10 +206,11 @@ Full map with file locations: `docs/01_architecture/routing_and_navigation.md`.
 
 1. **App-layer tenancy is the only boundary** — any unscoped query is a data
    leak (lint gates catch the shape; #380 did leak via an unscoped query).
-2. **Single-instance assumptions** — the in-memory rate limiter is per-process.
-   The extraction semaphore stays global across worker processes only when
-   Upstash Redis is configured; without it, the per-process fallback means the
-   effective Gemini concurrency is (worker count × `MAX_CONCURRENT_EXTRACTIONS`).
+2. **Single-instance assumptions** — the in-memory rate limiter is per-process
+   (web must stay at 1 replica until it gets a shared store). Extraction
+   concurrency is the worker's `batchSize` (`MAX_CONCURRENT_EXTRACTIONS`), so
+   with N worker instances effective Gemini concurrency is
+   N × `MAX_CONCURRENT_EXTRACTIONS`.
 3. **Local storage default** — web and worker must share `UPLOADS_DIR`; a
    split-process deploy without shared disk breaks extraction (use `railway`).
 4. **AI cost/unbounded usage** — chat and digest bypass LLM usage recording;

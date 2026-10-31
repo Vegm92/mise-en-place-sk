@@ -144,13 +144,12 @@ Raw invoices → materialized views (`mv_*`) refreshed on a nightly pg-boss cron
 
 ### Rate limiter (`src/lib/server/rate-limiter.ts`)
 
-Sliding-window rate limiter backed by Upstash Redis when
-`UPSTASH_REDIS_REST_URL`/`_TOKEN` are set (multi-instance safe); in-memory
-token-bucket fallback otherwise (single-instance warning logged). Stale
-in-memory buckets are swept every 2 minutes via `setInterval`. Which key scope
+In-process token-bucket rate limiter (`checkRateLimit(key, max, windowSeconds)`),
+per process, so web must stay at 1 replica until it gets a shared store. Stale
+buckets are swept every 2 minutes via `setInterval`. Which key scope
 (user vs restaurant vs IP) applies is decided per call-site — see open item
-#440. Also owns the cross-process extraction semaphore (Redis Lua slot lease
-when Upstash is available, in-process queue otherwise).
+#440. Extraction concurrency is not handled here: it is the worker's pg-boss
+`batchSize`.
 
 ### Chatbot context (`src/lib/server/chat-context.ts`)
 

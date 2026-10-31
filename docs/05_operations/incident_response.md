@@ -49,8 +49,8 @@ A minimal, practical incident flow for this system. Keep it short and data-drive
 - **Digest / cron missed**: verify the worker is running and
   `registerScheduledJobs` didn't throw at startup (ADR-011). A missed run just
   re-claims next time via `claimDigestWeek`.
-- **Rate-limit surprise**: in-memory limiter under multi-instance → deploy
-  with Upstash Redis configured.
+- **Rate-limit surprise**: the in-memory limiter is per process → keep web at
+  1 replica until it gets a shared store.
 
 ## Communication
 
