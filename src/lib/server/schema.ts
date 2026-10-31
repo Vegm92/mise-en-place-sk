@@ -157,6 +157,7 @@ export const invoiceLineItems = pgTable('invoice_line_items', {
 }, (t) => [
 	index('idx_invoice_line_items_invoice_id').on(t.invoiceId),
 	index('idx_invoice_line_items_rid_description').on(t.restaurantId, t.description),
+	index('idx_invoice_line_items_rid_item_key').on(t.restaurantId, sql`mep_norm_key(${t.description})`),
 	index('idx_invoice_line_items_product_id').on(t.restaurantId, t.productId).where(sql`${t.productId} IS NOT NULL`),
 	index('invoice_line_items_product_idx').on(t.productId),
 ]);
