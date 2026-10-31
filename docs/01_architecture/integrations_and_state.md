@@ -16,8 +16,8 @@ map for agents.
 | **Gemini** (`@google/genai`) | Outbound (extraction, digest, chat, product LLM matching) | `GEMINI_API_KEY`; seam `llm-provider.ts`; retry 429/503; 60 s timeout | Extraction fails → item `failed` → dead-letter; digest keeps old week; chat maps 429/503 |
 | **Stripe** | Inbound webhook `/api/stripe-webhook`; outbound checkout/portal | `stripe.webhooks.constructEvent` signature; `idempotency_keys` (`stripe-webhook` scope) dedup; claim-deleted-on-error for 3-day retry | Unknown price → loud log + Sentry + fallback `starter`; degraded state via `safe()` |
 | **Resend** | Outbound email (reset, verify, digest, billing/quota) | `RESEND_API_KEY`; unset → no-op log | Emails silently no-op in dev |
-| **Meta WhatsApp** | Inbound webhook `/api/whatsapp/webhook` (GET verify, POST HMAC-SHA256 + `timingSafeEqual`); outbound messages/media | `WHATSAPP_APP_SECRET`; `idempotency_keys` (`whatsapp` scope) dedup | Unset secret → warn + skip (non-prod); always returns 200 |
-| **Sentry** | Outbound (SDK capture) + inbound (REST read-back for `/admin/errors`) | `SENTRY_DSN` (SDK no-ops empty); `SENTRY_AUTH_TOKEN`+`SENTRY_ORG` for REST | Degrades to "not configured" |
+| **Meta WhatsApp** | Outbound text only (Graph API send for the weekly digest push); inbound runs on Baileys (ADR-025, the Cloud API webhook was removed) | `WHATSAPP_ACCESS_TOKEN`+`WHATSAPP_PHONE_NUMBER_ID` | Missing credentials → warn + skip |
+| **Sentry** | Outbound (SDK capture) + inbound (REST issue summary for `/admin/health`); `/admin/errors` only links out to Sentry | `SENTRY_DSN` (SDK no-ops empty); `SENTRY_AUTH_TOKEN`+`SENTRY_ORG` for REST, `SENTRY_ORG`(+`SENTRY_PROJECT`) for the link | Degrades to "not configured" |
 | **Upstash Redis** | Outbound rate limiting | `UPSTASH_REDIS_REST_URL/_TOKEN`; unset → in-memory token bucket | Single-instance fallback (documented) |
 | **Railway Buckets** | Outbound file storage | `STORAGE_DRIVER=railway`, `AWS_*`; unset → local disk | Worker pulls to temp for non-local drivers |
 
