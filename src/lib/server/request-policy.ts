@@ -17,7 +17,6 @@ import { currentLocale, rememberCurrentLocale } from '$lib/server/locale';
 import { requestedLocale } from '$lib/locale-url';
 import { resolveRequestId } from '$lib/server/request-id';
 import { createLogger } from '$lib/server/log';
-import { METRIC_ROUTE_LATENCY, observe } from '$lib/server/metrics';
 
 const log = createLogger('hooks');
 
@@ -50,7 +49,6 @@ export interface RequestPolicyDeps {
 	isAdminUser: (user: App.Locals['user']) => boolean;
 	runAsSystem: <T>(fn: () => Promise<T>) => Promise<T>;
 	runWithTenantContext: <T>(restaurantId: string | null | undefined, fn: () => Promise<T>) => Promise<T>;
-	observe: (name: string, value: number, label?: string | null) => void;
 	captureException: (e: unknown, opts?: { tags?: Record<string, string> }) => void;
 	setSentryUser: (id: string) => void;
 	setSentryTag: (key: string, value: string) => void;
@@ -66,7 +64,6 @@ const defaultDeps: RequestPolicyDeps = {
 	isAdminUser,
 	runAsSystem,
 	runWithTenantContext,
-	observe,
 	captureException: (e, opts) => Sentry.captureException(e, opts),
 	setSentryUser: (id) => Sentry.getCurrentScope().setUser({ id }),
 	setSentryTag: (key, value) => Sentry.getCurrentScope().setTag(key, value),
@@ -345,12 +342,7 @@ export function createAppHandle(overrides: Partial<RequestPolicyDeps> = {}): Han
 		const { event, resolve } = input;
 		if (isBypassPath(event.url.pathname)) return resolve(event);
 
-		const startedAt = Date.now();
-		try {
-			return await routeApp(input);
-		} finally {
-			deps.observe(METRIC_ROUTE_LATENCY, Date.now() - startedAt, event.route.id ?? '(unmatched)');
-		}
+		return routeApp(input);
 	};
 
 	return appHandle;

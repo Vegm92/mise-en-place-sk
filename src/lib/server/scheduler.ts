@@ -22,8 +22,6 @@ import {
 } from './dead-letter-health';
 import {
 	PURGE_QUEUE, PURGE_CRON, runFilePurgeJob,
-	METRIC_SAMPLE_QUEUE, METRIC_SAMPLE_CRON, runMetricSampleJob,
-	METRIC_PURGE_QUEUE, METRIC_PURGE_CRON, runMetricPurgeJob,
 	ANALYTICS_REFRESH_QUEUE, ANALYTICS_REFRESH_CRON, runAnalyticsRefreshJob,
 	IDEMPOTENCY_SWEEP_QUEUE, IDEMPOTENCY_SWEEP_CRON, runIdempotencySweepJob,
 } from './maintenance-jobs';
@@ -42,13 +40,13 @@ const JOBS: ScheduledJob[] = [
 	{ queue: MRR_SNAPSHOT_QUEUE, cron: MRR_SNAPSHOT_CRON, run: runMrrSnapshotJob },
 	{ queue: DEAD_LETTER_PURGE_QUEUE, cron: DEAD_LETTER_PURGE_CRON, run: runDeadLetterPurgeJob },
 	{ queue: DEAD_LETTER_ALERT_QUEUE, cron: DEAD_LETTER_ALERT_CRON, run: runDeadLetterAlertJob },
-	{ queue: METRIC_SAMPLE_QUEUE, cron: METRIC_SAMPLE_CRON, run: runMetricSampleJob },
-	{ queue: METRIC_PURGE_QUEUE, cron: METRIC_PURGE_CRON, run: runMetricPurgeJob },
 	{ queue: ANALYTICS_REFRESH_QUEUE, cron: ANALYTICS_REFRESH_CRON, run: runAnalyticsRefreshJob },
 	{ queue: IDEMPOTENCY_SWEEP_QUEUE, cron: IDEMPOTENCY_SWEEP_CRON, run: runIdempotencySweepJob },
 	{ queue: ORPHAN_SUBSCRIPTIONS_QUEUE, cron: ORPHAN_SUBSCRIPTIONS_CRON, run: runOrphanSubscriptionsJob },
 	{ queue: EXTRACTION_IMPROVE_QUEUE, cron: EXTRACTION_IMPROVE_CRON, run: runExtractionImproveJob },
 ];
+
+const RETIRED_SCHEDULES = ['scheduled-metric-sample', 'scheduled-metric-purge'];
 
 export async function registerScheduledJobs(boss: PgBoss): Promise<void> {
 	await registerTenantFanout<WeeklyDigestJobData>(boss, {
@@ -61,6 +59,8 @@ export async function registerScheduledJobs(boss: PgBoss): Promise<void> {
 		queue: TRIAL_TENANT_QUEUE, label: 'trial-notices', run: sendTrialNotice,
 	});
 	console.info(`[scheduler] ${TENANT_FANOUT_QUEUES.length} per-tenant queues registered (${TENANT_FANOUT_QUEUES.join(', ')})`);
+
+	for (const queue of RETIRED_SCHEDULES) await boss.unschedule(queue);
 
 	for (const job of JOBS) {
 		await boss.createQueue(job.queue);
