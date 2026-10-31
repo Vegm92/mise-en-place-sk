@@ -50,7 +50,6 @@ export const ROUTE_POLICY = {
 	'/(app)/api/sidebar':                'open',
 	'/(app)/api/stock-levels':           { feature: 'stockTracking' },
 	'/(app)/api/supplier-category':      'open',
-	'/(app)/api/trend':                  'open',
 	'/(app)/api/tutorial':               'open',
 	'/(app)/api/unit-conversions':       'open',
 	'/(app)/batch':                      'open',

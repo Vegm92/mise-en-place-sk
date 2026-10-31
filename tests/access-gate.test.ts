@@ -40,7 +40,7 @@ describe('resolveAccess', () => {
 
 	it('answers 403 rather than redirecting on api routes', () => {
 		expect(resolveAccess({ ...pending, path: '/api/chat' })).toBe('deny-api');
-		expect(resolveAccess({ ...pending, path: '/api/trend' })).toBe('deny-api');
+		expect(resolveAccess({ ...pending, path: '/api/notifications' })).toBe('deny-api');
 	});
 
 	it('lets an unapproved user reach the waiting room and log out', () => {
