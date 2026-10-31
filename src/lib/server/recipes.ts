@@ -3,6 +3,7 @@ import { shiftMonth } from '$lib/formatters';
 import { and, asc, count, eq, inArray, sql } from 'drizzle-orm';
 import { db, forTenant } from './db';
 import { products, recipeItems, recipes } from './schema';
+import { livePriceSnapshots } from './analytics-live';
 import {
 	EU_ALLERGENS, addNutrition, convertQty, emptyNutrition, lineCostCents, lineNutrition,
 	qtyToNumber, rateFromCents, recipeTotals, scaleNutrition, toAllergenList, toRate, wasteFactor,
@@ -161,15 +162,17 @@ export async function resolveProductPrices(
 	const missing = ids.filter((id) => !out.has(id));
 	if (missing.length === 0 || asOf) return out;
 
+	const missingIds = sql.join(missing.map((id) => sql`${id}`), sql`, `);
+	const missingItemKeys = sql`SELECT mep_norm_key(canonical_name) FROM products WHERE restaurant_id = ${rid} AND id IN (${missingIds})`;
 	const snapshotRows = await db.execute<SnapshotPriceRow>(sql`
 		SELECT DISTINCT ON (p.id)
 			p.id AS product_id, ps.latest_normalized_price, ps.base_unit,
 			ps.latest_price, ps.unit, ps.latest_date::text AS latest_date, ps.supplier_name
 		FROM products p
-		JOIN mv_price_snapshots ps
-			ON ps.restaurant_id = ${rid} AND ps.item_key = mep_norm_key(p.canonical_name)
+		JOIN (${livePriceSnapshots(rid, missingItemKeys)}) ps
+			ON ps.item_key = mep_norm_key(p.canonical_name)
 		WHERE p.restaurant_id = ${rid}
-			AND p.id IN (${sql.join(missing.map((id) => sql`${id}`), sql`, `)})
+			AND p.id IN (${missingIds})
 		ORDER BY p.id, ps.latest_date DESC NULLS LAST
 	`);
 

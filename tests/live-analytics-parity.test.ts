@@ -19,6 +19,8 @@ import {
 import {
 	liveCategoryMonthlySpend, liveExtractionStats, livePriceSnapshots,
 } from '../src/lib/server/analytics-live';
+import { runWithTenantContext } from '../src/lib/server/tenant-context';
+import { resolveProductPrices } from '../src/lib/server/recipes';
 
 const describeDb = hasDbEnv ? describe : describe.skip;
 
@@ -144,5 +146,41 @@ describeDb('analytics: MV (old) vs live (new) parity', () => {
 		const { old, now } = await cats(clean.rid);
 		expect(april(old)).toBe(25);
 		expect(april(now)).toBe(28);
+	});
+});
+
+describeDb('analytics: tenant A never sees tenant B numbers', () => {
+	let a: Seeded;
+	let b: Seeded;
+
+	beforeAll(async () => {
+		a = await seed('iso-a');
+		b = await seed('iso-b', 'Bonly ');
+	});
+
+	afterAll(async () => {
+		await cleanupTestRestaurant(a?.rid);
+		await cleanupTestRestaurant(b?.rid);
+	});
+
+	type Load = (e: unknown) => Promise<unknown>;
+	const call = async (path: string, rid: string, qs = '') => {
+		const { load } = await import(`../src/routes/(app)/analytics/${path}/+page.server.ts`) as { load: Load };
+		return runWithTenantContext(rid, () => load({ url: new URL(`http://localhost/analytics/${path}${qs}`), locals: { restaurantId: rid } }));
+	};
+
+	it('spend categories, extraction stats and recipe prices for A carry only A rows', async () => {
+		const spend = await call('spend', a.rid, '?period=all') as { category_spend: { total: number }[] };
+		const extract = await call('extraction', a.rid) as { kpis: { total_invoices: number } };
+		expect(spend.category_spend.reduce((s, c) => s + c.total, 0)).toBe(96);
+		expect(extract.kpis.total_invoices).toBe(4);
+
+		const [bOnly] = await testSql`
+			INSERT INTO products (restaurant_id, canonical_name, name_key) VALUES (${a.rid}, 'Bonly Tomate pera', 'bonly tomate pera') RETURNING id`;
+		const [shared] = await testSql`
+			INSERT INTO products (restaurant_id, canonical_name, name_key) VALUES (${a.rid}, 'Tomate pera', 'tomate pera') RETURNING id`;
+		const resolved = await runWithTenantContext(a.rid, () => resolveProductPrices(a.rid, [Number(bOnly!.id), Number(shared!.id)]));
+		expect(resolved.has(Number(bOnly!.id))).toBe(false);
+		expect(resolved.get(Number(shared!.id))?.rateUnits).toBeGreaterThan(0);
 	});
 });
