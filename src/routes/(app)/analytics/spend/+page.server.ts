@@ -5,6 +5,7 @@ import { sql } from 'drizzle-orm';
 import { moneyToNumber } from '$lib/server/money';
 import { periodRange } from '$lib/server/period-range';
 import { UNCATEGORIZED_CATEGORY } from '$lib/constants';
+import { liveCategoryMonthlySpend } from '$lib/server/analytics-live';
 
 export const load: PageServerLoad = async ({ url, locals, parent }) => {
 	const rid = locals.restaurantId!;
@@ -19,6 +20,9 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 		type ItemTrendRow = { item_key: string; month: string; avg_price: string };
 		type RangeCountRow = { total: string; in_range: string };
 		type MonthlySpendRow = { month: string; total: string };
+
+		const trailingYearFrom = sql`TO_CHAR(DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '11 months', 'YYYY-MM')`;
+		const trailingYearTo = sql`TO_CHAR(CURRENT_DATE, 'YYYY-MM')`;
 
 		const [topItems, categorySpend, kpisRows, itemTrendRows, rangeCountRows, monthlySpendRows] = await Promise.all([
 			db.execute<TopItem>(sql`
@@ -41,9 +45,7 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 					c.category,
 					SUM(c.total_spend)    AS total,
 					SUM(c.invoice_count)  AS invoice_count
-				FROM mv_category_monthly_spend c
-				WHERE c.restaurant_id = ${rid}
-				  AND c.month >= ${monthFrom} AND c.month <= ${monthTo}
+				FROM (${liveCategoryMonthlySpend(rid, monthFrom, monthTo)}) c
 				GROUP BY c.category
 				ORDER BY total DESC
 			`),
@@ -90,8 +92,8 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 					DATE_TRUNC('month', CURRENT_DATE),
 					INTERVAL '1 month'
 				) AS gs(month)
-				LEFT JOIN mv_category_monthly_spend c
-					ON c.restaurant_id = ${rid} AND c.month = TO_CHAR(gs.month, 'YYYY-MM')
+				LEFT JOIN (${liveCategoryMonthlySpend(rid, trailingYearFrom, trailingYearTo)}) c
+					ON c.month = TO_CHAR(gs.month, 'YYYY-MM')
 				GROUP BY gs.month
 				ORDER BY gs.month ASC
 			`),
