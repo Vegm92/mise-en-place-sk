@@ -27,14 +27,15 @@ buckets shared by the dashboard.
 
 ## Outputs
 
-- `/analytics/spend` (per supplier/item/category monthly spend from MVs; top
+- `/analytics/spend` (category breakdown and yearly chart from live lines,
+  top items and item price trend from `mv_item_monthly_spend`; top
   items and spend-by-category both render as a donut via the shared
   `DonutChart.svelte`, plus a "Gasto a lo largo del año" card with monthly
   totals for the trailing 12 months, independent of the period selector,
   issue #882).
 - `/analytics/prices` (price evolution from `mv_price_snapshots`, gated on
   `supplierScores`).
-- `/analytics/extraction` (quality from `mv_extraction_stats` +
+- `/analytics/extraction` (quality from live invoices +
   `extraction_corrections`).
 - `/analytics/extraction/csv` (the raw corrections, newest first, capped at
   5000 rows — the seed for an extraction eval/regression set, issue #812).
@@ -43,8 +44,15 @@ buckets shared by the dashboard.
 
 - **Materialized views** (`mv_supplier_monthly_spend`, `mv_item_monthly_spend`,
   `mv_category_monthly_spend`, `mv_price_snapshots`, `mv_extraction_stats`)
-  refreshed by `refresh_analytics_rollups()` nightly (`10 3 * * *`). Never
-  derived at read time (ADR-012).
+  refreshed by `refresh_analytics_rollups()` nightly (`10 3 * * *`) (ADR-012).
+- **Live readers** (`src/lib/server/analytics-live.ts`). The category
+  breakdown, the yearly chart, extraction stats and the recipe price fallback
+  read live, `forTenant`-scoped queries built on the `category-spend.ts`
+  helpers, so they are never stale and follow `category_override` and
+  `deleted_at` like the dashboard. `tests/live-analytics-parity.test.ts` pins
+  them to the refreshed MVs. Top items, the item price trend, `/analytics/prices`
+  and the prices report stay on their MVs: over a full history of 50k lines
+  they normalise and sort every line (185–236 ms), too slow to run per request.
 - **Rollup freshness** (#1004). `runAnalyticsRefreshJob` stamps
   `app_flags.analytics_rollup_refreshed_at` (`ANALYTICS_ROLLUP_REFRESHED_FLAG`)
   **after** the refresh returns, so a failed run leaves the previous stamp in
@@ -73,7 +81,7 @@ buckets shared by the dashboard.
 - **Yearly spend chart** (issue #882): `/analytics/spend` load also returns
   `monthly_spend` — one `{month, total}` row per calendar month for the
   trailing 12 months (current month included), zero-filled via
-  `generate_series` LEFT JOINed to `mv_category_monthly_spend` summed across
+  `generate_series` LEFT JOINed to `liveCategoryMonthlySpend` summed across
   categories. It always covers the same 12 months regardless of the page's
   period selector.
 
@@ -149,7 +157,7 @@ Range/granularity normalization; tenant scope on every MV read.
 ### `src/routes/(app)/analytics/extraction/+page.server.ts`
 
 **`const load`**
-- kpisRows, supplierRows, trendRows read from `mv_extraction_stats` (pre-aggregated); fieldRows still queries `extraction_corrections` directly — no rollup needed for the small table.
+- kpisRows, supplierRows, trendRows read `liveExtractionStats` (one row per live invoice with its correction count) through a `stats` CTE; fieldRows queries `extraction_corrections` directly.
 - `flagged_pct` divides by the corrections that *have* a confidence, not by all of them: rows written before `field_confidence` existed (migration 0060) would otherwise read as silent failures they were never measured to be.
 
 ### `src/routes/(app)/analytics/extraction/csv/+server.ts`
