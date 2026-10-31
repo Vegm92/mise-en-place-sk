@@ -30,6 +30,7 @@
 		"eval:accept-baseline": "vite-node --config vite.worker.config.ts src/extraction-eval.ts -- --out tests/golden/baseline-report.json",
 		"worker": "vite-node --config vite.worker.config.ts src/worker.ts",
 		"worker:prod": "node build/worker.js",
+		"lint:invariants": "node scripts/lint-invariants.mjs all",
 		"lint:no-sql-raw": "node scripts/lint-invariants.mjs no-sql-raw",
 		"lint:tenant-scope": "node scripts/lint-invariants.mjs tenant-scope",
 		"lint:unscoped-query": "node scripts/lint-invariants.mjs unscoped-tenant-query",
