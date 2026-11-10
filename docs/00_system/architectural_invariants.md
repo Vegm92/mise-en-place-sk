@@ -119,14 +119,13 @@ plan and explicit human approval — it is never a silent convenience.
 
 - Async behaviour changes must consider the separate worker process and its
   pg-boss queues (`extract-invoice`, `normalize-product`, dead-letter siblings).
-- Extraction concurrency against Gemini is capped globally by
-  `MAX_CONCURRENT_EXTRACTIONS` (default 3) via `acquireExtractionSlot()` in
-  `rate-limiter.ts`. With Upstash Redis configured the semaphore is
-  distributed (safe across multiple worker processes, lease/TTL guarded);
-  without it, it falls back to an in-process semaphore (single-instance).
-  The worker's `batchSize` tracks the cap, so a small batch extracts in
-  parallel up to the cap; set the cap to 1 to force strictly-sequential
-  extraction.
+- Extraction concurrency against Gemini is capped by the pg-boss `batchSize`
+  of the worker, which equals `MAX_CONCURRENT_EXTRACTIONS` (default 3): the
+  worker awaits each batch before fetching the next, so a small batch
+  extracts in parallel up to the cap; set the cap to 1 to force
+  strictly-sequential extraction. This holds for a single worker instance
+  (`railway.worker.json` pins `numReplicas: 1`); scaling the worker past 1
+  needs a real cross-process cap.
 - Scheduled jobs live in `registerScheduledJobs`; every send is claim-guarded
   (ADR-011).
 

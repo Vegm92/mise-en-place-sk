@@ -5,7 +5,7 @@ import { db } from './db';
 import { users } from './schema';
 import { type ActionOutcome, reject, succeed } from './action-outcome';
 import { logAuthEvent, hashIp } from './auth-events';
-import { checkRateLimit, RateLimitBackendUnavailableError } from './rate-limiter';
+import { checkRateLimit } from './rate-limiter';
 import { rateLimitScoped } from './rate-limit-scope';
 import { verifyCredentials } from './auth-credentials';
 import { passwordPolicyError } from './password-policy';
@@ -21,16 +21,11 @@ export async function requestEmailChange(user: SessionUser, form: FormData, url:
 	if (!email) return reject(422, 'set.profile.err.emailRequired');
 	if (email === user.email.toLowerCase()) return reject(422, 'set.profile.err.emailUnchanged');
 
-	try {
-		if (!(await checkRateLimit(`email-change:user:${user.id}`, 5, undefined, { authCritical: true }))) {
-			return reject(429, 'set.profile.err.rateLimited');
-		}
-		if (!(await checkRateLimit(`email-change:address:${email}`, 5, undefined, { authCritical: true }))) {
-			return reject(429, 'set.profile.err.rateLimited');
-		}
-	} catch (e) {
-		if (!(e instanceof RateLimitBackendUnavailableError)) throw e;
-		return reject(503, 'set.profile.err.serviceUnavailable');
+	if (!(await checkRateLimit(`email-change:user:${user.id}`, 5))) {
+		return reject(429, 'set.profile.err.rateLimited');
+	}
+	if (!(await checkRateLimit(`email-change:address:${email}`, 5))) {
+		return reject(429, 'set.profile.err.rateLimited');
 	}
 
 	const [taken] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
