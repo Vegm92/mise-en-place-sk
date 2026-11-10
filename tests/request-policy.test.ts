@@ -43,7 +43,6 @@ function makeDeps(overrides: Partial<RequestPolicyDeps> = {}): Partial<RequestPo
 		isAdminUser: () => false,
 		runAsSystem: async (fn) => fn(),
 		runWithTenantContext: async (_rid, fn) => fn(),
-		observe: () => {},
 		captureException: () => {},
 		setSentryUser: () => {},
 		setSentryTag: () => {},
@@ -295,16 +294,14 @@ describe('framed-upload paths', () => {
 });
 
 describe('bypass path', () => {
-	it('resolves directly, skipping the policy pipeline and the latency metric', async () => {
+	it('resolves directly, skipping the policy pipeline', async () => {
 		const event = makeEvent({ path: '/_app/immutable/chunk.js', routeId: null });
 		const resolve = vi.fn(async () => new Response('static'));
-		const observeCalls: unknown[] = [];
 
-		const outcome = await run(event, resolve, { observe: (...args) => { observeCalls.push(args); } });
+		const outcome = await run(event, resolve);
 
 		expect(resolve).toHaveBeenCalledWith(event);
 		const res = outcome as Response;
 		expect(res.headers.has('X-Frame-Options')).toBe(false);
-		expect(observeCalls.length).toBe(0);
 	});
 });

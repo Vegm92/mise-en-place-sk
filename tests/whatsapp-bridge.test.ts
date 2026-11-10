@@ -5,7 +5,7 @@
  * pipeline and hands off confirmation to /batch/[id] — the only path since
  * the legacy inline extraction + SÍ/NO handshake was removed in #350.
  * batch-core.ts, extract-batch.ts and queue.ts are mocked at the module
- * boundary so this file only pins whatsapp-bot.ts's own wiring.
+ * boundary so this file only pins message-handler.ts's own wiring.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -70,11 +70,6 @@ vi.mock('../src/lib/server/idempotency', () => ({
 	claimIdempotencyKey: claimMock,
 	releaseIdempotencyKey: releaseMock,
 }));
-vi.mock('../src/lib/server/whatsapp', async (importActual) => ({
-	...(await importActual<typeof import('../src/lib/server/whatsapp')>()),
-	sendWhatsAppMessage: sendMock,
-	downloadWhatsAppMedia: downloadMock,
-}));
 vi.mock('../src/lib/server/extract', () => ({ extractWithProvider: vi.fn() }));
 vi.mock('../src/lib/server/storage', () => ({ getStorage: () => ({ save: saveMock }) }));
 vi.mock('../src/lib/server/llm-quota', () => ({
@@ -111,9 +106,12 @@ vi.mock('../src/lib/server/env', async (importActual) => ({
 	APP_BASE_URL: 'https://app.example.com',
 }));
 
-import { handleWhatsAppMessage } from '../src/lib/server/whatsapp-bot';
-import { MediaTooLargeError } from '../src/lib/server/whatsapp';
-import { MAX_FILE_BYTES } from '../src/lib/server/file-validation';
+import { handleInboundMessage } from '../src/lib/server/integrations/whatsapp/message-handler';
+import type { WhatsAppInboundMessage } from '../src/lib/server/integrations/whatsapp/transport';
+import { MAX_FILE_BYTES, MediaTooLargeError } from '../src/lib/server/file-validation';
+
+const handleWhatsAppMessage = (msg: WhatsAppInboundMessage, requestId?: string) =>
+	handleInboundMessage(msg, { sendText: sendMock, downloadMedia: (ref) => downloadMock(ref.id) }, requestId);
 
 const CONTACT = [{ restaurantId: 'rest-1' }];
 

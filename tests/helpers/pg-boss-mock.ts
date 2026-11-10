@@ -1,7 +1,7 @@
 /**
  * Shared pg-boss mock kit for the suites that fully mock the pg-boss client
  * to pin what `queue.ts` hands to `PgBoss#send` (tests/queue-request-id.test.ts,
- * tests/queue-whatsapp-inbound.test.ts): both need the same hoisted mock
+ * tests/1000-queue-retry-backoff.test.ts): both need the same hoisted mock
  * functions, the same `vi.mock('pg-boss', ...)` factory, and the same
  * DATABASE_URL/clearAllMocks setup around each test. Centralized so that
  * boilerplate doesn't reappear per file (jscpd / `pnpm lint:duplication`).

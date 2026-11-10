@@ -68,10 +68,6 @@ vi.mock('$lib/server/db', () => ({
 	runAsSystem: (fn: () => unknown) => fn(),
 	runWithTenantContext: (_rid: unknown, fn: () => unknown) => fn(),
 }));
-vi.mock('../src/lib/server/whatsapp', () => ({
-	sendWhatsAppMessage: sendMock,
-	downloadWhatsAppMedia: downloadMock,
-}));
 vi.mock('../src/lib/server/storage', () => ({ getStorage: () => ({ save: vi.fn() }) }));
 vi.mock('../src/lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock }));
 vi.mock('../src/lib/server/billing', () => ({
@@ -100,7 +96,11 @@ vi.mock('../src/lib/server/queue', async (importOriginal) => ({
 }));
 vi.mock('@sentry/sveltekit', () => ({ captureMessage: vi.fn(), captureException: vi.fn() }));
 
-import { handleWhatsAppMessage } from '../src/lib/server/whatsapp-bot';
+import { handleInboundMessage } from '../src/lib/server/integrations/whatsapp/message-handler';
+import type { WhatsAppInboundMessage } from '../src/lib/server/integrations/whatsapp/transport';
+
+const handleWhatsAppMessage = (msg: WhatsAppInboundMessage, requestId?: string) =>
+	handleInboundMessage(msg, { sendText: sendMock, downloadMedia: (ref) => downloadMock(ref.id) }, requestId);
 
 const CONTACT = [{ restaurantId: 'rest-1' }];
 

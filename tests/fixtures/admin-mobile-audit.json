@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-03T13:30:39.563Z",
+  "generatedAt": "2026-10-31T20:39:36.687Z",
   "base": "http://127.0.0.1:5207",
   "viewport": {
     "width": 390,
@@ -8,7 +8,7 @@
   "tag": "after",
   "totals": {
     "routes": 9,
-    "tables": 28,
+    "tables": 26,
     "clipped": 0
   },
   "routes": [
@@ -19,29 +19,29 @@
           "index": 0,
           "label": "",
           "columns": 2,
-          "renderedWidth": 516.2,
+          "renderedWidth": 509.6,
           "containerWidth": 364,
-          "overflowPx": 152.2,
+          "overflowPx": 145.6,
           "containerKind": "scroller",
           "scrollable": true,
           "clipped": false
         },
         {
           "index": 1,
-          "label": "Nombre / Albaranes / Proveedores / Creado",
-          "columns": 4,
-          "renderedWidth": 364,
+          "label": "Nombre / Última actividad / Albaranes 7 d / Subidas 7 d / Al",
+          "columns": 7,
+          "renderedWidth": 619.2,
           "containerWidth": 364,
-          "overflowPx": 0,
+          "overflowPx": 255.2,
           "containerKind": "scroller",
-          "scrollable": false,
+          "scrollable": true,
           "clipped": false
         }
       ],
       "tableCount": 2,
       "clippedCount": 0,
       "documentOverflowPx": 0,
-      "screenshot": "shots/after-390-admin.png"
+      "screenshot": "..\\..\\..\\..\\AppData\\Local\\Temp\\claude\\C--Users-victo-Proyectos\\96510a8c-6fa5-4833-949b-c3f06c48d3a7\\scratchpad\\admin-shots\\after-390-admin.png"
     },
     {
       "route": "/admin/access",
@@ -50,9 +50,9 @@
           "index": 0,
           "label": "Email / Estado / Alta / Acción",
           "columns": 4,
-          "renderedWidth": 531.3,
+          "renderedWidth": 494,
           "containerWidth": 364,
-          "overflowPx": 167.3,
+          "overflowPx": 130,
           "containerKind": "scroller",
           "scrollable": true,
           "clipped": false
@@ -61,9 +61,9 @@
           "index": 1,
           "label": "Email / Se apuntó / Acción",
           "columns": 3,
-          "renderedWidth": 414.4,
+          "renderedWidth": 385.5,
           "containerWidth": 364,
-          "overflowPx": 50.4,
+          "overflowPx": 21.5,
           "containerKind": "scroller",
           "scrollable": true,
           "clipped": false
@@ -72,7 +72,7 @@
       "tableCount": 2,
       "clippedCount": 0,
       "documentOverflowPx": 0,
-      "screenshot": "shots/after-390-admin_access.png"
+      "screenshot": "..\\..\\..\\..\\AppData\\Local\\Temp\\claude\\C--Users-victo-Proyectos\\96510a8c-6fa5-4833-949b-c3f06c48d3a7\\scratchpad\\admin-shots\\after-390-admin_access.png"
     },
     {
       "route": "/admin/revenue",
@@ -103,9 +103,9 @@
           "index": 2,
           "label": "Cohorte / Clientes / MRR inicial / Mes +3 / Mes +6 / Mes +12",
           "columns": 6,
-          "renderedWidth": 405.7,
+          "renderedWidth": 383,
           "containerWidth": 364,
-          "overflowPx": 41.7,
+          "overflowPx": 19,
           "containerKind": "scroller",
           "scrollable": true,
           "clipped": false
@@ -136,9 +136,9 @@
           "index": 5,
           "label": "Mes / Categoría / Importe / Nota / ",
           "columns": 5,
-          "renderedWidth": 395.3,
+          "renderedWidth": 369.7,
           "containerWidth": 364,
-          "overflowPx": 31.3,
+          "overflowPx": 5.7,
           "containerKind": "scroller",
           "scrollable": true,
           "clipped": false
@@ -147,7 +147,7 @@
       "tableCount": 6,
       "clippedCount": 0,
       "documentOverflowPx": 0,
-      "screenshot": "shots/after-390-admin_revenue.png"
+      "screenshot": "..\\..\\..\\..\\AppData\\Local\\Temp\\claude\\C--Users-victo-Proyectos\\96510a8c-6fa5-4833-949b-c3f06c48d3a7\\scratchpad\\admin-shots\\after-390-admin_revenue.png"
     },
     {
       "route": "/admin/events",
@@ -156,9 +156,9 @@
           "index": 0,
           "label": "Tipo / Mensaje / Restaurante / Estado / Fecha / Acciones",
           "columns": 6,
-          "renderedWidth": 1059.2,
+          "renderedWidth": 1023,
           "containerWidth": 364,
-          "overflowPx": 695.2,
+          "overflowPx": 659,
           "containerKind": "scroller",
           "scrollable": true,
           "clipped": false
@@ -167,7 +167,7 @@
       "tableCount": 1,
       "clippedCount": 0,
       "documentOverflowPx": 0,
-      "screenshot": "shots/after-390-admin_events.png"
+      "screenshot": "..\\..\\..\\..\\AppData\\Local\\Temp\\claude\\C--Users-victo-Proyectos\\96510a8c-6fa5-4833-949b-c3f06c48d3a7\\scratchpad\\admin-shots\\after-390-admin_events.png"
     },
     {
       "route": "/admin/dead-letters",
@@ -176,9 +176,9 @@
           "index": 0,
           "label": "Cola / Error / Restaurante / Veces / Estado / Último / Accio",
           "columns": 7,
-          "renderedWidth": 1143.5,
+          "renderedWidth": 1102.3,
           "containerWidth": 364,
-          "overflowPx": 779.5,
+          "overflowPx": 738.3,
           "containerKind": "scroller",
           "scrollable": true,
           "clipped": false
@@ -187,27 +187,15 @@
       "tableCount": 1,
       "clippedCount": 0,
       "documentOverflowPx": 0,
-      "screenshot": "shots/after-390-admin_dead-letters.png"
+      "screenshot": "..\\..\\..\\..\\AppData\\Local\\Temp\\claude\\C--Users-victo-Proyectos\\96510a8c-6fa5-4833-949b-c3f06c48d3a7\\scratchpad\\admin-shots\\after-390-admin_dead-letters.png"
     },
     {
       "route": "/admin/errors",
-      "tables": [
-        {
-          "index": 0,
-          "label": "Issue / Nivel / Eventos / Usuarios / Última vez",
-          "columns": 5,
-          "renderedWidth": 626.5,
-          "containerWidth": 364,
-          "overflowPx": 262.5,
-          "containerKind": "scroller",
-          "scrollable": true,
-          "clipped": false
-        }
-      ],
-      "tableCount": 1,
+      "tables": [],
+      "tableCount": 0,
       "clippedCount": 0,
       "documentOverflowPx": 0,
-      "screenshot": "..\\..\\..\\AppData\\Local\\Temp\\admin-audit-shots\\final-390-admin_errors.png"
+      "screenshot": "..\\..\\..\\..\\AppData\\Local\\Temp\\claude\\C--Users-victo-Proyectos\\96510a8c-6fa5-4833-949b-c3f06c48d3a7\\scratchpad\\admin-shots\\after-390-admin_errors.png"
     },
     {
       "route": "/admin/learning",
@@ -249,9 +237,9 @@
           "index": 3,
           "label": "Versión de prompt / Documentos / Confianza media / Descuadre",
           "columns": 8,
-          "renderedWidth": 768,
+          "renderedWidth": 720.4,
           "containerWidth": 364,
-          "overflowPx": 404,
+          "overflowPx": 356.4,
           "containerKind": "scroller",
           "scrollable": true,
           "clipped": false
@@ -293,9 +281,9 @@
           "index": 7,
           "label": "Campo / área / Justificación / Cambio propuesto / Estado / C",
           "columns": 5,
-          "renderedWidth": 478.8,
+          "renderedWidth": 447.8,
           "containerWidth": 364,
-          "overflowPx": 114.8,
+          "overflowPx": 83.8,
           "containerKind": "scroller",
           "scrollable": true,
           "clipped": false
@@ -304,9 +292,9 @@
           "index": 8,
           "label": "Restaurante / Producto sugerido / Texto original / Creado",
           "columns": 4,
-          "renderedWidth": 471.1,
+          "renderedWidth": 439.1,
           "containerWidth": 364,
-          "overflowPx": 107.1,
+          "overflowPx": 75.1,
           "containerKind": "scroller",
           "scrollable": true,
           "clipped": false
@@ -315,7 +303,7 @@
       "tableCount": 9,
       "clippedCount": 0,
       "documentOverflowPx": 0,
-      "screenshot": "shots/after-390-admin_learning.png"
+      "screenshot": "..\\..\\..\\..\\AppData\\Local\\Temp\\claude\\C--Users-victo-Proyectos\\96510a8c-6fa5-4833-949b-c3f06c48d3a7\\scratchpad\\admin-shots\\after-390-admin_learning.png"
     },
     {
       "route": "/admin/health",
@@ -324,9 +312,9 @@
           "index": 0,
           "label": "Comprobación / Estado / Detalle",
           "columns": 3,
-          "renderedWidth": 443.7,
+          "renderedWidth": 387.8,
           "containerWidth": 364,
-          "overflowPx": 79.7,
+          "overflowPx": 23.8,
           "containerKind": "scroller",
           "scrollable": true,
           "clipped": false
@@ -335,37 +323,26 @@
           "index": 1,
           "label": "Restaurante / Archivo / Estado / Atascado desde / Acciones",
           "columns": 5,
-          "renderedWidth": 684.3,
+          "renderedWidth": 647.3,
           "containerWidth": 364,
-          "overflowPx": 320.3,
+          "overflowPx": 283.3,
           "containerKind": "scroller",
           "scrollable": true,
           "clipped": false
         },
         {
           "index": 2,
-          "label": "Cuándo / Evento / Gravedad / Calidad",
-          "columns": 4,
-          "renderedWidth": 610.5,
-          "containerWidth": 340,
-          "overflowPx": 270.5,
-          "containerKind": "scroller",
-          "scrollable": true,
-          "clipped": false
-        },
-        {
-          "index": 3,
           "label": "",
           "columns": 2,
-          "renderedWidth": 340,
-          "containerWidth": 340,
+          "renderedWidth": 364,
+          "containerWidth": 364,
           "overflowPx": 0,
           "containerKind": "scroller",
           "scrollable": false,
           "clipped": false
         },
         {
-          "index": 4,
+          "index": 3,
           "label": "Tabla / Filas (aprox.)",
           "columns": 2,
           "renderedWidth": 364,
@@ -376,10 +353,10 @@
           "clipped": false
         }
       ],
-      "tableCount": 5,
+      "tableCount": 4,
       "clippedCount": 0,
       "documentOverflowPx": 0,
-      "screenshot": "shots/after-390-admin_health.png"
+      "screenshot": "..\\..\\..\\..\\AppData\\Local\\Temp\\claude\\C--Users-victo-Proyectos\\96510a8c-6fa5-4833-949b-c3f06c48d3a7\\scratchpad\\admin-shots\\after-390-admin_health.png"
     },
     {
       "route": "/admin/feature-flags",
@@ -399,7 +376,7 @@
       "tableCount": 1,
       "clippedCount": 0,
       "documentOverflowPx": 0,
-      "screenshot": "shots/after-390-admin_feature-flags.png"
+      "screenshot": "..\\..\\..\\..\\AppData\\Local\\Temp\\claude\\C--Users-victo-Proyectos\\96510a8c-6fa5-4833-949b-c3f06c48d3a7\\scratchpad\\admin-shots\\after-390-admin_feature-flags.png"
     }
   ]
 }

@@ -80,9 +80,9 @@ complete inventory the app and worker actually read, grouped by area.
   `/billing`) and `STRIPE_TAX_RATE_ID` (IVA 21 % on new subscriptions). Prices
   live only in `src/lib/billing-plans.ts`; the old `PLAN_PRICE_<TIER>_EUR`
   overrides are no longer read and should be deleted from the environment.
-- **WhatsApp (prod)** — `WHATSAPP_ACCESS_TOKEN` + `WHATSAPP_PHONE_NUMBER_ID` +
-  `WHATSAPP_VERIFY_TOKEN` + `WHATSAPP_APP_SECRET` (the webhook fails closed
-  without them), plus `WHATSAPP_API_VERSION` and `WHATSAPP_DISPLAY_NUMBER`.
+- **WhatsApp (prod)** — `WHATSAPP_ACCESS_TOKEN` + `WHATSAPP_PHONE_NUMBER_ID`
+  (Graph API send for the digest push), plus `WHATSAPP_API_VERSION` and
+  `WHATSAPP_DISPLAY_NUMBER`. Inbound runs on Baileys (`WHATSAPP_BOT_ENABLED`).
 - **Observability / proxy** — `SENTRY_AUTH_TOKEN` (+ `SENTRY_ORG`,
   `SENTRY_PROJECT`, `SENTRY_DSN`, `VITE_SENTRY_DSN`, `SENTRY_RELEASE`),
   `ADDRESS_HEADER`/`XFF_DEPTH` behind a proxy, `APP_BASE_URL` (WhatsApp batch
@@ -192,10 +192,6 @@ pnpm db:studio       # open Drizzle Studio browser UI
 **`const WHATSAPP_ACCESS_TOKEN`**
 
 - WhatsApp Cloud API bearer token.
-
-**`const WHATSAPP_APP_SECRET`**
-
-- App secret from Meta App Dashboard — used to verify `X-Hub-Signature-256` on inbound webhook POSTs. Without it, the webhook cannot authenticate Meta.
 
 **`const WHATSAPP_API_VERSION`**
 

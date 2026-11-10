@@ -141,7 +141,7 @@ The locale a page **renders** is resolved per request; the locale a user
 |---|---|---|
 | `batch/[id]` | `invoice_ingestion`, `invoice_confirmation` | `batch-core.ts` + `invoice-save.ts` |
 | `invoices*`, `invoice/[id]*` | invoice management (see `invoice_confirmation.md`) | `invoices` + line items |
-| `suppliers*` | `suppliers` | `suppliers` + `mv_supplier_monthly_spend` |
+| `suppliers*` | `suppliers` | `suppliers` |
 | `products*` | `products` | `products` + aliases + `mv_price_snapshots` |
 | `recipes` | `recipes` | `recipes` + `recipe_items`, costed against `invoice_line_items` / `mv_price_snapshots` |
 | `budgets` | `budgets` | `category_budgets` + live aggregation |

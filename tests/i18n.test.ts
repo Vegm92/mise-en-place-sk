@@ -315,14 +315,6 @@ describe('strings de-hardcoded from components', () => {
     'upload.err.badResponse',
     'upload.err.network',
     'sup.conv.ph.factor',
-    'admin.wa.numberHealth',
-    'admin.wa.noEvents',
-    'admin.wa.quality',
-    'admin.wa.messagingLimit',
-    'admin.wa.worst30d',
-    'admin.wa.colWhen',
-    'admin.wa.colEvent',
-    'admin.wa.colSeverity',
     'admin.wa.tenantSenders',
     'admin.worker.alive',
     'admin.worker.stale',
@@ -349,15 +341,6 @@ describe('strings de-hardcoded from components', () => {
     setLocale('en');
     expect(tr('minv.filter.month')).toBe('This month');
     expect(tr('action.review')).toBe('Review');
-  });
-
-  it('interpolates the webhook fields into the admin WhatsApp notice', () => {
-    for (const lc of ['es', 'en'] as const) {
-      setLocale(lc);
-      const msg = tri('admin.wa.noEvents', { fields: 'account_update / phone_number_quality_update' });
-      expect(msg).toContain('account_update / phone_number_quality_update');
-      expect(msg).not.toContain('{fields}');
-    }
   });
 });
 

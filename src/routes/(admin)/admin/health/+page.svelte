@@ -9,11 +9,6 @@
   import { formatAge, pipelineOldest, readinessChips } from '$lib/admin-readiness';
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
-  type Severity = 'info' | 'warning' | 'critical';
-  const SEVERITY_STATUS: Record<Severity, 'ok' | 'warn' | 'error'> = {
-    info: 'ok', warning: 'warn', critical: 'error',
-  };
-
   const chips = $derived(readinessChips(data));
 
   const successPct = $derived(
@@ -148,78 +143,20 @@
     </HudPanel>
   {/if}
 
-  {#if data.whatsapp}
-    <HudPanel title={t('admin.wa.numberHealth')}>
-      <div class="p-3 flex flex-col gap-3">
-        {#if !data.whatsapp.health.everReported}
-          <p class="m-0 text-[12px]" style="color:#5b6472;">
-            {ti('admin.wa.noEvents', { fields: 'account_update / phone_number_quality_update' })}
-          </p>
-        {:else}
-          <div class="hud-kpi-row">
-            <div class="hud-kpi">
-              <div class="hud-kpi-label">{t('admin.wa.quality')}</div>
-              <div class="hud-kpi-value"
-                class:good={data.whatsapp.health.qualityRating === 'GREEN'}
-                class:warn={data.whatsapp.health.qualityRating === 'YELLOW'}
-                class:bad={data.whatsapp.health.qualityRating === 'RED'}>
-                {data.whatsapp.health.qualityRating ?? 'unknown'}
-              </div>
-            </div>
-            <div class="hud-kpi">
-              <div class="hud-kpi-label">{t('admin.wa.messagingLimit')}</div>
-              <div class="hud-kpi-value">{data.whatsapp.health.messagingLimit ?? 'unknown'}</div>
-            </div>
-            <div class="hud-kpi">
-              <div class="hud-kpi-label">{t('admin.wa.worst30d')}</div>
-              <div><AdminStatusBadge status={SEVERITY_STATUS[data.whatsapp.health.severity]} /></div>
-            </div>
-          </div>
-        {/if}
-
-        {#if data.whatsapp.events.length > 0}
-          <AdminTableScroll>
-            <table class="hud-table">
-              <thead>
-                <tr>
-                  <th scope="col" class="l">{t('admin.wa.colWhen')}</th>
-                  <th scope="col" class="l">{t('admin.wa.colEvent')}</th>
-                  <th scope="col" class="l">{t('admin.wa.colSeverity')}</th>
-                  <th scope="col" class="l">{t('admin.wa.quality')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {#each data.whatsapp.events as evt (evt.id)}
-                  <tr>
-                    <td class="dim nowrap">
-                      {evt.receivedAt ? new Date(evt.receivedAt).toLocaleString('en-GB') : '—'}
-                    </td>
-                    <td class="mono">{evt.field}/{evt.event ?? 'unknown'}</td>
-                    <td><AdminStatusBadge status={SEVERITY_STATUS[evt.severity as Severity]} /></td>
-                    <td class="dim">{evt.qualityRating ?? '—'}</td>
-                  </tr>
-                {/each}
-              </tbody>
-            </table>
-          </AdminTableScroll>
-        {/if}
-
-        {#if data.whatsapp.tenants.length > 0}
-          <div style="font:600 10px/1 ui-monospace, monospace;letter-spacing:0.12em;text-transform:uppercase;color:#e7edf5;">{t('admin.wa.tenantSenders')}</div>
-          <AdminTableScroll>
-            <table class="hud-table">
-              <tbody>
-                {#each data.whatsapp.tenants as tenant (tenant.restaurantId)}
-                  <tr>
-                    <td>{tenant.name}</td>
-                    <td class="num r dim">{tenant.contacts}</td>
-                  </tr>
-                {/each}
-              </tbody>
-            </table>
-          </AdminTableScroll>
-        {/if}
-      </div>
+  {#if data.whatsapp && data.whatsapp.tenants.length > 0}
+    <HudPanel title={t('admin.wa.tenantSenders')}>
+      <AdminTableScroll>
+        <table class="hud-table">
+          <tbody>
+            {#each data.whatsapp.tenants as tenant (tenant.restaurantId)}
+              <tr>
+                <td>{tenant.name}</td>
+                <td class="num r dim">{tenant.contacts}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </AdminTableScroll>
     </HudPanel>
   {/if}
 

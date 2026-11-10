@@ -1,17 +1,13 @@
 import { PgBoss } from 'pg-boss';
 import { pgSslConfig } from './db-ssl.js';
 import { storageFingerprint } from './env.js';
-import type { WhatsAppInboundMessage } from './integrations/whatsapp/transport.js';
 
 import {
-	type WhatsAppInboundJobData,
 	type WhatsAppNotifyJobData,
 	WHATSAPP_NOTIFY_QUEUE,
 	WHATSAPP_INBOUND_QUEUE,
 	WHATSAPP_NOTIFY_DEAD_LETTER_QUEUE,
-	WHATSAPP_INBOUND_DEAD_LETTER_QUEUE,
 	WHATSAPP_NOTIFY_OPTIONS,
-	WHATSAPP_INBOUND_OPTIONS,
 } from './contracts/whatsapp-contract.js';
 
 import {
@@ -50,7 +46,6 @@ export {
 	NORMALIZE_DEAD_LETTER_QUEUE,
 	CATEGORIZE_DEAD_LETTER_QUEUE,
 	WHATSAPP_NOTIFY_DEAD_LETTER_QUEUE,
-	WHATSAPP_INBOUND_DEAD_LETTER_QUEUE,
 	ACCOUNT_CLEANUP_DEAD_LETTER_QUEUE,
 };
 
@@ -59,7 +54,6 @@ export const DEAD_LETTER_QUEUES: Array<{ source: string; deadLetter: string }> =
 	{ source: NORMALIZE_QUEUE, deadLetter: NORMALIZE_DEAD_LETTER_QUEUE },
 	{ source: CATEGORIZE_QUEUE, deadLetter: CATEGORIZE_DEAD_LETTER_QUEUE },
 	{ source: WHATSAPP_NOTIFY_QUEUE, deadLetter: WHATSAPP_NOTIFY_DEAD_LETTER_QUEUE },
-	{ source: WHATSAPP_INBOUND_QUEUE, deadLetter: WHATSAPP_INBOUND_DEAD_LETTER_QUEUE },
 	{ source: ACCOUNT_CLEANUP_QUEUE, deadLetter: ACCOUNT_CLEANUP_DEAD_LETTER_QUEUE },
 ];
 
@@ -137,13 +131,6 @@ export async function enqueueWhatsAppNotify(
 	const b = await getBoss();
 	const data: WhatsAppNotifyJobData = { itemId, restaurantId, requestId };
 	const jobId = await b.send(WHATSAPP_NOTIFY_QUEUE, data, WHATSAPP_NOTIFY_OPTIONS(itemId));
-	return jobId !== null;
-}
-
-export async function enqueueWhatsAppInbound(msg: WhatsAppInboundMessage, requestId?: string): Promise<boolean> {
-	const b = await getBoss();
-	const data: WhatsAppInboundJobData = { messageId: msg.id, msg, requestId };
-	const jobId = await b.send(WHATSAPP_INBOUND_QUEUE, data, WHATSAPP_INBOUND_OPTIONS(msg.id));
 	return jobId !== null;
 }
 

@@ -97,8 +97,6 @@ export const ROUTE_POLICY = {
 	'/api/user':                         'open',
 	'/api/user/delete':                  'open',
 	'/api/user/export':                  'open',
-	'/api/whatsapp':                     'open',
-	'/api/whatsapp/webhook':             'open',
 	'/cookie-consent':                   'open',
 	'/cookies':                          'open',
 	'/forgot-password':                  'open',
@@ -131,7 +129,6 @@ export const REDIRECT_TARGET_ROUTES: RouteId[] = [
 	'/login',
 	'/api/health',
 	'/api/stripe-webhook',
-	'/api/whatsapp/webhook',
 ];
 
 export function policyFor(routeId: string | null): RoutePolicy | undefined {
