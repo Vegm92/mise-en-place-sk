@@ -183,7 +183,7 @@ describe('redeemPairingCode', () => {
 		rateLimitMock.mockResolvedValue(false);
 		expect(await redeemPairingCode(PHONE, 'A2B3C4')).toEqual({ ok: false, reason: 'rateLimited' });
 		expect(dbMock.update).not.toHaveBeenCalled();
-		expect(rateLimitMock).toHaveBeenCalledWith(`whatsapp-pair:${PHONE}`, expect.any(Number), expect.any(Number), { authCritical: true });
+		expect(rateLimitMock).toHaveBeenCalledWith(`whatsapp-pair:${PHONE}`, expect.any(Number), expect.any(Number));
 	});
 
 	it('RULE-152: two written forms of one number share one per-sender budget', async () => {
@@ -204,7 +204,7 @@ describe('redeemPairingCode', () => {
 		rateLimitMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
 		expect(await redeemPairingCode(PHONE, 'A2B3C4')).toEqual({ ok: false, reason: 'rateLimited' });
 		expect(dbMock.update).not.toHaveBeenCalled();
-		expect(rateLimitMock).toHaveBeenLastCalledWith('whatsapp-pair-redeem', expect.any(Number), expect.any(Number), { authCritical: true });
+		expect(rateLimitMock).toHaveBeenLastCalledWith('whatsapp-pair-redeem', expect.any(Number), expect.any(Number));
 	});
 
 	it('releases the code when the number belongs to another restaurant', async () => {

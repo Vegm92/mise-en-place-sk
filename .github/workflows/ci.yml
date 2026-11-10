@@ -106,34 +106,7 @@ jobs:
       - name: Audit — full tree (informational, never fails)
         run: pnpm audit || true
 
-      - name: Lint — ban sql.raw
-        run: pnpm lint:no-sql-raw
-
-      - name: Lint — tenant scoping (ADR-001)
-        run: pnpm lint:tenant-scope
-
-      - name: Lint — no unscoped tenant queries (ADR-001 / #380)
-        run: pnpm lint:unscoped-query
-
-      - name: Lint — form actions have an authorization check (ADR-001 / #517)
-        run: pnpm lint:action-authz
-
-      - name: Lint — no new form.get()/formData.get() `as` casts (issue #844)
-        run: pnpm lint:form-get-cast
-
-      - name: Lint — JSON endpoint bodies parse through a schema (issue #1006)
-        run: pnpm lint:json-body-schema
-
-      - name: Lint — SQL row casts stay under the ratchet (issue #1082)
-        run: pnpm lint:sql-row-cast
-
-      - name: Lint — inline var(--mep-*) styles stay under the ratchet (issue #845)
-        run: pnpm lint:inline-styles
-
-      - name: Lint — pure functions in .svelte files stay under the ratchet (issue #1078)
-        run: pnpm lint:svelte-logic
-
-      - name: Lint — destructive migrations ship apart from the src/ change (issue #1009)
+      - name: Lint — invariants (sql.raw ban, tenant scoping, authz, casts, ratchets, migration ordering)
         env:
           EVENT_NAME: ${{ github.event_name }}
           PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
@@ -142,7 +115,7 @@ jobs:
           if [ "$EVENT_NAME" = "pull_request" ]; then
             BASE="origin/$PR_BASE_REF"
           fi
-          pnpm lint:migration-ordering --base "$BASE"
+          pnpm lint:invariants --base "$BASE"
 
       - name: Lint — no hardcoded user-facing strings
         run: pnpm lint:i18n
