@@ -15,8 +15,6 @@ import {
 } from './lib/server/contracts/products-contract.js';
 import {
 	WHATSAPP_NOTIFY_QUEUE,
-	WHATSAPP_INBOUND_QUEUE,
-	type WhatsAppInboundJobData,
 	type WhatsAppNotifyJobData,
 } from './lib/server/contracts/whatsapp-contract.js';
 import {
@@ -37,7 +35,6 @@ import { createLogger } from './lib/server/log.js';
 import { recordWorkerHeartbeat, startWorkerHeartbeat } from './lib/server/worker-heartbeat.js';
 import { handleInboundMessage } from './lib/server/integrations/whatsapp/message-handler.js';
 import { newRequestId } from './lib/server/request-id.js';
-import { handleWhatsAppMessage } from './lib/server/whatsapp-bot.js';
 import { notifyWhatsAppSender } from './lib/server/integrations/whatsapp/notify.js';
 import { startWhatsAppTransport } from './lib/server/integrations/whatsapp/runtime.js';
 import type { WhatsAppTransport } from './lib/server/integrations/whatsapp/transport.js';
@@ -151,20 +148,6 @@ await boss.work(
 	},
 );
 log.info('Listening for queue jobs', { queue: ACCOUNT_CLEANUP_QUEUE });
-
-await boss.work(
-	WHATSAPP_INBOUND_QUEUE,
-	{ batchSize: 1, includeMetadata: true },
-	async (jobs: JobWithMetadata<WhatsAppInboundJobData>[]) => {
-		for (const job of jobs) {
-			await runWithDeadLetter(
-				deadLetterRefFromJob(WHATSAPP_INBOUND_QUEUE, job),
-				() => handleWhatsAppMessage(job.data.msg, job.data.requestId),
-			);
-		}
-	},
-);
-log.info('Listening for queue jobs', { queue: WHATSAPP_INBOUND_QUEUE });
 
 const whatsapp: WhatsAppTransport | null = await startWhatsAppTransport();
 if (whatsapp) {

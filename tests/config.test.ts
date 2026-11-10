@@ -25,13 +25,6 @@ describe('assertProductionEnv', () => {
 		const { STRIPE_SECRET_KEY, ...incomplete } = complete;
 		expect(() => assertProductionEnv(incomplete)).toThrow('STRIPE_SECRET_KEY');
 	});
-
-	it('requires WHATSAPP_APP_SECRET only when WhatsApp is enabled', () => {
-		expect(() => assertProductionEnv({ ...complete, WHATSAPP_ACCESS_TOKEN: 'x' }))
-			.toThrow('WHATSAPP_APP_SECRET');
-		expect(() => assertProductionEnv({ ...complete, WHATSAPP_ACCESS_TOKEN: 'x', WHATSAPP_APP_SECRET: 'y' }))
-			.not.toThrow();
-	});
 });
 
 describe('assertProductionEnv — trusted proxy (issue #1072, was a warning under #500)', () => {

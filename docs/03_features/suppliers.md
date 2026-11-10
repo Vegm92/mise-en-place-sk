@@ -111,8 +111,7 @@ n/a (row upsert + metric recompute).
 
 ## Data dependencies
 
-`suppliers`, `supplier_metrics`, `unit_conversions`, `invoices` (spend/history),
-`mv_supplier_monthly_spend`.
+`suppliers`, `supplier_metrics`, `unit_conversions`, `invoices` (spend/history).
 
 ## API dependencies
 

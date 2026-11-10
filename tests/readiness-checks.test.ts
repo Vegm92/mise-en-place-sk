@@ -199,11 +199,10 @@ describe('External probes and WhatsApp transport', () => {
 	});
 
 	it('reads the Baileys status flag and asks for a transport when none is configured', () => {
-		expect(whatsAppTransportCheck(true, false, 'ready')).toMatchObject({ status: 'ok', detail: 'Baileys socket: ready' });
-		expect(whatsAppTransportCheck(true, false, 'logged_out')?.status).toBe('error');
-		expect(whatsAppTransportCheck(true, false, null)?.status).toBe('warn');
-		expect(whatsAppTransportCheck(false, true, null)).toBeNull();
-		expect(whatsAppTransportCheck(false, false, null)?.status).toBe('warn');
+		expect(whatsAppTransportCheck(true, 'ready')).toMatchObject({ status: 'ok', detail: 'Baileys socket: ready' });
+		expect(whatsAppTransportCheck(true, 'logged_out').status).toBe('error');
+		expect(whatsAppTransportCheck(true, null).status).toBe('warn');
+		expect(whatsAppTransportCheck(false, null).status).toBe('warn');
 	});
 });
 

@@ -513,7 +513,6 @@ const SQL_ROW_CAST_BUDGET = new Map([
 	['src/lib/server/db-role.ts', 1],
 	['src/lib/server/extraction-improve.ts', 1],
 	['src/lib/server/migration-state.ts', 1],
-	['src/lib/server/whatsapp-health.ts', 1],
 	['src/routes/(app)/dashboard/+page.server.ts', 1],
 	['src/routes/(app)/invoices/export/download/+server.ts', 1],
 	['src/routes/api/health/+server.ts', 1],
