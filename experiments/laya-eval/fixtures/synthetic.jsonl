@@ -1,0 +1,8 @@
+{"notification_id": 1, "source": "llm", "description": "MERL. FILETE S/P 1KG", "candidate_name": "Merluza filete", "baseline_score": 0.92, "label": 1}
+{"notification_id": 2, "source": "llm", "description": "TERN. S/H LOMO BAJO", "candidate_name": "Ternera lomo bajo", "baseline_score": 0.88, "label": 1}
+{"notification_id": 3, "source": "llm", "description": "TOMATE PERA CAT.I", "candidate_name": "Tomate pera", "baseline_score": 0.95, "label": 1}
+{"notification_id": 4, "source": "llm", "description": "ACEITE OLIVA V.E. 5L", "candidate_name": "Aceite de girasol 5L", "baseline_score": 0.83, "label": 0}
+{"notification_id": 5, "source": "llm", "description": "POLLO MUSLO DESHUES.", "candidate_name": "Pollo pechuga", "baseline_score": 0.81, "label": 0}
+{"notification_id": 6, "source": "llm", "description": "NATA 35% MG 1L", "candidate_name": "Nata para cocinar 35%", "baseline_score": 0.9, "label": 1}
+{"notification_id": 7, "source": "fuzzy", "description": "CEBOLLA BLANCA SACO 10KG", "candidate_name": "Cebolla morada", "baseline_score": 0.71, "label": 0}
+{"notification_id": 8, "source": "fuzzy", "description": "PATATA AGRIA 25KG", "candidate_name": "Patata agria", "baseline_score": 0.93, "label": 1}
