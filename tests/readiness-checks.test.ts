@@ -5,8 +5,8 @@
  * and the web env rows. Each takes data in and returns a HealthCheck, so the
  * thresholds are pinned here without a database.
  */
-import { describe, it, expect } from 'vitest';
-import { describeDbRole, dbRoleDetail } from '../src/lib/server/db-role';
+import { describe, it, expect, vi } from 'vitest';
+import { assertScopedDbRole, describeDbRole, dbRoleDetail } from '../src/lib/server/db-role';
 import {
 	dbRoleCheck, envChecks, extractionStatsCheck, formatSeconds, jobFailureCheck, migrationCheck,
 	percent, probeCheck, queueDepthDetail, stripeWebhookCheck, whatsAppTransportCheck, workerDetail, workerEnvCheck,
@@ -33,6 +33,32 @@ describe('DB role', () => {
 		const scoped = describeDbRole({ role: 'mep_runtime', superuser: false, bypassRls: false, tableOwner: 'postgres' });
 		expect(dbRoleCheck(scoped)).toMatchObject({ status: 'ok', detail: 'mep_runtime · not table owner (postgres) · RLS active' });
 		expect(dbRoleCheck(describeDbRole({ role: '', superuser: false, bypassRls: false, tableOwner: null })).status).toBe('warn');
+	});
+
+	it('is an error, not a warning, when production runs unscoped (#1272)', () => {
+		const owner = describeDbRole({ role: 'postgres', superuser: true, bypassRls: false, tableOwner: 'postgres' });
+		const scoped = describeDbRole({ role: 'mep_runtime', superuser: false, bypassRls: false, tableOwner: 'postgres' });
+		expect(dbRoleCheck(owner, true).status).toBe('error');
+		expect(dbRoleCheck(scoped, true).status).toBe('ok');
+	});
+});
+
+describe('assertScopedDbRole', () => {
+	const owner = describeDbRole({ role: 'postgres', superuser: true, bypassRls: false, tableOwner: 'postgres' });
+	const scoped = describeDbRole({ role: 'mep_runtime', superuser: false, bypassRls: false, tableOwner: 'postgres' });
+
+	it('throws in production when the connection role is unscoped', async () => {
+		await expect(assertScopedDbRole({ NODE_ENV: 'production' }, async () => owner)).rejects.toThrow(/postgres/);
+	});
+
+	it('passes in production on mep_runtime', async () => {
+		await expect(assertScopedDbRole({ NODE_ENV: 'production' }, async () => scoped)).resolves.toBeUndefined();
+	});
+
+	it('does not read the role outside production', async () => {
+		const read = vi.fn(async () => owner);
+		await expect(assertScopedDbRole({ NODE_ENV: 'development' }, read)).resolves.toBeUndefined();
+		expect(read).not.toHaveBeenCalled();
 	});
 });
 

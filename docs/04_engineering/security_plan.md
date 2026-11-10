@@ -631,9 +631,9 @@ signup y reset.
   (`src/lib/server/public-form-action.ts`): resuelve la IP, aplica reglas de
   `checkRateLimit`, devuelve `fail(429, 'rate_limited')` y emite eventos
   `login_rate_limited` / `signup_rate_limited` con **IP hasheada** (punto 20).
-- `checkRateLimit` (`rate-limiter.ts`) usa **Upstash Redis sliding window**
-  cuando hay credenciales (correcto para multi-réplica) y cae a un token
-  bucket en memoria si no (aviso ruidoso en logs).
+- `checkRateLimit` (`rate-limiter.ts`) usa un **token bucket en memoria**,
+  por proceso (válido con 1 réplica; hace falta un almacén compartido antes
+  de escalar web a más de 1).
 - **Condición:** en producción tras el proxy de Railway hay que fijar
   `ADDRESS_HEADER=x-forwarded-for` y `XFF_DEPTH=1` — `hooks.server.ts:52` ya
   avisa si falta; sin ello todos los clientes comparten un solo bucket de IP.
@@ -943,10 +943,10 @@ curl -s -o /dev/null -w "%{http_code}" https://<dominio>/api/upload/1/x.pdf  # s
 - **Por ruta: excelente.** Más de 25 endpoints ya limitados con
   `checkRateLimit` y presupuestos ajustados al coste real: chat LLM
   (`CHAT_RATE_LIMIT_RPM`), export de cuenta (5/min), borrado (3/min), uploads
-  (10/min), APIs de lectura (60/min)… Backend Upstash → válido multi-réplica.
+  (10/min), APIs de lectura (60/min)… Limiter en memoria → válido con 1 réplica.
 - Los endpoints más caros del sistema (extracción con Gemini) tienen además
-  un **semáforo distribuido** (`acquireExtractionSlot`, lease en Redis) que
-  capa la concurrencia global.
+  la concurrencia acotada por el `batchSize` del worker
+  (`MAX_CONCURRENT_EXTRACTIONS`, 1 instancia de worker).
 - **Backstop global** en `hooks.server.ts`: toda ruta `/api/*` (salvo
   `/api/health` y los webhooks firmados de Stripe/WhatsApp) pasa por
   `checkRateLimit('api-global:<sujeto>')` — sujeto = id de usuario

@@ -68,7 +68,7 @@ describe('every queue backs off between retries', () => {
 
 	it('account-cleanup', async () => {
 		await enqueueAccountCleanup('user-1', 'rest-1', ['sub-1'], ['key-1']);
-		expect(optionsOf()).toEqual(expect.objectContaining({ retryBackoff: true, retryDelayMax: 900 }));
+		expect(optionsOf()).toEqual(expect.objectContaining({ retryBackoff: true, retryDelayMax: 3600 }));
 	});
 });
 

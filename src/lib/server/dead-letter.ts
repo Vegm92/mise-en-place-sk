@@ -238,7 +238,7 @@ export function deadLetterRefFromJob(
 	const data = (job.data ?? {}) as Record<string, unknown>;
 	const restaurantId = typeof data.restaurantId === 'string' ? data.restaurantId : null;
 	const productId = firstString(data.productId);
-	const sourceId = firstString(data.itemId, data.sessionId)
+	const sourceId = firstString(data.itemId, data.userId, data.sessionId)
 		?? (restaurantId && productId ? `${restaurantId}:${productId}` : productId);
 	const retryCount = job.retryCount ?? 0;
 	const retryLimit = job.retryLimit ?? 0;
@@ -258,7 +258,7 @@ export async function runWithDeadLetter<T>(
 	run: () => Promise<T>,
 ): Promise<T> {
 	try {
-		return await runWithTenantContext(ref.restaurantId, run);
+		return await (ref.restaurantId ? runWithTenantContext(ref.restaurantId, run) : run());
 	} catch (err) {
 		if ((ref.retriesLeft ?? 0) > 0) throw err;
 		log.error('job dead-lettered', {

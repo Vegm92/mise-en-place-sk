@@ -24,7 +24,8 @@ import { isRedirect } from '@sveltejs/kit';
 
 import { testDb, testSql, hasDbEnv } from './helpers/test-db';
 import { useTestRestaurant } from './helpers/test-restaurant';
-import { saveReviewedInvoice, computeFormContentHash, findInvalidMonetaryField } from '../src/lib/server/invoice-save';
+import { saveReviewedInvoice } from '../src/lib/server/invoice-save';
+import { computeFormContentHash, findInvalidMonetaryField } from '../src/lib/server/invoice-form';
 import { computeInvoiceContentHash } from '../src/lib/server/dedup';
 import { createBatchStore } from '../src/lib/server/batch';
 import type { BatchItem } from '../src/lib/server/batch';

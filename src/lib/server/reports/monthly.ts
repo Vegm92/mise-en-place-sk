@@ -3,6 +3,7 @@ import { sql } from 'drizzle-orm';
 import { moneyToNumber } from '$lib/server/money';
 import { categoryColor } from '$lib/colors';
 import { shiftMonth } from '$lib/formatters';
+import { UNCATEGORIZED_CATEGORY } from '$lib/constants';
 import { describedLine, lineAmountExpr, lineCategoryExpr, lineProductJoin } from '../category-spend';
 import type { Cell, ReportDoc } from '$lib/reports';
 import {
@@ -69,6 +70,8 @@ export async function buildMonthly(rid: string, month: string, now: Date): Promi
 	const totalPrev = [...previous.values()].reduce((s, v) => s + v, 0);
 	const totalBudget = categories.reduce((s, c) => s + c.budget, 0);
 	const overBudget = categories.filter((c) => c.budget > 0 && c.spend > c.budget).length;
+	const uncategorizedSpend = current.get(UNCATEGORIZED_CATEGORY) ?? 0;
+	const uncategorizedShare = totalSpend > 0 ? (uncategorizedSpend / totalSpend) * 100 : 0;
 	const maxSpend = Math.max(...categories.map((c) => c.spend), 0) || 1;
 	const monthDelta = pctDelta(totalSpend, totalPrev);
 	const variance = totalSpend - totalBudget;
@@ -114,6 +117,7 @@ export async function buildMonthly(rid: string, month: string, now: Date): Promi
 			{ label: 'rep.kpi.budget', value: totalBudget ? money(totalBudget) : '—', note: totalBudget ? null : 'rep.kpi.noBudget', tone: null },
 			{ label: 'rep.kpi.variance', value: totalBudget ? money(variance) : '—', note: null, tone: varianceTone },
 			{ label: 'rep.kpi.overBudget', value: String(overBudget), note: 'rep.kpi.overBudgetNote', tone: overBudget > 0 ? 'warn' : null },
+			{ label: 'rep.kpi.uncategorized', value: fmtPlainPct(uncategorizedShare), note: 'rep.kpi.uncategorizedNote', tone: uncategorizedSpend > 0 ? 'warn' : null },
 		],
 		summary: null,
 		chartTitle: 'rep.chart.spendByCategory',

@@ -16,7 +16,7 @@ ones. Verify against `package.json` before assuming (dependencies evolve).
 - `drizzle-orm`, `postgres` (postgres.js driver)
 - `@google/genai` (Gemini) — **never** revert to deprecated
   `@google/generative-ai`
-- `pg-boss` (worker queues), `ioredis` (Upstash) optional, `@upstash/redis`
+- `pg-boss` (worker queues)
 - `stripe`, `resend`, `whatsapp` (Meta Cloud API client), `@sentry/sveltekit`
 - `aws-sdk` S3/S3Control (Railway Buckets driver, ADR-016)
 - `valibot` (issue #844) — Standard Schema v1 validator for the public/

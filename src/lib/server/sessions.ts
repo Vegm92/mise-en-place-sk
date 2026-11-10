@@ -10,7 +10,7 @@ import {
 	MIN_FILE_BYTES,
 	type RejectReason,
 } from './file-validation';
-import { extractZip } from './zip-extract';
+import { countZipFiles, extractZip } from './zip-extract';
 
 export { ALLOWED_EXTENSIONS, MAGIC_BYTES };
 
@@ -91,6 +91,18 @@ async function saveZipEntries(
 		const result = await saveEntry(entry.name, entry.buffer.length, entry.buffer, namespace, storage);
 		collectSaveResult(result, saved, keys, errors, file.name);
 	}
+}
+
+export async function countUploadItems(files: File[]): Promise<number> {
+	let total = 0;
+	for (const file of files) {
+		if (path.extname(file.name).toLowerCase() !== '.zip') {
+			total += 1;
+		} else if (file.size <= MAX_ZIP_BYTES) {
+			total += await countZipFiles(Buffer.from(await file.arrayBuffer()));
+		}
+	}
+	return total;
 }
 
 export async function saveUploadedFiles(

@@ -6,24 +6,30 @@ import {
 	DEAD_LETTER_QUEUES,
 	createQueuesWithDeadLetters,
 } from './lib/server/queue.js';
-import { EXTRACTION_QUEUE } from './lib/server/contracts/extraction-contract.js';
-import { NORMALIZE_QUEUE, CATEGORIZE_QUEUE } from './lib/server/contracts/products-contract.js';
+import { EXTRACTION_QUEUE, type ExtractionJobData, type LegacyExtractionJobData } from './lib/server/contracts/extraction-contract.js';
+import {
+	NORMALIZE_QUEUE,
+	CATEGORIZE_QUEUE,
+	type CategorizeJobData,
+	type NormalizeJobData,
+} from './lib/server/contracts/products-contract.js';
 import {
 	WHATSAPP_NOTIFY_QUEUE,
 	WHATSAPP_INBOUND_QUEUE,
 	type WhatsAppInboundJobData,
+	type WhatsAppNotifyJobData,
 } from './lib/server/contracts/whatsapp-contract.js';
-import { ACCOUNT_CLEANUP_QUEUE } from './lib/server/contracts/account-cleanup-contract.js';
-import { pgSslConfig } from './lib/server/db-ssl.js';
-import { runExtractionJobForBoss, type ExtractionJobData } from './lib/server/extraction-worker.js';
 import {
-	processCategorizeJob,
-	processNormalizeJob,
-	type CategorizeJobData,
-	type NormalizeJobData,
-} from './lib/server/products.js';
-import { processAccountCleanupJob, type AccountCleanupJobData } from './lib/server/account-cleanup.js';
+	ACCOUNT_CLEANUP_QUEUE,
+	type AccountCleanupJobData,
+	type LegacyAccountCleanupJobData,
+} from './lib/server/contracts/account-cleanup-contract.js';
+import { pgSslConfig } from './lib/server/db-ssl.js';
+import { runExtractionJobForBoss } from './lib/server/extraction-worker.js';
+import { processCategorizeJob, processNormalizeJob } from './lib/server/products.js';
+import { processAccountCleanupJob } from './lib/server/account-cleanup.js';
 import { registerScheduledJobs } from './lib/server/scheduler.js';
+import { alertOnDeadLetter } from './lib/server/dead-letter-health.js';
 import { deadLetterRefFromJob, recordDeadLetter, runWithDeadLetter } from './lib/server/dead-letter.js';
 import { assertRoleConfig } from './lib/server/config.js';
 import { MAX_CONCURRENT_EXTRACTIONS } from './lib/server/env.js';
@@ -32,7 +38,7 @@ import { recordWorkerHeartbeat, startWorkerHeartbeat } from './lib/server/worker
 import { handleInboundMessage } from './lib/server/integrations/whatsapp/message-handler.js';
 import { newRequestId } from './lib/server/request-id.js';
 import { handleWhatsAppMessage } from './lib/server/whatsapp-bot.js';
-import { notifyWhatsAppSender, type WhatsAppNotifyJobData } from './lib/server/integrations/whatsapp/notify.js';
+import { notifyWhatsAppSender } from './lib/server/integrations/whatsapp/notify.js';
 import { startWhatsAppTransport } from './lib/server/integrations/whatsapp/runtime.js';
 import type { WhatsAppTransport } from './lib/server/integrations/whatsapp/transport.js';
 
@@ -90,7 +96,7 @@ const EXTRACTION_BATCH_SIZE = Math.max(1, MAX_CONCURRENT_EXTRACTIONS);
 await boss.work(
 	EXTRACTION_QUEUE,
 	{ batchSize: EXTRACTION_BATCH_SIZE, includeMetadata: true, perJobResults: true },
-	async (jobs: JobWithMetadata<ExtractionJobData>[]) => {
+	async (jobs: JobWithMetadata<ExtractionJobData | LegacyExtractionJobData>[]) => {
 		const results = await Promise.all(jobs.map((job) => runExtractionJobForBoss(job)));
 		await recordWorkerHeartbeat(jobs.length);
 		return results;
@@ -135,7 +141,7 @@ log.info('Listening for queue jobs', { queue: CATEGORIZE_QUEUE });
 await boss.work(
 	ACCOUNT_CLEANUP_QUEUE,
 	{ batchSize: 1, includeMetadata: true },
-	async (jobs: JobWithMetadata<AccountCleanupJobData>[]) => {
+	async (jobs: JobWithMetadata<AccountCleanupJobData | LegacyAccountCleanupJobData>[]) => {
 		for (const job of jobs) {
 			await runWithDeadLetter(
 				deadLetterRefFromJob(ACCOUNT_CLEANUP_QUEUE, job),
@@ -197,6 +203,7 @@ for (const { source, deadLetter } of DEAD_LETTER_QUEUES) {
 					error: new Error(`pg-boss dead-lettered a "${source}" job without a handler result (expired or abandoned)`),
 					skipIfJobRecorded: true,
 				});
+				await alertOnDeadLetter(source);
 			}
 		},
 	);

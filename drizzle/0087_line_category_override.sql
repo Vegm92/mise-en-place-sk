@@ -1,0 +1,1 @@
+ALTER TABLE "invoice_line_items" ADD COLUMN "category_override" text;

@@ -30,9 +30,12 @@ import {
 import { getAccessState } from './billing.js';
 import { isLocationLocked } from './locations.js';
 import { deadLetterRefFromJob, recordDeadLetter, runWithDeadLetter } from './dead-letter.js';
-import { EXTRACTION_QUEUE } from './contracts/extraction-contract.js';
+import {
+	EXTRACTION_QUEUE,
+	type LegacyExtractionJobData,
+} from './contracts/extraction-contract.js';
 import { enqueueExtraction, enqueueWhatsAppNotify } from './queue.js';
-import { acquireExtractionSlot, ExtractionSlotUnavailableError } from './rate-limiter.js';
+import { whatsappBotEnabled } from './integrations/whatsapp/whatsapp-config.js';
 import { createLogger } from './log.js';
 import { detectTotalMismatch, type TaxBand } from '$lib/tax';
 import type { SaveOutcome } from './invoice-save.js';
@@ -43,29 +46,24 @@ const batchState = { getItem, getBatchItems, addItems, markQueued, markExtractin
 const segmentation = { isSegmentableDocument, segmentDocument };
 const quotaGate = { checkExtractionQuota, claimMonthlyExtraction, releaseMonthlyExtraction, reserveMonthlyExtractions, attributeReservation, recordLlmUsage };
 const geminiExtraction = { extractInvoice, extractWithProvider };
+const corpusGate = { recordExtractionResult };
 const deadLetterGate = { recordDeadLetter, runWithDeadLetter, deadLetterRefFromJob };
 
 export type InvoicePersistenceOutcome = SaveOutcome;
 
 export const productFollowUp = annotateLineItems;
 
-export interface ExtractionJobData {
-	itemId?: string;
-	sessionId?: string;
-	restaurantId: string;
-	requestId?: string;
-	storageFingerprint?: string;
-}
+const ARCHIVE_ATTEMPTS = 3;
 
 const DEGRADATION_ERRORS = new Set([
 	'extract.err.rateLimited',
 	'extract.err.unavailable',
 	'extract.err.timeout',
-	'extract.err.tooMany',
 ]);
 
 async function notifyWhatsAppIfSource(item: BatchItem, restaurantId: string, requestId?: string): Promise<void> {
 	if (item.source !== 'whatsapp') return;
+	if (!(await whatsappBotEnabled())) return;
 	await enqueueWhatsAppNotify(item.id, restaurantId, requestId)
 		.catch((e) => log.error('whatsapp notify enqueue failed', { itemId: item.id, restaurantId, requestId, err: e }));
 }
@@ -75,7 +73,6 @@ function classifyExtractionError(err: unknown): string {
 	const message = (err as { message?: string }).message ?? '';
 	const code = (err as { code?: string }).code;
 	const name = (err as { name?: string }).name;
-	if (err instanceof ExtractionSlotUnavailableError) return 'extract.err.tooMany';
 	if (status === 429) return 'extract.err.rateLimited';
 	if (status === 503) return 'extract.err.unavailable';
 	if (
@@ -166,26 +163,39 @@ async function archiveExtraction(
 	filePath: string,
 	model: string | null,
 	extractedData: Record<string, unknown>,
+	rawOutput: Record<string, unknown>,
 	conversionNotes: string[],
 ): Promise<void> {
 	const isXml = path.extname(filePath).toLowerCase() === '.xml';
-	try {
-		await recordExtractionResult({
-			restaurantId,
-			batchItemId: item.id,
-			fileKey: item.fileKey,
-			displayName: item.displayName,
-			source: item.source,
-			runKind: 'live',
-			promptVersion: isXml ? EINVOICE_PARSER_VERSION : EXTRACTION_PROMPT_VERSION,
-			pipelineVersion: isXml ? null : getPipelineVersion(),
-			model,
-			extractedData,
-			conversionNotes,
-		});
-	} catch (err) {
-		log.error('extraction corpus write failed (continuing)', { itemId: item.id, restaurantId, err });
+	const input = {
+		restaurantId,
+		batchItemId: item.id,
+		fileKey: item.fileKey,
+		displayName: item.displayName,
+		source: item.source,
+		runKind: 'live' as const,
+		promptVersion: isXml ? EINVOICE_PARSER_VERSION : EXTRACTION_PROMPT_VERSION,
+		pipelineVersion: isXml ? null : getPipelineVersion(),
+		model,
+		extractedData,
+		rawOutput,
+		conversionNotes,
+	};
+	let lastError: unknown;
+	for (let attempt = 1; attempt <= ARCHIVE_ATTEMPTS; attempt++) {
+		try {
+			await corpusGate.recordExtractionResult(input);
+			return;
+		} catch (err) {
+			lastError = err;
+			log.warn('extraction corpus write failed', { itemId: item.id, restaurantId, attempt, err });
+		}
 	}
+	log.error('extraction corpus write failed for good', { itemId: item.id, restaurantId, err: lastError });
+	Sentry.captureMessage('extraction.archive_failed', {
+		level: 'warning',
+		tags: { itemId: item.id, restaurantId },
+	});
 }
 
 async function inspectDocumentStructure(
@@ -259,7 +269,6 @@ async function routeCompositeDocument(
 ): Promise<ExtractionRoute> {
 	if (!segmentation.isSegmentableDocument(item.fileKey)) return { action: 'extract' };
 
-	const slot = await acquireExtractionSlot();
 	try {
 		return asRoute(
 			await inspectDocumentStructure(item, filePath, restaurantId, claimedMonthlySlot, generateOverride, requestId),
@@ -268,8 +277,6 @@ async function routeCompositeDocument(
 		if (DEGRADATION_ERRORS.has(classifyExtractionError(err))) throw err;
 		log.warn('Structure detection failed — extracting as one document', { itemId: item.id, restaurantId, requestId, err });
 		return { action: 'extract' };
-	} finally {
-		await slot.release();
 	}
 }
 
@@ -280,7 +287,7 @@ function removeTmpFile(tmpPath: string): void {
 export type ExtractionOutcome = 'completed' | 'failed';
 
 export async function runExtractionWorkflow(
-	jobData: ExtractionJobData,
+	jobData: LegacyExtractionJobData,
 	generateOverride?: GenerateFn,
 	retryInfo?: { retryCount: number; retryLimit: number },
 ): Promise<ExtractionOutcome> {
@@ -383,20 +390,17 @@ export async function runExtractionWorkflow(
 
 		let result;
 		let model: string | null = null;
-		const slot = await acquireExtractionSlot();
-		try {
-			if (generateOverride) {
-				const invoice = await geminiExtraction.extractInvoice(filePath, generateOverride);
-				result = invoice;
-			} else {
-				const { invoice, usage } = await geminiExtraction.extractWithProvider(filePath);
-				result = invoice;
-				model = usage.model;
-				await quotaGate.recordLlmUsage(restaurantId, usage, 'extraction-worker');
-			}
-		} finally {
-			await slot.release();
+		if (generateOverride) {
+			const invoice = await geminiExtraction.extractInvoice(filePath, generateOverride);
+			result = invoice;
+		} else {
+			const { invoice, usage } = await geminiExtraction.extractWithProvider(filePath);
+			result = invoice;
+			model = usage.model;
+			await quotaGate.recordLlmUsage(restaurantId, usage, 'extraction-worker');
 		}
+
+		const rawOutput: Record<string, unknown> = { ...structuredClone(result) };
 
 		const parties = resolveInvoiceParties(result, await ownPartyIdentity(restaurantId));
 		result = parties.invoice;
@@ -447,7 +451,7 @@ export async function runExtractionWorkflow(
 		};
 
 		await batchState.markDone(itemId, extractedData, conversionNotes);
-		await archiveExtraction(item, restaurantId, filePath, model, extractedData, conversionNotes);
+		await archiveExtraction(item, restaurantId, filePath, model, extractedData, rawOutput, conversionNotes);
 		if (totalMismatch) {
 			log.warn('Total mismatch detected (lines + tax vs. extracted total)', { itemId, restaurantId, requestId });
 		}
@@ -472,7 +476,7 @@ export async function runExtractionWorkflow(
 
 export async function runExtractionJobForBoss(job: {
 	id: string;
-	data: ExtractionJobData;
+	data: LegacyExtractionJobData;
 	retryCount?: number | null;
 	retryLimit?: number | null;
 }): Promise<{ id: string; status: 'completed' | 'failed' | 'deadletter' }> {

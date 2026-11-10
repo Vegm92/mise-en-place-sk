@@ -259,6 +259,34 @@ describe.skipIf(!hasDbEnv)('/invoices/export/download — issue #883 taxable bas
 		await cleanupTestRestaurant(other.id);
 	});
 
+	it('RULE-361: a soft-deleted invoice is left out, with and without ids', async () => {
+		const live = await insertInvoice({ invoiceNumber: 'INV-361-LIVE' });
+		const gone = await insertInvoice({ invoiceNumber: 'INV-361-GONE' });
+		await testSql`UPDATE invoices SET deleted_at = now() WHERE id = ${gone}`;
+
+		const byIds = await parseSheet(await runGet(`?ids=${live},${gone}`));
+		expect(byIds.rowCount).toBe(2);
+		expect(byIds.getRow(2).getCell(3).value).toBe('INV-361-LIVE');
+
+		const listing = await parseSheet(await runGet(''));
+		const numbers: unknown[] = [];
+		listing.eachRow((row) => numbers.push(row.getCell(3).value));
+		expect(numbers).toContain('INV-361-LIVE');
+		expect(numbers).not.toContain('INV-361-GONE');
+	});
+
+	it('RULE-361: the plain listing never includes invoices of another tenant', async () => {
+		const other = await createTestRestaurant('export361-other');
+		await testSql`INSERT INTO invoices (restaurant_id, invoice_number, status) VALUES (${other.id}, 'INV-361-FOREIGN', 'pending')`;
+
+		const listing = await parseSheet(await runGet(''));
+		const numbers: unknown[] = [];
+		listing.eachRow((row) => numbers.push(row.getCell(3).value));
+		expect(numbers).not.toContain('INV-361-FOREIGN');
+
+		await cleanupTestRestaurant(other.id);
+	});
+
 	it('rejects a non-numeric ids entry with 400', async () => {
 		expect(await statusOf(runGet('?ids=1,abc'))).toBe(400);
 	});

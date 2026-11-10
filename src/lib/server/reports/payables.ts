@@ -44,7 +44,7 @@ export async function buildPayables(rid: string, today: string, now: Date): Prom
 		WHERE i.restaurant_id = ${rid}
 		  AND i.deleted_at IS NULL
 		  AND i.due_date IS NOT NULL
-		  AND i.status <> 'paid'
+		  AND i.status IS DISTINCT FROM 'paid'
 		ORDER BY i.due_date ASC
 	`);
 

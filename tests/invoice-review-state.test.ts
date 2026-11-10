@@ -13,7 +13,7 @@
  * numbers happen to reconcile on their own.
  */
 import { describe, it, expect } from 'vitest';
-import { detectTotalMismatch, resolveReviewState, type LineFormInput } from '../src/lib/server/invoice-save';
+import { detectTotalMismatch, resolveReviewState, type LineFormInput } from '../src/lib/server/invoice-form';
 import { incidenceReasons } from '../src/lib/status';
 
 function line(totalPriceVal: number | null): LineFormInput {

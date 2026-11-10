@@ -336,7 +336,7 @@ export const actions: Actions = {
 	discardItem: async ({ params, request, locals }) => {
 		const { item } = await resolveFormItem(params.id, locals, request);
 		if (item) {
-			trackEvent('extraction_discarded', item.restaurantId, { files: [item.displayName] });
+			await trackEvent('extraction_discarded', item.restaurantId, { files: [item.displayName] });
 			await getStorage().delete(item.fileKey);
 			await markDiscarded(item.id, 'user_rejected');
 			await refundIfNeverExtracted(item, 'discarded');
@@ -348,7 +348,7 @@ export const actions: Actions = {
 	discardBatch: async ({ params, locals }) => {
 		const items = await requireOwnedBatch(params.id, locals);
 		const rid = locals.restaurantId!;
-		trackEvent('extraction_discarded', rid, { files: items.map(i => i.displayName) });
+		await trackEvent('extraction_discarded', rid, { files: items.map(i => i.displayName) });
 		for (const i of items) {
 			if (i.status !== 'confirmed') await deleteUploadFile(i.fileKey);
 			await refundIfNeverExtracted(i, 'discarded');

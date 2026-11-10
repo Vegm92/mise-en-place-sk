@@ -1,4 +1,4 @@
-import { Type, type Schema } from '@google/genai';
+import { Type, type Schema } from './llm-provider';
 import { parseJsonResponse } from './llm-json';
 import type { GenerateFn } from './extract';
 import { pdfPageCount, pdfPageTexts, type PageRange } from './pdf-pages';

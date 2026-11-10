@@ -15,10 +15,12 @@ import { TENANT_FANOUT_QUEUES } from './tenant-notification-jobs';
 import { lastJobRuns, type JobRunSummary } from './tenant-fanout';
 import { readWorkerHeartbeat, workerLiveness, type WorkerLiveness } from './worker-heartbeat';
 import { dbRoleDetail, readDbRole, type DbRoleInfo } from './db-role';
+import { isProduction } from './config';
 import { describeMigrationState, migrationState, type MigrationState } from './migration-state';
 import { envGaps, type EnvGaps } from './env-report';
 import {
 	extractionQueueDepth, extractionStats, jobFailureStats, pendingAccessCount, reviewBacklog, stripeWebhookFreshness,
+	unarchivedExtractions,
 	type ExtractionStats, type JobFailureStats, type QueueDepth, type ReviewBacklog, type StripeWebhookFreshness,
 } from './pipeline-stats';
 import { probeGemini, probeResend, probeStripe, probeWhatsAppCloud, type ProbeResult } from './external-probes';
@@ -152,10 +154,10 @@ async function checkDatabase(): Promise<{ checks: HealthCheck[]; ok: boolean }> 
 	}
 }
 
-export function dbRoleCheck(info: DbRoleInfo): HealthCheck {
+export function dbRoleCheck(info: DbRoleInfo, production: boolean = isProduction()): HealthCheck {
 	return {
 		name: 'DB role',
-		status: !info.role ? 'warn' : info.scoped ? 'ok' : 'warn',
+		status: !info.role ? 'warn' : info.scoped ? 'ok' : production ? 'error' : 'warn',
 		detail: dbRoleDetail(info),
 	};
 }
@@ -393,10 +395,20 @@ export function extractionStatsCheck(stats: ExtractionStats): HealthCheck {
 	return { name: `Extraction ${stats.windowHours}h`, status, detail };
 }
 
+export function archiveGapCheck(missing: number): HealthCheck {
+	return {
+		name: 'Extraction archive',
+		status: missing > 0 ? 'warn' : 'ok',
+		detail: missing > 0
+			? `${missing} extracted document(s) from the last 24 h have no archive entry — the archive write kept failing`
+			: 'Every document extracted in the last 24 h is archived',
+	};
+}
+
 async function checkExtractionStats(): Promise<{ checks: HealthCheck[]; extraction: ExtractionStats | null }> {
 	try {
-		const extraction = await extractionStats();
-		return { extraction, checks: [extractionStatsCheck(extraction)] };
+		const [extraction, missing] = await Promise.all([extractionStats(), unarchivedExtractions()]);
+		return { extraction, checks: [extractionStatsCheck(extraction), archiveGapCheck(missing)] };
 	} catch (e) {
 		return { extraction: null, checks: [failedCheck('Extraction 24h', e)] };
 	}

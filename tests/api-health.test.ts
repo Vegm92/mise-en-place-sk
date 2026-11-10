@@ -5,7 +5,7 @@
  *
  * These pin the new contract: the public response is `{ status }` and
  * nothing else, a DB outage flips it to 503 `degraded`, the full detail
- * (db/worker/uploads_dir/sessions/extraction_semaphore/uptime_seconds/version)
+ * (db/worker/uploads_dir/sessions/uptime_seconds/version)
  * requires an admin session or a valid `X-Health-Token`, and the endpoint is
  * rate-limited.
  *
@@ -32,7 +32,6 @@ vi.mock('$lib/server/db', () => ({
 }));
 vi.mock('$lib/server/rate-limiter', () => ({
 	checkRateLimit: rateLimitMock,
-	getExtractionSemaphoreStatus: vi.fn().mockReturnValue({ active: 1, waiting: 0 }),
 }));
 vi.mock('$lib/server/admin', () => ({ isAdminUser: isAdminUserMock }));
 vi.mock('$lib/server/worker-heartbeat', () => ({
@@ -79,7 +78,6 @@ function healthEvent(opts: HealthEventOpts = {}) {
 
 const DETAIL_KEYS = [
 	'db',
-	'extraction_semaphore',
 	'sessions',
 	'status',
 	'uploads_dir',
@@ -141,7 +139,6 @@ describe('#491 — detailed health requires admin auth or a token', () => {
 		expect(Object.keys(body).sort()).toEqual(DETAIL_KEYS);
 		expect(body.db).toEqual({ reachable: true, size_mb: 1 });
 		expect(body.sessions).toEqual({ active_count: 3 });
-		expect(body.extraction_semaphore).toEqual({ active: 1, waiting: 0 });
 		expect(body.worker.pending).toBe(2);
 		expect(body.uploads_dir).toBeNull();
 		expect(typeof body.uptime_seconds).toBe('number');

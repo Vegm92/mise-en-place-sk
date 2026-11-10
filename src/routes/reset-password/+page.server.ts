@@ -51,7 +51,11 @@ export const actions: Actions = {
 
 			const passwordHash = await bcrypt.hash(password, 12);
 			const [user] = await db.update(users)
-				.set({ passwordHash, tokenVersion: sql`${users.tokenVersion} + 1` })
+				.set({
+					passwordHash,
+					tokenVersion: sql`${users.tokenVersion} + 1`,
+					emailVerified: sql`coalesce(${users.emailVerified}, now())`,
+				})
 				.where(eq(users.email, email))
 				.returning();
 			if (!user) return fail(400, { error: 'failed' });

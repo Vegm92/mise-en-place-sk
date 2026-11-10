@@ -72,3 +72,9 @@ export function createGeminiProvider() {
 		},
 	};
 }
+
+export async function describeGeminiModel(): Promise<string> {
+	const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+	const model = await ai.models.get({ model: GEMINI_MODEL });
+	return `${model.name ?? GEMINI_MODEL} reachable`;
+}

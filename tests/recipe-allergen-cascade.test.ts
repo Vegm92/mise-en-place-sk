@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import { hasDbEnv, testSql, createTestRestaurant, cleanupTestRestaurant, closeDb } from './helpers/test-db';
 import { applyExtractedAllergens } from '../src/lib/server/products';
-import { extractedAllergensByKey } from '../src/lib/server/invoice-save';
+import { extractedAllergensByKey } from '../src/lib/server/invoice-effects';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 

@@ -23,19 +23,31 @@
  * after the handler's callback finishes its work but before the underlying
  * COMMIT, exactly like a real failure surfacing at the last step. Skipped
  * without DATABASE_URL.
+ *
+ * Phase 5 (RULE-275) changes two of those guarantees on purpose. The cleanup
+ * job is now enqueued INSIDE the transaction, after the deletes and before the
+ * commit, so a failed enqueue rolls the whole deletion back instead of leaving
+ * a live Stripe subscription billing a deleted account. And a restaurant that
+ * still has other members is no longer just abandoned: the longest-standing
+ * remaining member becomes owner (emailed, audit-logged) and only restaurants
+ * with no other members are erased.
  */
 import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 
-const { rateLimitMock, verifyCredentialsMock, enqueueAccountCleanupMock, state } = vi.hoisted(() => ({
+const { rateLimitMock, verifyCredentialsMock, enqueueAccountCleanupMock, sendEmailMock, logAuthEventMock, state } = vi.hoisted(() => ({
 	rateLimitMock: vi.fn().mockResolvedValue(true),
 	verifyCredentialsMock: vi.fn(),
 	enqueueAccountCleanupMock: vi.fn().mockResolvedValue(true),
+	sendEmailMock: vi.fn().mockResolvedValue(undefined),
+	logAuthEventMock: vi.fn(),
 	state: { failMidTransaction: false },
 }));
 
 vi.mock('$lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock }));
 vi.mock('$lib/server/auth-credentials', () => ({ verifyCredentials: verifyCredentialsMock }));
 vi.mock('$lib/server/queue', () => ({ enqueueAccountCleanup: enqueueAccountCleanupMock }));
+vi.mock('$lib/server/email', async (importOriginal) => ({ ...(await importOriginal<object>()), sendEmail: sendEmailMock }));
+vi.mock('$lib/server/auth-events', () => ({ logAuthEvent: logAuthEventMock, hashIp: () => 'iphash' }));
 
 vi.mock('$lib/server/db', async () => {
 	const { testDb } = await import('./helpers/test-db');
@@ -83,8 +95,18 @@ async function makeRestaurant(suffix: string) {
 	return row!.id as string;
 }
 
-async function membership(userId: string, restaurantId: string, role: 'owner' | 'member' = 'owner') {
-	await testSql`INSERT INTO user_restaurants (user_id, restaurant_id, role) VALUES (${userId}, ${restaurantId}, ${role})`;
+async function membership(
+	userId: string, restaurantId: string, role: 'owner' | 'member' = 'owner', joinedAt: string | null = null,
+) {
+	await testSql`
+		INSERT INTO user_restaurants (user_id, restaurant_id, role, created_at)
+		VALUES (${userId}, ${restaurantId}, ${role}, coalesce(${joinedAt}::timestamptz, now()))
+	`;
+}
+
+async function roleOf(userId: string, restaurantId: string) {
+	const [row] = await testSql`SELECT role FROM user_restaurants WHERE user_id = ${userId} AND restaurant_id = ${restaurantId}`;
+	return (row?.role as string | undefined) ?? null;
 }
 
 async function setSubscription(restaurantId: string, stripeSubscriptionId: string) {
@@ -154,7 +176,9 @@ async function cleanupUserAndRestaurants(userId: string, restaurantIds: string[]
 beforeEach(() => {
 	rateLimitMock.mockClear().mockResolvedValue(true);
 	verifyCredentialsMock.mockReset();
-	enqueueAccountCleanupMock.mockClear().mockResolvedValue(true);
+	enqueueAccountCleanupMock.mockReset().mockResolvedValue(true);
+	sendEmailMock.mockReset().mockResolvedValue(undefined);
+	logAuthEventMock.mockClear();
 	state.failMidTransaction = false;
 });
 
@@ -220,7 +244,7 @@ describe.skipIf(!hasDbEnv)('POST /api/user/delete (issue #492)', () => {
 		await cleanupUserAndRestaurants(userId, [rid]);
 	});
 
-	it('a failure injected inside the transaction leaves no partial state and never attempts cleanup', async () => {
+	it('a failure injected at commit time leaves no partial state', async () => {
 		const { id: userId, email } = await makeUser('midtx', 'hashed:pw');
 		const rid = await makeRestaurant('midtx');
 		await membership(userId, rid, 'owner');
@@ -236,12 +260,11 @@ describe.skipIf(!hasDbEnv)('POST /api/user/delete (issue #492)', () => {
 		expect(await restaurantExists(rid)).toBe(true);
 		expect(await subscriptionExists(rid)).toBe(true);
 		expect(await membershipCount(userId)).toBe(1);
-		expect(enqueueAccountCleanupMock).not.toHaveBeenCalled();
 
 		await cleanupUserAndRestaurants(userId, [rid]);
 	});
 
-	it('success path: all rows gone, and cleanup is enqueued strictly after the commit (real DB read inside the mock)', async () => {
+	it('success path: all rows gone, and cleanup is enqueued inside the transaction, before the commit (real DB read inside the mock)', async () => {
 		const { id: userId, email } = await makeUser('success', 'hashed:pw');
 		const { rid, subId, fileKey } = await seedOwnedRestaurant(userId, 'success');
 		verifyCredentialsMock.mockResolvedValue({ id: userId, email, name: null, image: null });
@@ -257,10 +280,11 @@ describe.skipIf(!hasDbEnv)('POST /api/user/delete (issue #492)', () => {
 		expect(result).toMatchObject({ thrown: false, status: 200, json: { deleted: true } });
 		expect(await userExists(userId)).toBe(false);
 		expect(await restaurantExists(rid)).toBe(false);
-		expect(userStillPresentWhenEnqueued).toBe(false);
+		expect(userStillPresentWhenEnqueued).toBe(true);
 
 		expect(enqueueAccountCleanupMock).toHaveBeenCalledTimes(1);
 		expect(enqueueAccountCleanupMock).toHaveBeenCalledWith(userId, rid, [subId], [fileKey], undefined);
+		expect(sendEmailMock).not.toHaveBeenCalled();
 	});
 
 	it('does not enqueue cleanup when there is nothing to clean up (no subscription, no files)', async () => {
@@ -275,12 +299,15 @@ describe.skipIf(!hasDbEnv)('POST /api/user/delete (issue #492)', () => {
 		expect(enqueueAccountCleanupMock).not.toHaveBeenCalled();
 	});
 
-	it('a shared (not sole-owned) restaurant is left untouched — only the owner leaves', async () => {
-		const { id: ownerId, email: ownerEmail } = await makeUser('shared-owner', 'hashed:pw');
-		const { id: memberId } = await makeUser('shared-member', null);
-		const rid = await makeRestaurant('shared');
-		await membership(ownerId, rid, 'owner');
-		await membership(memberId, rid, 'member');
+	it('a restaurant with other members is kept and ownership passes to the longest-standing member, who is emailed and audit-logged (RULE-275)', async () => {
+		const { id: ownerId, email: ownerEmail } = await makeUser('xfer-owner', 'hashed:pw');
+		const { id: newerId } = await makeUser('xfer-newer', null);
+		const { id: olderId, email: olderEmail } = await makeUser('xfer-older', null);
+		const rid = await makeRestaurant('xfer');
+		await membership(ownerId, rid, 'owner', '2020-01-01T00:00:00Z');
+		await membership(newerId, rid, 'member', '2024-06-01T00:00:00Z');
+		await membership(olderId, rid, 'member', '2022-03-01T00:00:00Z');
+		await setSubscription(rid, `sub_xfer_${Date.now()}`);
 		verifyCredentialsMock.mockResolvedValue({ id: ownerId, email: ownerEmail, name: null, image: null });
 
 		const result = await runDelete(ownerId, ownerEmail, { password: 'correct-horse' });
@@ -288,11 +315,105 @@ describe.skipIf(!hasDbEnv)('POST /api/user/delete (issue #492)', () => {
 		expect(result).toMatchObject({ thrown: false, status: 200 });
 		expect(await userExists(ownerId)).toBe(false);
 		expect(await restaurantExists(rid)).toBe(true);
-		expect(await membershipCount(memberId)).toBe(1);
+		expect(await subscriptionExists(rid)).toBe(true);
+		expect(await roleOf(olderId, rid)).toBe('owner');
+		expect(await roleOf(newerId, rid)).toBe('member');
 		expect(enqueueAccountCleanupMock).not.toHaveBeenCalled();
+		expect(sendEmailMock).toHaveBeenCalledTimes(1);
+		expect(sendEmailMock.mock.calls[0]![0]).toMatchObject({ to: olderEmail, kind: 'ownership_transfer' });
+		expect(logAuthEventMock).toHaveBeenCalledWith('ownership_transferred', {
+			restaurantId: rid, fromUserId: ownerId, toUserId: olderId,
+		});
+
+		await testSql`DELETE FROM users WHERE id IN (${newerId}, ${olderId})`;
+		await testSql`DELETE FROM restaurants WHERE id = ${rid}`;
+	});
+
+	it('a restaurant that already has another owner is left alone: no transfer, no email', async () => {
+		const { id: ownerId, email: ownerEmail } = await makeUser('coowner-a', 'hashed:pw');
+		const { id: coOwnerId } = await makeUser('coowner-b', null);
+		const { id: memberId } = await makeUser('coowner-c', null);
+		const rid = await makeRestaurant('coowner');
+		await membership(ownerId, rid, 'owner', '2020-01-01T00:00:00Z');
+		await membership(memberId, rid, 'member', '2021-01-01T00:00:00Z');
+		await membership(coOwnerId, rid, 'owner', '2023-01-01T00:00:00Z');
+		verifyCredentialsMock.mockResolvedValue({ id: ownerId, email: ownerEmail, name: null, image: null });
+
+		const result = await runDelete(ownerId, ownerEmail, { password: 'correct-horse' });
+
+		expect(result).toMatchObject({ thrown: false, status: 200 });
+		expect(await restaurantExists(rid)).toBe(true);
+		expect(await roleOf(memberId, rid)).toBe('member');
+		expect(await roleOf(coOwnerId, rid)).toBe('owner');
+		expect(sendEmailMock).not.toHaveBeenCalled();
+		expect(logAuthEventMock).not.toHaveBeenCalled();
+
+		await testSql`DELETE FROM users WHERE id IN (${coOwnerId}, ${memberId})`;
+		await testSql`DELETE FROM restaurants WHERE id = ${rid}`;
+	});
+
+	it('with one shared and one sole-owned restaurant, only the sole-owned one is erased and cancelled', async () => {
+		const { id: ownerId, email: ownerEmail } = await makeUser('mix-owner', 'hashed:pw');
+		const { id: memberId } = await makeUser('mix-member', null);
+		const shared = await seedOwnedRestaurant(ownerId, 'mix-shared');
+		await membership(memberId, shared.rid, 'member');
+		const sole = await seedOwnedRestaurant(ownerId, 'mix-sole');
+		verifyCredentialsMock.mockResolvedValue({ id: ownerId, email: ownerEmail, name: null, image: null });
+
+		const result = await runDelete(ownerId, ownerEmail, { password: 'correct-horse' });
+
+		expect(result).toMatchObject({ thrown: false, status: 200 });
+		expect(await restaurantExists(shared.rid)).toBe(true);
+		expect(await restaurantExists(sole.rid)).toBe(false);
+		expect(await roleOf(memberId, shared.rid)).toBe('owner');
+		expect(enqueueAccountCleanupMock).toHaveBeenCalledTimes(1);
+		expect(enqueueAccountCleanupMock).toHaveBeenCalledWith(ownerId, sole.rid, [sole.subId], [sole.fileKey], undefined);
+
+		await testSql`DELETE FROM users WHERE id = ${memberId}`;
+		await testSql`DELETE FROM restaurants WHERE id = ${shared.rid}`;
+	});
+
+	it('an ownership-email failure does not undo the deletion', async () => {
+		const { id: ownerId, email: ownerEmail } = await makeUser('mailfail-owner', 'hashed:pw');
+		const { id: memberId } = await makeUser('mailfail-member', null);
+		const rid = await makeRestaurant('mailfail');
+		await membership(ownerId, rid, 'owner');
+		await membership(memberId, rid, 'member');
+		verifyCredentialsMock.mockResolvedValue({ id: ownerId, email: ownerEmail, name: null, image: null });
+		sendEmailMock.mockRejectedValueOnce(new Error('resend down'));
+
+		const result = await runDelete(ownerId, ownerEmail, { password: 'correct-horse' });
+
+		expect(result).toMatchObject({ thrown: false, status: 200, json: { deleted: true } });
+		expect(await userExists(ownerId)).toBe(false);
+		expect(await roleOf(memberId, rid)).toBe('owner');
 
 		await testSql`DELETE FROM users WHERE id = ${memberId}`;
 		await testSql`DELETE FROM restaurants WHERE id = ${rid}`;
+	});
+
+	it('a failed cleanup enqueue aborts the whole deletion: user, restaurant, subscription and ownership are untouched (RULE-275)', async () => {
+		const { id: ownerId, email: ownerEmail } = await makeUser('abort-owner', 'hashed:pw');
+		const { id: memberId } = await makeUser('abort-member', null);
+		const shared = await seedOwnedRestaurant(ownerId, 'abort-shared');
+		await membership(memberId, shared.rid, 'member');
+		const sole = await seedOwnedRestaurant(ownerId, 'abort-sole');
+		verifyCredentialsMock.mockResolvedValue({ id: ownerId, email: ownerEmail, name: null, image: null });
+		enqueueAccountCleanupMock.mockRejectedValue(new Error('queue down'));
+
+		const result = await runDelete(ownerId, ownerEmail, { password: 'correct-horse' });
+
+		expect(result.thrown).toBe(true);
+		expect(await userExists(ownerId)).toBe(true);
+		expect(await restaurantExists(sole.rid)).toBe(true);
+		expect(await subscriptionExists(sole.rid)).toBe(true);
+		expect(await roleOf(ownerId, shared.rid)).toBe('owner');
+		expect(await roleOf(memberId, shared.rid)).toBe('member');
+		expect(sendEmailMock).not.toHaveBeenCalled();
+		expect(logAuthEventMock).not.toHaveBeenCalled();
+
+		await testSql`DELETE FROM users WHERE id = ${memberId}`;
+		await cleanupUserAndRestaurants(ownerId, [shared.rid, sole.rid]);
 	});
 
 	it('deletes real rows across every FK depth of the shared tenant-data map — suppliers, chained invoice/line-item rows, chained chat rows, and subscriptions — without an FK-order violation (issue #390)', async () => {

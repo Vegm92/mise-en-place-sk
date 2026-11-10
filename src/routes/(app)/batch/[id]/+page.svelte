@@ -32,7 +32,7 @@
   } from '$lib/tax';
   import { t, ti, tp } from '$lib/i18n';
   import { PAYMENT_METHODS } from '$lib/constants';
-  import { moneyToNullableNumber } from '$lib/money';
+  import { moneyToNullableNumber, parseAmount } from '$lib/money';
   import {
     normalizeLine, fillMissingLineRates, docTypeStr, net30Suggestion, bandRowsFrom, priceStr,
     type LineItem, type ProductMatch, type BandRow,
@@ -532,13 +532,11 @@
 
   const lineTotal = $derived.by(() =>
     lineItems.reduce((s, item) => {
-      const n = parseFloat(String(item.total_price ?? ''));
-      return s + (isNaN(n) ? 0 : n);
+      return s + (parseAmount(item.total_price) ?? 0);
     }, 0)
   );
   const extractedTotal = $derived.by(() => {
-    const n = parseFloat(totalAmountInput);
-    return isNaN(n) ? 0 : n;
+    return parseAmount(totalAmountInput) ?? 0;
   });
   let taxBands = $state<BandRow[]>([]);
   let taxPanelOpen = $state(false);
@@ -596,8 +594,7 @@
   const discrepancy = $derived(Math.abs(totalCalc - extractedTotal));
   const hasDiscrepancy = $derived(discrepancy > 0.01 && extractedTotal > 0);
   const originalTotalNum = $derived.by(() => {
-    const n = parseFloat(originalTotal);
-    return isNaN(n) ? 0 : n;
+    return parseAmount(originalTotal) ?? 0;
   });
   const drift = $derived(totalCalc - originalTotalNum);
   const extractedDrift = $derived(originalTotalNum > 0 && Math.abs(drift) > 0.01);

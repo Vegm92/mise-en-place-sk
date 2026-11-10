@@ -1,6 +1,6 @@
 /**
  * Issue #536 — every alerts.ts writer (and its siblings in billing.ts,
- * products.ts, invoice-save.ts, whatsapp/jobs.ts) must never persist a raw
+ * products.ts, invoice-persist.ts, invoice-effects.ts, whatsapp/jobs.ts) must never persist a raw
  * `notificationType: value` machine string into `system_notifications.message`.
  * The message is now the Spanish-rendered i18n template, and payload always
  * carries the messageKey + messageVars the render-time resolver needs.
@@ -109,8 +109,8 @@ describe('writer source files — no reintroduced machine-enum message template 
 		] },
 		{ file: 'src/lib/server/billing.ts', forbidden: ['location(s) locked by the'] },
 		{ file: 'src/lib/server/products.ts', forbidden: ['`product_suggestion: '] },
-		{ file: 'src/lib/server/invoice-save.ts', forbidden: [
-			'`unit_conversion_needed: ',
+		{ file: 'src/lib/server/invoice-persist.ts', forbidden: ['`unit_conversion_needed: '] },
+		{ file: 'src/lib/server/invoice-effects.ts', forbidden: [
 			'`product_suggestion: ',
 			'`verifactu_qr_mismatch: ',
 		] },

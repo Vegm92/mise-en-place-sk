@@ -17,7 +17,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import { translations } from '../src/lib/i18n-messages';
 import { JsonShapeMismatchError } from '../src/lib/server/llm-json';
-import { ExtractionSlotUnavailableError } from '../src/lib/server/rate-limiter';
 
 const sentryMocks = vi.hoisted(() => ({
 	captureException: vi.fn(),
@@ -80,16 +79,6 @@ vi.mock('../src/lib/server/products.js', () => ({
 	})),
 }));
 
-const slotMocks = vi.hoisted(() => ({
-	acquireExtractionSlot: vi.fn(async () => ({ release: vi.fn() })),
-}));
-// importOriginal keeps ExtractionSlotUnavailableError identical to the class the
-// worker classifies against — a stand-in would fail its instanceof check.
-vi.mock('../src/lib/server/rate-limiter.js', async (importOriginal) => ({
-	...(await importOriginal<typeof import('../src/lib/server/rate-limiter.js')>()),
-	acquireExtractionSlot: slotMocks.acquireExtractionSlot,
-}));
-
 const deadLetterMocks = vi.hoisted(() => ({ recordDeadLetter: vi.fn() }));
 vi.mock('../src/lib/server/dead-letter.js', () => ({
 	recordDeadLetter: deadLetterMocks.recordDeadLetter,
@@ -137,12 +126,18 @@ const segmentationMocks = vi.hoisted(() => ({
 }));
 vi.mock('../src/lib/server/document-segmentation.js', () => segmentationMocks);
 
+const corpusMocks = vi.hoisted(() => ({ recordExtractionResult: vi.fn() }));
+vi.mock('../src/lib/server/extraction-corpus.js', () => corpusMocks);
+
 const queueMocks = vi.hoisted(() => ({
 	EXTRACTION_QUEUE: 'extract-invoice',
 	enqueueExtraction: vi.fn().mockResolvedValue(true),
 	enqueueWhatsAppNotify: vi.fn().mockResolvedValue(true),
 }));
 vi.mock('../src/lib/server/queue.js', () => queueMocks);
+
+const botMocks = vi.hoisted(() => ({ whatsappBotEnabled: vi.fn().mockResolvedValue(true) }));
+vi.mock('../src/lib/server/integrations/whatsapp/whatsapp-config.js', () => botMocks);
 
 const { processExtractionJob, runExtractionJobForBoss } = await import('../src/lib/server/extraction-worker');
 
@@ -158,6 +153,7 @@ beforeEach(() => {
 	quotaMocks.reserveMonthlyExtractions.mockResolvedValue({ reserved: true });
 	quotaMocks.attributeReservation.mockResolvedValue(undefined);
 	partyMocks.ownPartyIdentity.mockResolvedValue({ taxId: null, names: [] });
+	corpusMocks.recordExtractionResult.mockResolvedValue('archive-1');
 });
 
 describe('processExtractionJob retry policy (#482)', () => {
@@ -208,7 +204,6 @@ const ERROR_CLASSES = [
 	{ label: 'invalid JSON',        err: new Error('LLM returned invalid JSON'),                          key: 'extract.err.notInvoice',  transient: false },
 	{ label: 'JSON shape mismatch', err: new JsonShapeMismatchError('LLM response parsed as JSON but does not match the expected shape'), key: 'extract.err.malformedResult', transient: false },
 	{ label: 'an unclassed error',  err: new Error('boom'),                                               key: 'extract.err.generic',     transient: false },
-	{ label: 'no extraction slot',  err: new ExtractionSlotUnavailableError(300_000, 3),                   key: 'extract.err.tooMany',     transient: true  },
 ] as const;
 
 const job = { itemId: item.id, restaurantId: 'r1' };
@@ -251,46 +246,6 @@ describe('processExtractionJob — which failures earn a redelivery (#520)', () 
 		await runFailing(err, undefined);
 
 		expect(batchMocks.markFailed).toHaveBeenCalledWith(item.id, key);
-	});
-});
-
-/**
- * #998: the semaphore used to hand back a slot once the 5-minute wait elapsed,
- * so MAX_CONCURRENT_EXTRACTIONS stopped capping under exactly the sustained
- * load it exists to bound. The cap now refuses, and the refusal has to reach
- * pg-boss as a redelivery rather than as a failed item.
- */
-describe('processExtractionJob — a full concurrency cap returns the job to the queue (#998)', () => {
-	beforeEach(() => {
-		batchMocks.markExtracting.mockResolvedValue(true);
-		slotMocks.acquireExtractionSlot.mockRejectedValue(
-			new ExtractionSlotUnavailableError(300_000, 3),
-		);
-	});
-
-	afterEach(() => {
-		slotMocks.acquireExtractionSlot.mockResolvedValue({ release: vi.fn() });
-	});
-
-	it('asks for a redelivery instead of failing the item while retries remain', async () => {
-		const outcome = await processExtractionJob(job, undefined, RETRIES_LEFT);
-
-		expect(outcome).toBe('failed');
-		expect(batchMocks.markFailed).not.toHaveBeenCalled();
-		expect(extractMocks.extractWithProvider).not.toHaveBeenCalled();
-	});
-
-	it('does not dead-letter a cap that is merely full', async () => {
-		await processExtractionJob(job, undefined, RETRIES_LEFT);
-
-		expect(deadLetterMocks.recordDeadLetter).not.toHaveBeenCalled();
-	});
-
-	it('gives up with a message the user can read once the retries are spent', async () => {
-		const outcome = await processExtractionJob(job, undefined, FINAL_ATTEMPT);
-
-		expect(outcome).toBe('completed');
-		expect(batchMocks.markFailed).toHaveBeenCalledWith(item.id, 'extract.err.tooMany');
 	});
 });
 
@@ -529,6 +484,16 @@ describe('WhatsApp notification hand-off', () => {
 		mockSuccessfulExtraction();
 
 		await runNotifyJob();
+
+		expect(queueMocks.enqueueWhatsAppNotify).not.toHaveBeenCalled();
+	});
+
+	it('does not enqueue while the Baileys bot is off, since no consumer would drain the job', async () => {
+		botMocks.whatsappBotEnabled.mockResolvedValueOnce(false);
+		batchMocks.getItem.mockResolvedValue(whatsappItem);
+		mockSuccessfulExtraction();
+
+		await expect(runNotifyJob()).resolves.toBe('completed');
 
 		expect(queueMocks.enqueueWhatsAppNotify).not.toHaveBeenCalled();
 	});
@@ -876,5 +841,50 @@ describe('processExtractionJob — emisor/receptor assignment (#905)', () => {
 		await processExtractionJob({ itemId: item.id, restaurantId: 'r1' }, undefined, { retryCount: 0, retryLimit: 2 });
 
 		expect(batchMocks.markDone).toHaveBeenCalledWith(item.id, expect.objectContaining(expected), expect.anything());
+	});
+});
+
+/**
+ * RULE-269: the archive is what replays and evals compare against, so it holds
+ * the model's raw answer AND the cleaned result (labelled), and a write that
+ * keeps failing is raised as a warning instead of vanishing into a log line.
+ */
+describe('processExtractionJob — extraction archive (RULE-269)', () => {
+	const run = () => processExtractionJob({ itemId: item.id, restaurantId: 'r1' }, undefined, { retryCount: 0, retryLimit: 2 });
+
+	beforeEach(() => {
+		batchMocks.markExtracting.mockResolvedValue(true);
+		partyMocks.ownPartyIdentity.mockResolvedValue({ taxId: '47306879L', names: ['Clínica Dental Víctor Granda'] });
+		extractMocks.extractWithProvider.mockResolvedValue({ invoice: structuredClone(swappedInvoice), usage: { model: 'm' } });
+	});
+
+	it('archives the raw model output next to the cleaned result', async () => {
+		await run();
+
+		const archived = corpusMocks.recordExtractionResult.mock.calls[0]![0];
+		expect(archived.rawOutput).toMatchObject({ supplier_name: 'Clínica Dental Víctor Granda', supplier_nif: '47306879L' });
+		expect(archived.extractedData).toMatchObject({ supplier_name: 'Elaboradental SL', supplier_nif: 'B99999997' });
+		expect(archived.rawOutput).not.toHaveProperty('total_mismatch');
+	});
+
+	it('retries a failed archive write and stays quiet when a retry lands', async () => {
+		corpusMocks.recordExtractionResult.mockRejectedValueOnce(new Error('connection reset'));
+
+		const outcome = await run();
+
+		expect(outcome).toBe('completed');
+		expect(corpusMocks.recordExtractionResult).toHaveBeenCalledTimes(2);
+		expect(sentryMocks.captureMessage).not.toHaveBeenCalledWith('extraction.archive_failed', expect.anything());
+	});
+
+	it('raises a warning when every attempt fails, and still completes the extraction', async () => {
+		corpusMocks.recordExtractionResult.mockRejectedValue(new Error('db down'));
+
+		const outcome = await run();
+
+		expect(outcome).toBe('completed');
+		expect(batchMocks.markDone).toHaveBeenCalledTimes(1);
+		expect(corpusMocks.recordExtractionResult).toHaveBeenCalledTimes(3);
+		expect(sentryMocks.captureMessage).toHaveBeenCalledWith('extraction.archive_failed', expect.objectContaining({ level: 'warning' }));
 	});
 });

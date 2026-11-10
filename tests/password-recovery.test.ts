@@ -204,6 +204,7 @@ describe('/reset-password', () => {
 		expect(updatedRows).toHaveLength(1);
 		expect(updatedRows[0]).toHaveProperty('passwordHash');
 		expect(updatedRows[0]).toHaveProperty('tokenVersion');
+		expect(updatedRows[0]).toHaveProperty('emailVerified');
 		expect(deletedCookies).toEqual(['authjs.session-token', '__Secure-authjs.session-token']);
 		expect(isRedirect(thrown)).toBe(true);
 		expect((thrown as { status: number; location: string }).status).toBe(303);

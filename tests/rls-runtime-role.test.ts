@@ -60,7 +60,7 @@ import { sql } from 'drizzle-orm';
 import { testSql, closeDb, hasDbEnv, retryOnDeadlock } from './helpers/test-db';
 import { resolveDbGate } from './helpers/db-gate';
 import { db, runWithTenantContext, runAsSystem, activeTenantContext } from '../src/lib/server/db';
-import { runDetached, TenantScopeReleasedError } from '../src/lib/server/tenant-context';
+import { runDetached, TenantContextRequiredError, TenantScopeReleasedError } from '../src/lib/server/tenant-context';
 import { trackEvent } from '../src/lib/server/events';
 
 const gate = resolveDbGate(process.env);
@@ -450,13 +450,10 @@ describe.skipIf(!canRun)('tenant-context mechanism — GUC set/reset/isolation',
 		expect(seen).toBe(ridA);
 	});
 
-	it('a null/empty restaurantId skips reservation entirely (no context, no GUC set)', async () => {
-		await runWithTenantContext(null, async () => {
-			expect(activeTenantContext()).toBeUndefined();
-		});
-		await runWithTenantContext('', async () => {
-			expect(activeTenantContext()).toBeUndefined();
-		});
+	it('a null/empty restaurantId is refused instead of running unscoped (RULE-149, #1272)', async () => {
+		await expect(runWithTenantContext(null, async () => 'ran')).rejects.toBeInstanceOf(TenantContextRequiredError);
+		await expect(runWithTenantContext('', async () => 'ran')).rejects.toBeInstanceOf(TenantContextRequiredError);
+		expect(activeTenantContext()).toBeUndefined();
 	});
 
 	it('does not leak a GUC across sequential uses of the pool', async () => {
@@ -604,13 +601,11 @@ describe.skipIf(!canRun)('tenant-context mechanism — detached work cannot outl
 		expect(seen).toBeUndefined();
 	});
 
-	it('trackEvent started inside a scope lands its row after the scope has exited', async () => {
-		const marker = `rls-1073-${Date.now()}`;
-		let pending: Promise<void> | undefined;
+	it('trackEvent awaited inside the same scope lands its row on the scope connection (SEC-011, #1272)', async () => {
+		const marker = `rls-1272-${Date.now()}`;
 		await runWithTenantContext(ridA, async () => {
-			pending = trackEvent(marker, ridA, { via: 'detached' });
+			await trackEvent(marker, ridA, { via: 'awaited' });
 		});
-		await pending;
 		const rows = await testSql`SELECT restaurant_id FROM system_notifications WHERE notification_type = ${marker}`;
 		expect(rows).toHaveLength(1);
 		expect(rows[0]!.restaurant_id).toBe(ridA);

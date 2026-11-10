@@ -56,14 +56,10 @@ parsed here and re-checked at save.
 - **Timeout cancels the request**: the timeout fires an `AbortController` that
   is threaded into the Gemini call (`config.abortSignal`), so a timed-out
   extraction actually tears down its HTTP request instead of leaking a live
-  request that keeps holding a socket and a Gemini concurrency slot. A
-  timed-out request releases its extraction slot in the `finally` around the
-  model call, so it never leaves a slot leased.
-- **Concurrency slot**: the model call is wrapped in
-  `acquireExtractionSlot()` / `slot.release()` (`rate-limiter.ts`), a global
-  semaphore capped at `MAX_CONCURRENT_EXTRACTIONS` (default 3). Backed by
-  Upstash Redis when configured (distributed, lease/TTL guarded so a dead
-  worker can't hold a slot forever), otherwise an in-process fallback.
+  request that keeps holding a socket and a worker batch position.
+- **Concurrency**: capped at `MAX_CONCURRENT_EXTRACTIONS` (default 3) by the
+  worker's pg-boss `batchSize`; there is no separate semaphore around the
+  model call.
 - **Output contract** (#842): the Gemini call sends `INVOICE_RESPONSE_SCHEMA`
   (`extract.ts`) as `responseMimeType: 'application/json'` +
   `responseSchema`, so the model is decoded against a schema instead of
@@ -158,9 +154,9 @@ the `stalled` flag, since crossing the warning threshold changes no status.
 
 `extract-invoice` queue (pg-boss, retryLimit 2, retryDelay 30 s,
 `expireInSeconds` 600). Worker `batchSize` equals `MAX_CONCURRENT_EXTRACTIONS`
-(default 3); a batch of jobs is processed concurrently, with the
-`acquireExtractionSlot()` semaphore imposing the true global cap against
-Gemini regardless of how many worker processes run. So 3 uploaded invoices
+(default 3); a batch of jobs is processed concurrently and the worker awaits
+the batch before fetching the next, which caps live Gemini calls for a single
+worker instance. So 3 uploaded invoices
 extract in parallel rather than one at a time.
 
 `worker.ts` runs this queue with `perJobResults: true`, so `runExtractionJobForBoss`

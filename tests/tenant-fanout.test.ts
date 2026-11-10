@@ -154,7 +154,7 @@ describe('tenantPage', () => {
 		state.tenants = [{ id: 'rest-1', name: 'Casa Lua', planTier: null, status: null, trialEndsAt: null }];
 
 		expect(await tenantPage(null)).toEqual([
-			{ id: 'rest-1', name: 'Casa Lua', planTier: 'trial', status: 'trialing', trialEndsAt: null },
+			{ id: 'rest-1', name: 'Casa Lua', planTier: 'trial', status: 'trialing', trialEndsAt: null, pastDueSince: null },
 		]);
 	});
 });

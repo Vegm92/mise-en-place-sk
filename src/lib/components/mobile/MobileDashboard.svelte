@@ -43,6 +43,7 @@
     review: data.review,
     missing: data.missing_invoices,
     uncategorized: data.uncategorized_suppliers,
+    uncategorizedLines: data.uncategorized_lines,
   });
 
   const worklist = $derived(buildWorklist(turnoInput));

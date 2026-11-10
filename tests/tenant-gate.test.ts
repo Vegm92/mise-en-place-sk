@@ -56,7 +56,6 @@ describe('resolveTenantGate', () => {
 		expect(appApiRouteIds.length).toBeGreaterThanOrEqual(9);
 		expect(appApiRouteIds).toEqual(
 			expect.arrayContaining([
-				'/(app)/api/trend',
 				'/(app)/api/notifications',
 				'/(app)/api/stock-levels',
 				'/(app)/api/unit-conversions',

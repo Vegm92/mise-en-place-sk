@@ -23,6 +23,13 @@ export class TenantScopeReleasedError extends Error {
 	}
 }
 
+export class TenantContextRequiredError extends Error {
+	constructor() {
+		super('runWithTenantContext needs a restaurant id; use runAsSystem for system work or run unscoped on purpose (RULE-149)');
+		this.name = 'TenantContextRequiredError';
+	}
+}
+
 const als = new AsyncLocalStorage<ActiveContext>();
 
 export function activeTenantContext(): TenantContext | undefined {
@@ -98,7 +105,7 @@ export async function runWithTenantContext<T>(
 	restaurantId: string | null | undefined,
 	fn: () => Promise<T>,
 ): Promise<T> {
-	if (!restaurantId) return fn();
+	if (!restaurantId) throw new TenantContextRequiredError();
 	return withReservedContext('tenant', restaurantId, fn);
 }
 

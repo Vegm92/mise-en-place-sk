@@ -183,14 +183,28 @@ describe('redeemPairingCode', () => {
 		rateLimitMock.mockResolvedValue(false);
 		expect(await redeemPairingCode(PHONE, 'A2B3C4')).toEqual({ ok: false, reason: 'rateLimited' });
 		expect(dbMock.update).not.toHaveBeenCalled();
-		expect(rateLimitMock).toHaveBeenCalledWith(`whatsapp-pair:${PHONE}`, expect.any(Number), expect.any(Number), { authCritical: true });
+		expect(rateLimitMock).toHaveBeenCalledWith(`whatsapp-pair:${PHONE}`, expect.any(Number), expect.any(Number));
+	});
+
+	it('RULE-152: two written forms of one number share one per-sender budget', async () => {
+		updateReturning.push([], []);
+		await redeemPairingCode('+34 600 000 000', 'A2B3C4');
+		await redeemPairingCode('34600000000', 'A2B3C4');
+		const senderKeys = rateLimitMock.mock.calls.map((c) => c[0]).filter((k) => String(k).startsWith('whatsapp-pair:'));
+		expect(senderKeys).toEqual(['whatsapp-pair:34600000000', 'whatsapp-pair:34600000000']);
+	});
+
+	it('RULE-152: a sender that cannot be normalised is refused without spending any budget', async () => {
+		expect(await redeemPairingCode('abc', 'A2B3C4')).toEqual({ ok: false, reason: 'invalid' });
+		expect(rateLimitMock).not.toHaveBeenCalled();
+		expect(dbMock.update).not.toHaveBeenCalled();
 	});
 
 	it('rate-limits redemption globally across senders, independent of the per-sender bucket (#1083)', async () => {
 		rateLimitMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
 		expect(await redeemPairingCode(PHONE, 'A2B3C4')).toEqual({ ok: false, reason: 'rateLimited' });
 		expect(dbMock.update).not.toHaveBeenCalled();
-		expect(rateLimitMock).toHaveBeenLastCalledWith('whatsapp-pair-redeem', expect.any(Number), expect.any(Number), { authCritical: true });
+		expect(rateLimitMock).toHaveBeenLastCalledWith('whatsapp-pair-redeem', expect.any(Number), expect.any(Number));
 	});
 
 	it('releases the code when the number belongs to another restaurant', async () => {

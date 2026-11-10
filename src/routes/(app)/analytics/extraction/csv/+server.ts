@@ -45,7 +45,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 		LIMIT ${MAX_ROWS}
 	`);
 
-	trackEvent('extraction_corrections_exported', rid, { row_count: rows.length });
+	await trackEvent('extraction_corrections_exported', rid, { row_count: rows.length });
 
 	const csv = toCsv(
 		['corrected_at', 'supplier', 'invoice_id', 'field', 'line_index', 'original_value', 'corrected_value', 'field_confidence'],
