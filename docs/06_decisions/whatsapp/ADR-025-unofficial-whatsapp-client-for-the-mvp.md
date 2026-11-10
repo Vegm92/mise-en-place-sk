@@ -43,10 +43,21 @@ seam in `src/lib/server/integrations/whatsapp/`.
 `transport.ts` defines the interface (`start`, `stop`, `sendText`, `onMessage`,
 `downloadMedia`) and nothing else. `driver-baileys.ts` is the only file in the
 repo that imports the library; `message-handler.ts` and `media-handler.ts` take
-a context object and never learn which transport they are on. The existing Meta
-webhook route feeds the same handler through `whatsapp-bot.ts`, which is now
-just the Meta-side adapter. Swapping to the Cloud API once the business exists
-is one file, not a rewrite.
+a context object and never learn which transport they are on. Swapping to the
+Cloud API once the business exists is one driver file, not a rewrite.
+
+**Meta Cloud API path: removed, restore from git `d460f8f2`.** It was dormant
+(no verified business, so it could never be provisioned) and has been deleted:
+the `/api/whatsapp/webhook` route (GET verify + HMAC-checked POST), the
+`whatsapp-inbound` queue, its dead-letter queue and worker consumer, the
+`whatsapp-bot.ts` Meta adapter, Graph API media download, and
+`whatsapp-health.ts` (account-event recording into `whatsapp_account_events`
+and the number-health panel on `/admin/health`). `git show
+d460f8f2:<path>` brings any of it back. Kept: `sendWhatsAppMessage` in
+`whatsapp.ts`, still used by the weekly digest push, and the
+`whatsapp-inbound` queue name, so old dead-letter rows still read as not
+replayable. The `whatsapp_account_events` table is left in place, unwritten,
+for a later drop.
 
 The session lives in the `whatsapp_session` table (migration 0042) via
 `auth-state.ts`, which implements Baileys' `AuthenticationState` against

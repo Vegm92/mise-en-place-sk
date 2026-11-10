@@ -13,14 +13,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('$lib/server/waitlist-db', async () => (await import('./helpers/waitlist-route-mocks')).waitlistDbMock);
-vi.mock('$lib/server/events', async () => (await import('./helpers/waitlist-route-mocks')).eventsMock);
 vi.mock('$lib/server/rate-limiter', async () => (await import('./helpers/waitlist-route-mocks')).rateLimiterMock);
 
 import { load, actions } from '../src/routes/l/[variant]/+page.server';
 import {
 	insertWaitlistEmailMock,
 	countWaitlistEmailsMock,
-	trackAnonymousEventMock,
 	resetWaitlistRouteMocks,
 	fakeCookies,
 	joinEvent,
@@ -120,10 +118,6 @@ describe('/l/[variant] join action — reuses the shared waitlist join action', 
 		expect(result).toEqual({ success: true, referralCode: 'fake-referral-code' });
 		expect(insertWaitlistEmailMock).toHaveBeenCalledWith(
 			'chef@example.com',
-			expect.objectContaining({ variant: 'grupo-multi-local' }),
-		);
-		expect(trackAnonymousEventMock).toHaveBeenCalledWith(
-			'waitlist_joined',
 			expect.objectContaining({ variant: 'grupo-multi-local' }),
 		);
 	});

@@ -4,7 +4,7 @@
  * `job.data` can be joined back to the web request that created the job.
  *
  * `pg-boss` itself is mocked (helpers/pg-boss-mock, as in
- * queue-whatsapp-inbound.test.ts) so this pins the actual payload handed to
+ * 1000-queue-retry-backoff.test.ts) so this pins the actual payload handed to
  * `b.send(...)` for every queue in queue.ts, not just what the wrapper
  * function returns.
  */
@@ -17,7 +17,6 @@ import {
 	enqueueNormalize,
 	enqueueCategorize,
 	enqueueWhatsAppNotify,
-	enqueueWhatsAppInbound,
 	enqueueAccountCleanup,
 } from '../src/lib/server/queue';
 import { sendMock, setUpPgBossTestEnv } from './helpers/pg-boss-mock';
@@ -47,12 +46,6 @@ describe('enqueue* functions carry the caller\'s requestId into the pg-boss job 
 	it('enqueueWhatsAppNotify', async () => {
 		await enqueueWhatsAppNotify('item-1', 'rest-1', 'req-abc');
 		expect(payloadOf()).toEqual(expect.objectContaining({ itemId: 'item-1', restaurantId: 'rest-1', requestId: 'req-abc' }));
-	});
-
-	it('enqueueWhatsAppInbound', async () => {
-		const msg = { from: '+34600000001', id: 'wamid.abc', type: 'text' };
-		await enqueueWhatsAppInbound(msg, 'req-abc');
-		expect(payloadOf()).toEqual(expect.objectContaining({ messageId: 'wamid.abc', msg, requestId: 'req-abc' }));
 	});
 
 	it('enqueueAccountCleanup', async () => {
