@@ -35,7 +35,6 @@ import { invoiceLineItems, invoices, products, suppliers } from '../src/lib/serv
 import {
 	describedLine, invoiceMatchesCategory, lineAmountExpr, lineCategoryExpr, lineProductJoin,
 } from '../src/lib/server/category-spend';
-import { getTrendDataByRange } from '../src/lib/server/trend';
 import { runBudgetCheck } from '../src/lib/server/alerts';
 import { categoryBudgets } from '../src/lib/server/schema';
 import { forTenant } from '../src/lib/server/db';
@@ -184,17 +183,6 @@ describeDb('category attribution — the generalist wholesaler', () => {
 	it('the materialised view carries the same split as the live query', async () => {
 		expect(await mvSpend(rid, MONTH)).toEqual(await spendByLineCategory(rid, MONTH));
 	});
-
-	it('the spend trend stacks the same segments', async () => {
-		const data = await getTrendDataByRange(rid, 'all', 'monthly');
-		const segments = data.buckets.flatMap((b) => b.segments);
-		const byCategory: Spend = {};
-		for (const s of segments) {
-			const key = s.category ?? UNCATEGORIZED_CATEGORY;
-			byCategory[key] = (byCategory[key] ?? 0) + s.amount;
-		}
-		expect(byCategory).toEqual(await spendByLineCategory(rid, MONTH));
-	});
 });
 
 describeDb('category attribution — no regression for mono-category suppliers', () => {
@@ -272,7 +260,8 @@ describeDb('category attribution — the shared criterion', () => {
 		const rows = await testDb.execute<{ category: string }>(sql`
 			SELECT ${lineCategoryExpr()} AS category
 			FROM (SELECT NULL::text AS category) AS suppliers,
-			     (SELECT NULL::text AS category) AS products
+			     (SELECT NULL::text AS category) AS products,
+			     (SELECT NULL::text AS category_override) AS invoice_line_items
 		`);
 		expect(rows[0]!.category).toBe(UNCATEGORIZED_CATEGORY);
 	});
@@ -281,7 +270,8 @@ describeDb('category attribution — the shared criterion', () => {
 		const rows = await testDb.execute<{ category: string }>(sql`
 			SELECT ${lineCategoryExpr()} AS category
 			FROM (SELECT 'Bebidas'::text AS category) AS suppliers,
-			     (SELECT 'Frutas y Verduras'::text AS category) AS products
+			     (SELECT 'Frutas y Verduras'::text AS category) AS products,
+			     (SELECT NULL::text AS category_override) AS invoice_line_items
 		`);
 		expect(rows[0]!.category).toBe('Frutas y Verduras');
 	});

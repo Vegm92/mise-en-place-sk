@@ -1,6 +1,7 @@
 # ADR-043 — Security Controls Fail Closed in Production and Fail Open Only in Development
 
 **Status:** Active
+**Note (2026-10-31):** the rate-limiter part (#1072 B, `authCritical`, `RateLimitBackendUnavailableError`) is superseded — Upstash was removed and the in-memory limiter is the only store, so there is no backend that can be "configured but down". The Turnstile part stands.
 **Feature:** Repo-wide conventions
 **Date:** 2026-09-18
 **Issue:** [#1072](https://github.com/Vegm92/mise-en-place-sk/issues/1072)

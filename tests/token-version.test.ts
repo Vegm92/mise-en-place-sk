@@ -53,6 +53,17 @@ describe('checkTokenVersion', () => {
 		await expect(checkTokenVersion('user-1', 0)).resolves.toBeNull();
 	});
 
+	it('RULE-150: rejects a token with no claim even for a user still at version 0', async () => {
+		state.row = { tokenVersion: 0 };
+		await expect(checkTokenVersion('user-1', undefined)).resolves.toBeNull();
+		await expect(checkTokenVersion('user-1', 0)).resolves.toBe(0);
+	});
+
+	it('RULE-150: rejects a token claiming a version older than the current one', async () => {
+		state.row = { tokenVersion: 3 };
+		await expect(checkTokenVersion('user-1', 2)).resolves.toBeNull();
+	});
+
 	it('rejects when the user row is gone (account deletion)', async () => {
 		state.row = undefined;
 		await expect(checkTokenVersion('user-1', 0)).resolves.toBeNull();

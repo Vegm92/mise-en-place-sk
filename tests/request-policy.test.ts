@@ -107,7 +107,35 @@ describe('authenticated tenant user', () => {
 	});
 });
 
+describe('request without an active restaurant (RULE-149, #1272)', () => {
+	it('resolves with no tenant scope instead of calling runWithTenantContext with null', async () => {
+		const event = makeEvent({ path: '/login', routeId: '/login', user: null });
+		const resolve = vi.fn(async () => new Response('ok'));
+		const tenantCalls: Array<string | null | undefined> = [];
+
+		const outcome = await run(event, resolve, {
+			runWithTenantContext: async (rid, fn) => { tenantCalls.push(rid); return fn(); },
+		});
+
+		expect(resolve).toHaveBeenCalled();
+		expect(tenantCalls).toEqual([]);
+		expect((outcome as Response).status).toBe(200);
+	});
+});
+
 describe('admin path', () => {
+	it('sends a logged-out visitor to /login with a return link (RULE-358, #1272)', async () => {
+		const event = makeEvent({ path: '/admin/health', routeId: '/(admin)/admin/health', user: null });
+		const resolve = vi.fn(async () => new Response('ok'));
+
+		const outcome = await run(event, resolve);
+
+		expect(outcome).toSatisfy(isRedirect);
+		expect((outcome as { status: number }).status).toBe(303);
+		expect((outcome as { location: string }).location).toBe('/login?redirectTo=%2Fadmin%2Fhealth');
+		expect(resolve).not.toHaveBeenCalled();
+	});
+
 	it('redirects a non-admin to /', async () => {
 		const event = makeEvent({ path: '/admin', routeId: '/(admin)/admin', user: APPROVED_USER });
 		const resolve = vi.fn(async () => new Response('ok'));
@@ -151,7 +179,7 @@ describe('tenantless authenticated user', () => {
 	});
 
 	it('answers 409 for an api request', async () => {
-		const event = makeEvent({ path: '/api/trend', routeId: '/(app)/api/trend', user: APPROVED_USER });
+		const event = makeEvent({ path: '/api/notifications', routeId: '/(app)/api/notifications', user: APPROVED_USER });
 		const resolve = vi.fn(async () => new Response('ok'));
 
 		const outcome = await run(event, resolve, { readAccessStatus: async () => [{ accessStatus: 'approved' }] });
@@ -194,7 +222,7 @@ describe('webhook / system path', () => {
 
 describe('rate-limited api route', () => {
 	it('answers 429 with Retry-After and security headers, before resolve runs', async () => {
-		const event = makeEvent({ path: '/api/trend', routeId: '/(app)/api/trend', user: null });
+		const event = makeEvent({ path: '/api/notifications', routeId: '/(app)/api/notifications', user: null });
 		const resolve = vi.fn(async () => new Response('ok'));
 
 		const outcome = await run(event, resolve, { checkRateLimit: async () => false });

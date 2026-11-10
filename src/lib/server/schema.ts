@@ -113,7 +113,7 @@ export const invoices = pgTable('invoices', {
 }, (t) => [
 	uniqueIndex('uq_invoices_rid_supplier_number')
 		.on(t.restaurantId, t.supplierId, t.invoiceNumber)
-		.where(sql`${t.invoiceNumber} IS NOT NULL`),
+		.where(sql`${t.invoiceNumber} IS NOT NULL AND ${t.deletedAt} IS NULL`),
 	index('idx_invoices_linked_invoice_id')
 		.on(t.linkedInvoiceId)
 		.where(sql`${t.linkedInvoiceId} IS NOT NULL`),
@@ -153,6 +153,7 @@ export const invoiceLineItems = pgTable('invoice_line_items', {
 	baseUnit:               text('base_unit'),
 	normalizedUnitPrice:    numeric('normalized_unit_price', { precision: 12, scale: 2 }),
 	supplierSku:            text('supplier_sku'),
+	categoryOverride:       text('category_override'),
 }, (t) => [
 	index('idx_invoice_line_items_invoice_id').on(t.invoiceId),
 	index('idx_invoice_line_items_rid_description').on(t.restaurantId, t.description),
@@ -541,6 +542,7 @@ export const extractionResults = pgTable('extraction_results', {
 	pipelineVersion:  text('pipeline_version'),
 	model:            text('model'),
 	extractedData:    jsonb('extracted_data').$type<Record<string, unknown>>().notNull(),
+	rawOutput:        jsonb('raw_output').$type<Record<string, unknown>>(),
 	fieldConfidences: jsonb('field_confidences').$type<Record<string, number>>(),
 	confidence:       real('confidence'),
 	conversionNotes:  jsonb('conversion_notes').$type<string[]>(),
@@ -639,6 +641,7 @@ export const subscriptions = pgTable('subscriptions', {
 	currentPeriodEnd:     timestamp('current_period_end', { withTimezone: true }),
 	cancelAtPeriodEnd:    boolean('cancel_at_period_end').notNull().default(false),
 	founder:              boolean('founder').notNull().default(false),
+	pastDueSince:         timestamp('past_due_since', { withTimezone: true }),
 	createdAt:            timestamp('created_at', { withTimezone: true }).defaultNow(),
 	updatedAt:            timestamp('updated_at', { withTimezone: true }).defaultNow(),
 	lastEventAt:          timestamp('last_event_at', { withTimezone: true }),

@@ -1,6 +1,6 @@
 import * as Sentry from '@sentry/sveltekit';
 import { db } from './db';
-import { runDetached } from './tenant-context';
+import { activeTenantContext, runDetached, runWithTenantContext } from './tenant-context';
 import { systemNotifications, funnelEvents } from './schema';
 
 export async function trackEvent(
@@ -9,18 +9,21 @@ export async function trackEvent(
 	payload?: Record<string, unknown>,
 	invoiceId?: number | null,
 ): Promise<void> {
+	const insert = async () => {
+		await db.insert(systemNotifications)
+			.values({
+				restaurantId,
+				notificationType: event,
+				message: event,
+				payload: payload ?? null,
+				invoiceId: invoiceId ?? null,
+				status: 'logged',
+			});
+	};
 	try {
-		await runDetached(restaurantId, async () => {
-			await db.insert(systemNotifications)
-				.values({
-					restaurantId,
-					notificationType: event,
-					message: event,
-					payload: payload ?? null,
-					invoiceId: invoiceId ?? null,
-					status: 'logged',
-				});
-		});
+		const ctx = activeTenantContext();
+		if (ctx && (ctx.mode === 'admin' || ctx.restaurantId === restaurantId)) await insert();
+		else await runWithTenantContext(restaurantId, insert);
 	} catch (e) {
 		console.error('[trackEvent] insert failed', e);
 		Sentry.captureException(e);

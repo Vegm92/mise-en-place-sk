@@ -7,7 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import {
 	toCents, fromCents, toMoneyString, sumCents, sumMoney, moneyEquals,
-	moneyToNumber, moneyToNullableNumber, parseAmount,
+	moneyToNumber, moneyToNullableNumber, parseAmount, parsePlainNumber,
 } from '../src/lib/server/money';
 
 describe('toCents', () => {
@@ -28,8 +28,10 @@ describe('toCents', () => {
 	});
 
 	it('rounds half-up beyond two decimals', () => {
-		expect(toCents('1.005')).toBe(101);
-		expect(toCents('1.004')).toBe(100);
+		expect(toCents('1,005')).toBe(101);
+		expect(toCents('1,004')).toBe(100);
+		expect(toCents(1.005)).toBe(101);
+		expect(toCents('1.0049')).toBe(100);
 	});
 
 	it('handles a comma decimal separator', () => {
@@ -104,8 +106,8 @@ describe('parseAmount (issue #508)', () => {
 		expect(parseAmount('0x10')).toBeNull();
 	});
 
-	it('treats an ambiguous single-period amount as a decimal, not a thousands group ("1.500" → 1.5)', () => {
-		expect(parseAmount('1.500')).toBe(1.5);
+	it('treats a lone period followed by exactly three digits as a thousands group ("1.500" → 1500, RULE-002)', () => {
+		expect(parseAmount('1.500')).toBe(1500);
 	});
 
 	it('treats an ambiguous single-comma amount as a decimal ("1,500" → 1.5)', () => {
@@ -232,5 +234,57 @@ describe('moneyToNumber / moneyToNullableNumber', () => {
 	it('preserves null instead of coercing to 0', () => {
 		expect(moneyToNullableNumber(null)).toBeNull();
 		expect(moneyToNullableNumber('0.00')).toBe(0);
+	});
+});
+
+describe('lone dot + exactly three digits is a thousands separator (RULE-002, issue #1270)', () => {
+	it.each([
+		['1.234', 123400],
+		['1.23', 123],
+		['1.234,56', 123456],
+		['1,50', 150],
+		['12.345', 1234500],
+		['123.456', 12345600],
+		['-1.234', -123400],
+		['+1.234', 123400],
+		[' 1.234 ', 123400],
+		['0.123', 12],
+		['0.125', 13],
+		['1234.567', 123457],
+		['1.2345', 123],
+		['1.2', 120],
+		['1,234', 123],
+	])('toCents(%j) → %i', (input, expected) => {
+		expect(toCents(input)).toBe(expected);
+	});
+
+	it('keeps a JS number as a plain decimal, never a thousands group', () => {
+		expect(toCents(1.234)).toBe(123);
+		expect(toCents(1.5)).toBe(150);
+	});
+
+	it('is stable across repeated calls (cache does not mix string and number inputs)', () => {
+		expect(toCents('1.234')).toBe(123400);
+		expect(toCents(1.234)).toBe(123);
+		expect(toCents('1.234')).toBe(123400);
+		expect(toCents(1.234)).toBe(123);
+	});
+
+	it('parseAmount reads the same thousands rule', () => {
+		expect(parseAmount('1.234')).toBe(1234);
+		expect(parseAmount('1.23')).toBe(1.23);
+		expect(parseAmount('1,50')).toBe(1.5);
+		expect(parseAmount(1.234)).toBe(1.234);
+	});
+
+	it('parsePlainNumber keeps a lone dot as decimal for quantities and rates', () => {
+		expect(parsePlainNumber('1.250')).toBe(1.25);
+		expect(parsePlainNumber('1,250')).toBe(1.25);
+		expect(parsePlainNumber('0.950')).toBe(0.95);
+		expect(parsePlainNumber('1.234,56')).toBe(1234.56);
+		expect(parsePlainNumber('abc')).toBeNull();
+		expect(parsePlainNumber(null)).toBeNull();
+		expect(parsePlainNumber('1.250')).toBe(1.25);
+		expect(parseAmount('1.250')).toBe(1250);
 	});
 });

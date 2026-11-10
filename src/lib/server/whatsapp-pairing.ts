@@ -3,7 +3,7 @@ import { and, desc, eq, gt, isNull, sql } from 'drizzle-orm';
 import { db, forTenant } from './db';
 import { whatsappPairingCodes } from './schema';
 import { addContact } from './whatsapp-contacts';
-import { checkRateLimit, RateLimitBackendUnavailableError } from './rate-limiter';
+import { checkRateLimit } from './rate-limiter';
 import { rateLimitScoped } from './rate-limit-scope';
 import { normalizePhoneNumber } from '$lib/phone';
 
@@ -149,15 +149,13 @@ export async function redeemPairingCode(phone: string, rawCode: string): Promise
 	const code = normalizeCode(rawCode);
 	if (!code) return { ok: false, reason: 'invalid' };
 
-	try {
-		if (!(await checkRateLimit(`whatsapp-pair:${phone}`, REDEEM_ATTEMPTS, REDEEM_WINDOW_S, { authCritical: true }))) {
-			return { ok: false, reason: 'rateLimited' };
-		}
-		if (!(await checkRateLimit('whatsapp-pair-redeem', REDEEM_GLOBAL_LIMIT, REDEEM_WINDOW_S, { authCritical: true }))) {
-			return { ok: false, reason: 'rateLimited' };
-		}
-	} catch (e) {
-		if (!(e instanceof RateLimitBackendUnavailableError)) throw e;
+	const sender = normalizePhoneNumber(phone);
+	if (!sender.ok) return { ok: false, reason: 'invalid' };
+
+	if (!(await checkRateLimit(`whatsapp-pair:${sender.phone}`, REDEEM_ATTEMPTS, REDEEM_WINDOW_S))) {
+		return { ok: false, reason: 'rateLimited' };
+	}
+	if (!(await checkRateLimit('whatsapp-pair-redeem', REDEEM_GLOBAL_LIMIT, REDEEM_WINDOW_S))) {
 		return { ok: false, reason: 'rateLimited' };
 	}
 
@@ -185,8 +183,7 @@ export async function redeemPairingCode(phone: string, rawCode: string): Promise
 	if (!claimed) return { ok: false, reason: 'invalid' };
 
 	if (claimed.phoneNumber) {
-		const senderPhone = normalizePhoneNumber(phone);
-		if (!senderPhone.ok || senderPhone.phone !== claimed.phoneNumber) {
+		if (sender.phone !== claimed.phoneNumber) {
 			await db
 				.update(whatsappPairingCodes)
 				.set({ redeemedAt: null, redeemedBy: null })

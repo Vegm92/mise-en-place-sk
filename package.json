@@ -30,6 +30,7 @@
 		"eval:accept-baseline": "vite-node --config vite.worker.config.ts src/extraction-eval.ts -- --out tests/golden/baseline-report.json",
 		"worker": "vite-node --config vite.worker.config.ts src/worker.ts",
 		"worker:prod": "node build/worker.js",
+		"lint:invariants": "node scripts/lint-invariants.mjs all",
 		"lint:no-sql-raw": "node scripts/lint-invariants.mjs no-sql-raw",
 		"lint:tenant-scope": "node scripts/lint-invariants.mjs tenant-scope",
 		"lint:unscoped-query": "node scripts/lint-invariants.mjs unscoped-tenant-query",
@@ -67,7 +68,7 @@
 		"svelte-check": "^4.7.6",
 		"tailwindcss": "^4.3.3",
 		"typescript": "^5.9.3",
-		"vite": "^7.3.6",
+		"vite": "^7.3.7",
 		"vite-node": "^6.0.0",
 		"vite-plugin-pwa": "^1.3.0",
 		"vitest": "^4.1.11",
@@ -83,8 +84,6 @@
 		"@lucide/svelte": "^1.46.0",
 		"@sentry/sveltekit": "^10.74.0",
 		"@sveltejs/kit": "^2.70.3",
-		"@upstash/ratelimit": "^2.1.0",
-		"@upstash/redis": "^1.38.4",
 		"@whiskeysockets/baileys": "7.0.0-rc14",
 		"bcryptjs": "^3.0.3",
 		"dotenv": "^17.4.2",
@@ -117,10 +116,11 @@
 			"fast-uri@<3.1.5": "^3.1.5",
 			"shell-quote@<1.9.0": "^1.9.0",
 			"nanoid@<3.3.18": "^3.3.18",
-			"sharp@<0.35.4": "^0.35.4",
+			"sharp@<0.35.5": "^0.35.5",
 			"browserslist@<4.28.7": "^4.28.7",
 			"baseline-browser-mapping@<2.11.0": "^2.11.0",
-			"devalue@<5.9.2": "^5.9.2"
+			"devalue@<5.9.2": "^5.9.2",
+			"source-map-js@<1.2.2": "^1.2.2"
 		}
 	}
 }

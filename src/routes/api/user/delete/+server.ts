@@ -5,13 +5,16 @@ import { apiError } from '$lib/server/api-response';
 import { parseJson } from '$lib/server/public-form-action';
 import * as Sentry from '@sentry/sveltekit';
 import { db } from '$lib/server/db';
-import { userRestaurants, subscriptions, invoices, batchItems, users } from '$lib/server/schema';
+import { userRestaurants, subscriptions, invoices, batchItems, users, restaurants } from '$lib/server/schema';
 import { verifyCredentials } from '$lib/server/auth-credentials';
 import { enqueueAccountCleanup } from '$lib/server/queue';
+import { sendEmail, ownershipTransferEmail } from '$lib/server/email';
+import { logAuthEvent } from '$lib/server/auth-events';
 import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import { explicitDeletionEntries, rootEntry } from '$lib/server/tenant-data-map';
-import { and, eq, inArray, isNotNull, ne, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, ne } from 'drizzle-orm';
 import { userMemberships } from '$lib/server/locations';
+import { forTenant } from '$lib/server/tenant';
 
 async function collectTenantFileKeys(restaurantIds: string[]): Promise<string[]> {
 	if (restaurantIds.length === 0) return [];
@@ -28,6 +31,47 @@ async function collectTenantFileKeys(restaurantIds: string[]): Promise<string[]>
 		if (row.key) keys.add(row.key);
 	}
 	return [...keys];
+}
+
+interface OwnershipTransfer {
+	restaurantId: string;
+	restaurantName: string;
+	toUserId: string;
+	toEmail: string;
+}
+
+async function planOwnershipTransfers(userId: string, ownedIds: string[]): Promise<{
+	soleOwnedIds: string[];
+	transfers: OwnershipTransfer[];
+}> {
+	const others = await db
+		.select({
+			restaurantId: userRestaurants.restaurantId,
+			restaurantName: restaurants.name,
+			userId: userRestaurants.userId,
+			email: users.email,
+			role: userRestaurants.role,
+			joinedAt: userRestaurants.createdAt,
+		})
+		.from(userRestaurants)
+		.innerJoin(users, eq(users.id, userRestaurants.userId))
+		.innerJoin(restaurants, eq(restaurants.id, userRestaurants.restaurantId))
+		.where(and(inArray(userRestaurants.restaurantId, ownedIds), ne(userRestaurants.userId, userId)));
+
+	const joined = (m: { joinedAt: Date | null }) => m.joinedAt?.getTime() ?? Infinity;
+	others.sort((a, b) => joined(a) - joined(b) || a.userId.localeCompare(b.userId));
+
+	const soleOwnedIds: string[] = [];
+	const transfers: OwnershipTransfer[] = [];
+	for (const restaurantId of ownedIds) {
+		const members = others.filter((m) => m.restaurantId === restaurantId);
+		const successor = members[0];
+		if (!successor) soleOwnedIds.push(restaurantId);
+		else if (!members.some((m) => m.role === 'owner')) {
+			transfers.push({ restaurantId, restaurantName: successor.restaurantName, toUserId: successor.userId, toEmail: successor.email });
+		}
+	}
+	return { soleOwnedIds, transfers };
 }
 
 const DeleteBody = v.object({
@@ -69,19 +113,12 @@ export const POST: RequestHandler = async ({ locals, request, cookies }) => {
 		.map(m => m.restaurantId);
 
 	let soleOwnedIds: string[] = [];
+	let transfers: OwnershipTransfer[] = [];
 	let stripeSubscriptionIds: string[] = [];
 	let storageKeys: string[] = [];
 
 	if (ownedIds.length > 0) {
-		const otherMembers = await db
-			.select({ restaurantId: userRestaurants.restaurantId })
-			.from(userRestaurants)
-			.where(and(
-				inArray(userRestaurants.restaurantId, ownedIds),
-				ne(userRestaurants.userId, user.id),
-			));
-		const shared = new Set(otherMembers.map(m => m.restaurantId));
-		soleOwnedIds = ownedIds.filter(id => !shared.has(id));
+		({ soleOwnedIds, transfers } = await planOwnershipTransfers(user.id, ownedIds));
 
 		if (soleOwnedIds.length > 0) {
 			const liveSubs = await db
@@ -100,6 +137,11 @@ export const POST: RequestHandler = async ({ locals, request, cookies }) => {
 	}
 
 	await db.transaction(async (tx) => {
+		for (const t of transfers) {
+			await tx.update(userRestaurants)
+				.set({ role: 'owner' })
+				.where(forTenant(t.restaurantId).scope(userRestaurants.restaurantId, eq(userRestaurants.userId, t.toUserId)));
+		}
 		if (soleOwnedIds.length > 0) {
 			for (const entry of explicitDeletionEntries()) {
 				await tx.delete(entry.table).where(inArray(entry.scopeColumn, soleOwnedIds));
@@ -109,14 +151,19 @@ export const POST: RequestHandler = async ({ locals, request, cookies }) => {
 		}
 		await tx.delete(userRestaurants).where(eq(userRestaurants.userId, user.id));
 		await tx.delete(users).where(eq(users.id, user.id));
+
+		if (stripeSubscriptionIds.length > 0 || storageKeys.length > 0) {
+			await enqueueAccountCleanup(user.id, soleOwnedIds[0] ?? null, stripeSubscriptionIds, storageKeys, locals.requestId);
+		}
 	});
 
-	if (stripeSubscriptionIds.length > 0 || storageKeys.length > 0) {
+	for (const t of transfers) {
+		logAuthEvent('ownership_transferred', { restaurantId: t.restaurantId, fromUserId: user.id, toUserId: t.toUserId });
 		try {
-			await enqueueAccountCleanup(user.id, soleOwnedIds[0] ?? null, stripeSubscriptionIds, storageKeys, locals.requestId);
+			await sendEmail(ownershipTransferEmail(t.toEmail, t.restaurantName, locals.locale ?? 'es'));
 		} catch (err) {
-			console.error(`[account-delete] failed to enqueue post-commit cleanup for user=${user.id}:`, err);
-			Sentry.captureException(err, { tags: { area: 'account-delete', op: 'enqueue_cleanup' } });
+			console.error(`[account-delete] ownership email failed for restaurant=${t.restaurantId}:`, err);
+			Sentry.captureException(err, { tags: { area: 'account-delete', op: 'ownership_email' } });
 		}
 	}
 

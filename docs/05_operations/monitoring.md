@@ -57,7 +57,7 @@ Owner-email gated. Provides:
   notifications by type).
 - Revenue dashboard: MRR snapshots (from `mrr_snapshots`).
 - WhatsApp number health (`getNumberHealth` — worst severity in 30 days).
-- Sentry/redis/env sanity info where wired.
+- Sentry/env sanity info where wired.
 
 ## Data-plane checks (SQL / dashboards)
 
@@ -152,8 +152,8 @@ Owner-email gated. Provides:
   belong to the web container only). The heartbeat above, pushed from inside
   the job loop and alarmed from the web process, is the actual liveness
   signal; this is the gap-table entry this paragraph exists to be pointed at.
-- Upstash Redis optional — when absent, in-memory rate limiting is used with a
-  single-instance warning (multi-instance deploy must configure Upstash).
+- Rate limiting is in-memory and per process; there is no external store, so
+  web must stay at 1 replica.
 
 ## Scaling triggers (issue #1004)
 
@@ -170,7 +170,7 @@ Without that, an absence is indistinguishable from an oversight.
 | Component | Today | Add it when | Baseline |
 |---|---|---|---|
 | CDN / edge cache | none — `response-cache.ts` sets `private, no-store` on every routed response (`hooks.server.ts`) | web p95 > **300 ms** for 3 consecutive 60 s buckets (`metric_samples`, `route.latency_ms`) | p95 30–140 ms |
-| Web replicas | pinned to 1 (`railway.json:10`) | web CPU > **60% for 15 min** **and** `UPSTASH_REDIS_REST_*` configured — the in-memory rate limiter does not survive a second instance (`DEPLOYMENT.md:350`, `rate-limiter.ts:33-37`) | 0.0012 of 8 vCPU (0.015%) |
+| Web replicas | pinned to 1 (`railway.json:10`) | web CPU > **60% for 15 min** **and** a shared rate-limiter store in place — the in-memory rate limiter does not survive a second instance (`DEPLOYMENT.md`) | 0.0012 of 8 vCPU (0.015%) |
 | Worker replicas | pinned to 1 (`railway.worker.json:10`) | `extract-invoice` depth > **50** (`metric_samples`, `queue.depth`) **or** queue wait p95 > **120 s** (`EXTRACTION_STALL_WARN_MS`, `env.ts:26`) | depth ~0 |
 | `MAX_CONCURRENT_EXTRACTIONS` | 3 (`env.ts:22`) | Gemini p95 (`llm_usage_log.duration_ms`) stays under the 120 s timeout (`env.ts:20`) **and** slot-wait shows in the queue-wait p95 above. Raising it without both numbers is guesswork | ≈90 docs/hour ceiling; past it the 15-min stall reaper turns a burst into `extract.err.stalled`, not backpressure |
 | Read replica | none | primary CPU > **60% sustained 15 min** | 0.014 of 8 vCPU (0.17%) |

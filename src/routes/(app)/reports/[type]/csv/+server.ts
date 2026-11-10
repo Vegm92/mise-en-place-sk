@@ -30,7 +30,7 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
 		: null;
 
 	const doc = await buildReport(type, rid, period, digest);
-	trackEvent('report_exported', rid, { type });
+	await trackEvent('report_exported', rid, { type });
 
 	return new Response(reportCsv(doc), {
 		headers: {

@@ -8,14 +8,14 @@ export interface NormalizeJobData {
 	restaurantId: string;
 	productId: number;
 	rawText: string;
-	requestId?: string;
+	requestId?: string | undefined;
 }
 
 export interface CategorizeJobData {
 	restaurantId: string;
 	productId: number;
 	canonicalName: string;
-	requestId?: string;
+	requestId?: string | undefined;
 }
 
 export const NORMALIZE_OPTIONS = (restaurantId: string, productId: number) => ({

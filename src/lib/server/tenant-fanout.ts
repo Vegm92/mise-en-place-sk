@@ -13,6 +13,7 @@ export interface TenantSummary {
 	planTier: PlanTier;
 	status: string;
 	trialEndsAt: Date | null;
+	pastDueSince: Date | null;
 }
 
 export interface TenantJobData {
@@ -73,6 +74,7 @@ export async function tenantPage(
 		planTier: subscriptions.planTier,
 		status: subscriptions.status,
 		trialEndsAt: subscriptions.trialEndsAt,
+		pastDueSince: subscriptions.pastDueSince,
 	})
 		.from(restaurants)
 		.leftJoin(subscriptions, eq(restaurants.id, subscriptions.restaurantId))
@@ -86,6 +88,7 @@ export async function tenantPage(
 		planTier: (r.planTier ?? 'trial') as PlanTier,
 		status: r.status ?? 'trialing',
 		trialEndsAt: r.trialEndsAt ?? null,
+		pastDueSince: r.pastDueSince ?? null,
 	}));
 }
 

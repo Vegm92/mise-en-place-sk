@@ -111,3 +111,20 @@ export function extractZip(buf: Buffer): Promise<ZipExtractResult> {
 		});
 	});
 }
+
+export function countZipFiles(buf: Buffer): Promise<number> {
+	return new Promise((resolve) => {
+		yauzl.fromBuffer(buf, { lazyEntries: true }, (err, zipfile) => {
+			if (err || !zipfile) return resolve(0);
+			let count = 0;
+			zipfile.on('error', () => resolve(count));
+			zipfile.on('end', () => resolve(count));
+			zipfile.on('entry', (entry) => {
+				if (!/\/$/.test(entry.fileName)) count++;
+				if (count > MAX_ZIP_ENTRIES) return resolve(count);
+				zipfile.readEntry();
+			});
+			zipfile.readEntry();
+		});
+	});
+}

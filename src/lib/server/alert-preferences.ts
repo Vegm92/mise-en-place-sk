@@ -1,6 +1,7 @@
 import { eq, inArray } from 'drizzle-orm';
 import { db, forTenant } from './db';
 import { settings } from './schema';
+import { putSetting } from './settings-store';
 
 export const ALERT_PREFERENCE_TYPES = [
 	'price_shock',
@@ -63,13 +64,7 @@ export async function savePrefixedBooleans<K extends string>(
 		.filter((key) => prefs[key] !== undefined)
 		.map((key) => ({ restaurantId, key: `${prefix}${key}`, value: prefs[key] ? ENABLED : DISABLED }));
 
-	await Promise.all(entries.map((entry) =>
-		db.insert(settings)
-			.values(entry)
-			.onConflictDoUpdate({
-				target: [settings.restaurantId, settings.key],
-				set: { value: entry.value },
-			})));
+	await Promise.all(entries.map((entry) => putSetting(entry.restaurantId, entry.key, entry.value)));
 }
 
 const NOTIFICATION_TYPE_PREFERENCE: Readonly<Record<string, AlertPreferenceType>> = {

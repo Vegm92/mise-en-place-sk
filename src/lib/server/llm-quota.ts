@@ -1,4 +1,4 @@
-import { and, count, eq, gte, sql, TransactionRollbackError, type SQL } from 'drizzle-orm';
+import { and, count, eq, gte, isNull, notInArray, or, sql, TransactionRollbackError, type SQL } from 'drizzle-orm';
 import { db, forTenant } from './db';
 import { llmUsageLog, monthlyUsage, tenantLlmQuotas, usageEvents } from './schema';
 import { estimateCostUsd, type LLMUsage } from './llm-provider';
@@ -24,12 +24,7 @@ export async function getMonthlyUsage(restaurantId: string): Promise<number> {
 
 export async function remainingMonthlyQuota(restaurantId: string, limit: number | null): Promise<number | null> {
 	if (limit === null) return null;
-	try {
-		return Math.max(0, limit - (await getMonthlyUsage(restaurantId)));
-	} catch (err) {
-		console.error('[llm-quota] monthly usage check failed (allowing request):', err);
-		return null;
-	}
+	return Math.max(0, limit - (await getMonthlyUsage(restaurantId)));
 }
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -194,7 +189,21 @@ export type QuotaResult =
 	| { allowed: true }
 	| { allowed: false; reason: 'monthly_extraction_limit' | 'monthly_cost_limit'; limit: number; used: number };
 
-export async function checkExtractionQuota(restaurantId: string): Promise<QuotaResult> {
+export type LlmUse = 'extraction' | 'digest' | 'chat';
+
+const USE_CONTEXTS: Record<Exclude<LlmUse, 'extraction'>, string> = {
+	digest: 'weekly-digest',
+	chat: 'chat',
+};
+
+function usageForUse(use: LlmUse): SQL {
+	const bucket = Object.values(USE_CONTEXTS);
+	return use === 'extraction'
+		? or(isNull(llmUsageLog.callerContext), notInArray(llmUsageLog.callerContext, bucket))!
+		: eq(llmUsageLog.callerContext, USE_CONTEXTS[use]);
+}
+
+export async function checkLlmQuota(restaurantId: string, use: LlmUse): Promise<QuotaResult> {
 	try {
 		const tdb = forTenant(restaurantId);
 		const quota = await db.query.tenantLlmQuotas.findFirst({
@@ -205,12 +214,11 @@ export async function checkExtractionQuota(restaurantId: string): Promise<QuotaR
 		const monthStart = new Date();
 		monthStart.setUTCDate(1);
 		monthStart.setUTCHours(0, 0, 0, 0);
+		const thisMonth = gte(llmUsageLog.createdAt, monthStart);
+		const thisUse = usageForUse(use);
 
 		if (quota.monthlyExtractions != null) {
-			const used = await db.$count(llmUsageLog, and(
-				tdb.scope(llmUsageLog.restaurantId),
-				gte(llmUsageLog.createdAt, monthStart),
-			));
+			const used = await db.$count(llmUsageLog, and(tdb.scope(llmUsageLog.restaurantId), thisMonth, thisUse));
 			if (used >= quota.monthlyExtractions) {
 				return { allowed: false, reason: 'monthly_extraction_limit', limit: quota.monthlyExtractions, used };
 			}
@@ -221,10 +229,7 @@ export async function checkExtractionQuota(restaurantId: string): Promise<QuotaR
 			const [row] = await db
 				.select({ total: sql<string>`coalesce(sum(estimated_cost_usd), '0')` })
 				.from(llmUsageLog)
-				.where(and(
-					tdb.scope(llmUsageLog.restaurantId),
-					gte(llmUsageLog.createdAt, monthStart),
-				));
+				.where(and(tdb.scope(llmUsageLog.restaurantId), thisMonth, thisUse));
 			const used = parseFloat(row?.total ?? '0');
 			if (used >= limit) {
 				return { allowed: false, reason: 'monthly_cost_limit', limit, used };
@@ -236,6 +241,10 @@ export async function checkExtractionQuota(restaurantId: string): Promise<QuotaR
 		console.error('[llm-quota] quota check failed (allowing request):', err);
 		return { allowed: true };
 	}
+}
+
+export function checkExtractionQuota(restaurantId: string): Promise<QuotaResult> {
+	return checkLlmQuota(restaurantId, 'extraction');
 }
 
 export async function recordLlmUsage(
