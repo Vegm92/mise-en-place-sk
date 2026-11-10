@@ -290,12 +290,10 @@ Setup checklist in [WhatsApp bot setup](#whatsapp-bot-setup) below. Leave `WHATS
 | `TURNSTILE_SECRET_KEY` | Optional | Server-side verification secret for the CAPTCHA on `/signup` and `/waitlist`, on top of the always-on honeypot and IP limits. Set **both** keys or neither: a secret without a site key rejects every signup (no widget ever renders). If Cloudflare's siteverify is unreachable after one retry, production rejects the submission with 503. Keys: dash.cloudflare.com → Turnstile. |
 | `PUBLIC_TURNSTILE_SITE_KEY` | Optional | The widget's site key; `PUBLIC_` prefix because it ships to the browser by design. Read at runtime through `$env/dynamic/public`, so changing it needs a redeploy but no rebuild. The CSP in `svelte.config.js` already allows `challenges.cloudflare.com`. |
 
-### Rate limiting (Upstash Redis)
+### Rate limiting
 
 | Variable | Required | Notes |
 |---|---|---|
-| `UPSTASH_REDIS_REST_URL` | For >1 replica | Upstash REST URL. Without it the limiter falls back to an in-memory token bucket that is **per process** — effective limits become `limit × replica_count` (`rate-limiter.ts` logs a warning at boot). |
-| `UPSTASH_REDIS_REST_TOKEN` | For >1 replica | Upstash REST token. |
 | `API_GLOBAL_RATE_LIMIT` | No | Backstop for every `/api/*` route without its own limit: requests per minute per user (per IP when anonymous) before `hooks.server.ts` answers 429. Default `300`; `0` disables it. `/api/health` and the signature-verified webhooks are exempt. |
 
 ### Tuning
@@ -303,7 +301,7 @@ Setup checklist in [WhatsApp bot setup](#whatsapp-bot-setup) below. Leave `WHATS
 | Variable | Default | Notes |
 |---|---|---|
 | `CHAT_RATE_LIMIT_RPM` | `20` | Chat requests/minute per user |
-| `MAX_CONCURRENT_EXTRACTIONS` | `3` | Parallel Gemini extraction cap, **per worker process** (in-process semaphore) |
+| `MAX_CONCURRENT_EXTRACTIONS` | `3` | Parallel Gemini extraction cap, **per worker process** (the pg-boss `batchSize`) |
 | `EXPORT_ROW_CAP` / `LIST_ROW_CAP` | `10000` / `500` | Row caps for CSV/XLSX exports and the invoice list page |
 | `MEMBERSHIP_TIMEOUT_MS` | `5000` | Web: membership lookup in `hooks.server.ts`; past it the request proceeds tenantless and Sentry gets a `hooks/memberships` degraded event |
 | `LOAD_BLOCK_TIMEOUT_MS` | `8000` | Web: ceiling for a page `load` (`src/lib/server/load-guard.ts`) before it answers 503 instead of hanging the navigation |
@@ -351,7 +349,7 @@ what actually applied.
 | `preDeployCommand` | `pnpm db:migrate` | `node build/wait-for-migrations.js` | Migrations run in exactly one place. drizzle-kit takes no advisory lock, so two services migrating the same push race, and after the #464 cutover the worker's role cannot run DDL at all. The worker's step instead polls `drizzle.__drizzle_migrations` until every entry of the shipped `drizzle/meta/_journal.json` is applied (up to `MIGRATION_WAIT_TIMEOUT_MS`, default 10 min), so the **old** worker keeps consuming jobs until the schema the new build expects exists, and a journal entry drizzle-kit would silently skip (older than the newest applied) fails the deploy instead of shipping a mismatched schema. |
 | `healthcheckPath` / `healthcheckTimeout` | `/api/health`, 300 s | — | Railway keeps the previous deployment serving until the new container answers 200; the public health response is `{ status }` backed by one `SELECT 1`, 503 when the database is unreachable. The worker has no HTTP port. |
 | `restartPolicyType` | `ON_FAILURE` (10 retries) | `ALWAYS` | A worker that exhausts `ON_FAILURE` retries during a Postgres restart stays down until someone notices; `ALWAYS` keeps retrying and the heartbeat check on `/admin/health` shows the gap. |
-| `numReplicas` | 1 | 1 | The in-memory rate limiter and extraction semaphore are per process — set `UPSTASH_REDIS_REST_*` before scaling either tier out. |
+| `numReplicas` | 1 | 1 | Keep at 1: the rate limiter is per process, so add a shared store before scaling web past 1 replica; the worker's `batchSize` (`MAX_CONCURRENT_EXTRACTIONS`) caps extraction only within one instance. |
 | `sleepApplication` | `false` | `false` | A slept web tier drops the first request after idle; a slept worker drops the WhatsApp socket. |
 | Region | same region as Postgres | same region as Postgres | Cross-region DB round trips dominate request latency; EU tenant data belongs in an EU region (`europe-west4`). Region is a dashboard setting, not config-as-code. |
 
@@ -387,7 +385,7 @@ six `AWS_*` variables on each (see [File storage](#file-storage)). Set `ADDRESS_
 
 ## Production constraints (read before scaling)
 
-- **One web + one worker, unless Upstash is configured.** The rate limiter falls back to an in-memory bucket per process and the extraction semaphore is in-process, so extra replicas multiply both limits. Set `UPSTASH_REDIS_REST_*` before scaling the web tier out. Upload sessions live in Postgres and are replica-safe.
+- **One web + one worker.** The rate limiter is an in-memory bucket per process and extraction concurrency is the worker's `batchSize`, so extra replicas multiply both limits. Add a shared store before scaling the web tier out, and a real cross-process cap before scaling the worker. Upload sessions live in Postgres and are replica-safe.
 - **Persistent, shared storage** for uploads (see [File storage](#file-storage)) + a backup policy for both the volume and the database.
 - **`ADDRESS_HEADER` only where a proxy actually rewrites the header** (see [Reverse proxy / client IP](#reverse-proxy--client-ip)): behind a real proxy and unset, all IP-keyed limits collapse into one shared bucket; with nothing in front to rewrite it and set anyway, those same limits become spoofable.
 - Scheduled work (weekly digest generation + email, overdue-invoice reminders, trial-expiry notices) runs as pg-boss cron jobs inside the **worker** process (`src/lib/server/scheduler.ts`). If the worker is not running, none of it fires.

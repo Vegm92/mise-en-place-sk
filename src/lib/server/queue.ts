@@ -4,6 +4,8 @@ import { storageFingerprint } from './env.js';
 import type { WhatsAppInboundMessage } from './integrations/whatsapp/transport.js';
 
 import {
+	type WhatsAppInboundJobData,
+	type WhatsAppNotifyJobData,
 	WHATSAPP_NOTIFY_QUEUE,
 	WHATSAPP_INBOUND_QUEUE,
 	WHATSAPP_NOTIFY_DEAD_LETTER_QUEUE,
@@ -13,12 +15,15 @@ import {
 } from './contracts/whatsapp-contract.js';
 
 import {
+	type ExtractionJobData,
 	EXTRACTION_QUEUE,
 	EXTRACTION_DEAD_LETTER_QUEUE,
 	EXTRACTION_OPTIONS,
 } from './contracts/extraction-contract.js';
 
 import {
+	type CategorizeJobData,
+	type NormalizeJobData,
 	NORMALIZE_QUEUE,
 	NORMALIZE_DEAD_LETTER_QUEUE,
 	CATEGORIZE_QUEUE,
@@ -28,6 +33,7 @@ import {
 } from './contracts/products-contract.js';
 
 import {
+	type AccountCleanupJobData,
 	ACCOUNT_CLEANUP_QUEUE,
 	ACCOUNT_CLEANUP_DEAD_LETTER_QUEUE,
 	ACCOUNT_CLEANUP_OPTIONS,
@@ -94,11 +100,8 @@ export async function enqueueExtraction(
 	requestId?: string,
 ): Promise<boolean> {
 	const b = await getBoss();
-	const jobId = await b.send(
-		EXTRACTION_QUEUE,
-		{ itemId, restaurantId, requestId, storageFingerprint: storageFingerprint() },
-		EXTRACTION_OPTIONS(itemId),
-	);
+	const data: ExtractionJobData = { itemId, restaurantId, requestId, storageFingerprint: storageFingerprint() };
+	const jobId = await b.send(EXTRACTION_QUEUE, data, EXTRACTION_OPTIONS(itemId));
 	return jobId !== null;
 }
 
@@ -109,7 +112,8 @@ export async function enqueueNormalize(
 	requestId?: string,
 ): Promise<boolean> {
 	const b = await getBoss();
-	const jobId = await b.send(NORMALIZE_QUEUE, { restaurantId, productId, rawText, requestId }, NORMALIZE_OPTIONS(restaurantId, productId));
+	const data: NormalizeJobData = { restaurantId, productId, rawText, requestId };
+	const jobId = await b.send(NORMALIZE_QUEUE, data, NORMALIZE_OPTIONS(restaurantId, productId));
 	return jobId !== null;
 }
 
@@ -120,7 +124,8 @@ export async function enqueueCategorize(
 	requestId?: string,
 ): Promise<boolean> {
 	const b = await getBoss();
-	const jobId = await b.send(CATEGORIZE_QUEUE, { restaurantId, productId, canonicalName, requestId }, CATEGORIZE_OPTIONS(restaurantId, productId));
+	const data: CategorizeJobData = { restaurantId, productId, canonicalName, requestId };
+	const jobId = await b.send(CATEGORIZE_QUEUE, data, CATEGORIZE_OPTIONS(restaurantId, productId));
 	return jobId !== null;
 }
 
@@ -130,19 +135,15 @@ export async function enqueueWhatsAppNotify(
 	requestId?: string,
 ): Promise<boolean> {
 	const b = await getBoss();
-	const jobId = await b.send(WHATSAPP_NOTIFY_QUEUE, { itemId, restaurantId, requestId }, WHATSAPP_NOTIFY_OPTIONS(itemId));
+	const data: WhatsAppNotifyJobData = { itemId, restaurantId, requestId };
+	const jobId = await b.send(WHATSAPP_NOTIFY_QUEUE, data, WHATSAPP_NOTIFY_OPTIONS(itemId));
 	return jobId !== null;
-}
-
-export interface WhatsAppInboundJobData {
-	messageId: string;
-	msg: WhatsAppInboundMessage;
-	requestId?: string;
 }
 
 export async function enqueueWhatsAppInbound(msg: WhatsAppInboundMessage, requestId?: string): Promise<boolean> {
 	const b = await getBoss();
-	const jobId = await b.send(WHATSAPP_INBOUND_QUEUE, { messageId: msg.id, msg, requestId }, WHATSAPP_INBOUND_OPTIONS(msg.id));
+	const data: WhatsAppInboundJobData = { messageId: msg.id, msg, requestId };
+	const jobId = await b.send(WHATSAPP_INBOUND_QUEUE, data, WHATSAPP_INBOUND_OPTIONS(msg.id));
 	return jobId !== null;
 }
 
@@ -154,10 +155,7 @@ export async function enqueueAccountCleanup(
 	requestId?: string,
 ): Promise<boolean> {
 	const b = await getBoss();
-	const jobId = await b.send(
-		ACCOUNT_CLEANUP_QUEUE,
-		{ itemId: userId, restaurantId, stripeSubscriptionIds, storageKeys, requestId },
-		ACCOUNT_CLEANUP_OPTIONS(userId),
-	);
+	const data: AccountCleanupJobData = { userId, restaurantId, stripeSubscriptionIds, storageKeys, requestId };
+	const jobId = await b.send(ACCOUNT_CLEANUP_QUEUE, data, ACCOUNT_CLEANUP_OPTIONS(userId));
 	return jobId !== null;
 }

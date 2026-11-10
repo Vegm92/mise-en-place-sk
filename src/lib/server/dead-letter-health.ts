@@ -46,6 +46,11 @@ export async function runDeadLetterPurgeJob(): Promise<{ purged: number }> {
 	return result;
 }
 
+export async function alertOnDeadLetter(queue: string): Promise<void> {
+	if (!DEAD_LETTER_ZERO_TOLERANCE_QUEUES.includes(queue)) return;
+	await runDeadLetterAlertJob().catch((err) => Sentry.captureException(err));
+}
+
 export async function runDeadLetterAlertJob(): Promise<{ pending: number; alerted: boolean }> {
 	const growth = await deadLetterGrowth();
 	const alert = deadLetterAlert(growth);

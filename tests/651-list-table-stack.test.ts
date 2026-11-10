@@ -2,7 +2,7 @@
  * Stacked list tables (issue #651).
  *
  * ListPageTemplate renders its table snippet into a card that clips rather
- * than scrolls, so at 390px the /products and /plantilla-lista tables lose
+ * than scrolls, so at 390px the /products table loses
  * whole columns. Below md a table is the wrong primitive: the pages opt in
  * to a shared `.tbl-stack` modifier (modeled on the frozen `.rev-tax-tbl`
  * pattern) that hides the header row and reflows each row as a stacked
@@ -20,7 +20,6 @@ const read = (rel: string) => readFileSync(path.join(ROOT, rel), 'utf8');
 
 const APP_CSS = read('src/app.css');
 const PRODUCTS = read('src/routes/(app)/products/+page.svelte');
-const PLANTILLA = read('src/routes/(app)/plantilla-lista/+page.svelte');
 const INVOICES = read('src/routes/(app)/invoices/+page.svelte');
 const SUPPLIERS = read('src/routes/(app)/suppliers/+page.svelte');
 const TEMPLATE = read('src/lib/components/mep/ListPageTemplate.svelte');
@@ -48,15 +47,13 @@ describe('stacked list tables (issue #651)', () => {
 		expect(block).toMatch(/\.tbl-stack td\[data-label\]::before\s*\{\s*content:\s*attr\(data-label\)/);
 	});
 
-	it('products and plantilla-lista opt their tables in', () => {
+	it('products opts its table in', () => {
 		expect(PRODUCTS).toMatch(/class="tbl tbl-stack"/);
-		expect(PLANTILLA).toMatch(/class="tbl tbl-stack"/);
 	});
 
 	it('bare numeric columns carry data-label so values survive losing the header', () => {
 		expect(PRODUCTS).toMatch(/data-label=\{t\('prod\.col\.suppliers'\)\}/);
 		expect(PRODUCTS).toMatch(/data-label=\{t\('prod\.col\.aliases'\)\}/);
-		expect(PLANTILLA).toMatch(/data-label=\{t\('tpl\.demo\.col\.spend'\)\}/);
 	});
 
 	it('stays opt-in: invoices, suppliers, and the template itself are untouched', () => {

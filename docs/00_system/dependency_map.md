@@ -112,11 +112,11 @@ Webhook → HMAC verify → `idempotency_keys` (`whatsapp` scope) dedup → phon
 (`whatsapp_contacts`, ADR-019) → batch pipeline (ADR-004). Pairing codes →
 `whatsapp_pairing_codes`. Feeds the same extraction pipeline as web uploads.
 
-### Analytics (`trend.ts`, materialized views)
+### Analytics (materialized views)
 `mv_supplier_monthly_spend`, `mv_item_monthly_spend`,
 `mv_category_monthly_spend`, `mv_price_snapshots`, `mv_extraction_stats`
 refreshed nightly (`10 3 * * *`). Consumers: `/analytics/*`, dashboard,
-`/api/trend`, supplier/product detail pages. Touching `products`/`suppliers`/
+supplier/product detail pages. Touching `products`/`suppliers`/
 `invoices` shapes affects these views — keep the refresh function in sync.
 
 ## Cross-cutting concerns every change inherits

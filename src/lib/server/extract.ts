@@ -1,12 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
-import { Type, type Schema } from '@google/genai';
 import { GEMINI_TIMEOUT_MS } from './env';
 import { VALID_CATEGORIES, UNCATEGORIZED_CATEGORY, PAYMENT_METHODS, isValidPaymentMethod } from '$lib/constants';
 import { categoryGuideBlock } from './category-guide';
 import { parseJsonResponse } from './llm-json';
-import { createGeminiProvider, type LLMUsage } from './llm-provider';
+import { createGeminiProvider, Type, type LLMUsage, type Schema } from './llm-provider';
 import { parseEinvoice } from './einvoice-parser';
 import { normalizeIban, isValidIban } from '$lib/iban';
 

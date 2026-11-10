@@ -12,13 +12,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as v from 'valibot';
 
-const { rateLimitMock, logAuthEventMock, RateLimitBackendUnavailableError } = vi.hoisted(() => ({
+const { rateLimitMock, logAuthEventMock } = vi.hoisted(() => ({
 	rateLimitMock: vi.fn().mockResolvedValue(true),
 	logAuthEventMock: vi.fn(),
-	RateLimitBackendUnavailableError: class extends Error {},
 }));
 
-vi.mock('$lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock, RateLimitBackendUnavailableError }));
+vi.mock('$lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock }));
 vi.mock('$lib/server/env', async (importOriginal) => ({
 	...(await importOriginal<typeof import('../src/lib/server/env')>()),
 	TURNSTILE_SECRET_KEY: 'turnstile-secret',
@@ -274,32 +273,13 @@ describe('publicFormAction — fail closed in production (issue #1072)', () => {
 		expect(handler).not.toHaveBeenCalled();
 	});
 
-	it('marks every public-form limit auth-critical so the limiter can fail closed', async () => {
+	it('passes each rule key and max to the limiter', async () => {
 		const action = publicFormAction({ limits: ({ ip }) => [{ key: `signup:ip:${ip}`, max: 5 }] }, async () => ({ ok: true }));
 		await action(formEvent({}));
-		expect(rateLimitMock).toHaveBeenCalledWith('signup:ip:203.0.113.7', 5, undefined, { authCritical: true });
+		expect(rateLimitMock).toHaveBeenCalledWith('signup:ip:203.0.113.7', 5);
 	});
 
-	it('answers 503 — not 429, not the handler — when the rate-limit backend is unavailable', async () => {
-		rateLimitMock.mockRejectedValueOnce(new RateLimitBackendUnavailableError('down'));
-		const handler = vi.fn();
-		const action = publicFormAction(
-			{
-				rateLimitEvent: 'login_rate_limited',
-				failData: ({ form }) => ({ email: form.get('email') }),
-				limits: ({ ip }) => [{ key: `login:ip:${ip}`, max: 10, scope: 'ip' }],
-			},
-			handler,
-		);
-		expect(await action(formEvent({ email: 'chef@example.com' }))).toMatchObject({
-			status: 503,
-			data: { error: 'service_unavailable', email: 'chef@example.com' },
-		});
-		expect(handler).not.toHaveBeenCalled();
-		expect(logAuthEventMock).not.toHaveBeenCalled();
-	});
-
-	it('lets any other limiter failure propagate rather than masking it as an outage', async () => {
+	it('lets a limiter failure propagate rather than masking it', async () => {
 		rateLimitMock.mockRejectedValueOnce(new TypeError('boom'));
 		const action = publicFormAction({ limits: () => [{ key: 'k', max: 1 }] }, async () => ({ ok: true }));
 		await expect(action(formEvent({}))).rejects.toThrow('boom');

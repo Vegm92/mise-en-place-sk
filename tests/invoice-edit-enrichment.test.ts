@@ -64,6 +64,7 @@ function lineForm(fields: Record<string, string>, total: string): FormData {
 	fd.append('line_total_prices', total);
 	fd.append('line_tax_rates', '10');
 	fd.append('line_supplier_skus', SKU);
+	fd.append('line_category_overrides', 'Bebidas');
 	return fd;
 }
 
@@ -192,5 +193,14 @@ describe('the edit page posts back every column the save path reads', () => {
 		);
 
 		expect(src).toContain('name="line_supplier_skus"');
+	});
+
+	it('renders a line_category_overrides input, or every edit silently drops the category override', () => {
+		const src = fs.readFileSync(
+			path.join(process.cwd(), 'src/routes/(app)/invoice/[id]/edit/+page.svelte'),
+			'utf8'
+		);
+
+		expect(src).toContain('name="line_category_overrides"');
 	});
 });

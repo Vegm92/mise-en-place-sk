@@ -29,7 +29,7 @@ deploying. This page is the short pointer + invariants an agent must keep.
   MITM window — use `verify-full` + `DATABASE_CA_CERT` for tighter security
   (see `security_rules.md`).
 - Worker needs the same secrets as the app (Gemini, Stripe, WhatsApp, Resend,
-  Sentry, rate-limiter Redis).
+  Sentry).
 - Scheduled jobs are registered in the worker (`registerScheduledJobs`,
   ADR-011) — a worker without them silently loses nightly refresh/digest/trial
   jobs.
@@ -64,9 +64,8 @@ complete inventory the app and worker actually read, grouped by area.
   are separate containers with separate disks; a worker left on its `local`
   default fails every extraction with `ENOENT` (seen in prod 2026-08-04).
 - **Chat / extraction tuning** — `CHAT_RATE_LIMIT_RPM` (default 20),
-  `MAX_CONCURRENT_EXTRACTIONS` (default 3), `UPSTASH_REDIS_REST_URL` /
-  `UPSTASH_REDIS_REST_TOKEN` (multi-replica rate limiting + distributed
-  extraction semaphore; the in-memory fallback is per-process).
+  `MAX_CONCURRENT_EXTRACTIONS` (default 3; the worker's `batchSize`). The rate
+  limiter is in-memory and per-process: keep web and worker at 1 replica.
 - **Email** — `RESEND_API_KEY` (unset → `sendEmail()` logs instead of sending),
   `EMAIL_FROM`, plus the legal footer lines `COMPANY_LEGAL_NAME` /
   `COMPANY_ADDRESS` / `COMPANY_NIF` (each omitted, not fabricated, when unset).

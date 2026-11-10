@@ -117,7 +117,7 @@ describe('the review vocabulary is what the transition module writes', () => {
 	);
 
 	it('the canonical save path writes only vocabulary states', () => {
-		const save = read('src/lib/server/invoice-save.ts');
+		const save = read('src/lib/server/invoice-form.ts');
 		for (const m of save.matchAll(/(?:reviewState:|return flagged \?)\s*'([a-z_]+)'\s*(?::\s*'([a-z_]+)')?/g)) {
 			expect(isReviewState(m[1]!)).toBe(true);
 			if (m[2]) expect(isReviewState(m[2])).toBe(true);

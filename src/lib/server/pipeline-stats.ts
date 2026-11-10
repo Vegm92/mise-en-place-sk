@@ -77,6 +77,19 @@ export async function extractionStats(windowHours = 24): Promise<ExtractionStats
 	};
 }
 
+export async function unarchivedExtractions(windowHours = 24, graceMinutes = 15): Promise<number> {
+	const row = await one(sql`
+		SELECT COUNT(*)::int AS missing
+		FROM batch_items b
+		WHERE b.status IN ('done', 'confirmed')
+		  AND b.extracted_data IS NOT NULL
+		  AND b.extracted_at > now() - ${`${windowHours} hours`}::interval
+		  AND b.extracted_at < now() - ${`${graceMinutes} minutes`}::interval
+		  AND NOT EXISTS (SELECT 1 FROM extraction_results r WHERE r.batch_item_id = b.id)
+	`);
+	return num(row.missing);
+}
+
 export interface ReviewBacklog {
 	items: number;
 	tenants: number;

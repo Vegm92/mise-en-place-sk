@@ -11,6 +11,7 @@ import { STRIPE_PRICE_ID, STRIPE_PRICE_ID_BUSINESS, STRIPE_PRICE_ID_PRO, STRIPE_
 import { db, forTenant, runAsSystem } from './db';
 import type { BatchDb } from './batch';
 import { subscriptions, restaurants, settings, systemNotifications, userRestaurants } from './schema';
+import { putSetting } from './settings-store';
 import { claimIdempotencyKey, releaseIdempotencyKey, STRIPE_WEBHOOK_SCOPE } from './idempotency';
 import { trackEvent } from './events';
 import { sendEmail, subscriptionConfirmationEmail, subscriptionConsolidatedEmail } from './email';
@@ -29,6 +30,7 @@ export const stripe: Stripe | null = secretKey ? new Stripe(secretKey, { apiVers
 export const WEBHOOK_SECRET = STRIPE_WEBHOOK_SECRET;
 export const TRIAL_DAYS         = 14;
 export const FOUNDER_TRIAL_DAYS = 30;
+export const PAST_DUE_GRACE_DAYS = 7;
 export const FOUNDER_COUPON_ID  = STRIPE_FOUNDER_COUPON_ID;
 
 export function trialDaysFor(founder: boolean): number {
@@ -369,13 +371,9 @@ export async function notifyLocationsLocked(billingRestaurantId: string, tier: P
 export async function applyTierSettings(restaurantId: string, tier: PlanTier): Promise<void> {
 	const config = TIERS[tier];
 	const quota = config.monthlyInvoiceQuota ?? UNLIMITED_QUOTA_SETTING;
-	const upsert = (key: string, value: string) =>
-		db.insert(settings)
-			.values({ restaurantId, key, value })
-			.onConflictDoUpdate({ target: [settings.restaurantId, settings.key], set: { value } });
 	await Promise.all([
-		upsert('plan_name', config.name),
-		upsert('plan_quota', String(quota)),
+		putSetting(restaurantId, 'plan_name', config.name),
+		putSetting(restaurantId, 'plan_quota', String(quota)),
 	]);
 }
 
@@ -394,9 +392,14 @@ export async function requireFeature(
 	if (!(await hasFeature(feature, source))) throw error(403, `This feature requires a higher plan tier`);
 }
 
-export function isAccessAllowed(status: SubscriptionStatus, trialEndsAt: Date | null): boolean {
+export function isAccessAllowed(
+	status: SubscriptionStatus,
+	trialEndsAt: Date | null,
+	pastDueSince: Date | null = null,
+): boolean {
 	if (status === 'active') return true;
 	if (status === 'trialing' && trialEndsAt && trialEndsAt > new Date()) return true;
+	if (status === 'past_due' && pastDueSince) return pastDueSince.getTime() + PAST_DUE_GRACE_DAYS * DAY_MS > Date.now();
 	return false;
 }
 
@@ -408,28 +411,21 @@ export interface AccessState {
 }
 
 export function resolveAccessState(
-	sub: { status: string; trialEndsAt: Date | null } | undefined,
+	sub: { status: string; trialEndsAt: Date | null; pastDueSince?: Date | null } | undefined,
 ): AccessState {
 	if (!sub) return { allowed: false, status: 'trialing', trialEndsAt: null, trialExpired: true };
 
 	const status = sub.status as SubscriptionStatus;
 	const trialEndsAt = sub.trialEndsAt ?? null;
-	const allowed = isAccessAllowed(status, trialEndsAt);
+	const allowed = isAccessAllowed(status, trialEndsAt, sub.pastDueSince ?? null);
 	return { allowed, status, trialEndsAt, trialExpired: !allowed && status === 'trialing' };
 }
 
 export function effectiveTier(
-	sub: { planTier: string | null; status: string; trialEndsAt: Date | null } | undefined,
+	sub: { planTier: string | null; status: string; trialEndsAt: Date | null; pastDueSince?: Date | null } | undefined,
 ): PlanTier {
 	if (!sub) return 'trial';
-
-	const downgraded =
-		sub.status === 'canceled' ||
-		sub.status === 'paused' ||
-		sub.status === 'incomplete' ||
-		(!resolveAccessState(sub).allowed && sub.status === 'trialing');
-
-	return downgraded ? 'trial' : ((sub.planTier ?? 'trial') as PlanTier);
+	return resolveAccessState(sub).allowed ? ((sub.planTier ?? 'trial') as PlanTier) : 'trial';
 }
 
 export interface SubscriptionSummary {
@@ -456,6 +452,7 @@ interface EntitlementsRow {
 	planTier:          string | null;
 	status:            string | null;
 	trialEndsAt:       Date | null;
+	pastDueSince:      Date | null;
 	cancelAtPeriodEnd: boolean | null;
 	currentPeriodEnd:  Date | null;
 	quotaValue:        string | null;
@@ -467,6 +464,7 @@ export async function getEntitlements(restaurantId: string): Promise<Entitlement
 		planTier:          subscriptions.planTier,
 		status:            subscriptions.status,
 		trialEndsAt:       subscriptions.trialEndsAt,
+		pastDueSince:      subscriptions.pastDueSince,
 		cancelAtPeriodEnd: subscriptions.cancelAtPeriodEnd,
 		currentPeriodEnd:  subscriptions.currentPeriodEnd,
 		quotaValue:        settings.value,
@@ -486,6 +484,7 @@ function entitlementsFromRow(row: Partial<EntitlementsRow> | undefined, restaura
 			planTier:    row.planTier ?? null,
 			status:      row.status ?? '',
 			trialEndsAt: row.trialEndsAt ?? null,
+			pastDueSince: row.pastDueSince ?? null,
 		}
 		: undefined;
 
@@ -852,6 +851,7 @@ async function handleCheckoutCompleted(event: Stripe.Event, eventCreatedAt: Date
 				stripePriceId: priceId,
 				planTier: tier,
 				status: sub.status,
+				pastDueSince: pastDueSinceUpdate(sub.status, eventCreatedAt),
 				currentPeriodEnd: periodEnd,
 				cancelAtPeriodEnd: sub.cancel_at_period_end,
 				lastEventAt: eventCreatedAt,
@@ -863,7 +863,7 @@ async function handleCheckoutCompleted(event: Stripe.Event, eventCreatedAt: Date
 	if (applied.length === 0) return;
 
 	await applyTierSettings(restaurantId, tier);
-	trackEvent('plan_upgraded', restaurantId, { tier, price_id: priceId });
+	await trackEvent('plan_upgraded', restaurantId, { tier, price_id: priceId });
 	console.info(`[billing] checkout.session.completed applied — restaurant=${restaurantId}, tier=${tier}, status=${sub.status}, subscription=${subscriptionId}`);
 
 	if (userId) {
@@ -885,6 +885,10 @@ async function sendSubscriptionConfirmation(restaurantId: string, email: string,
 		restaurant?.name ?? 'tu restaurante',
 		TIERS[tier].name,
 	)).catch(e => console.error('[billing] subscription confirmation email failed:', e));
+}
+
+function pastDueSinceUpdate(status: string, at: Date) {
+	return status === 'past_due' ? sql`COALESCE(${subscriptions.pastDueSince}, ${at.toISOString()}::timestamptz)` : null;
 }
 
 async function handleSubscriptionChanged(event: Stripe.Event, eventCreatedAt: Date): Promise<void> {
@@ -916,6 +920,7 @@ async function handleSubscriptionChanged(event: Stripe.Event, eventCreatedAt: Da
 			stripePriceId: priceId,
 			planTier: tier,
 			status: sub.status as SubscriptionStatus,
+			pastDueSince: pastDueSinceUpdate(sub.status, eventCreatedAt),
 			currentPeriodEnd: periodEnd,
 			cancelAtPeriodEnd: sub.cancel_at_period_end,
 			lastEventAt: eventCreatedAt,
@@ -929,8 +934,8 @@ async function handleSubscriptionChanged(event: Stripe.Event, eventCreatedAt: Da
 	if (applied.length === 0) return;
 
 	await applyStatusSettings(restaurantId, sub.status, tier);
-	await notifyLocationsLocked(restaurantId, effectiveTier({ planTier: tier, status: sub.status, trialEndsAt: null }));
-	trackSubscriptionEvent(event, restaurantId, tier, sub.status);
+	await notifyLocationsLocked(restaurantId, effectiveTier({ planTier: tier, status: sub.status, trialEndsAt: null, pastDueSince: eventCreatedAt }));
+	await trackSubscriptionEvent(event, restaurantId, tier, sub.status);
 	console.info(`[billing] ${event.type} applied — restaurant=${restaurantId}, tier=${tier}, status=${sub.status}, subscription=${sub.id}`);
 }
 
@@ -942,15 +947,15 @@ async function applyStatusSettings(restaurantId: string, status: string, tier: P
 	}
 }
 
-function trackSubscriptionEvent(event: Stripe.Event, restaurantId: string, tier: PlanTier, status: string): void {
+async function trackSubscriptionEvent(event: Stripe.Event, restaurantId: string, tier: PlanTier, status: string): Promise<void> {
 	if (event.type === 'customer.subscription.deleted' || status === 'canceled') {
-		trackEvent('subscription_canceled', restaurantId, { tier, status });
+		await trackEvent('subscription_canceled', restaurantId, { tier, status });
 	} else if (status === 'past_due') {
-		trackEvent('payment_past_due', restaurantId, { tier, status });
+		await trackEvent('payment_past_due', restaurantId, { tier, status });
 	} else if (event.type === 'customer.subscription.paused') {
-		trackEvent('subscription_paused', restaurantId, { tier, status });
+		await trackEvent('subscription_paused', restaurantId, { tier, status });
 	} else if (event.type === 'customer.subscription.resumed') {
-		trackEvent('subscription_resumed', restaurantId, { tier, status });
+		await trackEvent('subscription_resumed', restaurantId, { tier, status });
 	}
 }
 
@@ -960,7 +965,7 @@ async function handleTrialWillEnd(event: Stripe.Event): Promise<void> {
 	if (missingSubscriptionMetadata(event.type, sub.id, restaurantId)) return;
 	if (!restaurantId) return;
 
-	trackEvent('trial_will_end', restaurantId, { subscription_id: sub.id });
+	await trackEvent('trial_will_end', restaurantId, { subscription_id: sub.id });
 }
 
 export async function syncSubscriptionFromStripe(restaurantId: string): Promise<void> {
@@ -994,6 +999,7 @@ export async function syncSubscriptionFromStripe(restaurantId: string): Promise<
 				planTier: tier,
 				status,
 				trialEndsAt,
+				pastDueSince: pastDueSinceUpdate(status, new Date()),
 				currentPeriodEnd: periodEnd,
 				cancelAtPeriodEnd: live.cancel_at_period_end,
 				lastEventAt: new Date(),

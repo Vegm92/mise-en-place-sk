@@ -1,8 +1,7 @@
 import { json } from '@sveltejs/kit';
 import * as v from 'valibot';
 import type { RequestHandler } from './$types';
-import { db } from '$lib/server/db';
-import { settings } from '$lib/server/schema';
+import { putSetting } from '$lib/server/settings-store';
 import { apiError, invalidBody } from '$lib/server/api-response';
 import { parseJson } from '$lib/server/public-form-action';
 import { rateLimitScoped } from '$lib/server/rate-limit-scope';
@@ -29,13 +28,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	const step = parsed.output.step;
 
-	await db
-		.insert(settings)
-		.values({ restaurantId: locals.restaurantId, key: 'tutorial_step', value: step })
-		.onConflictDoUpdate({
-			target: [settings.restaurantId, settings.key],
-			set: { value: step },
-		});
+	await putSetting(locals.restaurantId, 'tutorial_step', step);
 
 	return json({ ok: true });
 };

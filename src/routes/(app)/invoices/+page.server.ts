@@ -249,7 +249,7 @@ export const actions: Actions = {
 		const id = Number(data.get('id'));
 		const rid = locals.restaurantId!;
 		const ok = await markInvoiceReviewed(id, rid);
-		if (ok) trackEvent('invoice_review_state_changed', rid, { to: 'revisado' }, id);
+		if (ok) await trackEvent('invoice_review_state_changed', rid, { to: 'revisado' }, id);
 		redirect(303, ok ? '/invoices' : '/invoices?conflict=1');
 	},
 	deleteInvoice: async ({ request, locals }) => {
@@ -263,16 +263,18 @@ export const actions: Actions = {
 			.where(and(eq(invoices.id, id), tdb.scope(invoices.restaurantId, isNull(invoices.deletedAt))));
 		if (!inv) redirect(303, '/invoices');
 		const now = new Date();
-		await db.update(invoices).set({ deletedAt: now })
-			.where(tdb.scope(invoices.restaurantId, eq(invoices.id, id)));
-		await db.insert(invoiceAuditLog).values({
-			restaurantId: rid,
-			invoiceId:    id,
-			action:       'soft_delete',
-			userId:       uid,
-			snapshot:     JSON.stringify(inv),
+		await db.transaction(async (tx) => {
+			await tx.update(invoices).set({ deletedAt: now })
+				.where(tdb.scope(invoices.restaurantId, eq(invoices.id, id)));
+			await tx.insert(invoiceAuditLog).values({
+				restaurantId: rid,
+				invoiceId:    id,
+				action:       'soft_delete',
+				userId:       uid,
+				snapshot:     JSON.stringify(inv),
+			});
 		});
-		trackEvent('invoice_status_changed', rid, { to: 'deleted' }, id);
+		await trackEvent('invoice_status_changed', rid, { to: 'deleted' }, id);
 		redirect(303, '/invoices');
 	},
 	bulkReviewed: async ({ request, locals }) => {
@@ -297,17 +299,19 @@ export const actions: Actions = {
 			if (owned.length > 0) {
 				const now = new Date();
 				const ownedIds = owned.map(o => o.id);
-				await db.update(invoices).set({ deletedAt: now })
-					.where(and(inArray(invoices.id, ownedIds), tdb.scope(invoices.restaurantId)));
-				await db.insert(invoiceAuditLog).values(
-					owned.map(inv => ({
-						restaurantId: rid,
-						invoiceId:    inv.id,
-						action:       'soft_delete' as const,
-						userId:       uid,
-						snapshot:     JSON.stringify(inv),
-					}))
-				);
+				await db.transaction(async (tx) => {
+					await tx.update(invoices).set({ deletedAt: now })
+						.where(and(inArray(invoices.id, ownedIds), tdb.scope(invoices.restaurantId)));
+					await tx.insert(invoiceAuditLog).values(
+						owned.map(inv => ({
+							restaurantId: rid,
+							invoiceId:    inv.id,
+							action:       'soft_delete' as const,
+							userId:       uid,
+							snapshot:     JSON.stringify(inv),
+						}))
+					);
+				});
 			}
 		}
 		redirect(303, '/invoices');

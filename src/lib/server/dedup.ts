@@ -1,5 +1,4 @@
 import { createHash } from 'crypto';
-import fs from 'fs';
 import { moneyToNumber, toMoneyString } from './money';
 import type { TaxBand } from '$lib/tax';
 import { isoDateOffset } from './dates';
@@ -23,11 +22,6 @@ export function findSimilarInvoice<T extends { totalAmount: string | null }>(
 	totalAmount: number,
 ): T | null {
 	return candidates.find(c => c.totalAmount != null && amountsAreSimilar(moneyToNumber(c.totalAmount), totalAmount)) ?? null;
-}
-
-export function computeFileHash(filePath: string): string {
-	const buf = fs.readFileSync(filePath);
-	return createHash('sha256').update(buf).digest('hex');
 }
 
 export function canonicalTaxBands(bands: TaxBand[] | null | undefined) {

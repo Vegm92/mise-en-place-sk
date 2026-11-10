@@ -28,6 +28,16 @@ export async function isAccessOpen(): Promise<boolean> {
 	return (await getFlag(ACCESS_OPEN_FLAG)) === 'true';
 }
 
+export async function isFounderSignup(createdAt: Date | null): Promise<boolean> {
+	const [row] = await db
+		.select({ value: appFlags.value, openedAt: appFlags.updatedAt })
+		.from(appFlags)
+		.where(eq(appFlags.key, ACCESS_OPEN_FLAG))
+		.limit(1);
+	if (row?.value !== 'true') return true;
+	return !!createdAt && !!row.openedAt && createdAt < row.openedAt;
+}
+
 export async function setAccessOpen(open: boolean): Promise<void> {
 	await setFlag(ACCESS_OPEN_FLAG, open ? 'true' : 'false');
 }

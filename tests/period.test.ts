@@ -20,7 +20,7 @@ describe('period modes per page type', () => {
 		expect(periodModeForPath('/dashboard')).toBe('month');
 		expect(periodModeForPath('/budgets')).toBe('month');
 		for (const p of ['/invoices', '/suppliers', '/products', '/recipes', '/analytics/spend']) expect(periodModeForPath(p), p).toBe('range');
-		for (const p of ['/invoices/export', '/invoice/12', '/suppliers/3', '/products/9', '/recipes/1', '/analytics/prices', '/analytics/extraction', '/reminders', '/digest', '/reports', '/reports/weekly', '/settings', '/billing', '/chat', '/help', '/batch/abc', '/plantilla-lista', '/']) {
+		for (const p of ['/invoices/export', '/invoice/12', '/suppliers/3', '/products/9', '/recipes/1', '/analytics/prices', '/analytics/extraction', '/reminders', '/digest', '/reports', '/reports/weekly', '/settings', '/billing', '/chat', '/help', '/batch/abc', '/']) {
 			expect(periodModeForPath(p), p).toBe('none');
 		}
 	});

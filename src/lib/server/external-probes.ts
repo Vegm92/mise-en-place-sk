@@ -1,10 +1,10 @@
-import { GoogleGenAI } from '@google/genai';
 import { Resend } from 'resend';
 import { stripe, TIERS } from './billing';
 import {
-	GEMINI_API_KEY, GEMINI_MODEL,
+	GEMINI_API_KEY,
 	WHATSAPP_ACCESS_TOKEN, WHATSAPP_API_VERSION, WHATSAPP_PHONE_NUMBER_ID,
 } from './env';
+import { describeGeminiModel } from './llm-provider';
 import { withTimeout } from './with-timeout';
 
 export type ProbeState = 'ok' | 'unreachable' | 'unconfigured';
@@ -58,11 +58,7 @@ export function resetProbeCache(): void {
 }
 
 export function probeGemini(): Promise<ProbeResult> {
-	return probe('gemini', Boolean(GEMINI_API_KEY), async () => {
-		const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
-		const model = await ai.models.get({ model: GEMINI_MODEL });
-		return `${model.name ?? GEMINI_MODEL} reachable`;
-	});
+	return probe('gemini', Boolean(GEMINI_API_KEY), describeGeminiModel);
 }
 
 export function probeStripe(): Promise<ProbeResult> {

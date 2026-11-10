@@ -26,7 +26,7 @@ vi.mock('../src/lib/server/alerts', async () => {
 
 import { testSql, testDb, hasDbEnv } from './helpers/test-db';
 import { useTestRestaurant } from './helpers/test-restaurant';
-import { productCorrectionRows } from '../src/lib/server/invoice-save';
+import { productCorrectionRows } from '../src/lib/server/invoice-effects';
 import { previewLineProducts } from '../src/lib/server/products';
 import { runBudgetCheck } from '../src/lib/server/alerts';
 import type { BatchItem } from '../src/lib/server/batch';
