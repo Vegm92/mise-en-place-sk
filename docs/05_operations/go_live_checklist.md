@@ -72,7 +72,7 @@ app can page anyone when it stops — the alarm has to live outside the worker.
 | Healthcheck | `/api/health`, 300 s (added — Railway keeps the previous deployment serving until this returns 200) | none (no HTTP port; supervised by restart policy + heartbeat) | — |
 | Pre-deploy | `pnpm db:migrate` | `node build/wait-for-migrations.js` (was a second `pnpm db:migrate` racing the web's — drizzle takes no lock, and after gate 1 the worker's role cannot run DDL at all) | — |
 | Restart policy | `ON_FAILURE` × 10 | `ALWAYS` | — |
-| Replicas | 1 | 1 | keep at 1 until `UPSTASH_REDIS_REST_*` is set (in-memory rate limiter + extraction semaphore are per-process) |
+| Replicas | 1 | 1 | keep at 1: the rate limiter is per process; add a shared store before scaling web past 1 replica (worker: `batchSize` caps extraction) |
 | Sleep | dashboard `sleepApplication: true`, `railway.json` says `false` | not set | verify the effective value is **off** — a slept web tier drops the first request after idle |
 | Region | `asia-southeast1` (all three services, including Postgres) | `asia-southeast1` | **owner:** move all three to `europe-west4` — EU tenant data at rest and ~250 ms RTT per request from Spain; Postgres needs a volume migration, do it before the first paying tenant |
 | Postgres public TCP proxy | port 5432 open | — | needed for 1.1; after cutover restrict or remove (owner) |
@@ -107,7 +107,6 @@ the `Env` rows on `/admin/health`, are the real gate.
 | `SENTRY_DSN`, `VITE_SENTRY_DSN`, `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT` | ✔ | |
 | `SENTRY_RELEASE`, `VITE_SENTRY_RELEASE` | ✖ | set both to `${{RAILWAY_GIT_COMMIT_SHA}}` — without them Sentry cannot bisect to a deploy; `VITE_` one is a build arg (Dockerfile `ARG`) |
 | `HEALTH_CHECK_TOKEN` | ✖ | gate 3.3 |
-| `UPSTASH_REDIS_REST_URL/TOKEN` | ✖ | only before scaling past 1 replica |
 | `TURNSTILE_SECRET_KEY`, `PUBLIC_TURNSTILE_SITE_KEY` | ✖ | optional; set both or neither |
 | `WHATSAPP_*` (Cloud API) | ✖ | intentionally off until Meta registration (ADR-025) |
 | `COMPANY_LEGAL_NAME/ADDRESS/NIF` | ✖ | email legal footer — set once the SL exists (#779) |

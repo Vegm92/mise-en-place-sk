@@ -28,7 +28,6 @@ vi.mock('$lib/server/auth-session', () => ({ issueSessionCookie: issueCookieMock
 vi.mock('$lib/server/auth-events', () => ({ logAuthEvent: logAuthEventMock, hashIp: () => 'iphash' }));
 vi.mock('$lib/server/rate-limiter', () => ({
 	checkRateLimit: rateLimitMock,
-	RateLimitBackendUnavailableError: class extends Error {},
 }));
 vi.mock('$lib/server/auth', () => ({ signIn: vi.fn() }));
 vi.mock('$lib/server/resend-verification-action', () => ({ resendVerificationAction: () => vi.fn() }));
