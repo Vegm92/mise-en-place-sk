@@ -9,6 +9,7 @@ import {
 	PRODUCT_SORT_KEYS,
 	isProductSortKey,
 	parseProductSort,
+	hasActiveProductFilters,
 	productSortHref,
 	sortProducts,
 	type YoySortable,
@@ -71,5 +72,17 @@ describe('productSortHref', () => {
 
 	it('sets the sort param for a non-default sort', () => {
 		expect(productSortHref('yoy_desc', new URLSearchParams(''))).toBe('/products?sort=yoy_desc');
+	});
+});
+
+describe('hasActiveProductFilters', () => {
+	it('is false with no search and no category', () => {
+		expect(hasActiveProductFilters('', '')).toBe(false);
+		expect(hasActiveProductFilters('   ', '')).toBe(false);
+	});
+
+	it('is true with a search term or a category', () => {
+		expect(hasActiveProductFilters('merluza', '')).toBe(true);
+		expect(hasActiveProductFilters('', 'Pescado')).toBe(true);
 	});
 });

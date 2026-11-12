@@ -25,7 +25,7 @@ related: "[[CONTEXT]]"
 
 **Mercado:** ~280.000 establecimientos de restauración en España (104.745 restaurantes, 93 % independientes; ~130.000 bares), dentro de un mercado europeo de ~1,5 M de establecimientos. TAM España ≈ €250 M/año; SAM (restauración independiente digitalizable) ≈ €135 M/año; objetivo a 3 años: ~1.800 locales de pago ≈ €1,8 M ARR.
 
-**Modelo:** suscripción SaaS por local, precios públicos y transparentes (€49–€199/mes), prueba de 30 días. Frente a un sector dominado por precios "bajo presupuesto" y venta consultiva (Haddock, Gstock, Apicbase), competimos con self-service, transparencia y activación en minutos.
+**Modelo:** suscripción SaaS por cuenta, precios públicos y transparentes (€69–€299/mes; Business cubre hasta 10 locales), prueba de 14 días. Frente a un sector dominado por precios "bajo presupuesto" y venta consultiva (Haddock, Gstock, Apicbase), competimos con self-service, transparencia y activación en minutos.
 
 **Canal diferencial:** las gestorías. La factura del restaurante ya viaja cada mes a su asesoría para impuestos; Mise en Place se sitúa aguas arriba, entrega a la gestoría datos estructurados y limpios, y convierte a ~70.000 despachos (solo ~10 % digitalizados) en prescriptores, no en competidores. El programa de partners de Quipu y Holded demuestra que el canal funciona.
 
@@ -104,15 +104,17 @@ Implicación: en menos de 30 meses, todo restaurante deberá recibir facturas es
 
 ## 7. Modelo de negocio
 
-**Precios públicos (por local, IVA no incl., −15 % en pago anual):**
+**Precios públicos (por cuenta, IVA no incl., pago anual = 10 meses / 2 meses gratis).** Decisión y cálculo: `docs/02_product/pricing_decision_2026-10.md` (sustituye la tabla €49/99/199 de junio y la decisión €29/59/129 del 8 sep. en #780). Fuente única en código: `src/lib/billing-plans.ts`.
 
-| Plan | Precio/mes | Incluye |
-|---|---|---|
-| **Básico** | **€49** | 100 docs/mes, 1 usuario, analítica, alertas, recordatorios |
-| **Pro** | **€99** | 400 docs/mes, multiusuario, asistente IA, digest email, exportación contable, soporte prioritario |
-| **Grupos** | **€199** | Multi-local, consolidado de grupo, API, onboarding dedicado |
+| Plan | Precio/mes | Precio/año | Incluye |
+|---|---|---|---|
+| **Starter** | **€69** | €690 | 100 documentos/mes, 1 restaurante, analítica de gasto, alertas de precio |
+| **Pro** | **€139** | €1.390 | 400 documentos/mes, 1 restaurante, asistente IA, resumen semanal, análisis de precios, stock |
+| **Business** | **€299** | €2.990 | Documentos ilimitados, hasta 10 restaurantes, soporte prioritario |
 
-- **Prueba 30 días** sin tarjeta (promesa actual de la waitlist: 1 mes gratis — se honra como cupón de lanzamiento).
+- **Cupón fundador:** 60 % de por vida, 50 plazas, hasta el 13 dic. 2026 (precio efectivo €27,60 / €55,60 / €119,60 — por debajo de lo que mostró la waitlist, que prometió precio congelado).
+- **Prueba 14 días** (30 días para fundadores aprobados desde la waitlist).
+- *Pendiente:* §7 (ARPA, márgenes) y §9/§11 siguen calculados sobre la tabla anterior; hay que reexpresarlos con esta.
 - **ARPA blended objetivo:** ~€75/mes (€900/año), entre el ancla de los genéricos (€7–50) y MarketMan ($199): el precio se justifica solo — recuperar un 1 % de food cost en un local que compra €15.000/mes son €150/mes.
 - **Márgenes:** coste IA (Gemini Flash) < €0,01/documento → < 2 % de ingresos; margen bruto objetivo ≥ 80 %.
 - **Ingresos futuros:** asiento de gestoría (€/cliente gestionado), datos agregados de precios (índice anónimo sectorial), módulo e-factura RD 238/2026, marketplace de renegociación con proveedores.

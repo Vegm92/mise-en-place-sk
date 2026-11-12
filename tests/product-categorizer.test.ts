@@ -216,9 +216,8 @@ describe.skipIf(!hasDbEnv)('processCategorizeJob', () => {
 		}
 	});
 
-	it('dead-letters a provider failure instead of throwing', async () => {
+	it('throws a provider failure so pg-boss retries the job, then marks it failed', async () => {
 		const id = await seedProduct('Tomate pera', null);
-		const recordFailure = vi.fn(async () => null);
 		const exploding: LLMProvider = {
 			model: 'test-model',
 			generate: async () => { throw new Error('gemini down'); },
@@ -226,10 +225,9 @@ describe.skipIf(!hasDbEnv)('processCategorizeJob', () => {
 
 		await expect(processCategorizeJob(
 			{ restaurantId: rid, productId: id, canonicalName: 'Tomate pera' },
-			{ provider: exploding, recordUsage: vi.fn(async () => {}), recordFailure },
-		)).resolves.toBeUndefined();
+			{ provider: exploding, recordUsage: vi.fn(async () => {}) },
+		)).rejects.toThrow('gemini down');
 
-		expect(recordFailure).toHaveBeenCalledOnce();
 		expect(await categoryOf(id)).toBeNull();
 	});
 

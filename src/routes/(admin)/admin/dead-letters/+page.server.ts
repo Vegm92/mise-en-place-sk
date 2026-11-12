@@ -5,57 +5,36 @@ import { handleLoad } from '$lib/server/load-guard';
 import { isAdminUser } from '$lib/server/admin';
 import { parseForm } from '$lib/server/public-form-action';
 import {
-	DEAD_LETTER_STATUSES,
-	countDeadLetters,
 	deadLetterQueueBreakdown,
-	getDeadLetter,
+	discardDeadLetter,
 	listDeadLetters,
-	setDeadLetterStatus,
-	type DeadLetterStatus,
+	retryDeadLetter,
+	type DeadLetterActionResult,
 } from '$lib/server/dead-letter';
-import { isReplayable, nonReplayableReason, replayDeadLetter } from '$lib/server/dead-letter-replay';
 
 const PAGE_SIZE = 50;
 
 export const load: PageServerLoad = async ({ url }) => {
 	const pageParam = parseInt(url.searchParams.get('page') ?? '1', 10);
 	const page = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
-
-	const statusParam = url.searchParams.get('status') ?? 'pending';
-	const status = (DEAD_LETTER_STATUSES as readonly string[]).includes(statusParam) ? statusParam : '';
 	const queue = (url.searchParams.get('queue') ?? '').slice(0, 100);
 
 	return handleLoad('admin/dead-letters', async () => {
-		const filter = { status, queue };
-		const [total, entries, breakdown, pending] = await Promise.all([
-			countDeadLetters(filter),
-			listDeadLetters(filter, PAGE_SIZE, (page - 1) * PAGE_SIZE),
+		const [entries, breakdown] = await Promise.all([
+			listDeadLetters(queue, PAGE_SIZE, (page - 1) * PAGE_SIZE),
 			deadLetterQueueBreakdown(),
-			countDeadLetters({ status: 'pending' }),
 		]);
+		const pending = breakdown.reduce((n, q) => n + q.failed, 0);
+		const total = queue ? (breakdown.find((q) => q.queue === queue)?.failed ?? 0) : pending;
 
 		return {
 			title: 'admin.dlq.title',
-			entries: entries.map(e => ({
-				id: e.id,
-				queue: e.queue,
-				restaurantName: e.restaurantName,
-				sourceId: e.sourceId,
-				jobId: e.jobId,
-				errorClass: e.errorClass,
-				errorMessage: e.errorMessage,
-				payload: e.payload,
-				attempt: e.attempt,
-				occurrences: e.occurrences,
-				status: e.status,
-				firstSeenAt: new Date(e.firstSeenAt).toISOString(),
-				lastSeenAt: new Date(e.lastSeenAt).toISOString(),
-				reviewedBy: e.reviewedBy,
-				replayable: isReplayable(e),
-				notReplayableReason: nonReplayableReason(e.queue),
+			entries: entries.map((e) => ({
+				...e,
+				createdOn: e.createdOn.toISOString(),
+				failedOn: e.failedOn.toISOString(),
 			})),
 			breakdown,
-			status,
 			queue,
 			page,
 			total,
@@ -66,46 +45,24 @@ export const load: PageServerLoad = async ({ url }) => {
 };
 
 const DeadLetterActionForm = v.object({
-	id: v.optional(v.pipe(v.string(), v.trim())),
-	status: v.optional(v.pipe(v.string(), v.trim())),
+	queue: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(100)),
+	id: v.pipe(v.string(), v.trim(), v.uuid()),
 });
 
-function entryId(formData: FormData): number {
-	const parsed = parseForm(DeadLetterActionForm, formData);
-	return parseInt((parsed.success ? parsed.output.id : undefined) ?? '', 10);
+async function act(
+	request: Request,
+	locals: App.Locals,
+	run: (queue: string, id: string) => Promise<DeadLetterActionResult>,
+) {
+	if (!isAdminUser(locals.user)) return fail(403, { error: 'forbidden' });
+	const parsed = parseForm(DeadLetterActionForm, await request.formData());
+	if (!parsed.success) return fail(400, { error: 'invalidRequest' });
+	const outcome = await run(parsed.output.queue, parsed.output.id);
+	if (!outcome.ok) return fail(outcome.error === 'notFound' ? 404 : 409, { error: outcome.error });
+	return { success: true };
 }
 
 export const actions: Actions = {
-	setStatus: async ({ request, locals }) => {
-		if (!isAdminUser(locals.user)) return fail(403, { error: 'forbidden' });
-
-		const formData = await request.formData();
-		const parsed = parseForm(DeadLetterActionForm, formData);
-		if (!parsed.success) return fail(400, { error: 'invalidRequest' });
-		const id = parseInt(parsed.output.id ?? '', 10);
-		const status = parsed.output.status ?? '';
-		if (!Number.isInteger(id) || !(DEAD_LETTER_STATUSES as readonly string[]).includes(status)) {
-			return fail(400, { error: 'invalidRequest' });
-		}
-		const updated = await setDeadLetterStatus(id, status as DeadLetterStatus, locals.user?.email ?? null);
-		if (!updated) return fail(404, { error: 'notFound' });
-		return { success: true };
-	},
-
-	replay: async ({ request, locals }) => {
-		if (!isAdminUser(locals.user)) return fail(403, { error: 'forbidden' });
-
-		const formData = await request.formData();
-		const id = entryId(formData);
-		if (!Number.isInteger(id)) return fail(400, { error: 'invalidRequest' });
-
-		const entry = await getDeadLetter(id);
-		if (!entry) return fail(404, { error: 'notFound' });
-
-		const outcome = await replayDeadLetter(entry, locals.requestId);
-		if (!outcome.ok) return fail(outcome.status, { error: outcome.error });
-
-		await setDeadLetterStatus(id, 'replayed', locals.user?.email ?? null);
-		return { success: true };
-	},
+	retry: async ({ request, locals }) => act(request, locals, retryDeadLetter),
+	discard: async ({ request, locals }) => act(request, locals, discardDeadLetter),
 };

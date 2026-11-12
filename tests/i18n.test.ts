@@ -222,7 +222,7 @@ describe('ti (interpolating translator)', () => {
   it('substitutes a single named placeholder', () => {
     setLocale('en');
     expect(tri('saved.desc', { id: 42 })).toBe(
-      'Invoice #42 has been stored and is ready for review.',
+      'Invoice #42 has been saved and now counts in your reports.',
     );
   });
 

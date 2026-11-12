@@ -3,6 +3,7 @@
   import type { Snippet } from 'svelte';
 
   let {
+    id,
     title,
     sub,
     href,
@@ -11,6 +12,7 @@
     children,
     headerRight,
   }: {
+    id?: string;
     title: string;
     sub?: string;
     href?: string;
@@ -21,7 +23,7 @@
   } = $props();
 </script>
 
-<div class="card overflow-hidden flex flex-col">
+<div {id} class="card overflow-hidden flex flex-col scroll-mt-4">
   <div class="card-header">
     <div class="section-title">
       <span class="subtitle">{title}</span>

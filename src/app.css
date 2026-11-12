@@ -1155,6 +1155,9 @@
   }
   .rev-shortcuts span { display: inline-flex; align-items: center; gap: 4px; }
   @media (max-width: 1700px) { .rev-shortcuts { display: none; } }
+  .rev-lines-scroll { overflow-x: auto; }
+  .rev-lines-scroll .rev-lines { min-width: 720px; }
+  .rev-lines-scroll .rev-lines thead th { position: static; }
   .rev-lines td { height: auto; padding: 5px 10px; }
   .rev-lines th { padding: 8px 10px; }
 

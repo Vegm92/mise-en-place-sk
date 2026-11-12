@@ -149,6 +149,7 @@ Set the OAuth client's authorized redirect URI to `{your-origin}/auth/callback/g
 |---|---|---|
 | `GEMINI_API_KEY` | Yes | From [Google AI Studio](https://aistudio.google.com/app/apikey). Boot logs a warning if missing; extraction fails without it. |
 | `GEMINI_MODEL` | Optional (web + worker, same value) | Defaults to `gemini-3.1-flash-lite`, which Google has scheduled for **shutdown on 2027-05-07** (deprecated 2026-05-07; successor `gemini-3.5-flash-lite`, $0.30 in / $2.50 out per 1M tokens vs $0.25 / $1.50 — [deprecations page](https://ai.google.dev/gemini-api/docs/deprecations)). Swap procedure: run `pnpm eval:gate` with the new model, `pnpm eval:accept-baseline`, make sure `COST_PER_MILLION` in `src/lib/server/llm-provider.ts` has a row for it, then set the variable on **both** services. |
+| `EXTRACTION_FIXTURES` | Local-only, never set in production | `1` makes extraction return a `tests/golden` fixture instead of calling Gemini (no LLM usage recorded). Ignored unless `NODE_ENV` is `development` or `test`; a production boot logs an error and keeps real extraction. |
 
 ### File storage
 
@@ -214,11 +215,13 @@ where the Node process is directly internet-facing.
 | Variable | Required | Notes |
 |---|---|---|
 | `STRIPE_SECRET_KEY` | Recommended | `sk_live_…` or `sk_test_…` from Stripe Dashboard → Developers → API Keys. If absent, billing is disabled (users see a "contact support" message). |
-| `STRIPE_PRICE_ID_STARTER` | Recommended | Monthly price ID for the Starter tier (€49). Create in Stripe Dashboard → Products. |
-| `STRIPE_PRICE_ID_PRO` | Recommended | Monthly price ID for the Pro tier (€99). Without it, Pro checkout returns "this plan is not available" (issue #286). |
-| `STRIPE_PRICE_ID_BUSINESS` | Recommended | Monthly price ID for the Business tier (€199). |
+| `STRIPE_PRICE_ID_STARTER` | Recommended | Monthly price ID for the Starter tier (€29, tax-exclusive). Create in Stripe Dashboard → Product catalog. Amounts: `docs/02_product/pricing_decision_2026-10.md`. |
+| `STRIPE_PRICE_ID_PRO` | Recommended | Monthly price ID for the Pro tier (€59). Without it, Pro checkout returns "this plan is not available" (issue #286). |
+| `STRIPE_PRICE_ID_BUSINESS` | Recommended | Monthly price ID for the Business tier (€129). |
+| `STRIPE_PRICE_ID_STARTER_ANNUAL` / `_PRO_ANNUAL` / `_BUSINESS_ANNUAL` | Optional | Yearly price IDs on the same products (€290 / €590 / €1,290). The monthly/annual toggle on `/billing` appears only when all three are set. |
+| `STRIPE_TAX_RATE_ID` | Recommended | `txr_…` for IVA 21 % (exclusive). Set, every new subscription charges list price + IVA; unset, no tax is added. |
 | `STRIPE_PRICE_ID` | Legacy | Fallback for `STRIPE_PRICE_ID_STARTER` only. Prefer the per-tier variables. |
-| `STRIPE_FOUNDER_COUPON_ID` | Optional | Coupon applied automatically at checkout for private-beta founders approved from `/admin/access`. Unset: founders keep the longer trial, no discount. |
+| `STRIPE_FOUNDER_COUPON_ID` | Optional | Coupon ID (or a `promo_…` promotion-code ID) applied automatically at checkout for private-beta founders approved from `/admin/access`. Unset: founders keep the longer trial, no discount. |
 | `STRIPE_FOUNDER_PROMO_CODE` | Optional | The customer-facing promotion code for that coupon (Stripe → Coupons → Promotion codes), shown on `/admin/access` approvals so a founder can redeem it themselves. |
 | `STRIPE_WEBHOOK_SECRET` | Recommended | `whsec_…`. Configure the endpoint `{your-origin}/api/stripe-webhook` in Stripe Dashboard → Webhooks; send: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`. |
 

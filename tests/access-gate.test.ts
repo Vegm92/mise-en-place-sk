@@ -84,7 +84,7 @@ describe('isAlwaysReadablePath — the one list both gates share', () => {
 	const ALWAYS_READABLE = [
 		'/privacy', '/terms', '/cookies', '/refunds', '/legal', '/cookie-consent',
 		'/robots.txt', '/sitemap.xml', '/api/health',
-		'/auth/callback/google', '/waitlist', '/l/menu-del-dia', '/s/abc123',
+		'/auth/callback/google', '/waitlist', '/l/menu-del-dia', '/s/abc123', '/demo',
 	];
 
 	for (const path of ALWAYS_READABLE) {

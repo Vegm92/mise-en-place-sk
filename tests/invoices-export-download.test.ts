@@ -148,7 +148,7 @@ describe.skipIf(!hasDbEnv)('/invoices/export/download — issue #493', () => {
 
 		const sheet = await parseSheet(res);
 		expect(sheet.rowCount).toBe(4); // header + 3 data rows, no marker
-		expect(sheet.getRow(2).getCell(3).value).toBe('INV-493-3'); // desc(invoice_date) — day 3 first
+		expect(sheet.getRow(2).getCell(4).value).toBe('INV-493-3'); // desc(invoice_date) — day 3 first
 	});
 
 	it('rejects a non-numeric supplier_id with 400', async () => {
@@ -221,17 +221,17 @@ describe.skipIf(!hasDbEnv)('/invoices/export/download — issue #883 taxable bas
 		await insertInvoice({ invoiceNumber: 'INV-883-1', taxBase: '82.50', totalAmount: '99.83' });
 
 		const sheet = await parseSheet(await runGet(''));
-		expect(sheet.getRow(1).getCell(8).value).toBe('Base imponible (€)');
-		expect(sheet.getRow(1).getCell(11).value).toBe('Importe (€)');
-		expect(sheet.getRow(2).getCell(8).value).toBeCloseTo(82.5);
-		expect(sheet.getRow(2).getCell(11).value).toBeCloseTo(99.83);
+		expect(sheet.getRow(1).getCell(9).value).toBe('Base imponible (€)');
+		expect(sheet.getRow(1).getCell(15).value).toBe('Importe (€)');
+		expect(sheet.getRow(2).getCell(9).value).toBeCloseTo(82.5);
+		expect(sheet.getRow(2).getCell(15).value).toBeCloseTo(99.83);
 	});
 
 	it('leaves the tax_base cell null-safe when the invoice has no tax_base', async () => {
 		await insertInvoice({ invoiceNumber: 'INV-883-2', totalAmount: '10.00' });
 
 		const sheet = await parseSheet(await runGet(''));
-		expect(sheet.getRow(2).getCell(8).value).toBeNull();
+		expect(sheet.getRow(2).getCell(9).value).toBeNull();
 	});
 
 	it('ids= returns only the selected invoices, replacing the status/supplier/date filters', async () => {
@@ -241,7 +241,7 @@ describe.skipIf(!hasDbEnv)('/invoices/export/download — issue #883 taxable bas
 
 		const sheet = await parseSheet(await runGet(`?ids=${a},${c}&status=incidencia`));
 		expect(sheet.rowCount).toBe(3);
-		const numbers = [sheet.getRow(2).getCell(3).value, sheet.getRow(3).getCell(3).value];
+		const numbers = [sheet.getRow(2).getCell(4).value, sheet.getRow(3).getCell(4).value];
 		expect(numbers.sort()).toEqual(['INV-883-A', 'INV-883-C']);
 	});
 
@@ -254,7 +254,7 @@ describe.skipIf(!hasDbEnv)('/invoices/export/download — issue #883 taxable bas
 
 		const sheet = await parseSheet(await runGet(`?ids=${mine},${foreign!.id}`));
 		expect(sheet.rowCount).toBe(2);
-		expect(sheet.getRow(2).getCell(3).value).toBe('INV-883-MINE');
+		expect(sheet.getRow(2).getCell(4).value).toBe('INV-883-MINE');
 
 		await cleanupTestRestaurant(other.id);
 	});
@@ -266,11 +266,11 @@ describe.skipIf(!hasDbEnv)('/invoices/export/download — issue #883 taxable bas
 
 		const byIds = await parseSheet(await runGet(`?ids=${live},${gone}`));
 		expect(byIds.rowCount).toBe(2);
-		expect(byIds.getRow(2).getCell(3).value).toBe('INV-361-LIVE');
+		expect(byIds.getRow(2).getCell(4).value).toBe('INV-361-LIVE');
 
 		const listing = await parseSheet(await runGet(''));
 		const numbers: unknown[] = [];
-		listing.eachRow((row) => numbers.push(row.getCell(3).value));
+		listing.eachRow((row) => numbers.push(row.getCell(4).value));
 		expect(numbers).toContain('INV-361-LIVE');
 		expect(numbers).not.toContain('INV-361-GONE');
 	});
@@ -281,7 +281,7 @@ describe.skipIf(!hasDbEnv)('/invoices/export/download — issue #883 taxable bas
 
 		const listing = await parseSheet(await runGet(''));
 		const numbers: unknown[] = [];
-		listing.eachRow((row) => numbers.push(row.getCell(3).value));
+		listing.eachRow((row) => numbers.push(row.getCell(4).value));
 		expect(numbers).not.toContain('INV-361-FOREIGN');
 
 		await cleanupTestRestaurant(other.id);
@@ -326,6 +326,44 @@ describe.skipIf(!hasDbEnv)('/invoices/export/download — issue #883 taxable bas
 		const res = await runGet(`?ids=${withMissingFile}&format=zip`);
 		const { files } = await extractZip(Buffer.from(await res.arrayBuffer()));
 		expect(files.map((f) => f.name)).toEqual(['facturas.xlsx']);
+	});
+});
+
+describe.skipIf(!hasDbEnv)('/invoices/export/download — gestoría columns (F10)', () => {
+	it('exports the supplier CIF and the VAT/REC breakdown next to the taxable base', async () => {
+		await testSql`UPDATE suppliers SET cif = 'B12345678' WHERE id = ${supplierId}`;
+		const breakdown = JSON.stringify([
+			{ rate: 0.10, base: 100, tax_amount: 10, type: 'iva' },
+			{ rate: 0.21, base: 50, tax_amount: 10.5, type: 'iva' },
+			{ rate: 0.014, base: 100, tax_amount: 1.4, type: 'rec' },
+		]);
+		const id = await insertInvoice({ invoiceNumber: 'INV-F10-1', taxBase: '150.00', totalAmount: '171.90' });
+		await testSql`UPDATE invoices SET tax_breakdown = ${breakdown} WHERE id = ${id}`;
+
+		const sheet = await parseSheet(await runGet(''));
+		const header = sheet.getRow(1);
+		expect(header.getCell(3).value).toBe('CIF/NIF');
+		expect(header.getCell(10).value).toBe('Tipo IVA (%)');
+		expect(header.getCell(11).value).toBe('Cuota IVA (€)');
+		expect(header.getCell(12).value).toBe('Recargo eq. (€)');
+
+		const row = sheet.getRow(2);
+		expect(row.getCell(3).value).toBe('B12345678');
+		expect(row.getCell(10).value).toBe('10 / 21');
+		expect(row.getCell(11).value).toBeCloseTo(20.5);
+		expect(row.getCell(12).value).toBeCloseTo(1.4);
+
+		await testSql`UPDATE suppliers SET cif = NULL WHERE id = ${supplierId}`;
+	});
+
+	it('leaves the VAT cells empty when the invoice has no stored breakdown', async () => {
+		await insertInvoice({ invoiceNumber: 'INV-F10-2', totalAmount: '10.00' });
+
+		const row = (await parseSheet(await runGet(''))).getRow(2);
+		expect(row.getCell(3).value).toBe('—');
+		expect(row.getCell(10).value).toBe('—');
+		expect(row.getCell(11).value).toBeNull();
+		expect(row.getCell(12).value).toBeNull();
 	});
 });
 

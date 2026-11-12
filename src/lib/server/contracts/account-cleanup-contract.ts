@@ -1,5 +1,4 @@
 export const ACCOUNT_CLEANUP_QUEUE = 'account-cleanup';
-export const ACCOUNT_CLEANUP_DEAD_LETTER_QUEUE = `${ACCOUNT_CLEANUP_QUEUE}-dead-letter`;
 
 export interface AccountCleanupJobData {
 	userId: string;
@@ -22,5 +21,4 @@ export const ACCOUNT_CLEANUP_OPTIONS = (userId: string) => ({
 	retryDelayMax: 3600,
 	expireInSeconds: 3600,
 	singletonKey: userId,
-	deadLetter: ACCOUNT_CLEANUP_DEAD_LETTER_QUEUE,
 });

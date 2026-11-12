@@ -7,7 +7,7 @@
   import ScrollStrip from '$lib/components/mep/ScrollStrip.svelte';
   import type { ConversionPrompt } from '$lib/server/products';
   import type { TierConfig } from '$lib/server/billing';
-  import { PRODUCT_SORT_KEYS, type ProductSortKey } from '$lib/product-filters';
+  import { PRODUCT_SORT_KEYS, hasActiveProductFilters, type ProductSortKey } from '$lib/product-filters';
   import { formatYoyPct } from '$lib/formatters';
 
   interface Product {
@@ -177,7 +177,12 @@
     {/if}
 
     <div style="flex: 1; overflow: auto; padding: 0 18px 16px; display: flex; flex-direction: column; gap: 8px;">
-      {#if filtered.length === 0}
+      {#if filtered.length === 0 && hasActiveProductFilters(search, catFilter)}
+        <div class="py-10 text-center text-fg-3 text-[13px]" data-testid="prod-no-matches-mobile">
+          <p>{t('prod.noMatches')}</p>
+          <button type="button" class="btn btn-ghost mt-2 text-[12.5px]" onclick={() => { search = ''; catFilter = ''; }}>{t('prod.clearFilters')}</button>
+        </div>
+      {:else if filtered.length === 0}
         <div style="padding: 40px 0; text-align: center; color: var(--mep-fg-3); font-size: 13px;">{t('prod.empty')}</div>
       {:else}
         {#each filtered as p (p.id)}

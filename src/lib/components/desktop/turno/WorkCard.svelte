@@ -1,13 +1,13 @@
 <script lang="ts">
   import type { WorkItem } from '$lib/dashboard-turno';
-  import { WORK_ICON, WORK_TONE, localiseWorkDates } from '$lib/components/turno/work-item-ui';
+  import { WORK_ICON, WORK_TONE, localiseWorkVars } from '$lib/components/turno/work-item-ui';
   import { locale, t, ti, tiv } from '$lib/i18n';
   import { fmtEurCompact } from '$lib/formatters';
 
   let { item, primary = false }: { item: WorkItem; primary?: boolean } = $props();
 
-  const titleVars = $derived(localiseWorkDates(item.titleVars, locale.current));
-  const whyVars = $derived(localiseWorkDates(item.whyVars, locale.current));
+  const titleVars = $derived(localiseWorkVars(item.kind, item.titleVars, locale.current));
+  const whyVars = $derived(localiseWorkVars(item.kind, item.whyVars, locale.current));
   const Icon = $derived(WORK_ICON[item.kind]);
   const color = $derived(WORK_TONE[item.severity][0]);
   const soft = $derived(WORK_TONE[item.severity][1]);
@@ -49,10 +49,12 @@
         <div class="label">{t('turno.atStakeUnit')}</div>
       </div>
     {/if}
-    <a
-      href={item.href}
-      class={primary ? 'btn btn-primary' : 'btn btn-secondary'}
-      style="height:28px;text-decoration:none;"
-    >{t(item.actionKey)}</a>
+    {#if item.href}
+      <a
+        href={item.href}
+        class={primary ? 'btn btn-primary' : 'btn btn-secondary'}
+        style="height:28px;text-decoration:none;"
+      >{t(item.actionKey)}</a>
+    {/if}
   </div>
 </div>

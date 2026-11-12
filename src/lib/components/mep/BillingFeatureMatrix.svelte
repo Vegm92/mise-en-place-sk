@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { t, ti } from '$lib/i18n';
 	import Check from '@lucide/svelte/icons/check';
-	import { MATRIX_GROUPS, type MatrixColumn, type MatrixFeatures } from '$lib/billing-plans';
+	import { MATRIX_GROUPS, visibleMatrixRows, type MatrixColumn, type MatrixFeatures, type PlanFeatureFlags } from '$lib/billing-plans';
 
-	const { trialTier, tiers }: {
+	const { trialTier, tiers, flags }: {
 		trialTier: { monthlyInvoiceQuota: number | null; maxLocations: number; maxRecipes: number | null; features: MatrixFeatures };
 		tiers: { tier: string; nameKey: string; monthlyInvoiceQuota: number | null; maxLocations: number; maxRecipes: number | null; features: MatrixFeatures }[];
+		flags: PlanFeatureFlags;
 	} = $props();
 
 	const matrixCols = $derived<MatrixColumn[]>([
@@ -45,7 +46,7 @@
 						</div>
 					</td>
 				</tr>
-				{#each group.rows as row}
+				{#each visibleMatrixRows(group, flags) as row}
 					<tr>
 						<td style="font-size:13px;color:var(--mep-fg);">{t(row.labelKey)}</td>
 						{#each matrixCols as col}

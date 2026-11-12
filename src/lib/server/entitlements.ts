@@ -99,6 +99,7 @@ export const ROUTE_POLICY = {
 	'/api/user/export':                  'open',
 	'/cookie-consent':                   'open',
 	'/cookies':                          'open',
+	'/demo':                             'open',
 	'/forgot-password':                  'open',
 	'/l':                                'open',
 	'/l/[variant]':                      'open',

@@ -87,10 +87,6 @@
       .map(s => ({ key: s.key, label: s.label, color: categoryColor(s.key), values: s.values }))
   );
 
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  function isNew(createdAt: Date | null) {
-    return createdAt ? new Date(createdAt) >= thirtyDaysAgo : false;
-  }
   function deltaColor(v: number) { return v > 0 ? 'var(--mep-neg)' : 'var(--mep-pos)'; }
   function deltaArrow(v: number) {
     if (v > 0.05) return '↑';
@@ -261,7 +257,7 @@
                       ">{initials(s.name)}</span>
                       <span style="font-size:13px;font-weight:500;color:var(--mep-fg);
                         overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{s.name}</span>
-                      {#if isNew(s.createdAt)}
+                      {#if s.is_new}
                         <span style="
                           flex-shrink:0;font-size:11px;font-weight:700;
                           background:var(--mep-acc-soft);color:var(--mep-acc);

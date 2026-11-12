@@ -15,6 +15,7 @@ import {
 	money,
 	moneyPlain,
 	pctDelta,
+	reconcileResidual,
 	shiftIsoWeek,
 } from './shared';
 
@@ -128,6 +129,18 @@ export async function buildWeekly(rid: string, week: string, digest: string | nu
 		});
 	}
 
+	const sumValues = (m: Map<string, number>) => [...m.values()].reduce((sum, v) => sum + v, 0);
+	const residual = reconcileResidual(current.spend, sumValues(currentCats));
+	const residualPrev = reconcileResidual(previous.spend, sumValues(previousCats));
+	if (residual > 0) {
+		rows.push({
+			category: { v: 'rep.vatShippingOther', kind: 'key', tone: 'muted' },
+			spend: money(residual),
+			share: share(residual),
+			delta: deltaCell(pctDelta(residual, residualPrev)),
+		});
+	}
+
 	const weekDelta = pctDelta(current.spend, previous.spend);
 	const ticketDelta = pctDelta(avgTicket, prevAvgTicket);
 
@@ -181,6 +194,9 @@ export async function buildWeekly(rid: string, week: string, digest: string | nu
 				]),
 				...(tail.length
 					? [['rep.otherCategories', Number(tailTotal.toFixed(2)), sharePct(tailTotal), pctDelta(tailTotal, tailPrev)]]
+					: []),
+				...(residual > 0
+					? [['rep.vatShippingOther', residual, sharePct(residual), pctDelta(residual, residualPrev)]]
 					: []),
 			],
 		},

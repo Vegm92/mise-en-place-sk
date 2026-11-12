@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { page } from '$app/state';
   import { locale } from '$lib/i18n';
   import LegalPage from '$lib/components/legal/LegalPage.svelte';
 
@@ -7,7 +8,7 @@
       pageTitle: 'Política de Cookies · Mise en Place',
       back:      '← Volver',
       title:     'Política de Cookies',
-      meta:      'Última actualización: 6 de septiembre de 2026',
+      meta:      'Última actualización: 12 de noviembre de 2026',
       prevails:  'La versión en español prevalece sobre cualquier traducción.',
 
       h1:        '1. Qué es una cookie',
@@ -39,7 +40,13 @@
       p3:        'Además de cookies, guardamos en el almacenamiento local de tu navegador el tema visual elegido (claro/oscuro) y, dentro de la aplicación, la cola de subidas pendientes cuando estás sin conexión. Esa información no se envía a nuestros servidores ni identifica a nadie.',
 
       h4:        '4. Tu elección',
-      p4:        'La cookie de medición solo se escribe si la aceptas en el aviso que aparece al entrar. Si eliges «Solo las necesarias» no se crea, y si ya existía se borra. Puedes cambiar de opinión en cualquier momento borrando las cookies de este sitio en tu navegador: el aviso volverá a aparecer.',
+      p4:        'La cookie de medición solo se escribe si la aceptas en el aviso que aparece al entrar. Si eliges «Solo las necesarias» no se crea, y si ya existía se borra. Puedes cambiar de opinión en cualquier momento con los botones de abajo.',
+      current:   'Tu elección actual:',
+      stGranted: 'medición aceptada',
+      stDenied:  'solo las necesarias',
+      stUnset:   'aún no has elegido',
+      accept:    'Aceptar medición',
+      reject:    'Solo las necesarias',
       p4b:       'Las cookies necesarias no se pueden desactivar desde el aviso porque sin ellas el inicio de sesión, el idioma y la protección antifraude de los formularios dejan de funcionar. Puedes bloquearlas desde la configuración de tu navegador, asumiendo que partes del servicio no funcionarán.',
 
       h5:        '5. Contacto',
@@ -53,7 +60,7 @@
       pageTitle: 'Cookie Policy · Mise en Place',
       back:      '← Back',
       title:     'Cookie Policy',
-      meta:      'Last updated: September 6, 2026',
+      meta:      'Last updated: November 12, 2026',
       prevails:  'The Spanish version prevails over any translation.',
 
       h1:        '1. What a cookie is',
@@ -85,7 +92,13 @@
       p3:        'Besides cookies, we keep your chosen visual theme (light/dark) in your browser local storage and, inside the app, the queue of uploads pending while you are offline. That information is never sent to our servers and identifies nobody.',
 
       h4:        '4. Your choice',
-      p4:        'The measurement cookie is written only if you accept it in the notice shown on arrival. If you choose "Necessary only" it is not created, and any existing one is deleted. You can change your mind at any time by clearing this site’s cookies in your browser: the notice will appear again.',
+      p4:        'The measurement cookie is written only if you accept it in the notice shown on arrival. If you choose "Necessary only" it is not created, and any existing one is deleted. You can change your mind at any time with the buttons below.',
+      current:   'Your current choice:',
+      stGranted: 'measurement accepted',
+      stDenied:  'necessary only',
+      stUnset:   'no choice made yet',
+      accept:    'Accept measurement',
+      reject:    'Necessary only',
       p4b:       'Necessary cookies cannot be switched off from the notice, because without them sign-in, language and the anti-fraud protection on forms stop working. You can block them from your browser settings, accepting that parts of the service will not work.',
 
       h5:        '5. Contact',
@@ -98,6 +111,10 @@
   } as const;
 
   const c = $derived(copy[locale.current]);
+  const consent = $derived(page.data.cookieConsent);
+  const consentLabel = $derived(
+    consent === 'granted' ? c.stGranted : consent === 'denied' ? c.stDenied : c.stUnset,
+  );
 </script>
 
 <LegalPage pageTitle={c.pageTitle} back={c.back} title={c.title} meta={c.meta} prevails={c.prevails}>
@@ -154,6 +171,12 @@
 
     <h2>{c.h4}</h2>
     <p>{c.p4}</p>
+    <form method="POST" action="/cookie-consent">
+      <input type="hidden" name="next" value="/cookies" />
+      <p>{c.current} <strong>{consentLabel}</strong></p>
+      <button type="submit" name="choice" value="denied" class="btn btn-secondary">{c.reject}</button>
+      <button type="submit" name="choice" value="granted" class="btn btn-primary">{c.accept}</button>
+    </form>
     <p>{c.p4b}</p>
 
     <h2>{c.h5}</h2>

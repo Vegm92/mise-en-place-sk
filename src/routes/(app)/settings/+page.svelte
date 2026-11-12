@@ -221,6 +221,7 @@
 
 {#snippet sectionBody(section: string, idp: string)}
       {#if section === 'cuenta'}
+        {@const nameForm = saveName.for(idp)}
         <SectionCard title={t('set.profile.title')} sub={t('set.access.sub')} noPad>
           <div class="set-row">
             <label for="{idp}-profile-name" class="set-lbl">
@@ -230,10 +231,10 @@
             <div>
               <input id="{idp}-profile-name" name="name" type="text" maxlength="80" required
                 form="{idp}-form-cuenta" bind:value={profileName} class="input set-input" />
-              {#if (saveName.fields.name.issues() ?? []).length > 0}
-                <p class="set-msg set-msg-err">{t((saveName.fields.name.issues() ?? [])[0]!.message)}</p>
-              {:else if saveName.result?.ok}
-                <p class="set-msg set-msg-ok">{t(saveName.result.ok)}</p>
+              {#if (nameForm.fields.name.issues() ?? []).length > 0}
+                <p class="set-msg set-msg-err">{t((nameForm.fields.name.issues() ?? [])[0]!.message)}</p>
+              {:else if nameForm.result?.ok}
+                <p class="set-msg set-msg-ok">{t(nameForm.result.ok)}</p>
               {/if}
             </div>
           </div>
@@ -944,12 +945,12 @@
   {/if}
 {/snippet}
 
-<form {...saveName} id="d-form-cuenta"></form>
+<form {...saveName.for('d')} id="d-form-cuenta"></form>
 <form method="POST" action="?/renameRestaurant" id="d-form-negocio"></form>
 <form method="POST" action="?/saveFiscalIdentity" id="d-form-fiscal"></form>
 <form method="POST" action="?/saveFieldVisibility" id="d-form-campos"></form>
 <form method="POST" action="?/saveAlertPreferences" id="d-form-alertas"></form>
-<form {...saveName} id="m-form-cuenta"></form>
+<form {...saveName.for('m')} id="m-form-cuenta"></form>
 <form method="POST" action="?/renameRestaurant" id="m-form-negocio"></form>
 <form method="POST" action="?/saveFiscalIdentity" id="m-form-fiscal"></form>
 <form method="POST" action="?/saveFieldVisibility" id="m-form-campos"></form>

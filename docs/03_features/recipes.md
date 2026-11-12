@@ -50,7 +50,9 @@ from the latest delivery note), or another sheet used as a prep.
 - **Price resolution for a product-linked line**, in order: a pinned
   `unit_cost` on the line → the most recent `invoice_line_items.normalized_unit_price`
   (converted into the line's unit, carrying the invoice date and supplier) →
-  `mv_price_snapshots.latest_normalized_price` matched on `mep_norm_key` →
+  the live price snapshot (`livePriceSnapshots`, only the missing products'
+  item keys, via `idx_invoice_line_items_rid_item_key`) `latest_normalized_price`
+  matched on `mep_norm_key` →
   `latest_price` with the raw purchase unit → `missing-price`, contributing 0.
 - **Sub-recipes** cost pro rata of the child's `yield_qty`/`yield_unit`; with no
   declared yield the portion count is used and the line warns `child-no-yield`.
@@ -74,7 +76,7 @@ archived sheets stop counting against the quota.
 ## Data dependencies
 
 `recipes`, `recipe_items`, `products`, `invoice_line_items`, `invoices`,
-`suppliers`, `mv_price_snapshots`, `restaurants`, `subscriptions` (quota).
+`suppliers`, `restaurants`, `subscriptions` (quota).
 
 ## API dependencies
 

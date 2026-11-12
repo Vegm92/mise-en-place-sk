@@ -8,7 +8,9 @@
   import Check from '@lucide/svelte/icons/check';
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import {
+    EMPTY_INVOICE_FILTERS,
     currentMonthRange,
+    hasNarrowingInvoiceFilters,
     invoiceFilterParams,
     type InvoiceFilters,
   } from '$lib/invoice-filters';
@@ -323,7 +325,12 @@
   {/if}
 
   <div style="flex: 1; overflow: auto; padding-bottom: 24px;">
-    {#if grouped.length === 0}
+    {#if grouped.length === 0 && hasNarrowingInvoiceFilters(filters)}
+      <div class="px-[18px] py-10 text-center text-fg-3 text-[13px]" data-testid="inv-no-matches-mobile">
+        <p>{t('inv.noMatches')}</p>
+        <button type="button" class="btn btn-ghost mt-2 text-[12.5px]" onclick={() => onFilter({ ...EMPTY_INVOICE_FILTERS })}>{t('inv.clearFilters')}</button>
+      </div>
+    {:else if grouped.length === 0}
       <div style="padding: 40px 18px; text-align: center; color: var(--mep-fg-3); font-size: 13px;">
         {t('misc.invoice.zero')}
       </div>

@@ -10,6 +10,7 @@ export function isAlwaysReadablePath(path: string): boolean {
 		path === '/refunds'                     ||
 		path === '/legal'                       ||
 		path === '/cookie-consent'              ||
+		path === '/demo'                        ||
 		path === '/robots.txt'                  ||
 		path === '/sitemap.xml'                 ||
 		path === '/api/health'                  ||

@@ -95,7 +95,6 @@ import {
 interface InsertedJob {
 	data: TenantJobData;
 	singletonKey: string;
-	deadLetter: string;
 }
 
 function tenants(n: number, prefix = 'rest'): Array<Record<string, unknown>> {
@@ -172,7 +171,6 @@ describe('dispatchTenantJobs', () => {
 		expect(inserts[0]!.jobs[0]).toMatchObject({
 			data: { restaurantId: 'rest-00000' },
 			singletonKey: 'rest-00000',
-			deadLetter: 'tenant-test-dead-letter',
 		});
 	});
 
@@ -278,15 +276,16 @@ describe('registerTenantFanout', () => {
 		return { id, data: { restaurantId, name: restaurantId } } as JobWithMetadata<TenantJobData>;
 	}
 
-	it('creates the queue with its dead letter and a per-job worker', async () => {
+	it('creates the queue without a dead-letter copy and a per-job worker', async () => {
 		const { boss, created, workers } = recordingBoss();
 
 		await registerTenantFanout(boss, { queue: 'tenant-test', label: 'test-job', run: async () => true });
 
-		expect(created.map(c => c.name)).toEqual(['tenant-test-dead-letter', 'tenant-test']);
-		expect(created[1]!.options).toMatchObject({ policy: 'short', deadLetter: 'tenant-test-dead-letter' });
+		expect(created.map(c => c.name)).toEqual(['tenant-test']);
+		expect(created[0]!.options).toMatchObject({ policy: 'short' });
+		expect(boss.updateQueue).toHaveBeenCalledWith('tenant-test', { deadLetter: null });
+		expect(Object.keys(workers)).toEqual(['tenant-test']);
 		expect(workers['tenant-test']!.options).toMatchObject({ perJobResults: true, includeMetadata: true });
-		expect(workers['tenant-test-dead-letter']).toBeDefined();
 	});
 
 	it('settles each tenant on its own, so one failure cannot sink the batch', async () => {

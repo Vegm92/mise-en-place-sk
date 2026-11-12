@@ -2,6 +2,7 @@
   import { tick, untrack } from 'svelte';
   import type { PageData } from './$types';
   import { categoryColor, categoryTint, seriesColor, SERIES_OTHER } from '$lib/colors';
+  import { categoryOptions } from '$lib/category-options';
   import { fmtEur, fmtDate, fmtDateShort, initials } from '$lib/formatters';
   import { locale, t, ti, tcat } from '$lib/i18n';
   import { getScoreColor } from '$lib/status';
@@ -118,7 +119,7 @@
             <select id="m-edit-category" class="input" class:mep-field-highlight={highlightCategory} name="category" style="width:100%;"
               onfocus={() => highlightCategory = false} onchange={() => highlightCategory = false}>
               <option value="">{t('sup.noCategory')}</option>
-              {#each data.categories as cat}
+              {#each categoryOptions(data.categories, s.category) as cat}
                 <option value={cat} selected={s.category === cat}>{tcat(cat)}</option>
               {/each}
             </select>

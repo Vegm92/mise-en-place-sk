@@ -59,6 +59,13 @@ const WEEK_RANGE_CACHE_MAX = 500;
 const isoWeekRangeCache = new Map<string, { start: string; end: string }>();
 const shiftIsoWeekCache = new Map<string, string>();
 
+export const RESIDUAL_THRESHOLD_EUR = 0.5;
+
+export function reconcileResidual(total: number, categorized: number): number {
+	const gap = total - categorized;
+	return gap > RESIDUAL_THRESHOLD_EUR ? Number(gap.toFixed(2)) : 0;
+}
+
 export function isoWeekRange(week: string): { start: string; end: string } {
 	let cached = isoWeekRangeCache.get(week);
 	if (cached !== undefined) return cached;

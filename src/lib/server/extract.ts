@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
-import { GEMINI_TIMEOUT_MS } from './env';
+import { GEMINI_TIMEOUT_MS, EXTRACTION_FIXTURES } from './env';
+import { fixtureInvoiceJson, FIXTURE_USAGE } from './extraction-fixtures';
 import { VALID_CATEGORIES, UNCATEGORIZED_CATEGORY, PAYMENT_METHODS, isValidPaymentMethod } from '$lib/constants';
 import { categoryGuideBlock } from './category-guide';
 import { parseJsonResponse } from './llm-json';
@@ -568,6 +569,11 @@ export async function extractWithProvider(
 		if (!result) throw new Error('Unrecognised XML e-invoice format (not Facturae 3.2.x or UBL 2.1)');
 		const zeroUsage: LLMUsage = { inputTokens: 0, outputTokens: 0, model: 'xml-parser' };
 		return { invoice: sanitizeExtractedInvoice(result), usage: zeroUsage };
+	}
+
+	if (EXTRACTION_FIXTURES && !provider) {
+		const invoice = parseJsonResponse(fixtureInvoiceJson(filePath), isExtractedInvoice, 'fixture');
+		return { invoice: sanitizeExtractedInvoice(invoice), usage: FIXTURE_USAGE };
 	}
 
 	const resolvedProvider = provider ?? createGeminiProvider();

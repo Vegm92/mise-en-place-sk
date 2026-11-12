@@ -1,29 +1,34 @@
 <script lang="ts">
   import { locale } from '$lib/i18n';
   import LegalPage from '$lib/components/legal/LegalPage.svelte';
-  import { LEGAL_ENTITY, entityIsRegistered } from '$lib/legal-entity';
+  import { LEGAL_ENTITY, entityIsRegistered, identityRows } from '$lib/legal-entity';
 
   const e = LEGAL_ENTITY;
   const registered = entityIsRegistered(e);
+  const rows = identityRows(e);
 
   const copy = {
     es: {
       pageTitle: 'Aviso Legal · Mise en Place',
       back:      '← Volver',
       title:     'Aviso Legal',
-      meta:      'Última actualización: 6 de septiembre de 2026',
+      meta:      'Última actualización: 18 de octubre de 2026',
       prevails:  'La versión en español prevalece sobre cualquier traducción.',
 
       h1:        '1. Datos identificativos del prestador',
       p1:        'En cumplimiento del artículo 10 de la Ley 34/2002, de servicios de la sociedad de la información y de comercio electrónico (LSSI-CE), se facilitan los siguientes datos:',
-      lTrade:    'Denominación comercial',
-      lLegal:    'Denominación social',
-      lTaxId:    'NIF',
-      lAddress:  'Domicilio',
-      lRegistry: 'Registro Mercantil',
-      lEmail:    'Correo de contacto',
-      lCity:     'Localidad',
-      pending:   'Mise en Place se encuentra en fase previa al lanzamiento comercial y todavía no opera como sociedad constituida. Los datos registrales se publicarán aquí en cuanto se complete la constitución; hasta entonces no se presta ningún servicio de pago ni se emite factura.',
+      labels: {
+        tradeName:         'Denominación comercial',
+        legalName:         'Denominación social',
+        holderName:        'Titular',
+        taxId:             'NIF',
+        registeredAddress: 'Domicilio',
+        companyRegistry:   'Registro Mercantil',
+        contactEmail:      'Correo de contacto',
+        city:              'Localidad',
+      },
+      pendingPre:  'Mise en Place está en fase previa al lanzamiento comercial y todavía no existe una sociedad constituida que la explote: el sitio lo opera directamente su fundador, como persona física. Su nombre completo, NIF y domicilio se publicarán aquí antes de prestar ningún servicio de pago o emitir ninguna factura; mientras tanto puedes solicitarlos en ',
+      pendingPost: '.',
 
       h2:        '2. Objeto',
       p2:        'Este sitio ofrece información sobre Mise en Place, una plataforma de digitalización de albaranes y control de costes para hostelería, y permite apuntarse a su lista de acceso anticipado y crear una cuenta.',
@@ -58,19 +63,23 @@
       pageTitle: 'Legal Notice · Mise en Place',
       back:      '← Back',
       title:     'Legal Notice',
-      meta:      'Last updated: September 6, 2026',
+      meta:      'Last updated: October 18, 2026',
       prevails:  'The Spanish version prevails over any translation.',
 
       h1:        '1. Identifying details of the provider',
       p1:        'In compliance with article 10 of Spanish Law 34/2002 on information society services and electronic commerce (LSSI-CE), the following details are provided:',
-      lTrade:    'Trading name',
-      lLegal:    'Registered name',
-      lTaxId:    'Tax ID',
-      lAddress:  'Registered address',
-      lRegistry: 'Companies Register',
-      lEmail:    'Contact email',
-      lCity:     'Location',
-      pending:   'Mise en Place is pre-launch and does not yet operate as an incorporated company. Registration details will be published here as soon as incorporation completes; until then no paid service is provided and no invoice is issued.',
+      labels: {
+        tradeName:         'Trading name',
+        legalName:         'Registered name',
+        holderName:        'Owner',
+        taxId:             'Tax ID',
+        registeredAddress: 'Registered address',
+        companyRegistry:   'Companies Register',
+        contactEmail:      'Contact email',
+        city:              'Location',
+      },
+      pendingPre:  'Mise en Place is pre-launch and no incorporated company operates it yet: the site is run directly by its founder, as a natural person. Their full name, tax ID and address will be published here before any paid service is provided or any invoice is issued; in the meantime you can request them at ',
+      pendingPost: '.',
 
       h2:        '2. Purpose',
       p2:        'This site provides information about Mise en Place, a delivery-note digitisation and cost-control platform for hospitality, and lets you join its early-access list and create an account.',
@@ -111,16 +120,15 @@
     <h2>{c.h1}</h2>
     <p>{c.p1}</p>
     <ul>
-      <li><strong>{c.lTrade}:</strong> {e.tradeName}</li>
-      {#if e.legalName}<li><strong>{c.lLegal}:</strong> {e.legalName}</li>{/if}
-      {#if e.taxId}<li><strong>{c.lTaxId}:</strong> {e.taxId}</li>{/if}
-      {#if e.registeredAddress}<li><strong>{c.lAddress}:</strong> {e.registeredAddress}</li>{/if}
-      {#if e.companyRegistry}<li><strong>{c.lRegistry}:</strong> {e.companyRegistry}</li>{/if}
-      <li><strong>{c.lEmail}:</strong> <a href="mailto:{e.contactEmail}">{e.contactEmail}</a></li>
-      <li><strong>{c.lCity}:</strong> {e.city}, {e.country}</li>
+      {#each rows as row (row.field)}
+        <li>
+          <strong>{c.labels[row.field]}:</strong>
+          {#if row.field === 'contactEmail'}<a href="mailto:{row.value}">{row.value}</a>{:else}{row.value}{/if}
+        </li>
+      {/each}
     </ul>
     {#if !registered}
-      <p>{c.pending}</p>
+      <p>{c.pendingPre}<a href="mailto:{e.contactEmail}">{e.contactEmail}</a>{c.pendingPost}</p>
     {/if}
 
     <h2>{c.h2}</h2>

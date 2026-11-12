@@ -39,6 +39,11 @@ export const STORAGE_MAX_ATTEMPTS = Math.max(1, parseInt(process.env.STORAGE_MAX
 export const GEMINI_API_KEY = process.env.GEMINI_API_KEY ?? '';
 export const GEMINI_MODEL = process.env.GEMINI_MODEL ?? 'gemini-3.1-flash-lite';
 export const GEMINI_TIMEOUT_MS = parseInt(process.env.GEMINI_TIMEOUT_MS ?? '120000', 10);
+
+export function extractionFixturesEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+	return env.EXTRACTION_FIXTURES === '1' && env.NODE_ENV !== undefined && env.NODE_ENV !== 'production';
+}
+export const EXTRACTION_FIXTURES = extractionFixturesEnabled();
 export const CHAT_RATE_LIMIT_RPM = parseInt(process.env.CHAT_RATE_LIMIT_RPM ?? '20', 10);
 export const MAX_CONCURRENT_EXTRACTIONS = parseInt(process.env.MAX_CONCURRENT_EXTRACTIONS ?? '3', 10);
 export const EXPORT_ROW_CAP = parseInt(process.env.EXPORT_ROW_CAP ?? '10000', 10);
@@ -52,6 +57,10 @@ export const STRIPE_PRICE_ID_STARTER  = (process.env.STRIPE_PRICE_ID_STARTER  ??
 export const STRIPE_PRICE_ID_PRO      = (process.env.STRIPE_PRICE_ID_PRO      ?? '').trim();
 export const STRIPE_PRICE_ID_BUSINESS = (process.env.STRIPE_PRICE_ID_BUSINESS ?? '').trim();
 export const STRIPE_PRICE_ID          = (process.env.STRIPE_PRICE_ID          ?? '').trim();
+export const STRIPE_PRICE_ID_STARTER_ANNUAL  = (process.env.STRIPE_PRICE_ID_STARTER_ANNUAL  ?? '').trim();
+export const STRIPE_PRICE_ID_PRO_ANNUAL      = (process.env.STRIPE_PRICE_ID_PRO_ANNUAL      ?? '').trim();
+export const STRIPE_PRICE_ID_BUSINESS_ANNUAL = (process.env.STRIPE_PRICE_ID_BUSINESS_ANNUAL ?? '').trim();
+export const STRIPE_TAX_RATE_ID       = (process.env.STRIPE_TAX_RATE_ID       ?? '').trim();
 export const WHATSAPP_ACCESS_TOKEN    = process.env.WHATSAPP_ACCESS_TOKEN    ?? '';
 export const WHATSAPP_PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID ?? '';
 export const WHATSAPP_API_VERSION     = process.env.WHATSAPP_API_VERSION     ?? 'v25.0';
@@ -73,6 +82,10 @@ export const HEALTH_CHECK_TOKEN       = process.env.HEALTH_CHECK_TOKEN      ?? '
 export const HEALTH_RATE_LIMIT_RPM    = parseInt(process.env.HEALTH_RATE_LIMIT_RPM ?? '60', 10);
 export const DIGEST_SHARE_VIEW_RATE_LIMIT_RPM = parseInt(process.env.DIGEST_SHARE_VIEW_RATE_LIMIT_RPM ?? '30', 10);
 
+if (process.env.EXTRACTION_FIXTURES && !EXTRACTION_FIXTURES) {
+	console.error('[env] EXTRACTION_FIXTURES is ignored: fixture extraction only runs with NODE_ENV=development or test');
+}
+if (EXTRACTION_FIXTURES) console.warn('[env] EXTRACTION_FIXTURES=1 — extraction returns golden-corpus fixtures, not LLM output');
 if (!GEMINI_API_KEY) console.warn('[env] GEMINI_API_KEY is not set — invoice extraction will fail');
 if (!APP_BASE_URL) {
 	console.warn('[env] APP_BASE_URL is not set — batch links sent over WhatsApp will be relative paths');

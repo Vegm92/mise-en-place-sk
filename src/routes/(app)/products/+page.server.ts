@@ -37,8 +37,15 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 		const [products, suggestionRows, trendRows, conversionPrompts, yoyByProduct] = await Promise.all([
 			db.execute<ProductRow>(sql`
 				SELECT p.id, p.canonical_name, p.category, p.canonical_unit, p.units_per_pack, p.base_unit,
-				       (SELECT count(DISTINCT a.supplier_id) FROM product_aliases a
-				          WHERE a.restaurant_id = ${rid} AND a.product_id = p.id AND a.supplier_id IS NOT NULL)::int AS supplier_count,
+				       (SELECT count(DISTINCT x.supplier_id) FROM (
+				          SELECT a.supplier_id FROM product_aliases a
+				            WHERE a.restaurant_id = ${rid} AND a.product_id = p.id AND a.supplier_id IS NOT NULL
+				          UNION
+				          SELECT i.supplier_id FROM invoice_line_items ili
+				            JOIN invoices i ON i.id = ili.invoice_id AND i.restaurant_id = ${rid}
+				            WHERE ili.restaurant_id = ${rid} AND ili.product_id = p.id
+				              AND i.deleted_at IS NULL AND i.supplier_id IS NOT NULL
+				        ) x)::int AS supplier_count,
 				       (SELECT count(*) FROM product_aliases a
 				          WHERE a.restaurant_id = ${rid} AND a.product_id = p.id)::int AS alias_count
 				FROM products p

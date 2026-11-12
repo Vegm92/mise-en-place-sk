@@ -16,6 +16,7 @@ import {
 	countActiveInvoiceFilters,
 	escapeLikePattern,
 	parseInvoiceFilters,
+	periodAppliesToList,
 	type InvoiceSortKey,
 } from '$lib/invoice-filters';
 
@@ -28,11 +29,18 @@ const SORT_OPTIONS: Record<InvoiceSortKey, SQL> = {
 	invoice_date_asc:  asc(invoices.invoiceDate),
 };
 
+function allTimeHref(url: URL): string {
+	const params = new URLSearchParams(url.searchParams);
+	params.set('period', 'all');
+	params.delete('page');
+	return `${url.pathname}?${params.toString()}`;
+}
+
 export const load: PageServerLoad = async ({ url, locals, parent }) => {
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
 	return handleLoad('invoices', async () => {
-		const { rangeFrom, rangeTo } = await parent?.() ?? periodRange(url);
+		const { rangeFrom, rangeTo, activePeriod } = await parent?.() ?? periodRange(url);
 		const savedId = parseInt(url.searchParams.get('saved') ?? '', 10);
 		const filters = parseInvoiceFilters(url.searchParams);
 		const {
@@ -44,24 +52,33 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 		const supplierIdNum = Number.parseInt(supplierId, 10);
 		const page       = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10));
 		const offset     = (page - 1) * PAGE_SIZE;
-		const effectiveDateFrom = dateFrom || rangeFrom;
-		const effectiveDateTo   = dateTo   || rangeTo;
+		const usePeriod = periodAppliesToList({
+			saved: Number.isFinite(savedId),
+			status,
+			dateFrom,
+			dateTo,
+			periodParam: url.searchParams.get('period'),
+		});
+		const periodInEffect = usePeriod && !dateFrom && !dateTo;
+		const effectiveDateFrom = dateFrom || (usePeriod ? rangeFrom : '');
+		const effectiveDateTo   = dateTo   || (usePeriod ? rangeTo : '');
 
-		const conditions: SQL[] = [tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt)];
+		const baseConditions: SQL[] = [tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt)];
 		const reviewFilter = invoiceReviewFilter(status);
-		if (reviewFilter) conditions.push(reviewFilter);
-		if (Number.isFinite(supplierIdNum)) conditions.push(eq(invoices.supplierId, supplierIdNum));
-		if (category)           conditions.push(invoiceMatchesCategory(tdb, category));
-		if (effectiveDateFrom)  conditions.push(gte(invoices.invoiceDate, effectiveDateFrom));
-		if (effectiveDateTo)    conditions.push(lte(invoices.invoiceDate, effectiveDateTo));
-		if (uploadedFrom) conditions.push(gte(invoices.createdAt, new Date(`${uploadedFrom}T00:00:00`)));
-		if (uploadedTo)   conditions.push(lte(invoices.createdAt, new Date(`${uploadedTo}T23:59:59.999`)));
+		if (reviewFilter) baseConditions.push(reviewFilter);
+		if (Number.isFinite(supplierIdNum)) baseConditions.push(eq(invoices.supplierId, supplierIdNum));
+		if (category)     baseConditions.push(invoiceMatchesCategory(tdb, category));
+		if (uploadedFrom) baseConditions.push(gte(invoices.createdAt, new Date(`${uploadedFrom}T00:00:00`)));
+		if (uploadedTo)   baseConditions.push(lte(invoices.createdAt, new Date(`${uploadedTo}T23:59:59.999`)));
 		if (q) {
 			const pattern = `%${escapeLikePattern(q)}%`;
-			conditions.push(or(ilike(invoices.invoiceNumber, pattern), ilike(suppliers.name, pattern))!);
+			baseConditions.push(or(ilike(invoices.invoiceNumber, pattern), ilike(suppliers.name, pattern))!);
 		}
+		const conditions: SQL[] = [...baseConditions];
+		if (effectiveDateFrom)  conditions.push(gte(invoices.invoiceDate, effectiveDateFrom));
+		if (effectiveDateTo)    conditions.push(lte(invoices.invoiceDate, effectiveDateTo));
 
-		const [invoiceRows, statsRow, trendRows, supplierCountRow, supplierRows, countRow] = await Promise.all([
+		const [invoiceRows, statsRow, trendRows, supplierCountRow, supplierRows, unperiodCountRow, countRow] = await Promise.all([
 			db.select({
 				id:               invoices.id,
 				supplier_name:    suppliers.name,
@@ -116,6 +133,14 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 				.where(tdb.scope(suppliers.restaurantId))
 				.orderBy(asc(suppliers.name)),
 
+			periodInEffect
+				? db.select({ cnt: count() })
+					.from(invoices)
+					.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
+					// tenant-scope-ok: baseConditions[0] is tdb.scope(invoices.restaurantId)
+					.where(and(...baseConditions))
+				: Promise.resolve(null),
+
 			// tenant-scope-ok: conditions[0] is tdb.scope(invoices.restaurantId)
 			db.select({ cnt: count() })
 				.from(invoices)
@@ -131,7 +156,10 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 				payload:          systemNotifications.payload,
 			})
 				.from(systemNotifications)
-				.where(tdb.scope(systemNotifications.restaurantId, eq(systemNotifications.invoiceId, savedId)))
+				.where(tdb.scope(systemNotifications.restaurantId, and(
+					eq(systemNotifications.invoiceId, savedId),
+					eq(systemNotifications.status, 'pending'),
+				)))
 			: [];
 
 		const invoiceIds = invoiceRows.map(r => r.id);
@@ -216,6 +244,7 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 			uncategorized_line_invoices: uncategorizedLineInvoices,
 		};
 		const total = Number(countRow[0]?.cnt ?? 0);
+		const hiddenByPeriod = unperiodCountRow ? Math.max(0, Number(unperiodCountRow[0]?.cnt ?? 0) - total) : 0;
 
 		const MONTH_LABELS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 		const trendData = {
@@ -238,6 +267,9 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 			conflict: url.searchParams.get('conflict') === '1',
 			savedInvoiceId: Number.isFinite(savedId) ? savedId : null,
 			savedAlerts,
+			periodNotice: hiddenByPeriod > 0
+				? { period: activePeriod, hidden: hiddenByPeriod, allHref: allTimeHref(url) }
+				: null,
 			pagination: { page, pageSize: PAGE_SIZE, total, totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)) },
 		};
 	});

@@ -101,7 +101,8 @@ the `Env` rows on `/admin/health`, are the real gate.
 | `ADDRESS_HEADER`, `XFF_DEPTH` | ✔ | Railway edge rewrites XFF |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID_*` (3) | ✔ | |
 | `STRIPE_FOUNDER_COUPON_ID`, `STRIPE_FOUNDER_PROMO_CODE` | ✔ | |
-| `PLAN_PRICE_*_EUR` (3) | ✔ | `/admin/revenue` |
+| `PLAN_PRICE_*_EUR` (3) | ✔ | no longer read since the 2026-10 pricing decision — delete them |
+| `STRIPE_PRICE_ID_*_ANNUAL` (3), `STRIPE_TAX_RATE_ID` | ✖ | annual toggle + IVA on new subscriptions (`docs/02_product/pricing_decision_2026-10.md`) |
 | `RESEND_API_KEY`, `EMAIL_FROM` | ✔ | |
 | `APP_BASE_URL` | ✔ | |
 | `SENTRY_DSN`, `VITE_SENTRY_DSN`, `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT` | ✔ | |

@@ -1,7 +1,6 @@
 import type { PgBoss } from 'pg-boss';
 import * as Sentry from '@sentry/sveltekit';
 import { runAsSystem } from './db';
-import { recordDeadLetter } from './dead-letter';
 import { registerTenantFanout } from './tenant-fanout';
 import { ORPHAN_SUBSCRIPTIONS_CRON, ORPHAN_SUBSCRIPTIONS_QUEUE, runOrphanSubscriptionsJob } from './billing';
 import { MRR_SNAPSHOT_CRON, MRR_SNAPSHOT_QUEUE, runMrrSnapshotJob } from './revenue-metrics';
@@ -17,7 +16,6 @@ import {
 	type WeeklyDigestJobData, type OverdueReminderJobData, type TrialNoticeJobData,
 } from './tenant-notification-jobs';
 import {
-	DEAD_LETTER_PURGE_QUEUE, DEAD_LETTER_PURGE_CRON, runDeadLetterPurgeJob,
 	DEAD_LETTER_ALERT_QUEUE, DEAD_LETTER_ALERT_CRON, runDeadLetterAlertJob,
 } from './dead-letter-health';
 import {
@@ -38,7 +36,6 @@ const JOBS: ScheduledJob[] = [
 	{ queue: TRIAL_QUEUE, cron: TRIAL_CRON, run: runTrialNoticesJob },
 	{ queue: PURGE_QUEUE, cron: PURGE_CRON, run: runFilePurgeJob },
 	{ queue: MRR_SNAPSHOT_QUEUE, cron: MRR_SNAPSHOT_CRON, run: runMrrSnapshotJob },
-	{ queue: DEAD_LETTER_PURGE_QUEUE, cron: DEAD_LETTER_PURGE_CRON, run: runDeadLetterPurgeJob },
 	{ queue: DEAD_LETTER_ALERT_QUEUE, cron: DEAD_LETTER_ALERT_CRON, run: runDeadLetterAlertJob },
 	{ queue: ANALYTICS_REFRESH_QUEUE, cron: ANALYTICS_REFRESH_CRON, run: runAnalyticsRefreshJob },
 	{ queue: IDEMPOTENCY_SWEEP_QUEUE, cron: IDEMPOTENCY_SWEEP_CRON, run: runIdempotencySweepJob },
@@ -46,7 +43,7 @@ const JOBS: ScheduledJob[] = [
 	{ queue: EXTRACTION_IMPROVE_QUEUE, cron: EXTRACTION_IMPROVE_CRON, run: runExtractionImproveJob },
 ];
 
-const RETIRED_SCHEDULES = ['scheduled-metric-sample', 'scheduled-metric-purge'];
+const RETIRED_SCHEDULES = ['scheduled-metric-sample', 'scheduled-metric-purge', 'scheduled-dead-letter-purge'];
 
 export async function registerScheduledJobs(boss: PgBoss): Promise<void> {
 	await registerTenantFanout<WeeklyDigestJobData>(boss, {
@@ -71,9 +68,8 @@ export async function registerScheduledJobs(boss: PgBoss): Promise<void> {
 				const result = await runAsSystem(() => job.run(boss));
 				console.info(`[scheduler] ${job.queue} finished in ${Date.now() - started}ms`, result);
 			} catch (err) {
-				console.error(`[scheduler] ${job.queue} failed after ${Date.now() - started}ms — dead-lettered:`, err);
+				console.error(`[scheduler] ${job.queue} failed after ${Date.now() - started}ms:`, err);
 				Sentry.captureException(err, { tags: { job: job.queue } });
-				await recordDeadLetter({ queue: job.queue, error: err, sourceId: job.queue });
 				throw err;
 			}
 		});

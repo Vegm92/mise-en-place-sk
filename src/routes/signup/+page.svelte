@@ -2,7 +2,7 @@
 	import type { ActionData, PageData } from './$types';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
-	import { t, initLocale } from '$lib/i18n';
+	import { t, ti, initLocale } from '$lib/i18n';
 	import Turnstile from '$lib/components/Turnstile.svelte';
 	import Logo from '$lib/components/mep/Logo.svelte';
 
@@ -44,7 +44,7 @@
 
 <svelte:head>
 	<title>{t('signup.metaTitle')} · Mise en Place</title>
-	<meta name="description" content={t('signup.metaDesc')} />
+	<meta name="description" content={ti('signup.metaDesc', { days: data.trialDays })} />
 </svelte:head>
 
 <div class="mep" data-accent="tinta" data-density="default"
@@ -88,7 +88,7 @@
 				</div>
 			{:else}
 				<h1 style="font-size:17px;font-weight:600;color:var(--mep-fg);margin:0 0 4px;">{t('signup.heading')}</h1>
-				<p style="font-size:13px;color:var(--mep-fg-3);margin:0 0 20px;">{t('signup.subheading')}</p>
+				<p style="font-size:13px;color:var(--mep-fg-3);margin:0 0 20px;">{ti(data.accessOpen ? 'signup.subheading' : 'signup.subheadingWaitlist', { days: data.trialDays })}</p>
 
 				{#if errorMessage}
 					<div style="background:var(--mep-neg-soft);border:1px solid var(--mep-neg);color:var(--mep-neg);

@@ -5,7 +5,7 @@ import CalendarOff from '@lucide/svelte/icons/calendar-off';
 import Truck from '@lucide/svelte/icons/truck';
 import Tags from '@lucide/svelte/icons/tags';
 import type { Severity, WorkKind } from '$lib/dashboard-turno';
-import { fmtDateShort, type Locale } from '$lib/formatters';
+import { fmtDateShort, fmtDecimal1, fmtEur, type Locale } from '$lib/formatters';
 
 export const WORK_ICON: Record<WorkKind, typeof TrendingUp> = {
 	price: TrendingUp,
@@ -29,4 +29,22 @@ export function localiseWorkDates(
 	if (!('date' in vars)) return vars;
 	const dateStr = String(vars.date);
 	return { ...vars, date: fmtDateShort(dateStr, loc as Locale) };
+}
+
+const PRICE_MONEY_KEYS = ['from', 'to', 'altPrice'] as const;
+
+export function localiseWorkVars(
+	kind: WorkKind,
+	vars: Record<string, string | number>,
+	loc: string,
+): Record<string, string | number> {
+	const out = localiseWorkDates(vars, loc);
+	if (kind !== 'price') return out;
+	const next = { ...out };
+	for (const key of PRICE_MONEY_KEYS) {
+		const v = next[key];
+		if (typeof v === 'number') next[key] = fmtEur(v, loc as Locale);
+	}
+	if (typeof next.pct === 'number') next.pct = fmtDecimal1(next.pct, loc as Locale);
+	return next;
 }

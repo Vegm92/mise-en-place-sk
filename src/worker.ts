@@ -2,10 +2,7 @@ import './lib/server/env-file.js';
 
 import * as Sentry from '@sentry/sveltekit';
 import { PgBoss, type JobWithMetadata } from 'pg-boss';
-import {
-	DEAD_LETTER_QUEUES,
-	createQueuesWithDeadLetters,
-} from './lib/server/queue.js';
+import { createQueues } from './lib/server/queue.js';
 import { EXTRACTION_QUEUE, type ExtractionJobData, type LegacyExtractionJobData } from './lib/server/contracts/extraction-contract.js';
 import {
 	NORMALIZE_QUEUE,
@@ -27,8 +24,8 @@ import { runExtractionJobForBoss } from './lib/server/extraction-worker.js';
 import { processCategorizeJob, processNormalizeJob } from './lib/server/products.js';
 import { processAccountCleanupJob } from './lib/server/account-cleanup.js';
 import { registerScheduledJobs } from './lib/server/scheduler.js';
+import { runJob } from './lib/server/dead-letter.js';
 import { alertOnDeadLetter } from './lib/server/dead-letter-health.js';
-import { deadLetterRefFromJob, recordDeadLetter, runWithDeadLetter } from './lib/server/dead-letter.js';
 import { assertRoleConfig } from './lib/server/config.js';
 import { MAX_CONCURRENT_EXTRACTIONS } from './lib/server/env.js';
 import { createLogger } from './lib/server/log.js';
@@ -83,7 +80,7 @@ boss.on('error', (err) => {
 });
 
 await boss.start();
-await createQueuesWithDeadLetters(boss);
+await createQueues(boss);
 log.info('pg-boss started');
 
 const stopHeartbeat = startWorkerHeartbeat();
@@ -110,10 +107,7 @@ await boss.work(
 	{ batchSize: 1, includeMetadata: true },
 	async (jobs: JobWithMetadata<NormalizeJobData>[]) => {
 		for (const job of jobs) {
-			await runWithDeadLetter(
-				deadLetterRefFromJob(NORMALIZE_QUEUE, job),
-				() => processNormalizeJob(job.data),
-			);
+			await runJob(job, () => processNormalizeJob(job.data));
 		}
 		await recordWorkerHeartbeat(jobs.length);
 	},
@@ -125,10 +119,7 @@ await boss.work(
 	{ batchSize: 1, includeMetadata: true },
 	async (jobs: JobWithMetadata<CategorizeJobData>[]) => {
 		for (const job of jobs) {
-			await runWithDeadLetter(
-				deadLetterRefFromJob(CATEGORIZE_QUEUE, job),
-				() => processCategorizeJob(job.data),
-			);
+			await runJob(job, () => processCategorizeJob(job.data));
 		}
 		await recordWorkerHeartbeat(jobs.length);
 	},
@@ -140,10 +131,10 @@ await boss.work(
 	{ batchSize: 1, includeMetadata: true },
 	async (jobs: JobWithMetadata<AccountCleanupJobData | LegacyAccountCleanupJobData>[]) => {
 		for (const job of jobs) {
-			await runWithDeadLetter(
-				deadLetterRefFromJob(ACCOUNT_CLEANUP_QUEUE, job),
-				() => processAccountCleanupJob(job.data),
-			);
+			await runJob(job, () => processAccountCleanupJob(job.data)).catch((err: unknown) => {
+				if (job.retryCount >= job.retryLimit) alertOnDeadLetter(ACCOUNT_CLEANUP_QUEUE);
+				throw err;
+			});
 		}
 	},
 );
@@ -157,40 +148,13 @@ if (whatsapp) {
 		{ batchSize: 1, includeMetadata: true },
 		async (jobs: JobWithMetadata<WhatsAppNotifyJobData>[]) => {
 			for (const job of jobs) {
-				await runWithDeadLetter(
-					deadLetterRefFromJob(WHATSAPP_NOTIFY_QUEUE, job),
-					() => notifyWhatsAppSender(job.data, whatsapp),
-				);
+				await runJob(job, () => notifyWhatsAppSender(job.data, whatsapp));
 			}
 		},
 	);
 	log.info('Listening for queue jobs', { queue: WHATSAPP_NOTIFY_QUEUE });
 } else {
 	log.info('WhatsApp bot disabled — not starting a transport');
-}
-
-for (const { source, deadLetter } of DEAD_LETTER_QUEUES) {
-	await boss.work(
-		deadLetter,
-		{ batchSize: 10, includeMetadata: true },
-		async (jobs: JobWithMetadata<Record<string, unknown>>[]) => {
-			for (const job of jobs) {
-				await recordDeadLetter({
-					...deadLetterRefFromJob(source, {
-						id: job.sourceId ?? job.id,
-						data: job.data,
-						retryCount: job.sourceRetryCount ?? 0,
-						retryLimit: 0,
-					}),
-					errorClass: 'worker.abandoned',
-					error: new Error(`pg-boss dead-lettered a "${source}" job without a handler result (expired or abandoned)`),
-					skipIfJobRecorded: true,
-				});
-				await alertOnDeadLetter(source);
-			}
-		},
-	);
-	log.info('Draining dead-letter queue into the audit table', { queue: deadLetter, source });
 }
 
 await registerScheduledJobs(boss);
