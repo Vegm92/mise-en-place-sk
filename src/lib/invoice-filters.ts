@@ -1,4 +1,5 @@
 import { toIsoDate } from './dates';
+import { isRangePeriod } from './period';
 
 export const INVOICE_SORT_KEYS = [
 	'uploaded_desc',
@@ -130,4 +131,20 @@ export function currentMonthRange(now: Date = new Date()): { from: string; to: s
 
 export function escapeLikePattern(value: string): string {
 	return value.replace(/[\\%_]/g, m => `\\${m}`);
+}
+
+const OPEN_REVIEW_STATUSES: readonly string[] = ['por_revisar', 'incidencia'];
+
+export interface ListPeriodInput {
+	saved: boolean;
+	status: string;
+	dateFrom: string;
+	dateTo: string;
+	periodParam: string | null;
+}
+
+export function periodAppliesToList(input: ListPeriodInput): boolean {
+	if (input.dateFrom || input.dateTo) return true;
+	if (isRangePeriod(input.periodParam)) return true;
+	return !input.saved && !OPEN_REVIEW_STATUSES.includes(input.status);
 }

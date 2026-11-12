@@ -146,9 +146,9 @@ describe('/invoices load() — filters come from the search params', () => {
 		// queries are the ones scoped by restaurant_id + deleted_at, not necessarily args[0]/args[-1].
 		const outerWheres = state.whereArgs.map(render)
 			.filter((w) => w.sql.includes('"deleted_at" is null') && w.params.includes('Lácteos'));
-		expect(outerWheres).toHaveLength(2);
+		expect(outerWheres).toHaveLength(3);
 		const listWhere = outerWheres[0]!;
-		const countWhere = outerWheres[1]!;
+		const countWhere = outerWheres[outerWheres.length - 1]!;
 		// The mocked db chain isn't a real query builder, so exists()/notExists()
 		// can't inline their subquery SQL here (that's asserted for real against
 		// Postgres in tests/category-attribution.test.ts) — this only confirms the
@@ -204,5 +204,46 @@ describe('/invoices load() — filters come from the search params', () => {
 		expect(result.pagination.page).toBe(3);
 		expect(state.limit).toBe(result.pagination.pageSize);
 		expect(state.offset).toBe(result.pagination.pageSize * 2);
+	});
+
+	it('applies the default period to a plain list and reports nothing hidden when no rows are', async () => {
+		const result = (await runLoad('')) as unknown as { periodNotice: unknown };
+		const listWhere = render(state.whereArgs[0]);
+		expect(listWhere.sql).toContain('"invoice_date" >=');
+		expect(listWhere.sql).toContain('"invoice_date" <=');
+		expect(result.periodNotice).toBeNull();
+	});
+
+	it('does not apply the default period right after a save (back-dated albaranes)', async () => {
+		await runLoad('?saved=42');
+		const listWhere = render(state.whereArgs[0]);
+		expect(listWhere.sql).not.toContain('"invoice_date"');
+	});
+
+	it('does not apply the default period to the pending-review and incidence lists', async () => {
+		for (const status of ['por_revisar', 'incidencia']) {
+			state.whereArgs = [];
+			await runLoad(`?status=${status}`);
+			const listWhere = render(state.whereArgs[0]);
+			expect(listWhere.sql).not.toContain('"invoice_date"');
+			expect(listWhere.params).toContain(status);
+		}
+	});
+
+	it('still honours explicit dates on the pending-review list', async () => {
+		await runLoad('?status=por_revisar&date_from=2024-01-01&date_to=2024-01-31');
+		const listWhere = render(state.whereArgs[0]);
+		expect(listWhere.params).toContain('2024-01-01');
+		expect(listWhere.params).toContain('2024-01-31');
+	});
+
+	it('limits the post-save alerts to pending alert rows, not logged telemetry events', async () => {
+		await runLoad('?saved=42');
+		const alertWhere = state.whereArgs.map(render)
+			.find((w) => w.sql.includes('"system_notifications"."invoice_id"'));
+		expect(alertWhere).toBeDefined();
+		expect(alertWhere!.sql).toContain('"system_notifications"."status" =');
+		expect(alertWhere!.params).toContain('pending');
+		expect(alertWhere!.params).toContain(42);
 	});
 });
