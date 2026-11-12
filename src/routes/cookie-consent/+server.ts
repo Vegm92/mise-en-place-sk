@@ -1,4 +1,4 @@
-import { error, redirect } from '@sveltejs/kit';
+import { error, json, redirect } from '@sveltejs/kit';
 import { writeConsent } from '$lib/server/cookie-consent';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import type { RequestHandler } from './$types';
@@ -22,6 +22,10 @@ export const POST: RequestHandler = async ({ request, cookies, getClientAddress 
 	}
 
 	writeConsent(cookies, rawChoice);
+
+	if (request.headers.get('accept')?.includes('application/json')) {
+		return json({ choice: rawChoice });
+	}
 
 	redirect(303, safeNext(form.get('next')));
 };
