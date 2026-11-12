@@ -3,14 +3,42 @@
   import { getT } from '$lib/i18n-context';
   import type { ConsentState } from '$lib/cookie-consent';
 
-  const { state }: { state: ConsentState } = $props();
+  const { state: consent }: { state: ConsentState } = $props();
 
   const t = getT();
   const nextPath = $derived(page.url.pathname + page.url.search);
+
+  let dismissed = $state(false);
+  let pending = $state(false);
+  let bannerHeight = $state(0);
+
+  const visible = $derived(consent === 'unset' && !dismissed);
+
+  $effect(() => {
+    if (!visible || bannerHeight <= 0) return;
+    const root = document.documentElement;
+    root.style.setProperty('--mep-cookie-banner-h', `${bannerHeight}px`);
+    return () => root.style.removeProperty('--mep-cookie-banner-h');
+  });
+
+  async function submitChoice(event: SubmitEvent) {
+    event.preventDefault();
+    if (pending) return;
+    const form = event.currentTarget as HTMLFormElement;
+    const body = new FormData(form, event.submitter);
+    pending = true;
+    const res = await fetch(form.action, {
+      method: 'POST',
+      body,
+      headers: { accept: 'application/json' },
+    }).catch(() => null);
+    pending = false;
+    if (res?.ok) dismissed = true;
+  }
 </script>
 
-{#if state === 'unset'}
-  <aside class="mep-cookie-banner" aria-label={t('cookies.banner.label')}>
+{#if visible}
+  <aside class="mep-cookie-banner" aria-label={t('cookies.banner.label')} bind:offsetHeight={bannerHeight}>
     <div class="mep-cookie-inner">
       <div class="mep-cookie-copy">
         <p class="mep-cookie-title">{t('cookies.banner.title')}</p>
@@ -19,12 +47,12 @@
           <a href="/cookies">{t('cookies.banner.more')}</a>
         </p>
       </div>
-      <form method="POST" action="/cookie-consent" class="mep-cookie-actions">
+      <form method="POST" action="/cookie-consent" class="mep-cookie-actions" onsubmit={submitChoice}>
         <input type="hidden" name="next" value={nextPath} />
-        <button type="submit" name="choice" value="denied" class="btn btn-secondary">
+        <button type="submit" name="choice" value="denied" class="btn btn-secondary" disabled={pending}>
           {t('cookies.banner.reject')}
         </button>
-        <button type="submit" name="choice" value="granted" class="btn btn-primary">
+        <button type="submit" name="choice" value="granted" class="btn btn-primary" disabled={pending}>
           {t('cookies.banner.accept')}
         </button>
       </form>
@@ -33,6 +61,9 @@
 {/if}
 
 <style>
+  :global(:root:has(.mep-cookie-banner) .mep) {
+    padding-bottom: var(--mep-cookie-banner-h, 72px);
+  }
   .mep-cookie-banner {
     position: fixed;
     left: 0;
@@ -75,5 +106,8 @@
   @media (max-width: 640px) {
     .mep-cookie-inner { flex-direction: column; align-items: stretch; gap: 12px; }
     .mep-cookie-actions .btn { flex: 1; justify-content: center; }
+    :global(:root:has(.mep-cookie-banner) .mep) {
+      padding-bottom: var(--mep-cookie-banner-h, 192px);
+    }
   }
 </style>
