@@ -39,4 +39,8 @@ describe('invoice detail document type rendering', () => {
 			expect(src).toContain('documentTypeLabelKey(');
 		}
 	});
+
+	it('does not render the handlerless more-options button on mobile', () => {
+		expect(MOBILE).not.toContain('mid.moreOptions');
+	});
 });

@@ -1536,7 +1536,6 @@ export default {
   'mid.preview':                  'Vista previa',
   'mid.open':                     'Abrir',
   'mid.back':                     'Volver',
-  'mid.moreOptions':              'Más opciones',
   'mid.viewLines':                'Ver las {n} líneas',
   'mid.actionEdit':               'Editar',
   'mid.actionDownload':           'Original',
