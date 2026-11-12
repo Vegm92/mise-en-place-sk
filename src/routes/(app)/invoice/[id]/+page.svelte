@@ -4,6 +4,7 @@
   import { locale, t, ti } from '$lib/i18n';
   import { fmtDate, fmtEur } from '$lib/formatters';
   import { uploadExtname } from '$lib/upload-formats';
+  import { documentTypeLabelKey } from '$lib/document-type';
   import MobileInvoiceDetail from '$lib/components/mobile/MobileInvoiceDetail.svelte';
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
   import IncidenceKindBadge from '$lib/components/mep/IncidenceKindBadge.svelte';
@@ -113,7 +114,7 @@
           {#if invoice.document_type}
             <div style="display:flex;flex-direction:column;gap:2px;">
               <span class="label">{t('field.documentType')}</span>
-              <span class="body-strong">{t(`field.documentType.${invoice.document_type}`)}</span>
+              <span class="body-strong">{t(documentTypeLabelKey(invoice.document_type))}</span>
             </div>
           {/if}
           <div style="display:flex;flex-direction:column;gap:2px;">
@@ -214,7 +215,7 @@
             <div style="display:flex;flex-direction:column;gap:2px;">
               <span class="label">{t('inv.detail.linkedDocument')}</span>
               <span class="body-strong">
-                {invoice.linked_invoice.document_type ? t(`field.documentType.${invoice.linked_invoice.document_type}`) : ''}
+                {invoice.linked_invoice.document_type ? t(documentTypeLabelKey(invoice.linked_invoice.document_type)) : ''}
                 {invoice.linked_invoice.invoice_number ?? `#${invoice.linked_invoice.id}`}
               </span>
             </div>
