@@ -33,8 +33,16 @@ records: `docs/02_product/pricing_decision_2026-10.md` (the price table) and
   (`STRIPE_FOUNDER_COUPON_ID`); `FOUNDER_OFFER` / `FOUNDER_PRICE` only mirror it
   for display and must match it.
 - Trial: 14 days (`TRIAL_DAYS`), 30 for founders approved from `/admin/access`
-  (`FOUNDER_TRIAL_DAYS`); `subscriptions.status = 'trialing'`; locked when the
-  window passes unless the subscription is `active`.
+  (`FOUNDER_TRIAL_DAYS`); up to 20 processed documents (`TIERS.trial`
+  quota); no card required; `subscriptions.status = 'trialing'`; locked when
+  the window passes unless the subscription is `active`.
+- Waitlist vs instant account: while the `access_open` flag is off, every new
+  account waits in `/pending` and is approved as a founder, so `/waitlist`,
+  the landing variants and `/signup` all quote `FOUNDER_TRIAL_DAYS`. Once
+  access opens, `/signup` creates an account straight away and quotes
+  `TRIAL_DAYS`. The copy interpolates these constants; the terms
+  (`src/lib/content/legal/terms.ts`) and `billing.tier.trial.limit` hold
+  literals that `tests/trial-copy-consistency.test.ts` pins to the code.
 - A restaurant with **no** `subscriptions` row is treated as allowed-trialing
   (no lockout); the row appears on first Stripe contact or `getOrCreateCustomer`.
 

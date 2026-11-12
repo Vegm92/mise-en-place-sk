@@ -13,10 +13,13 @@ import { users } from '$lib/server/schema';
 import { sendVerificationEmail } from '$lib/server/verification-email';
 import { signIn } from '$lib/server/auth';
 import { ATTRIBUTION_COOKIE, parseAttributionCookie } from '$lib/attribution';
+import { isAccessOpen } from '$lib/server/app-flags';
+import { trialDaysFor } from '$lib/server/billing';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (locals.user) redirect(303, locals.restaurantId ? '/' : '/onboarding');
-	return {};
+	const accessOpen = await isAccessOpen().catch(() => false);
+	return { accessOpen, trialDays: trialDaysFor(!accessOpen) };
 };
 
 const SignUpForm = v.object({

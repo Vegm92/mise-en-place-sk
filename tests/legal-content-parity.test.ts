@@ -223,7 +223,7 @@ function omit(record: Record<string, unknown>, keys: readonly string[]): Record<
 
 const SUBPROCESSOR_CELLS = ['r1Function', 'r1Country', 'r2Function', 'r2Country', 'r3Function', 'r3Country', 'r4Function', 'r4Country', 'r5Function', 'r5Country'];
 const PRIVACY_REWRITTEN = ['meta', 'p1a', 'p1b', 'p4', 'thCountry', ...SUBPROCESSOR_CELLS, 'p5', 'd6a', 'h10'];
-const TERMS_REWRITTEN = ['meta', 'p5', 'h13'];
+const TERMS_REWRITTEN = ['meta', 'p5', 'd6a', 'h13'];
 
 describe('privacy/terms content outside the legal-entity rewrite is byte-identical to the pre-migration inline copy (issues #835, #779)', () => {
 	const PRE_PRIVACY = loadPreMigrationCopy('privacy-page-pre-content-c747c69e.txt');
