@@ -1594,6 +1594,7 @@ export default {
   'turno.kind.review':            'Review',
   'turno.kind.missing':           'No invoice',
   'turno.kind.supplier':          'Supplier',
+  'turno.kind.lines':             'Uncategorized',
   'turno.when.today':             'today',
   'turno.when.daysAgo':           '{n} d ago',
   'turno.when.thisWeek':          'this week',
