@@ -5,7 +5,7 @@ import * as v from 'valibot';
 import { sqlRows } from './sql-rows';
 import { contactsPerTenant } from './whatsapp-contacts';
 import { getIssueSummary, isSentryConfigured } from './sentry-api';
-import { pendingDeadLetterCount } from './dead-letter';
+import { countDeadLetters } from './dead-letter';
 import { TENANT_FANOUT_QUEUES } from './tenant-notification-jobs';
 import { lastJobRuns, type JobRunSummary } from './tenant-fanout';
 import { readWorkerHeartbeat, workerLiveness, type WorkerLiveness } from './worker-heartbeat';
@@ -431,13 +431,13 @@ async function checkJobs(): Promise<{ checks: HealthCheck[]; jobs: JobFailureSta
 
 async function checkDeadLetterQueue(): Promise<{ checks: HealthCheck[]; pending: number }> {
 	try {
-		const pending = await pendingDeadLetterCount();
+		const pending = await countDeadLetters();
 		return {
 			pending,
 			checks: [{
 				name: 'Dead letter queue',
 				status: thresholdStatus(pending, DEAD_LETTER_ERROR_THRESHOLD),
-				detail: pending > 0 ? `${pending} record(s) parked for audit` : 'No parked records',
+				detail: pending > 0 ? `${pending} failed job(s) kept by pg-boss` : 'No failed jobs',
 				href: '/admin/dead-letters',
 			}],
 		};

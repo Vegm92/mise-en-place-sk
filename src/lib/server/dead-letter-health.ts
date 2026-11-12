@@ -1,11 +1,9 @@
 import * as Sentry from '@sentry/sveltekit';
-import { deadLetterGrowth, purgeDeadLetters, type DeadLetterGrowth } from './dead-letter';
+import { deadLetterGrowth, type DeadLetterGrowth } from './dead-letter';
 import { ACCOUNT_CLEANUP_QUEUE } from './contracts/account-cleanup-contract.js';
 
-export const DEAD_LETTER_PURGE_QUEUE = 'scheduled-dead-letter-purge';
 export const DEAD_LETTER_ALERT_QUEUE = 'scheduled-dead-letter-alert';
 
-export const DEAD_LETTER_PURGE_CRON = '20 3 * * *';
 export const DEAD_LETTER_ALERT_CRON = '5 * * * *';
 
 export const DEAD_LETTER_ALERT_THRESHOLD = 10;
@@ -40,15 +38,14 @@ export function deadLetterAlert(growth: DeadLetterGrowth): DeadLetterAlert | nul
 	return null;
 }
 
-export async function runDeadLetterPurgeJob(): Promise<{ purged: number }> {
-	const result = await purgeDeadLetters();
-	if (result.purged) console.info(`[scheduler] dead-letter purge: ${result.purged} entries removed`);
-	return result;
-}
-
-export async function alertOnDeadLetter(queue: string): Promise<void> {
+export function alertOnDeadLetter(queue: string): void {
 	if (!DEAD_LETTER_ZERO_TOLERANCE_QUEUES.includes(queue)) return;
-	await runDeadLetterAlertJob().catch((err) => Sentry.captureException(err));
+	Sentry.captureMessage('Dead-lettered account deletion', {
+		level: 'error',
+		fingerprint: ['dead-letter-zeroTolerance'],
+		tags: { subsystem: 'dead-letter' },
+		extra: { queue },
+	});
 }
 
 export async function runDeadLetterAlertJob(): Promise<{ pending: number; alerted: boolean }> {
