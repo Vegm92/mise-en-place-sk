@@ -4,7 +4,7 @@
 -- ║  Both columns were text while users.id is uuid (issue #993). Every write   ║
 -- ║  path for both columns passes users.id directly — invoice-save.ts,         ║
 -- ║  invoice/[id]/+page.server.ts, invoices/+page.server.ts, consent.ts        ║
--- ║  (called from auth.ts, signup, onboarding) — never a non-uuid sentinel, so ║
+-- ║  (called from auth.ts, signup, onboarding) — never a non-uuid sentinel; the guard below removes test rows, so ║
 -- ║  the cast below is expected to be total. If any row holds a non-uuid, the  ║
 -- ║  USING cast raises 22P02 and the whole migration rolls back — no partial   ║
 -- ║  conversion, no data loss (same strict policy as 0038).                    ║
@@ -12,6 +12,15 @@
 -- ║  Rollback: ALTER TABLE invoice_audit_log/user_consents                     ║
 -- ║              ALTER COLUMN user_id SET DATA TYPE text USING user_id::text;  ║
 -- ╚═══════════════════════════════════════════════════════════════════════════╝
+-- ╔═══════════════════════════════════════════════════════════════════════════╗
+-- ║  Guard: rows whose user_id is not a uuid can never reference a real user  ║
+-- ║  (users.id is uuid). Production held rows written by an early DB test run ║
+-- ║  against it ("test-vitest-consent-…"), which made the cast below raise    ║
+-- ║  22P02 and blocked every deploy. Remove them first; both columns are NOT  ║
+-- ║  NULL, so they cannot be nulled instead.                                  ║
+-- ╚═══════════════════════════════════════════════════════════════════════════╝
+DELETE FROM "user_consents" WHERE "user_id" !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';--> statement-breakpoint
+DELETE FROM "invoice_audit_log" WHERE "user_id" !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';--> statement-breakpoint
 ALTER TABLE "invoice_audit_log" ALTER COLUMN "user_id" SET DATA TYPE uuid USING "user_id"::uuid;--> statement-breakpoint
 ALTER TABLE "user_consents" ALTER COLUMN "user_id" SET DATA TYPE uuid USING "user_id"::uuid;--> statement-breakpoint
 ALTER TABLE "invoice_audit_log" ADD COLUMN "source_file" text;--> statement-breakpoint
