@@ -1,4 +1,5 @@
 import type { Cookies } from '@sveltejs/kit';
+import { ATTRIBUTION_COOKIE } from '$lib/attribution';
 import {
 	CONSENT_COOKIE,
 	CONSENT_COOKIE_MAX_AGE,
@@ -24,4 +25,7 @@ export function writeConsent(cookies: Cookies, choice: ConsentChoice): void {
 		secure: process.env.NODE_ENV === 'production',
 		maxAge: CONSENT_COOKIE_MAX_AGE,
 	});
+	if (choice === 'denied' && cookies.get(ATTRIBUTION_COOKIE) !== undefined) {
+		cookies.delete(ATTRIBUTION_COOKIE, { path: '/' });
+	}
 }

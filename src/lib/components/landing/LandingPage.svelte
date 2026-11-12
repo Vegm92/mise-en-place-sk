@@ -161,10 +161,14 @@
   <meta property="og:title"       content={t('waitlist.ogTitle')} />
   <meta property="og:description" content={t('waitlist.metaDescription')} />
   <meta property="og:locale"      content={locale.current === 'es' ? 'es_ES' : 'en_US'} />
+  <meta property="og:image"       content="{siteRoot}/og.png" />
+  <meta property="og:image:width"  content="1200" />
+  <meta property="og:image:height" content="630" />
 
   <meta name="twitter:card"        content="summary_large_image" />
   <meta name="twitter:title"       content={t('waitlist.ogTitle')} />
   <meta name="twitter:description" content={t('waitlist.metaDescription')} />
+  <meta name="twitter:image"       content="{siteRoot}/og.png" />
 
   {@html `<script type="application/ld+json">${JSON.stringify({
     '@context': 'https://schema.org',

@@ -94,6 +94,13 @@ describe('the consent cookie records the choice', () => {
 		expect(analyticsConsentGiven(j.cookies)).toBe(false);
 	});
 
+	it('withdrawing consent deletes the measurement cookie at once', () => {
+		const j = jar({ [CONSENT_COOKIE]: 'granted', [ATTRIBUTION_COOKIE]: 'x' });
+		writeConsent(j.cookies, 'denied');
+		expect(j.store.has(ATTRIBUTION_COOKIE)).toBe(false);
+		expect(j.deleted).toContain(ATTRIBUTION_COOKIE);
+	});
+
 	it('treats an unrecognised cookie value as no consent, never as a grant', () => {
 		for (const value of ['', 'true', 'yes', 'GRANTED', '1']) {
 			expect(analyticsConsentGiven(jar({ [CONSENT_COOKIE]: value }).cookies)).toBe(false);
