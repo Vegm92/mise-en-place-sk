@@ -11,6 +11,17 @@
 import 'dotenv/config';
 import postgres from 'postgres';
 import bcrypt from 'bcryptjs';
+import {
+	OLIVE_OIL,
+	documentNumberFor,
+	documentTypeFor,
+	invoiceTotals,
+	lineDescription,
+	lineTotal,
+	normalizeAliasKey,
+	oliveOilPriceFor,
+	supplierSku,
+} from './seed-demo-fixtures.mjs';
 
 const url = process.env.DATABASE_URL;
 if (!url) throw new Error('DATABASE_URL is not set');
@@ -115,36 +126,85 @@ async function main() {
 		productIds.push(row.id);
 	}
 
+	const [olive] = await sql`
+		INSERT INTO products (restaurant_id, canonical_name, name_key, category, canonical_unit, base_unit, units_per_pack)
+		VALUES (${rid}, ${OLIVE_OIL.canonical}, ${OLIVE_OIL.nameKey}, ${OLIVE_OIL.category},
+		        ${OLIVE_OIL.unit}, ${OLIVE_OIL.unit}, ${1})
+		ON CONFLICT (restaurant_id, name_key) DO UPDATE SET category = EXCLUDED.category
+		RETURNING id`;
+	const aliases = new Map();
+
 	const statuses = ['confirmed', 'pending', 'exported', 'confirmed', 'pending'];
 	for (let i = 0; i < 30; i++) {
 		const supplierId = supplierIds[i % supplierIds.length];
 		const status = statuses[i % statuses.length];
 		const invoiceDate = isoDay(-(i * 3));
 		const dueDate = isoDay(-(i * 3) + (i % 4 === 0 ? -5 : 25));
-		const total = 200 + i * 37.25;
+		const supplierIndex = i % supplierIds.length;
+		const lines = [];
+		for (let j = 0; j < 4; j++) {
+			const productIndex = (i * 4 + j) % productIds.length;
+			const sku = supplierSku(supplierIndex, productIndex + 1);
+			const unitPrice = 3.5 + ((i + j) % 11);
+			lines.push({
+				productId: productIds[productIndex],
+				sku,
+				description: lineDescription(`Producto ${productIndex + 1}`, sku),
+				qty: 1 + ((i + j) % 9),
+				unit: UNITS[j % UNITS.length],
+				unitPrice,
+			});
+		}
+		const olivePrice = oliveOilPriceFor(i);
+		if (olivePrice !== null) {
+			const sku = supplierSku(supplierIndex, productIds.length + 1);
+			lines.push({
+				productId: olive.id,
+				sku,
+				description: lineDescription(OLIVE_OIL.canonical, sku),
+				qty: OLIVE_OIL.quantity,
+				unit: OLIVE_OIL.unit,
+				unitPrice: olivePrice,
+			});
+		}
+		for (const line of lines) line.total = lineTotal(line.qty, line.unitPrice);
+		const totals = invoiceTotals(lines.map((l) => l.total));
 		const [inv] = await sql`
 			INSERT INTO invoices (restaurant_id, supplier_id, invoice_number, invoice_date, due_date,
-			                      total_amount, tax_base, status, confidence, content_hash, document_type)
-			VALUES (${rid}, ${supplierId}, ${`F-2024-${1000 + i}`}, ${invoiceDate}, ${dueDate},
-			        ${total.toFixed(2)}, ${(total / 1.1).toFixed(2)}, ${status}, ${0.92},
-			        ${`seed-hash-${i}`}, ${'invoice'})
+			                      total_amount, tax_base, tax_breakdown, status, confidence, content_hash, document_type)
+			VALUES (${rid}, ${supplierId}, ${documentNumberFor(i)}, ${invoiceDate}, ${dueDate},
+			        ${totals.totalAmount}, ${totals.taxBase}, ${totals.taxBreakdown}, ${status}, ${0.92},
+			        ${`seed-hash-${i}`}, ${documentTypeFor(i)})
 			ON CONFLICT (restaurant_id, content_hash) WHERE content_hash IS NOT NULL AND deleted_at IS NULL
-			DO UPDATE SET status = EXCLUDED.status, due_date = EXCLUDED.due_date
+			DO UPDATE SET status = EXCLUDED.status, due_date = EXCLUDED.due_date,
+			              invoice_number = EXCLUDED.invoice_number, invoice_date = EXCLUDED.invoice_date,
+			              total_amount = EXCLUDED.total_amount, tax_base = EXCLUDED.tax_base,
+			              tax_breakdown = EXCLUDED.tax_breakdown, document_type = EXCLUDED.document_type
 			RETURNING id`;
 
 		await sql`DELETE FROM invoice_line_items WHERE invoice_id = ${inv.id}`;
-		for (let j = 0; j < 4; j++) {
-			const productId = productIds[(i * 4 + j) % productIds.length];
-			const qty = 1 + ((i + j) % 9);
-			const unitPrice = 3.5 + ((i + j) % 11);
+		for (const line of lines) {
 			await sql`
 				INSERT INTO invoice_line_items (restaurant_id, invoice_id, description, quantity, unit,
-				                                unit_price, total_price, tax_rate, product_id, base_unit, normalized_unit_price)
-				VALUES (${rid}, ${inv.id}, ${`Producto ${((i * 4 + j) % productIds.length) + 1}`},
-				        ${qty}, ${UNITS[j % UNITS.length]}, ${unitPrice.toFixed(2)},
-				        ${(qty * unitPrice).toFixed(2)}, ${10}, ${productId},
-				        ${UNITS[j % UNITS.length]}, ${unitPrice.toFixed(2)})`;
+				                                unit_price, total_price, tax_rate, product_id, base_unit,
+				                                normalized_unit_price, supplier_sku)
+				VALUES (${rid}, ${inv.id}, ${line.description},
+				        ${line.qty}, ${line.unit}, ${line.unitPrice.toFixed(2)},
+				        ${line.total}, ${10}, ${line.productId},
+				        ${line.unit}, ${line.unitPrice.toFixed(2)}, ${line.sku})`;
+			aliases.set(`${line.productId}|${supplierId}`, { ...line, supplierId });
 		}
+	}
+
+	for (const alias of aliases.values()) {
+		await sql`
+			INSERT INTO product_aliases (restaurant_id, product_id, supplier_id, raw_key, raw_text, supplier_sku,
+			                             source, original_source, confirmed_at)
+			VALUES (${rid}, ${alias.productId}, ${alias.supplierId}, ${normalizeAliasKey(alias.description)},
+			        ${alias.description}, ${alias.sku}, 'exact', 'exact', NOW())
+			ON CONFLICT (restaurant_id, raw_key) DO UPDATE
+				SET product_id = EXCLUDED.product_id, supplier_id = EXCLUDED.supplier_id,
+				    supplier_sku = EXCLUDED.supplier_sku, raw_text = EXCLUDED.raw_text`;
 	}
 
 	for (const offset of [-1, 0]) {
@@ -157,16 +217,18 @@ async function main() {
 		}
 	}
 
-	const existing = await sql`SELECT id FROM chat_sessions WHERE restaurant_id = ${rid} LIMIT 1`;
-	const session = existing[0] ?? (await sql`
-		INSERT INTO chat_sessions (restaurant_id, title)
-		VALUES (${rid}, 'Consultas de compras')
-		RETURNING id`)[0];
-	await sql`DELETE FROM chat_messages WHERE session_id = ${session.id}`;
+	const canned = await sql`
+		SELECT id FROM chat_sessions WHERE restaurant_id = ${rid} AND title = 'Consultas de compras'`;
+	for (const { id } of canned) {
+		await sql`DELETE FROM chat_messages WHERE session_id = ${id}`;
+		await sql`DELETE FROM chat_sessions WHERE id = ${id}`;
+	}
+
+	await sql`SELECT refresh_analytics_rollups()`;
 	await sql`
-		INSERT INTO chat_messages (restaurant_id, session_id, role, text)
-		VALUES (${rid}, ${session.id}, 'user', '¿Cuánto gasté en carne este mes?'),
-		       (${rid}, ${session.id}, 'assistant', 'Has gastado 1.240,50 € en carne este mes, un 8% más que el mes pasado.')`;
+		INSERT INTO app_flags (key, value)
+		VALUES ('analytics_rollup_refreshed_at', ${new Date().toISOString()})
+		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`;
 
 	console.log(`seeded restaurant ${rid} for ${DEMO_EMAIL}`);
 	await sql.end();
