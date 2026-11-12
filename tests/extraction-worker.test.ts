@@ -301,6 +301,24 @@ describe('processExtractionJob — storage fingerprint mismatch (#1049)', () => 
 		expect(batchMocks.markDone).toHaveBeenCalledTimes(1);
 	});
 
+	it('records LLM usage for real output but not for fixture extraction (EXTRACTION_FIXTURES)', async () => {
+		extractMocks.extractWithProvider.mockResolvedValue({
+			invoice: { supplier_name: 'Acme', line_items: [] },
+			usage: { inputTokens: 0, outputTokens: 0, model: 'fixture' },
+		});
+		await processExtractionJob({ itemId: item.id, restaurantId: 'r1' });
+		expect(batchMocks.markDone).toHaveBeenCalledTimes(1);
+		expect(quotaMocks.recordLlmUsage).not.toHaveBeenCalled();
+
+		extractMocks.extractWithProvider.mockResolvedValue({
+			invoice: { supplier_name: 'Acme', line_items: [] },
+			usage: { inputTokens: 3, outputTokens: 4, model: 'gemini-test' },
+		});
+		batchMocks.markExtracting.mockResolvedValueOnce(true);
+		await processExtractionJob({ itemId: item.id, restaurantId: 'r1' });
+		expect(quotaMocks.recordLlmUsage).toHaveBeenCalledTimes(1);
+	});
+
 	it('processes normally when the job carries no fingerprint at all (queued before this shipped)', async () => {
 		extractMocks.extractWithProvider.mockResolvedValue({ invoice: { supplier_name: 'Acme', line_items: [] }, usage: {} });
 

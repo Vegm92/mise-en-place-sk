@@ -14,6 +14,7 @@ import {
 	type GenerateFn,
 } from './extract.js';
 import { JsonShapeMismatchError } from './llm-json.js';
+import { FIXTURE_EXTRACTION_MODEL } from './extraction-fixtures.js';
 import { createGeminiProvider, type LLMUsage } from './llm-provider.js';
 import {
 	COMPOSITE_QUOTA_ERROR, isSegmentableDocument, segmentDocument, STRUCTURE_UNCLEAR_ERROR,
@@ -397,7 +398,9 @@ export async function runExtractionWorkflow(
 			const { invoice, usage } = await geminiExtraction.extractWithProvider(filePath);
 			result = invoice;
 			model = usage.model;
-			await quotaGate.recordLlmUsage(restaurantId, usage, 'extraction-worker');
+			if (usage.model !== FIXTURE_EXTRACTION_MODEL) {
+				await quotaGate.recordLlmUsage(restaurantId, usage, 'extraction-worker');
+			}
 		}
 
 		const rawOutput: Record<string, unknown> = { ...structuredClone(result) };

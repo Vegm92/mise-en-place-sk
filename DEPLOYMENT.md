@@ -149,6 +149,7 @@ Set the OAuth client's authorized redirect URI to `{your-origin}/auth/callback/g
 |---|---|---|
 | `GEMINI_API_KEY` | Yes | From [Google AI Studio](https://aistudio.google.com/app/apikey). Boot logs a warning if missing; extraction fails without it. |
 | `GEMINI_MODEL` | Optional (web + worker, same value) | Defaults to `gemini-3.1-flash-lite`, which Google has scheduled for **shutdown on 2027-05-07** (deprecated 2026-05-07; successor `gemini-3.5-flash-lite`, $0.30 in / $2.50 out per 1M tokens vs $0.25 / $1.50 — [deprecations page](https://ai.google.dev/gemini-api/docs/deprecations)). Swap procedure: run `pnpm eval:gate` with the new model, `pnpm eval:accept-baseline`, make sure `COST_PER_MILLION` in `src/lib/server/llm-provider.ts` has a row for it, then set the variable on **both** services. |
+| `EXTRACTION_FIXTURES` | Local-only, never set in production | `1` makes extraction return a `tests/golden` fixture instead of calling Gemini (no LLM usage recorded). Ignored unless `NODE_ENV` is `development` or `test`; a production boot logs an error and keeps real extraction. |
 
 ### File storage
 
