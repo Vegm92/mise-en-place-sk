@@ -45,6 +45,7 @@ COPY --from=build /app/package.json ./
 # drizzle-kit (pre-deploy migration step) needs its config + migration files at runtime
 COPY --from=build /app/drizzle.config.ts ./
 COPY --from=build /app/drizzle ./drizzle
+COPY --from=build /app/scripts/db-migrate.mjs ./scripts/db-migrate.mjs
 
 # adapter-node caps request bodies at 512K unless told otherwise, which is far
 # below the 20 MB-per-file upload the product advertises: a single phone photo
