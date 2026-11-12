@@ -18,6 +18,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 
 const WEBHOOK_SECRET = 'whsec_test_dummy';
 const PRICE_PRO = 'price_pro_test';
+const PRICE_BUSINESS_ANNUAL = 'price_business_annual_test';
 
 const originalEnv = { ...process.env };
 
@@ -30,6 +31,7 @@ vi.hoisted(() => {
 	process.env.STRIPE_PRICE_ID_STARTER = 'price_starter_test';
 	process.env.STRIPE_PRICE_ID_PRO = 'price_pro_test';
 	process.env.STRIPE_PRICE_ID_BUSINESS = 'price_business_test';
+	process.env.STRIPE_PRICE_ID_BUSINESS_ANNUAL = 'price_business_annual_test';
 });
 
 // Don't send real emails from the confirmation path.
@@ -146,7 +148,25 @@ describe.skipIf(!hasDbEnv)('Stripe webhook — signature verification gates plan
 		const rows = await testDb.select().from(settings).where(eq(settings.restaurantId, rid));
 		const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
 		expect(map.plan_name).toBe('Pro');
-		expect(map.plan_quota).toBe('300');
+		expect(map.plan_quota).toBe('400');
+	});
+
+	it('maps the annual price to the same tier as the monthly one', async () => {
+		const body = subscriptionUpdatedBody(rid, PRICE_BUSINESS_ANNUAL, 'active');
+		const sig = stripe!.webhooks.generateTestHeaderString({ payload: body, secret: MODULE_SECRET });
+		await handleWebhookEvent(body, sig);
+
+		const row = await planRow();
+		expect(row?.planTier).toBe('business');
+		expect(row?.stripePriceId).toBe(PRICE_BUSINESS_ANNUAL);
+		const rows = await testDb.select().from(settings).where(eq(settings.restaurantId, rid));
+		const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+		expect(map.plan_name).toBe('Business');
+		expect(map.plan_quota).toBe('unlimited');
+
+		const back = subscriptionUpdatedBody(rid, PRICE_PRO, 'active');
+		await handleWebhookEvent(back, stripe!.webhooks.generateTestHeaderString({ payload: back, secret: MODULE_SECRET }));
+		expect((await planRow())?.planTier).toBe('pro');
 	});
 
 	// Issue #1075: a paying subscription whose price matches no configured tier is

@@ -1,22 +1,24 @@
 <script lang="ts">
-	import { t, ti } from '$lib/i18n';
+	import { locale, t, ti } from '$lib/i18n';
 	import Check from '@lucide/svelte/icons/check';
-	import { PROVISIONAL_PRICE, TIER_COPY, type TierId } from '$lib/billing-plans';
+	import { fmtEur } from '$lib/formatters';
+	import { ANNUAL_MONTHLY_EQUIVALENT, TIER_COPY, tierPrice, type BillingInterval, type TierId } from '$lib/billing-plans';
 
-	const { tier, available, switchable, isRecommended }: {
+	const { tier, interval, available, switchable, isRecommended }: {
 		tier: {
 			tier: string;
 			nameKey: string;
 			monthlyInvoiceQuota: number | null;
 			isCurrent: boolean;
 		};
+		interval: BillingInterval;
 		available: boolean;
 		switchable: boolean;
 		isRecommended: boolean;
 	} = $props();
 
 	const copy = $derived(TIER_COPY[tier.tier as TierId]);
-	const price = $derived(PROVISIONAL_PRICE[tier.tier as TierId]);
+	const price = $derived(tierPrice(tier.tier as TierId, interval));
 	const idempotencyKey = crypto.randomUUID();
 
 	const borderColor = $derived.by(() => {
@@ -44,14 +46,14 @@
 		<div style="display:flex;align-items:baseline;gap:6px;">
 			<span class="num" style="font-size:32px;font-weight:600;letter-spacing:-0.025em;color:var(--mep-fg);
 				border-bottom:2px dotted var(--mep-border-strong);line-height:1.1;">{price} €</span>
-			<span style="font-size:13px;color:var(--mep-fg-3);">{t('billing.perMonth')}</span>
+			<span style="font-size:13px;color:var(--mep-fg-3);">{t(interval === 'year' ? 'billing.perYear' : 'billing.perMonth')}</span>
 		</div>
-		<div style="margin-top:8px;">
-			<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;
-				letter-spacing:0.02em;text-transform:uppercase;color:var(--mep-fg-3);
-				border:1px dashed var(--mep-border-strong);border-radius:var(--mep-r-tag);padding:1px 5px;">
-				{t('billing.provisional')}
-			</span>
+		<div class="mt-2 min-h-[18px] text-xs text-fg-3">
+			{#if interval === 'year'}
+				{ti('billing.annualEquivalent', { amount: fmtEur(ANNUAL_MONTHLY_EQUIVALENT[tier.tier as TierId], locale.current) })}
+			{:else}
+				{t('billing.vatExcluded')}
+			{/if}
 		</div>
 	</div>
 
@@ -66,6 +68,7 @@
 	{:else}
 		<form method="POST" action={switchable ? '?/portal' : '?/checkout'}>
 			<input type="hidden" name="tier" value={tier.tier} />
+			<input type="hidden" name="interval" value={interval} />
 			<input type="hidden" name="idempotency_key" value={idempotencyKey} />
 			<button type="submit" class={isRecommended ? 'btn btn-primary' : 'btn btn-secondary'}
 				disabled={!available}

@@ -1,12 +1,14 @@
 <script lang="ts">
 	import type { ActionData, PageData } from './$types';
-	import { t } from '$lib/i18n';
+	import { t, ti } from '$lib/i18n';
 	import BillingStatusCard from '$lib/components/mep/BillingStatusCard.svelte';
 	import BillingPlanCard from '$lib/components/mep/BillingPlanCard.svelte';
 	import BillingFeatureMatrix from '$lib/components/mep/BillingFeatureMatrix.svelte';
-	import { PROVISIONAL_PRICE, type TierId } from '$lib/billing-plans';
+	import { ANNUAL_FREE_MONTHS, TIER_MAX_LOCATIONS, tierPrice, type BillingInterval, type TierId } from '$lib/billing-plans';
 
 	const { data, form }: { data: PageData; form: ActionData } = $props();
+
+	let interval = $state<BillingInterval>('month');
 
 	const maxLocations = $derived(
 		data.currentTier === 'trial'
@@ -56,7 +58,8 @@
 	<BillingStatusCard
 		status={data.status}
 		planName={t(data.currentTierNameKey)}
-		price={PROVISIONAL_PRICE[data.currentTier as TierId] ?? null}
+		price={data.currentTier === 'trial' ? null : tierPrice(data.currentTier as TierId, data.currentInterval)}
+		interval={data.currentInterval}
 		quotaUsed={data.quotaUsed}
 		quotaLimit={data.quotaLimit}
 		locationsUsed={data.locationsUsed}
@@ -78,12 +81,26 @@
 	{:else}
 		<div style="margin-bottom:16px;">
 			<div style="font-size:16px;font-weight:600;color:var(--mep-fg);">{t('billing.plans')}</div>
-			<div style="font-size:13px;color:var(--mep-fg-2);margin-top:3px;">{t('billing.plansSub')}</div>
+			<div style="font-size:13px;color:var(--mep-fg-2);margin-top:3px;">{ti('billing.plansSub', { n: TIER_MAX_LOCATIONS.business })}</div>
 		</div>
+
+		{#if data.annualAvailable}
+			<div role="group" aria-label={t('billing.interval.label')} class="mb-4 inline-flex gap-1 rounded-input border border-border bg-surface p-1">
+				<button type="button" aria-pressed={interval === 'month'} onclick={() => (interval = 'month')}
+					class="h-8 rounded-input px-3 text-sm font-medium {interval === 'month' ? 'bg-acc text-acc-fg' : 'text-fg-2'}">
+					{t('billing.interval.month')}
+				</button>
+				<button type="button" aria-pressed={interval === 'year'} onclick={() => (interval = 'year')}
+					class="h-8 rounded-input px-3 text-sm font-medium {interval === 'year' ? 'bg-acc text-acc-fg' : 'text-fg-2'}">
+					{t('billing.interval.year')}
+					<span class="ml-1 text-xs {interval === 'year' ? 'text-acc-fg' : 'text-acc'}">{ti('billing.interval.yearSave', { n: ANNUAL_FREE_MONTHS })}</span>
+				</button>
+			</div>
+		{/if}
 
 		<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;align-items:stretch;margin-bottom:28px;">
 			{#each data.tiers as tier (tier.tier)}
-				<BillingPlanCard {tier} available={tier.available} switchable={data.hasSubscription} isRecommended={tier.tier === 'pro'} />
+				<BillingPlanCard {tier} {interval} available={tier.available && (interval === 'month' || data.annualAvailable)} switchable={data.hasSubscription} isRecommended={tier.tier === 'pro'} />
 			{/each}
 		</div>
 

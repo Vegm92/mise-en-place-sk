@@ -80,7 +80,7 @@ vi.mock('$lib/server/billing', async (importOriginal) => {
 	};
 });
 
-import { getEntitlements } from '../src/lib/server/billing';
+import { getEntitlements, TIERS } from '../src/lib/server/billing';
 import { POST as switchPost } from '../src/routes/(app)/api/active-restaurant/+server';
 import { expectApiError } from './helpers/api-error';
 import { actions as settingsActions } from '../src/routes/(app)/settings/+page.server';
@@ -200,8 +200,8 @@ describe('settings ?/addLocation', () => {
 	});
 
 	it('refuses once the plan allowance is used up', async () => {
-		state.memberships = Array.from({ length: 5 }, (_, i) => ({ restaurantId: `rest-${i}` }));
-		const result = await settingsActions.addLocation!(addLocationEvent('Sexta sede'));
+		state.memberships = Array.from({ length: TIERS.business.maxLocations }, (_, i) => ({ restaurantId: `rest-${i}` }));
+		const result = await settingsActions.addLocation!(addLocationEvent('Sede de más'));
 		expect(result).toMatchObject({ status: 403, data: { error: 'set.locations.err.limitReached' } });
 		expect(state.inserted).toEqual([]);
 	});

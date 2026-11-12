@@ -23,7 +23,7 @@ local `subscriptions` row + `settings` mirror gate feature access and quotas.
 
 ## Inputs
 
-- Checkout: selected tier.
+- Checkout: selected tier and billing interval (`month` | `year`).
 - Webhook: signed Stripe events (`checkout.session.completed`,
   `customer.subscription.updated/deleted/paused/resumed/trial_will_end`).
 
@@ -34,9 +34,13 @@ local `subscriptions` row + `settings` mirror gate feature access and quotas.
 
 ## Business rules
 
-- **Tiers**: trial 20 / starter 100 / pro 300 / business unlimited invoices per
+- **Tiers**: trial 20 / starter 100 / pro 400 / business unlimited documents per
   month; feature flags per tier (see `docs/02_product/plans_and_entitlements.md`).
-- **Trial**: 30 days; `isAccessAllowed` = `active` always, `trialing` only while
+- **Prices** (decision: `docs/02_product/pricing_decision_2026-10.md`): starter
+  €69 / pro €139 / business €299 a month, or 10 × that a year, excl. IVA, one
+  price per account. Single source: `PROVISIONAL_PRICE` / `ANNUAL_PRICE` in
+  `src/lib/billing-plans.ts`; there is no env override.
+- **Trial**: 14 days (30 for founders); `isAccessAllowed` = `active` always, `trialing` only while
   `trialEndsAt > now`. No `subscriptions` row → denied (fails closed, issue
   #486); a nightly reconciliation job auto-provisions a dated trial row for
   any root restaurant caught without one, so the gap self-heals instead of
@@ -44,13 +48,18 @@ local `subscriptions` row + `settings` mirror gate feature access and quotas.
 - **One subscription per user (ADR-024)**: a user account may hold **at most one
   live subscription** (`active`/`trialing`/`past_due`/`paused`). The tier's
   `maxLocations` sets how many restaurants that one subscription covers
-  (starter 1, pro 1, business up to 5). A user who needs more capacity upgrades
+  (starter 1, pro 1, business up to 10). A user who needs more capacity upgrades
   the single subscription, never buys a second. Enforced at checkout
   (`ownedActiveSubscriptions` guard → `billing.err.oneSubscription`) and
   reconciled in the webhook (`cancelDuplicateSubscriptionsForUser` cancels any
   duplicate live subscriptions in Stripe, keeping the newest).
-- **Checkout** (`createCheckoutSession`): `mode:'subscription'`, one line item,
-  `allow_promotion_codes`, `restaurantId` **and** `userId` in **both** top-level
+- **Checkout** (`createCheckoutSession`): `mode:'subscription'`, one line item —
+  the tier's monthly price, or its annual price when the form posts
+  `interval=year` (`priceIdFor`); `allow_promotion_codes`, except for a founder
+  restaurant, which gets `STRIPE_FOUNDER_COUPON_ID` applied as `discounts[].coupon`
+  (or `discounts[].promotion_code` when the value is a `promo_…` id); with
+  `STRIPE_TAX_RATE_ID` set, `subscription_data.default_tax_rates` carries IVA so
+  the charge is list price + 21 %; `restaurantId` **and** `userId` in **both** top-level
   `metadata` and `subscription_data.metadata` (the webhook reads either). `success_url`
   points to `/billing/confirm?session_id={CHECKOUT_SESSION_ID}` so the buyer lands
   on a dedicated confirmation page; `cancel_url` returns to `/billing`.
@@ -78,16 +87,20 @@ local `subscriptions` row + `settings` mirror gate feature access and quotas.
   `getAccessState` + `resolveMonthlyQuota`; consumption via `monthly_usage`
   (`claimMonthlyExtraction`). Feature gates listed in
   `docs/02_product/plans_and_entitlements.md`.
-- **Provisional prices**: canonical list price per tier is
-  `PROVISIONAL_PRICE` in `billing-plans.ts` (starter 29 / pro 59 / business
-  129 €), **overridable via env** `PLAN_PRICE_STARTER_EUR` /
-  `PLAN_PRICE_PRO_EUR` / `PLAN_PRICE_BUSINESS_EUR` (documented in
-  `.env.example`; `billing.ts:81` uses the override when set and ≥ 0, else the
-  `PROVISIONAL_PRICE` fallback). The `/waitlist` pricing section reads
-  `PROVISIONAL_PRICE` directly (same constant `/billing` reads, issue #439);
-  it does not consume the server-only env override, so an `.env` price change
-  updates `/billing` but not the marketing page — only a change to
-  `PROVISIONAL_PRICE` itself updates both.
+- **List prices**: `PROVISIONAL_PRICE` (monthly) and `ANNUAL_PRICE` (10 ×
+  monthly) in `billing-plans.ts` are the only price table. `/billing`,
+  `/waitlist` and `/admin/revenue` all read them; the `PLAN_PRICE_<TIER>_EUR`
+  env override was removed so admin MRR cannot drift from the published page.
+  The Stripe Prices must be created at exactly these amounts — Stripe charges
+  what the Price says, the app only displays and reports.
+- **Annual billing**: optional per deploy. `STRIPE_PRICE_ID_<TIER>_ANNUAL` set
+  for all three paid tiers → `/billing` shows a monthly/annual toggle and the
+  plan cards post `interval`; any one unset → no toggle, monthly-only checkout
+  (`isAnnualBillingAvailable`). A forged `interval=year` for a tier without an
+  annual price is refused with `billing.err.tierUnavailable`. The webhook maps
+  both ids of a tier to that tier; the interval is derived from the stored
+  `stripe_price_id`, so no migration was needed. Interval switches happen in
+  the Customer Portal (configure both prices per product there).
 - **Cancel / reinstate (Customer Portal is the single source of truth)**: plan
   cancellation and reinstatement are **not** performed in-app. The status card's
   "Manage subscription" button opens the Stripe Customer Portal (`?/portal` →
@@ -244,6 +257,7 @@ guard; quota arithmetic.
 **`markup`**
 
 - Status card + plan card (the latter only when `data.status !== 'active'`).
+- Monthly/annual toggle (`interval` `$state`, default `month`), rendered only when `data.annualAvailable`. It changes the price each `BillingPlanCard` shows (`tierPrice`, plus "Equivale a X €/mes" for annual) and the hidden `interval` field the card posts to `?/checkout`. The status card shows the current subscription's own interval (`data.currentInterval`), `/año` for annual.
 
 ### `src/routes/api/stripe-webhook/+server.ts`
 
@@ -274,7 +288,7 @@ guard; quota arithmetic.
 
 **`const TIERS`**
 
-- Prices are managed in Stripe; quotas + features define each tier. Starter €49/mo (~50–80 invoices), Pro €99/mo, Business €199/mo (custom for chains); trial has no price id.
+- Quotas and location caps come from `TIER_QUOTA` / `TIER_MAX_LOCATIONS` in `billing-plans.ts`, the same module that holds the prices, so the public page and the enforcement cannot disagree. Starter €69 (100 documents, 1 restaurant), Pro €139 (400, 1), Business €299 (unlimited, up to 10); trial has no price id. Each paid tier carries a monthly `stripePriceId` and an optional `stripeAnnualPriceId`.
 - Price ids come from `env.ts`, the single reader of `STRIPE_PRICE_ID_*` and the legacy `STRIPE_PRICE_ID`, which **trims** them at the point of export (issue #1075): they are pasted out of the Stripe dashboard into a deploy console, where a trailing space or newline survives, is invisible in the dashboard, and turns every exact-match lookup in `tierFromPriceId` into a silent miss. Before #1075 `billing.ts` trimmed its own re-read of `process.env` while `env.ts` exported the raw value, so a padded id worked for checkout and failed in the admin Stripe probe — the two readers disagreed about the same variable. `external-probes.ts` now probes `TIERS.starter.stripePriceId`, the exact id checkout sends, legacy fallback included.
 - Starter falls back to the legacy single-price `STRIPE_PRICE_ID` with `||`, not `??`. `process.env.X ?? ''` is never nullish, so the documented `??` fallback was dead code and starter silently resolved to `''` — matching no subscription at all.
 - Quota convention (issue #295): `settings.plan_quota` = `'unlimited'` | positive n | missing → tier's configured quota. Legacy rows stored the magic `99999` instead of the sentinel (`LEGACY_UNLIMITED_QUOTA`); `null` means unlimited at every call site. `resolveMonthlyQuota`/`getMonthlyQuota` apply the convention; `applyTierSettings` mirrors `plan_name`/`plan_quota` into settings so the layout serves the quota without a subscriptions join for the common case. The layout no longer reads the `plan_name` mirror — a stored string cannot follow the reader's locale — and derives the displayed name from the tier's `nameKey` instead; the mirror stays as the record of the applied tier.
@@ -285,7 +299,16 @@ guard; quota arithmetic.
 
 **`function isTierAvailable`**
 
-- True when the tier has a Stripe price id configured.
+- True when the tier has a Stripe price id configured for the interval (monthly by default).
+
+**`function isAnnualBillingAvailable` / `function intervalFromPriceId` / `function priceIdFor`**
+
+- Annual billing is all-or-nothing per deploy: the toggle only appears when every paid tier has an annual price, so a half-configured deploy never shows an annual card that cannot be bought. `intervalFromPriceId` reads the interval back from a stored price id (`year` when it is one of the annual ids, else `month`); `/billing` uses it for the status card and `/admin/revenue` for MRR (`subscriptionMonthlyPriceCents`: an annual subscription counts as a twelfth of `ANNUAL_PRICE`). `configuredPriceIdSet` is the set both monthly and annual ids belong to, so the revenue leak check does not flag annual subscribers as `unknownPrice`.
+
+**`function founderDiscount` / `function isMissingCustomerError`**
+
+- `STRIPE_FOUNDER_COUPON_ID` is named and documented as a coupon id, but checkout used to pass it as `discounts[].promotion_code`, which Stripe rejects for a coupon id — every founder checkout would have failed on the first live run. `founderDiscount` sends it as `coupon`, and as `promotion_code` only when the value is a `promo_…` id.
+- That failure was also misread: checkout treated any `resource_missing` as a stale customer, so a missing coupon or price minted a fresh Stripe customer on each retry. `isMissingCustomerError` only matches a missing `customer` (or an error with no `param`, the old behaviour).
 
 **`function tierFromPriceId`**
 
@@ -335,7 +358,9 @@ guard; quota arithmetic.
 
 - In-app plan change for a live subscription: retrieves the sub to get the
   subscription-item id, then `subscriptions.update(id, { items: [{ id, price }],
-  cancel_at_period_end: false })`. Upgrades pro-rate in Stripe; downgrades
+  cancel_at_period_end: false })`. The new price keeps the subscription's
+  current interval: an annual subscriber moves to the new tier's annual price
+  when one is configured, else to its monthly price. Upgrades pro-rate in Stripe; downgrades
   apply immediately. Mirrors the new tier/price into the local row and re-runs
   `applyTierSettings` so access changes without waiting for the webhook (which
   also syncs it). No-op without Stripe configured (dev).

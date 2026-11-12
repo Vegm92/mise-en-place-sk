@@ -127,7 +127,7 @@
     style="display:flex;flex-direction:column;gap:8px;">
     <input type="text" name="_hp" tabindex="-1" autocomplete="off" aria-hidden="true"
       style="position:absolute;left:-9999px;opacity:0;height:0;width:0;" />
-    <div style="display:flex;gap:8px;">
+    <div class="flex flex-col gap-2 min-[440px]:flex-row">
       <div style="position:relative;flex:1;">
         <label for={inputId} class="mep-visually-hidden">{copy.emailLabel}</label>
         <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--mep-fg-3);pointer-events:none;display:flex;" aria-hidden="true">

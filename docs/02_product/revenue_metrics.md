@@ -26,8 +26,11 @@ idempotently (`onConflictDoNothing`). `source` records how the row was written
 ## Formulas
 
 - **MRR**: sum over paying subscriptions of the tier's monthly price
-  (`planMonthlyPriceCents` — `PLAN_PRICE_*_EUR` env override, else
-  `PROVISIONAL_PRICE` from `src/lib/billing-plans.ts`); `arr = mrr * 12`.
+  (`subscriptionMonthlyPriceCents` — `PROVISIONAL_PRICE` from
+  `src/lib/billing-plans.ts` for a monthly price id, `ANNUAL_PRICE / 12` for an
+  annual one; there is no env override); `arr = mrr * 12`. List price, not
+  net of the founder coupon: a founder subscription (60 % off) reads at 2.5 ×
+  what it is billed until the coupon is modelled.
 - **Payers**: tenants with `mrrCents > 0` in the month.
 - **ARPA / ACV**: derived from MRR ÷ payers (per month); ACV uses a 12-month
   horizon.
@@ -54,9 +57,10 @@ idempotently (`onConflictDoNothing`). `source` records how the row was written
 - **Tenant-scope-ok notes**: these queries are platform-wide aggregates read
   only by the admin console — they intentionally do NOT use
   `forTenant().scope()` (marked inline in the module).
-- **Provisional pricing**: before launch, MRR is computed from `PROVISIONAL_PRICE`
-  — treat all euro figures as estimates until real `STRIPE_PRICE_ID_*` pricing
-  lands.
+- **List pricing, not invoiced amounts**: MRR is computed from the price table
+  in `billing-plans.ts`, which the Stripe Prices must match
+  (`docs/02_product/pricing_decision_2026-10.md`). Discounts (the founder
+  coupon) are not netted out, so founder MRR reads at list.
 - **Missing snapshots**: months without a cron capture are estimated from live
   rows (`estimatedMonths` vs `snapshotMonths`); `lastCapturedAt` shows freshness.
   If the worker's MRR cron stops, the history goes stale — check

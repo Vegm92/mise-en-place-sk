@@ -1,6 +1,38 @@
 export type TierId = 'starter' | 'pro' | 'business';
 
-export const PROVISIONAL_PRICE: Record<TierId, number> = { starter: 29, pro: 59, business: 129 };
+export type BillingInterval = 'month' | 'year';
+
+const TIER_IDS: readonly TierId[] = ['starter', 'pro', 'business'];
+
+function byTier<T>(value: (tier: TierId) => T): Record<TierId, T> {
+	return Object.fromEntries(TIER_IDS.map((tier) => [tier, value(tier)])) as Record<TierId, T>;
+}
+
+export const PROVISIONAL_PRICE: Record<TierId, number> = { starter: 69, pro: 139, business: 299 };
+
+export const ANNUAL_MONTHS_BILLED = 10;
+
+export const ANNUAL_FREE_MONTHS = 12 - ANNUAL_MONTHS_BILLED;
+
+export const ANNUAL_PRICE: Record<TierId, number> = byTier((tier) => PROVISIONAL_PRICE[tier] * ANNUAL_MONTHS_BILLED);
+
+export const ANNUAL_MONTHLY_EQUIVALENT: Record<TierId, number> = byTier(
+	(tier) => Math.round((ANNUAL_PRICE[tier] * 100) / 12) / 100,
+);
+
+export const TIER_QUOTA: Record<TierId, number | null> = { starter: 100, pro: 400, business: null };
+
+export const TIER_MAX_LOCATIONS: Record<TierId, number> = { starter: 1, pro: 1, business: 10 };
+
+export const FOUNDER_OFFER = { percentOff: 60, maxRedemptions: 50, redeemBy: '2026-12-13' } as const;
+
+export const FOUNDER_PRICE: Record<TierId, number> = byTier(
+	(tier) => Math.round(PROVISIONAL_PRICE[tier] * (100 - FOUNDER_OFFER.percentOff)) / 100,
+);
+
+export function tierPrice(tier: TierId, interval: BillingInterval): number {
+	return interval === 'year' ? ANNUAL_PRICE[tier] : PROVISIONAL_PRICE[tier];
+}
 
 export type TierBullet = { key: string; interpolate?: Record<string, string | number> };
 
@@ -34,7 +66,7 @@ export const TIER_COPY: Record<TierId, TierCopy> = {
 		inherits: 'billing.tier.business.inherits',
 		bullets: () => [
 			{ key: 'billing.tier.business.bullet.quota' },
-			{ key: 'billing.tier.business.bullet.locations', interpolate: { n: 5 } },
+			{ key: 'billing.tier.business.bullet.locations', interpolate: { n: TIER_MAX_LOCATIONS.business } },
 			{ key: 'billing.tier.business.bullet.support' },
 		],
 	},
