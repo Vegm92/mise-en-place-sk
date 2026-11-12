@@ -2,6 +2,7 @@
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
   import IncidenceKindBadge from '$lib/components/mep/IncidenceKindBadge.svelte';
   import ChevronLeft from '@lucide/svelte/icons/chevron-left';
+  import MoreHorizontal from '@lucide/svelte/icons/more-horizontal';
   import FileText from '@lucide/svelte/icons/file-text';
   import Edit from '@lucide/svelte/icons/edit';
   import Download from '@lucide/svelte/icons/download';
@@ -129,6 +130,13 @@
         {invoice.supplier_name ?? '—'}
       </div>
     </div>
+    <button style="
+      width: 44px; height: 44px; border-radius: 999px; border: 0;
+      background: transparent; color: var(--mep-fg); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    " aria-label={t('mid.moreOptions')}>
+      <MoreHorizontal size={18} />
+    </button>
   </div>
 
   <div style="flex: 1; overflow: auto; padding: 14px 14px 100px; display: flex; flex-direction: column; gap: 12px;">

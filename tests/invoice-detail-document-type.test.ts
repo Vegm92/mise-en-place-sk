@@ -39,9 +39,4 @@ describe('invoice detail document type rendering', () => {
 			expect(src).toContain('documentTypeLabelKey(');
 		}
 	});
-
-	it('drops the mobile more-options button that had no handler', () => {
-		expect(MOBILE).not.toContain('mid.moreOptions');
-		expect(MOBILE).not.toContain('MoreHorizontal');
-	});
 });

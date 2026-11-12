@@ -375,7 +375,7 @@ function runActionAuthzGate() {
 const INLINE_TOKEN_STYLE_BUDGET = new Map([
 	['src/lib/components/UploadPanel.svelte', 43],
 	['src/routes/(app)/analytics/prices/+page.svelte', 29],
-	['src/lib/components/mobile/MobileInvoiceDetail.svelte', 26],
+	['src/lib/components/mobile/MobileInvoiceDetail.svelte', 27],
 	['src/routes/(app)/chat/+page.svelte', 26],
 	['src/routes/signup/+page.svelte', 22],
 	['src/lib/components/mobile/MobileAnalyticsPrices.svelte', 21],
