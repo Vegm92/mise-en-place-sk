@@ -219,23 +219,40 @@
   </div>
 {/if}
 
-<div class="md:hidden" style="height:100%;overflow:hidden;">
-  <MobileInvoiceList
-    invoices={invoices}
-    q={filterDraft.q}
-    onSearch={setSearch}
-    filters={serverFilters}
-    suppliers={suppliers}
-    pagination={pagination}
-    onFilter={patchFilters}
-    onLoadMore={loadMoreMobile}
-    stats={stats}
-  />
+{#snippet periodHidden(notice: NonNullable<PageData['periodNotice']>)}
+  <div class="card px-3 py-2 body text-fg-2 flex items-center gap-x-2 gap-y-1 flex-wrap" data-testid="period-hidden" role="note">
+    <span class="body-strong">{t(`dateRangePicker.${notice.period}`)}</span>
+    <span>·</span>
+    <span>{tp('inv.periodHidden', notice.hidden)}</span>
+    <a href={notice.allHref} class="body-strong underline">{t('dateRangePicker.all')}</a>
+  </div>
+{/snippet}
+
+<div class="md:hidden flex flex-col" style="height:100%;overflow:hidden;">
+  {#if data.periodNotice}
+    <div class="px-[18px] pt-2.5 shrink-0">{@render periodHidden(data.periodNotice)}</div>
+  {/if}
+  <div class="flex-1 min-h-0">
+    <MobileInvoiceList
+      invoices={invoices}
+      q={filterDraft.q}
+      onSearch={setSearch}
+      filters={serverFilters}
+      suppliers={suppliers}
+      pagination={pagination}
+      onFilter={patchFilters}
+      onLoadMore={loadMoreMobile}
+      stats={stats}
+    />
+  </div>
 </div>
 
 <div class="hidden md:block p-6">
   {#if data.conflict}
     <div class="card p-3 text-neg" role="alert" style="font-size:13px;margin-bottom:16px;">{t('inv.conflict')}</div>
+  {/if}
+  {#if data.periodNotice}
+    <div class="mb-4">{@render periodHidden(data.periodNotice)}</div>
   {/if}
 
   <ListPageTemplate
