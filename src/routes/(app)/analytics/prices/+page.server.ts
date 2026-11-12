@@ -2,6 +2,7 @@ import { handleLoad } from '$lib/server/load-guard';
 import { db, forTenant } from '$lib/server/db';
 import { suppliers } from '$lib/server/schema';
 import { sql } from 'drizzle-orm';
+import { sortPriceRowsRisesFirst } from '$lib/price-sort';
 import type { PageServerLoad } from './$types';
 
 interface PriceRow {
@@ -59,11 +60,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		change_pct: num(r.change_pct),
 	})) as unknown as PriceRow[];
 
-	const items = rows.sort((a, b) => {
-		const aAbs = a.change_pct !== null ? Math.abs(a.change_pct) : -1;
-		const bAbs = b.change_pct !== null ? Math.abs(b.change_pct) : -1;
-		return bAbs - aAbs;
-	});
+	const items = sortPriceRowsRisesFirst(rows);
 
 	const top_increases = items.filter((r) => r.change_pct !== null && r.change_pct > 0).slice(0, 3);
 	const top_decreases = items
