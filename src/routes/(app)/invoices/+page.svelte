@@ -12,6 +12,7 @@
     EMPTY_INVOICE_FILTERS,
     countActiveInvoiceFilters,
     defaultFiltersOpen,
+    hasNarrowingInvoiceFilters,
     invoiceFilterParams,
     invoiceFiltersHref,
     type InvoiceFilters,
@@ -374,7 +375,12 @@
     {/snippet}
 
     {#snippet table()}
-      {#if invoices.length === 0}
+      {#if invoices.length === 0 && hasNarrowingInvoiceFilters(serverFilters)}
+        <div class="body text-center py-16" data-testid="inv-no-matches">
+          <p>{t('inv.noMatches')}</p>
+          <button type="button" class="btn btn-ghost mt-2 text-[12.5px]" onclick={clearFilters}>{t('inv.clearFilters')}</button>
+        </div>
+      {:else if invoices.length === 0}
         <p class="body text-center py-16">{t('inv.noInvoices')}</p>
       {:else}
         <form id="bulk-reviewed-form" method="post" action="?/bulkReviewed" class="hidden">

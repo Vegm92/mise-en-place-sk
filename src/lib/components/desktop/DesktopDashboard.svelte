@@ -110,7 +110,7 @@
       label={t('turno.ribbon.pace')}
       value={fmtEurCompact(data.mom.this_month, locale.current)}
       tone={hasBudget && paceDelta > 0 ? 'neg' : 'pos'}
-      note={hasBudget ? ti('turno.ribbon.paceNote', { delta: fmtEurSigned(paceDelta, locale.current), day: daysElapsed }) : momNote}
+      note={hasBudget ? ti(Math.round(paceDelta) > 0 ? 'turno.ribbon.paceNote.over' : 'turno.ribbon.paceNote.under', { delta: fmtEurCompact(Math.abs(paceDelta), locale.current), day: daysElapsed }) : momNote}
       wide={hasBudget}
     >
       {#snippet chart()}
@@ -131,7 +131,7 @@
       label={t('turno.ribbon.forecast')}
       value={fmtEurCompact(projectedEom, locale.current)}
       tone={hasBudget && overrun > 0 ? 'neg' : 'pos'}
-      note={hasBudget ? ti('turno.ribbon.forecastNote', { delta: fmtEurSigned(overrun, locale.current) }) : t('turno.ribbon.forecastNoBudget')}
+      note={hasBudget ? ti(Math.round(overrun) > 0 ? 'turno.ribbon.forecastNote.over' : 'turno.ribbon.forecastNote.under', { delta: fmtEurCompact(Math.abs(overrun), locale.current) }) : t('turno.ribbon.forecastNoBudget')}
     />
 
     <StatusChip

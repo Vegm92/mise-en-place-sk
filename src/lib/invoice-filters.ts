@@ -77,6 +77,10 @@ export function countActiveInvoiceFilters(filters: InvoiceFilters): number {
 	return count;
 }
 
+export function hasNarrowingInvoiceFilters(filters: InvoiceFilters): boolean {
+	return countActiveInvoiceFilters({ ...filters, sort: DEFAULT_INVOICE_SORT }) > 0;
+}
+
 export interface InvoiceListParamExtras {
 	period?: string;
 	page?: number;

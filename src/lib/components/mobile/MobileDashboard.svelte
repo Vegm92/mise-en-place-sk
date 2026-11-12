@@ -109,7 +109,7 @@
           />
         {/if}
         <span class="num" style="font-size: 11px; font-weight: 500; color: {hasBudget && paceDelta > 0 ? 'var(--mep-neg)' : 'var(--mep-pos)'};">
-          {hasBudget ? ti('turno.ribbon.paceNote', { delta: fmtEurSigned(paceDelta, locale.current), day: daysElapsed }) : momNote}
+          {hasBudget ? ti(Math.round(paceDelta) > 0 ? 'turno.ribbon.paceNote.over' : 'turno.ribbon.paceNote.under', { delta: fmtEurCompact(Math.abs(paceDelta), locale.current), day: daysElapsed }) : momNote}
         </span>
       </div>
       <div class="card" style="padding: 12px; display: flex; flex-direction: column; gap: 5px; min-width: 0;">
@@ -118,7 +118,7 @@
           {fmtEurCompact(projectedEom, locale.current)}
         </span>
         <span class="num" style="font-size: 11px; font-weight: 500; color: {hasBudget && overrun > 0 ? 'var(--mep-neg)' : 'var(--mep-pos)'};">
-          {hasBudget ? ti('turno.ribbon.forecastNote', { delta: fmtEurSigned(overrun, locale.current) }) : t('turno.ribbon.forecastNoBudget')}
+          {hasBudget ? ti(Math.round(overrun) > 0 ? 'turno.ribbon.forecastNote.over' : 'turno.ribbon.forecastNote.under', { delta: fmtEurCompact(Math.abs(overrun), locale.current) }) : t('turno.ribbon.forecastNoBudget')}
         </span>
       </div>
       <div class="card" style="grid-column: 1 / -1; padding: 12px; display: flex; flex-direction: column; gap: 5px; min-width: 0;">
