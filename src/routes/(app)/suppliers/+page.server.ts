@@ -11,6 +11,7 @@ import { selectableCategoryNames } from '$lib/server/categories';
 import { computeAndCacheReliabilityScore } from '$lib/server/supplier-reliability';
 import { describedLine, lineAmountExpr, lineCategoryExpr, lineProductJoin } from '$lib/server/category-spend';
 import { parseSupplierListParams } from '$lib/supplier-list';
+import { isNewSupplier, supplierSpendDeltaPct } from '$lib/supplier-row-signals';
 import {
 	supplierCategoryExpr,
 	supplierListFilter,
@@ -46,6 +47,7 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 				month_spend:      sql<number>`COALESCE(SUM(CASE WHEN TO_CHAR(${invoices.invoiceDate},'YYYY-MM')=TO_CHAR(NOW(),'YYYY-MM') THEN COALESCE(${invoices.totalAmount},0) ELSE 0 END),0)::float8`.as('month_spend'),
 				invoice_count:    sql<number>`COUNT(${invoices.id})`.as('invoice_count'),
 				last_invoice_date:   sql<string | null>`MAX(${invoices.invoiceDate})`.as('last_invoice_date'),
+				first_invoice_date:  sql<string | null>`MIN(CASE WHEN ${invoices.deletedAt} IS NULL THEN ${invoices.invoiceDate} END)`.as('first_invoice_date'),
 				month_invoice_count: sql<number>`COALESCE(COUNT(CASE WHEN TO_CHAR(${invoices.invoiceDate},'YYYY-MM')=TO_CHAR(NOW(),'YYYY-MM') THEN 1 END),0)`.as('month_invoice_count'),
 				last_month_spend:    sql<number>`COALESCE(SUM(CASE WHEN TO_CHAR(${invoices.invoiceDate},'YYYY-MM')=TO_CHAR(NOW()-INTERVAL'1 month','YYYY-MM') THEN COALESCE(${invoices.totalAmount},0) ELSE 0 END),0)::float8`.as('last_month_spend'),
 			})
@@ -132,7 +134,8 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 
 		await Promise.all(staleRefreshes);
 
-		const cadences = await supplierCadences(rid, new Date(`${localToday()}T00:00:00Z`));
+		const today = localToday();
+		const cadences = await supplierCadences(rid, new Date(`${today}T00:00:00Z`));
 		const supplierList = rows.map((r) => {
 			const cadence = cadences.get(r.id);
 
@@ -147,9 +150,7 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 			}
 
 			const lastMonthSpend = Number(r.last_month_spend);
-			const deltaPct = lastMonthSpend > 0
-				? ((Number(r.month_spend) - lastMonthSpend) / lastMonthSpend) * 100
-				: null;
+			const deltaPct = supplierSpendDeltaPct(Number(r.month_spend), lastMonthSpend);
 
 			const rawTrend = priceTrendMap.get(r.id) ?? [];
 			const price_trend = rawTrend.length >= 3 ? rawTrend : [];
@@ -162,6 +163,7 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 				month_invoice_count: Number(r.month_invoice_count),
 				last_month_spend: lastMonthSpend,
 				delta_pct: deltaPct,
+				is_new: isNewSupplier(r.first_invoice_date, today),
 				category: cat,
 				reliability_score: metrics && invoiceCount >= 3 ? metrics.score : null,
 				stability_level: stabilityLevel,
