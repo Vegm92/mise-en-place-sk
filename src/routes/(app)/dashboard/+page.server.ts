@@ -9,7 +9,7 @@ import { desc, eq, isNull, sql, and } from 'drizzle-orm';
 import { detectMissingInvoices } from '$lib/server/supplier-cadence';
 import { moneyToNumber } from '$lib/server/money';
 import { DEFAULT_DEVIATION_THRESHOLD, priceDeviations } from '$lib/server/price-deviations';
-import type { PriceShockInput, UncategorizedInput } from '$lib/dashboard-turno';
+import { priceShockUnit, type PriceShockInput, type UncategorizedInput } from '$lib/dashboard-turno';
 
 function buildSparkData(
 	sparkRows: Array<{ day: unknown; total: unknown }>,
@@ -182,6 +182,7 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 			extraPaid: round2(d.extraPaid),
 			daysAgo: Math.max(0, daysBetween(d.lastDate, todayStr)),
 			productId: d.productId,
+			unit: priceShockUnit(d.basis),
 			alternative: d.alternative
 				? {
 					supplier: d.alternative.supplierName,

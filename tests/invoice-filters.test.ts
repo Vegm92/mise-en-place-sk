@@ -13,6 +13,7 @@ import {
 	EMPTY_INVOICE_FILTERS,
 	countActiveInvoiceFilters,
 	defaultFiltersOpen,
+	hasNarrowingInvoiceFilters,
 	invoiceFilterParams,
 	invoiceFiltersHref,
 	parseInvoiceFilters,
@@ -124,5 +125,21 @@ describe('defaultFiltersOpen', () => {
 	it('opens when the URL arrives with active filters, so they are visible and clearable', () => {
 		expect(defaultFiltersOpen(1)).toBe(true);
 		expect(defaultFiltersOpen(countActiveInvoiceFilters(ALL))).toBe(true);
+	});
+});
+
+describe('hasNarrowingInvoiceFilters', () => {
+	it('is false with no filters, so the empty state reads as "no invoices yet"', () => {
+		expect(hasNarrowingInvoiceFilters(EMPTY_INVOICE_FILTERS)).toBe(false);
+	});
+
+	it('ignores a non-default sort, which never hides invoices', () => {
+		expect(hasNarrowingInvoiceFilters({ ...EMPTY_INVOICE_FILTERS, sort: 'invoice_date_asc' })).toBe(false);
+	});
+
+	it('is true for search text or any narrowing filter', () => {
+		expect(hasNarrowingInvoiceFilters({ ...EMPTY_INVOICE_FILTERS, q: 'makro' })).toBe(true);
+		expect(hasNarrowingInvoiceFilters({ ...EMPTY_INVOICE_FILTERS, status: 'incidencia' })).toBe(true);
+		expect(hasNarrowingInvoiceFilters({ ...EMPTY_INVOICE_FILTERS, date_to: '2026-01-31' })).toBe(true);
 	});
 });

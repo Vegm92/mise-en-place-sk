@@ -30,6 +30,8 @@
   const daysInMonth = $derived(data.projection?.days_in_month ?? 30);
   const daysElapsed = $derived(data.projection?.days_elapsed ?? daysInMonth);
 
+  const budgetsEnabled = $derived(data.betaFeatures?.budgets === true);
+
   const turnoInput = $derived<TurnoInput>({
     isCurrentMonth: data.is_current_month,
     daysElapsed,
@@ -44,6 +46,7 @@
     missing: data.missing_invoices,
     uncategorized: data.uncategorized_suppliers,
     uncategorizedLines: data.uncategorized_lines,
+    budgetsEnabled,
   });
 
   const worklist = $derived(buildWorklist(turnoInput));
@@ -88,7 +91,7 @@
         {stake > 0 ? fmtEur(stake, locale.current) : '—'}
       </div>
       <div class="body" style="margin-top: 6px;">
-        {worklist.length > 0 ? ti('mdash.turno.stakeSub', { n: worklist.length, urgent: urgentCount }) : t('turno.worklist.subMoney.zero')}
+        {worklist.length > 0 ? ti('mdash.turno.stakeSub', { things: tp('mdash.turno.stakeThings', worklist.length), urgent: tp('mdash.turno.stakeUrgent', urgentCount) }) : t('turno.worklist.subMoney.zero')}
       </div>
     </div>
 
@@ -109,7 +112,7 @@
           />
         {/if}
         <span class="num" style="font-size: 11px; font-weight: 500; color: {hasBudget && paceDelta > 0 ? 'var(--mep-neg)' : 'var(--mep-pos)'};">
-          {hasBudget ? ti('turno.ribbon.paceNote', { delta: fmtEurSigned(paceDelta, locale.current), day: daysElapsed }) : momNote}
+          {hasBudget ? ti(Math.round(paceDelta) > 0 ? 'turno.ribbon.paceNote.over' : 'turno.ribbon.paceNote.under', { delta: fmtEurCompact(Math.abs(paceDelta), locale.current), day: daysElapsed }) : momNote}
         </span>
       </div>
       <div class="card" style="padding: 12px; display: flex; flex-direction: column; gap: 5px; min-width: 0;">
@@ -118,7 +121,7 @@
           {fmtEurCompact(projectedEom, locale.current)}
         </span>
         <span class="num" style="font-size: 11px; font-weight: 500; color: {hasBudget && overrun > 0 ? 'var(--mep-neg)' : 'var(--mep-pos)'};">
-          {hasBudget ? ti('turno.ribbon.forecastNote', { delta: fmtEurSigned(overrun, locale.current) }) : t('turno.ribbon.forecastNoBudget')}
+          {hasBudget ? ti(Math.round(overrun) > 0 ? 'turno.ribbon.forecastNote.over' : 'turno.ribbon.forecastNote.under', { delta: fmtEurCompact(Math.abs(overrun), locale.current) }) : t('turno.ribbon.forecastNoBudget')}
         </span>
       </div>
       <div class="card" style="grid-column: 1 / -1; padding: 12px; display: flex; flex-direction: column; gap: 5px; min-width: 0;">
@@ -199,9 +202,11 @@
 
     <RailBlock title={t('turno.rail.cats')}>
       {#snippet headerRight()}
-        <a href="/budgets" style="font-size: 13px; font-weight: 500; color: var(--mep-acc); text-decoration: none; min-height: 44px; display: inline-flex; align-items: center;">
-          {t('turno.rail.catsAll')}
-        </a>
+        {#if budgetsEnabled}
+          <a href="/budgets" style="font-size: 13px; font-weight: 500; color: var(--mep-acc); text-decoration: none; min-height: 44px; display: inline-flex; align-items: center;">
+            {t('turno.rail.catsAll')}
+          </a>
+        {/if}
       {/snippet}
       {#if categoryRisk.length === 0}
         <div class="body">{t('turno.rail.catsEmpty')}</div>

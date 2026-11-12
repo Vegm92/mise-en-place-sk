@@ -17,7 +17,7 @@ export interface WorkItem {
 	whyKey: string;
 	whyVars: Record<string, string | number>;
 	actionKey: string;
-	href: string;
+	href: string | null;
 }
 
 export interface PriceAlternative {
@@ -37,6 +37,7 @@ export interface PriceShockInput {
 	extraPaid: number;
 	daysAgo: number;
 	productId?: number | null;
+	unit?: string | null;
 	alternative?: PriceAlternative | null;
 }
 
@@ -66,6 +67,7 @@ export interface TurnoInput {
 	missing: MissingInput[];
 	uncategorized: UncategorizedInput[];
 	uncategorizedLines?: { count: number; amount: number };
+	budgetsEnabled?: boolean;
 }
 
 export const MAX_WORK_ITEMS = 6;
@@ -160,16 +162,37 @@ function pushPriceItems(input: TurnoInput, out: WorkItem[]): void {
 			urgencyVars: { n: s.daysAgo },
 			titleKey: 'turno.price.title',
 			titleVars: { ingredient: s.ingredient, pct: Math.round(s.deviationPct * 10) / 10 },
-			whyKey: s.alternative ? 'turno.price.whyAlt' : 'turno.price.why',
+			whyKey: priceWhyKey(s),
 			whyVars: priceWhyVars(s),
 			actionKey: s.alternative ? 'turno.price.actionAlt' : 'turno.price.action',
-			href: s.productId != null ? `/products/${s.productId}` : '/analytics/prices',
+			href: priceHref(s),
 		});
 	}
 }
 
+function priceUnit(s: PriceShockInput): string {
+	return (s.unit ?? '').trim();
+}
+
+function priceWhyKey(s: PriceShockInput): string {
+	if (s.alternative) return priceUnit(s) ? 'turno.price.whyAltUnit' : 'turno.price.whyAlt';
+	return priceUnit(s) ? 'turno.price.whyUnit' : 'turno.price.why';
+}
+
+function priceHref(s: PriceShockInput): string {
+	if (s.productId == null) return '/analytics/prices';
+	return `/products/${s.productId}${s.alternative ? '#supplier-prices' : '#price-history'}`;
+}
+
+export function priceShockUnit(basis: string): string | null {
+	const unit = (basis.startsWith('unit:') ? basis.slice(5) : basis).trim();
+	return unit || null;
+}
+
 function priceWhyVars(s: PriceShockInput): Record<string, string | number> {
 	const base: Record<string, string | number> = { supplier: s.supplier, from: s.oldPrice, to: s.newPrice };
+	const unit = priceUnit(s);
+	if (unit) base.unit = unit;
 	if (!s.alternative) return base;
 	return {
 		...base,
@@ -200,7 +223,7 @@ function pushBudgetItems(input: TurnoInput, out: WorkItem[]): void {
 			whyKey: 'turno.budget.why',
 			whyVars: { spent: Math.round(c.spent), budget: Math.round(c.budget), days: daysLeft },
 			actionKey: 'turno.budget.action',
-			href: '/budgets',
+			href: input.budgetsEnabled === false ? null : '/budgets',
 		});
 		added++;
 	}

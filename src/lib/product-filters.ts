@@ -13,6 +13,10 @@ export function parseProductSort(params: URLSearchParams): ProductSortKey {
 	return isProductSortKey(sort) ? sort : DEFAULT_PRODUCT_SORT;
 }
 
+export function hasActiveProductFilters(search: string, category: string): boolean {
+	return search.trim() !== '' || category !== '';
+}
+
 export interface YoySortable {
 	yoyChangePct: number | null;
 }

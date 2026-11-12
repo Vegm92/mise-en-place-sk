@@ -7,7 +7,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { toCsv, isReportType, isReportStyle, cellText, cellTone, cellKind } from '../src/lib/reports';
-import { isoWeekRange, shiftIsoWeek, pctDelta, fmtPct } from '../src/lib/server/reports/shared';
+import { isoWeekRange, shiftIsoWeek, pctDelta, fmtPct, reconcileResidual } from '../src/lib/server/reports/shared';
 
 describe('toCsv', () => {
 	it('starts with a UTF-8 BOM', () => {
@@ -80,5 +80,24 @@ describe('deltas', () => {
 	it('signs percentages and uses a comma decimal', () => {
 		expect(fmtPct(pctDelta(110, 100))).toBe('+10,0 %');
 		expect(fmtPct(pctDelta(90, 100))).toBe('−10,0 %');
+	});
+});
+
+describe('reconcileResidual', () => {
+	it('returns the gap between invoice totals and categorised lines so the rows add up', () => {
+		const lines = 1000;
+		const total = 1210.4;
+		const residual = reconcileResidual(total, lines);
+		expect(residual).toBe(210.4);
+		expect(lines + residual).toBeCloseTo(total, 2);
+	});
+
+	it('ignores rounding noise up to 0.50 EUR', () => {
+		expect(reconcileResidual(100.5, 100)).toBe(0);
+		expect(reconcileResidual(100.49, 100)).toBe(0);
+	});
+
+	it('never returns a negative residual when lines exceed the total', () => {
+		expect(reconcileResidual(90, 100)).toBe(0);
 	});
 });

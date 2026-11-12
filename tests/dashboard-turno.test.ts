@@ -11,8 +11,9 @@ import { describe, it, expect } from 'vitest';
 import {
 	buildWorklist, buildCategoryRisk, buildPaceCurve, sortWorklist,
 	planToDate, forecastFromRunRate, priceShockImpact, atStake, elapsedFraction,
-	MAX_WORK_ITEMS,
+	MAX_WORK_ITEMS, priceShockUnit,
 } from '../src/lib/dashboard-turno';
+import { localiseWorkVars } from '../src/lib/components/turno/work-item-ui';
 import type { TurnoInput } from '../src/lib/dashboard-turno';
 
 function input(over: Partial<TurnoInput> = {}): TurnoInput {
@@ -184,6 +185,64 @@ describe('worklist', () => {
 		const item = buildWorklist(input({ uncategorized: [{ supplierId: 7, supplierName: 'Distribuciones Olé' }] }))[0];
 		expect(item?.kind).toBe('supplier');
 		expect(item?.href).toBe('/suppliers/7?highlight=category');
+	});
+});
+
+describe('price item copy and links', () => {
+	const shock = { id: 9, ingredient: 'Aceite', supplier: 'Olivar', oldPrice: 7.7, newPrice: 9.4, deviationPct: 22.08, extraPaid: 40, daysAgo: 2, productId: 12 };
+
+	it('uses the unit-aware why message when the product unit is known', () => {
+		const item = buildWorklist(input({ priceShocks: [{ ...shock, unit: 'l' }] }))[0]!;
+		expect(item.whyKey).toBe('turno.price.whyUnit');
+		expect(item.whyVars).toMatchObject({ from: 7.7, to: 9.4, unit: 'l' });
+	});
+
+	it('keeps the per-unit message when no unit is known', () => {
+		const item = buildWorklist(input({ priceShocks: [{ ...shock, unit: null }] }))[0]!;
+		expect(item.whyKey).toBe('turno.price.why');
+		expect(item.whyVars).not.toHaveProperty('unit');
+	});
+
+	it('opens the product price history, or the supplier comparison when there is a cheaper supplier', () => {
+		expect(buildWorklist(input({ priceShocks: [shock] }))[0]!.href).toBe('/products/12#price-history');
+		const alt = { supplier: 'Makro', price: 8, savingsPct: 0.15, potentialSavings: 10 };
+		const item = buildWorklist(input({ priceShocks: [{ ...shock, unit: 'l', alternative: alt }] }))[0]!;
+		expect(item.href).toBe('/products/12#supplier-prices');
+		expect(item.whyKey).toBe('turno.price.whyAltUnit');
+	});
+
+	it('derives the unit from the comparison basis', () => {
+		expect(priceShockUnit('l')).toBe('l');
+		expect(priceShockUnit('unit:kg')).toBe('kg');
+		expect(priceShockUnit('unit:')).toBeNull();
+	});
+
+	it('formats amounts as euros and the percentage with one decimal in the active locale', () => {
+		const item = buildWorklist(input({ priceShocks: [{ ...shock, unit: 'l' }] }))[0]!;
+		const why = localiseWorkVars(item.kind, item.whyVars, 'es');
+		expect(why.from).toBe(new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(7.7));
+		expect(why.to).toMatch(/^9,40\s€$/);
+		expect(localiseWorkVars(item.kind, item.titleVars, 'es').pct).toBe('22,1');
+		expect(localiseWorkVars(item.kind, item.titleVars, 'en').pct).toBe('22.1');
+	});
+
+	it('leaves non-price vars untouched', () => {
+		expect(localiseWorkVars('budget', { spent: 1200, budget: 1000 }, 'es')).toEqual({ spent: 1200, budget: 1000 });
+	});
+});
+
+describe('budget items without the budgets beta', () => {
+	const over = { budgets: { Pescado: 4000 }, categorySpend: { Pescado: 4300 } };
+
+	it('link to /budgets when the beta is on or unspecified', () => {
+		expect(buildWorklist(input(over))[0]!.href).toBe('/budgets');
+		expect(buildWorklist(input({ ...over, budgetsEnabled: true }))[0]!.href).toBe('/budgets');
+	});
+
+	it('carry no link when the beta is off', () => {
+		const item = buildWorklist(input({ ...over, budgetsEnabled: false }))[0]!;
+		expect(item.kind).toBe('budget');
+		expect(item.href).toBeNull();
 	});
 });
 
