@@ -144,6 +144,7 @@
     </form>
   </SectionCard>
 
+  {#if linkedSuppliers.length > 0 || blockedSuppliers.length > 0 || supplierPrices.length === 0}
   <SectionCard title={t('prod.detail.linkedSuppliers')} noPad>
     {#if linkedSuppliers.length === 0 && blockedSuppliers.length === 0}
       <p class="body text-center py-10">{t('prod.detail.noSuppliers')}</p>
@@ -164,6 +165,7 @@
       </div>
     {/if}
   </SectionCard>
+  {/if}
 
   <SectionCard title={t('prod.detail.aliases')} noPad>
     {#if aliases.length === 0}
