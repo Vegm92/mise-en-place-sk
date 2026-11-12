@@ -13,6 +13,7 @@
   import MessageCircle from '@lucide/svelte/icons/message-circle';
   import ShieldCheck from '@lucide/svelte/icons/shield-check';
   import { PROVISIONAL_PRICE, TIER_COPY } from '$lib/billing-plans';
+  import { tierTagline, type PlanFeatureFlags } from '$lib/billing-plans';
   import { landingTiers, type LandingFacts } from '$lib/landing-plans';
   import { DEFAULT_DRIFT, DEFAULT_MONTHLY_SPEND, formatPct, stakeAt } from '$lib/savings-calculator';
   import { fmtEurCompact } from '$lib/formatters';
@@ -34,7 +35,7 @@
     overrides = null,
   }: {
     form: JoinActionData;
-    data: { canonicalUrl: string; spotTaken: number; facts: LandingFacts };
+    data: { canonicalUrl: string; spotTaken: number; facts: LandingFacts; planFlags: PlanFeatureFlags };
     overrides?: LandingOverrides | null;
   } = $props();
 
@@ -321,12 +322,12 @@
               </div>
               <span class="mt-2 inline-flex items-center rounded border border-dashed border-border-strong px-[5px] py-px text-[11.5px] font-medium uppercase tracking-[0.02em] text-fg-3">{t('billing.provisional')}</span>
             </div>
-            <p class="m-0 text-sm font-semibold leading-[1.45] text-fg">{ti(`waitlist.plan.${tier.id}.audience`, { n: tier.maxLocations })}</p>
-            <p class="m-0 text-sm leading-[1.45] text-fg-2">{t(TIER_COPY[tier.id].tagline)}</p>
+            <p class="m-0 text-sm font-semibold leading-[1.45] text-fg">{tier.id === 'business' && !data.planFlags.multiLocation ? t('waitlist.plan.business.audienceSingle') : ti(`waitlist.plan.${tier.id}.audience`, { n: tier.maxLocations })}</p>
+            <p class="m-0 text-sm leading-[1.45] text-fg-2">{t(tierTagline(TIER_COPY[tier.id], data.planFlags))}</p>
             <a href="#join" class="btn {tier.featured ? 'btn-primary' : 'btn-secondary'} h-10 justify-center no-underline">{t('waitlist.form.submitShort')}</a>
             <div class="h-px bg-divider"></div>
             <ul class="m-0 flex list-none flex-col gap-2 p-0">
-              {#each TIER_COPY[tier.id].bullets(tier.quota) as bullet}
+              {#each TIER_COPY[tier.id].bullets(tier.quota, data.planFlags) as bullet}
                 <li class="flex items-start gap-2 text-sm leading-[1.4] text-fg-2">
                   <svg class="mt-0.5 shrink-0 {tier.featured ? 'text-acc' : 'text-fg-3'}" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 10.5l3.5 3.5L16 5.5"/></svg>
                   <span>{bullet.interpolate ? ti(bullet.key, bullet.interpolate) : t(bullet.key)}</span>

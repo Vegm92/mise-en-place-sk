@@ -100,7 +100,7 @@ describe('quotas, location caps and trial terms come from the enforced entitleme
 	it('the page no longer hardcodes a quota table', () => {
 		expect(PAGE_SRC).not.toMatch(/quota:\s*\d/);
 		expect(PAGE_SRC).not.toMatch(/quota:\s*null/);
-		expect(PAGE_SRC).toContain('TIER_COPY[tier.id].bullets(tier.quota)');
+		expect(PAGE_SRC).toContain('TIER_COPY[tier.id].bullets(tier.quota, data.planFlags)');
 	});
 
 	it('the trial copy is interpolated, so it cannot drift from FOUNDER_TRIAL_DAYS', () => {

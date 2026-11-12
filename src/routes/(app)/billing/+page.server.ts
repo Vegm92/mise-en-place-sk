@@ -10,6 +10,7 @@ import { eq } from 'drizzle-orm';
 import { claimRequest, releaseRequest, isValidKey } from '$lib/server/idempotency';
 import { trackEvent } from '$lib/server/events';
 import { siteOrigin } from '$lib/server/site-origin';
+import { isBetaFeatureEnabled } from '$lib/server/feature-flags';
 
 export const load: PageServerLoad = async ({ locals, url, parent }) => {
 	if (!locals.user || !locals.restaurantId) redirect(303, '/login');
@@ -20,7 +21,11 @@ export const load: PageServerLoad = async ({ locals, url, parent }) => {
 	const entitlements = await locals.entitlements();
 	const billingRid = entitlements?.billingRestaurantId ?? rid;
 	const billingTdb = forTenant(billingRid);
-	const groupLocations = await countGroupLocations(billingRid);
+	const [groupLocations, multiLocationFlag, recipesFlag] = await Promise.all([
+		countGroupLocations(billingRid),
+		isBetaFeatureEnabled('multiLocation'),
+		isBetaFeatureEnabled('recipes'),
+	]);
 
 	const [sub] = await db.select()
 		.from(subscriptions)
@@ -54,6 +59,7 @@ export const load: PageServerLoad = async ({ locals, url, parent }) => {
 		currentTier,
 		currentInterval: intervalFromPriceId(sub?.stripePriceId),
 		annualAvailable: isAnnualBillingAvailable(),
+		planFlags: { multiLocation: multiLocationFlag, recipes: recipesFlag },
 		currentTierNameKey: TIERS[currentTier].nameKey,
 		locationsUsed:   Math.min(groupLocations, TIERS[currentTier].maxLocations),
 		lockedLocations: Math.max(0, groupLocations - TIERS[currentTier].maxLocations),

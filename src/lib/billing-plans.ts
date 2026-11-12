@@ -36,10 +36,20 @@ export function tierPrice(tier: TierId, interval: BillingInterval): number {
 
 export type TierBullet = { key: string; interpolate?: Record<string, string | number> };
 
+export interface PlanFeatureFlags {
+	multiLocation: boolean;
+	recipes: boolean;
+}
+
 export interface TierCopy {
 	tagline: string;
+	singleLocationTagline?: string;
 	inherits?: string;
-	bullets: (quota: number | null) => TierBullet[];
+	bullets: (quota: number | null, flags: PlanFeatureFlags) => TierBullet[];
+}
+
+export function tierTagline(copy: TierCopy, flags: PlanFeatureFlags): string {
+	return !flags.multiLocation && copy.singleLocationTagline ? copy.singleLocationTagline : copy.tagline;
 }
 
 export const TIER_COPY: Record<TierId, TierCopy> = {
@@ -63,10 +73,13 @@ export const TIER_COPY: Record<TierId, TierCopy> = {
 	},
 	business: {
 		tagline: 'billing.tier.business.tagline',
+		singleLocationTagline: 'billing.tier.business.taglineSingle',
 		inherits: 'billing.tier.business.inherits',
-		bullets: () => [
+		bullets: (_quota, flags) => [
 			{ key: 'billing.tier.business.bullet.quota' },
-			{ key: 'billing.tier.business.bullet.locations', interpolate: { n: TIER_MAX_LOCATIONS.business } },
+			...(flags.multiLocation
+				? [{ key: 'billing.tier.business.bullet.locations', interpolate: { n: TIER_MAX_LOCATIONS.business } }]
+				: []),
 			{ key: 'billing.tier.business.bullet.support' },
 		],
 	},
@@ -94,6 +107,7 @@ export type MatrixCellValue = boolean | number | null | { upTo: number };
 
 export interface MatrixRowDef {
 	labelKey: string;
+	flag?: keyof PlanFeatureFlags;
 	cell: (col: MatrixColumn) => MatrixCellValue;
 }
 
@@ -123,14 +137,18 @@ export const MATRIX_GROUPS: MatrixGroupDef[] = [
 		titleKey: 'billing.matrix.group.operations',
 		rows: [
 			{ labelKey: 'billing.matrix.row.stock', cell: (c) => c.features.stockTracking },
-			{ labelKey: 'billing.matrix.row.recipes', cell: (c) => c.maxRecipes === null ? true : { upTo: c.maxRecipes } },
+			{ labelKey: 'billing.matrix.row.recipes', flag: 'recipes', cell: (c) => c.maxRecipes === null ? true : { upTo: c.maxRecipes } },
 		],
 	},
 	{
 		titleKey: 'billing.matrix.group.account',
 		rows: [
-			{ labelKey: 'billing.matrix.row.locations', cell: (c) => c.maxLocations > 1 ? { upTo: c.maxLocations } : c.maxLocations },
+			{ labelKey: 'billing.matrix.row.locations', flag: 'multiLocation', cell: (c) => c.maxLocations > 1 ? { upTo: c.maxLocations } : c.maxLocations },
 			{ labelKey: 'billing.matrix.row.prioritySupport', cell: (c) => c.features.prioritySupport },
 		],
 	},
 ];
+
+export function visibleMatrixRows(group: MatrixGroupDef, flags: PlanFeatureFlags): MatrixRowDef[] {
+	return group.rows.filter((row) => !row.flag || flags[row.flag]);
+}

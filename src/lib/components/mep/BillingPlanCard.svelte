@@ -2,9 +2,9 @@
 	import { locale, t, ti } from '$lib/i18n';
 	import Check from '@lucide/svelte/icons/check';
 	import { fmtEur } from '$lib/formatters';
-	import { ANNUAL_MONTHLY_EQUIVALENT, TIER_COPY, tierPrice, type BillingInterval, type TierId } from '$lib/billing-plans';
+	import { ANNUAL_MONTHLY_EQUIVALENT, TIER_COPY, tierPrice, tierTagline, type BillingInterval, type PlanFeatureFlags, type TierId } from '$lib/billing-plans';
 
-	const { tier, interval, available, switchable, isRecommended }: {
+	const { tier, interval, available, switchable, isRecommended, flags }: {
 		tier: {
 			tier: string;
 			nameKey: string;
@@ -15,6 +15,7 @@
 		available: boolean;
 		switchable: boolean;
 		isRecommended: boolean;
+		flags: PlanFeatureFlags;
 	} = $props();
 
 	const copy = $derived(TIER_COPY[tier.tier as TierId]);
@@ -57,7 +58,7 @@
 		</div>
 	</div>
 
-	<div style="font-size:13px;color:var(--mep-fg-2);line-height:1.45;min-height:34px;">{t(copy.tagline)}</div>
+	<div style="font-size:13px;color:var(--mep-fg-2);line-height:1.45;min-height:34px;">{t(tierTagline(copy, flags))}</div>
 
 	{#if tier.isCurrent}
 		<div style="display:flex;align-items:center;justify-content:center;gap:6px;height:36px;width:100%;
@@ -84,7 +85,7 @@
 		{#if copy.inherits}
 			<div style="font-size:12px;font-weight:500;color:var(--mep-fg-2);">{t(copy.inherits)}</div>
 		{/if}
-		{#each copy.bullets(tier.monthlyInvoiceQuota) as bullet}
+		{#each copy.bullets(tier.monthlyInvoiceQuota, flags) as bullet}
 			<div style="display:flex;gap:8px;align-items:flex-start;font-size:13px;color:var(--mep-fg-2);">
 				<span style="color:{isRecommended ? 'var(--mep-acc)' : 'var(--mep-fg-3)'};margin-top:1px;flex-shrink:0;">
 					<Check size={14} />

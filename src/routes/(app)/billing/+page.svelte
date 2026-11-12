@@ -65,7 +65,7 @@
 		locationsUsed={data.locationsUsed}
 		lockedLocations={data.lockedLocations}
 		{maxLocations}
-		upgradeName={upgrade ? t(upgrade.nameKey) : null}
+		upgradeName={upgrade && data.planFlags.multiLocation ? t(upgrade.nameKey) : null}
 		upgradeMaxLocations={upgrade?.maxLocations ?? 0}
 		trialEndsAt={data.trialEndsAt}
 		currentPeriodEnd={data.currentPeriodEnd}
@@ -81,7 +81,7 @@
 	{:else}
 		<div style="margin-bottom:16px;">
 			<div style="font-size:16px;font-weight:600;color:var(--mep-fg);">{t('billing.plans')}</div>
-			<div style="font-size:13px;color:var(--mep-fg-2);margin-top:3px;">{ti('billing.plansSub', { n: TIER_MAX_LOCATIONS.business })}</div>
+			<div style="font-size:13px;color:var(--mep-fg-2);margin-top:3px;">{data.planFlags.multiLocation ? ti('billing.plansSub', { n: TIER_MAX_LOCATIONS.business }) : t('billing.plansSubSingle')}</div>
 		</div>
 
 		{#if data.annualAvailable}
@@ -100,11 +100,11 @@
 
 		<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;align-items:stretch;margin-bottom:28px;">
 			{#each data.tiers as tier (tier.tier)}
-				<BillingPlanCard {tier} {interval} available={tier.available && (interval === 'month' || data.annualAvailable)} switchable={data.hasSubscription} isRecommended={tier.tier === 'pro'} />
+				<BillingPlanCard {tier} {interval} available={tier.available && (interval === 'month' || data.annualAvailable)} switchable={data.hasSubscription} isRecommended={tier.tier === 'pro'} flags={data.planFlags} />
 			{/each}
 		</div>
 
-		<BillingFeatureMatrix trialTier={data.trialTier} tiers={data.tiers} />
+		<BillingFeatureMatrix trialTier={data.trialTier} tiers={data.tiers} flags={data.planFlags} />
 	{/if}
 </div>
 </div>

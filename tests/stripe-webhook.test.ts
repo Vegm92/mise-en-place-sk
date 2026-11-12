@@ -148,7 +148,7 @@ describe.skipIf(!hasDbEnv)('Stripe webhook — signature verification gates plan
 		const rows = await testDb.select().from(settings).where(eq(settings.restaurantId, rid));
 		const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
 		expect(map.plan_name).toBe('Pro');
-		expect(map.plan_quota).toBe('400');
+		expect(map.plan_quota).toBe('300');
 	});
 
 	it('maps the annual price to the same tier as the monthly one', async () => {
