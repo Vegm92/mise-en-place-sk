@@ -17,8 +17,8 @@
   $effect(() => {
     if (!visible || bannerHeight <= 0) return;
     const root = document.documentElement;
-    root.style.setProperty('--mep-cookie-banner-h', `${bannerHeight}px`);
-    return () => root.style.removeProperty('--mep-cookie-banner-h');
+    root.style.setProperty('--cookie-banner-h', `${bannerHeight}px`);
+    return () => root.style.removeProperty('--cookie-banner-h');
   });
 
   async function submitChoice(event: SubmitEvent) {
@@ -62,7 +62,7 @@
 
 <style>
   :global(:root:has(.mep-cookie-banner) .mep) {
-    padding-bottom: var(--mep-cookie-banner-h, 72px);
+    padding-bottom: var(--cookie-banner-h, 72px);
   }
   .mep-cookie-banner {
     position: fixed;
@@ -107,7 +107,7 @@
     .mep-cookie-inner { flex-direction: column; align-items: stretch; gap: 12px; }
     .mep-cookie-actions .btn { flex: 1; justify-content: center; }
     :global(:root:has(.mep-cookie-banner) .mep) {
-      padding-bottom: var(--mep-cookie-banner-h, 192px);
+      padding-bottom: var(--cookie-banner-h, 192px);
     }
   }
 </style>
