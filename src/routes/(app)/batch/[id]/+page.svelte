@@ -35,6 +35,7 @@
   import { moneyToNullableNumber, parseAmount } from '$lib/money';
   import {
     normalizeLine, fillMissingLineRates, docTypeStr, net30Suggestion, bandRowsFrom, priceStr,
+    isXmlSource, reviewSourceLabel,
     type LineItem, type ProductMatch, type BandRow,
   } from '$lib/batch-form';
 
@@ -593,6 +594,11 @@
   const totalCalc = $derived(lineTotal + taxTotal - (discountAmount ?? 0) - (retentionAmount ?? 0));
   const discrepancy = $derived(Math.abs(totalCalc - extractedTotal));
   const hasDiscrepancy = $derived(discrepancy > 0.01 && extractedTotal > 0);
+  const sourceLabel = $derived(reviewSourceLabel({
+    xml: isXmlSource(review?.filename),
+    totalMismatch: totalMismatch || hasDiscrepancy,
+    confidenceKey: confidenceBadgeKey,
+  }));
   const originalTotalNum = $derived.by(() => {
     return parseAmount(originalTotal) ?? 0;
   });
@@ -952,8 +958,15 @@
               style="width:100%;height:100%;border:none;display:block;"
             ></iframe>
           </div>
-          <div class="px-2.5 py-1.5 border-t border-divider flex items-center gap-[5px] text-[11px] text-acc">
-            <Sparkle size={10} /> {t('extract.aiExtracted')} · {t(confidenceBadgeKey)}
+          <div class="px-2.5 py-1.5 border-t border-divider flex items-center gap-[5px] text-[11px] {sourceLabel.tone === 'warn' ? 'text-warn' : 'text-acc'}">
+            {#if sourceLabel.tone === 'warn'}
+              <AlertTriangle size={10} />
+            {:else if sourceLabel.sourceKey === 'extract.readFromXml'}
+              <FileText size={10} />
+            {:else}
+              <Sparkle size={10} />
+            {/if}
+            {t(sourceLabel.sourceKey)}{sourceLabel.detailKey ? ` · ${t(sourceLabel.detailKey)}` : ''}
           </div>
         {:else}
           <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;padding:8px 0;">
@@ -1295,6 +1308,7 @@
                 {/each}
               </div>
             {:else}
+              <div class="rev-lines-scroll">
               <table class="tbl rev-lines" style="table-layout:fixed;width:100%;">
                 <thead>
                   <tr>
@@ -1318,6 +1332,7 @@
                         <div style="display:flex;align-items:center;gap:5px;">
                           <input type="text" name="line_descriptions" bind:value={item.description}
                             aria-label={ti('batch.aria.lineDesc', { row: i + 1 })}
+                            title={str(item.description) || undefined}
                             class="rev-cell" style="font-weight:500;" />
                           <ConfidenceDot confidence={itemConf} size={6} />
                         </div>
@@ -1376,6 +1391,7 @@
                   {/each}
                 </tbody>
               </table>
+              </div>
             {/if}
 
             <datalist id="mep-product-options">

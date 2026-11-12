@@ -76,3 +76,19 @@ export function bandRowsFrom(raw: unknown): BandRow[] {
 		amount: priceStr(b.tax_amount as number | null | undefined),
 	}));
 }
+
+export function isXmlSource(filename: unknown): boolean {
+	return typeof filename === 'string' && /\.xml$/i.test(filename.trim());
+}
+
+export type ReviewSourceLabel = {
+	sourceKey: 'extract.aiExtracted' | 'extract.readFromXml';
+	detailKey: string | null;
+	tone: 'acc' | 'warn';
+};
+
+export function reviewSourceLabel(opts: { xml: boolean; totalMismatch: boolean; confidenceKey: string }): ReviewSourceLabel {
+	const sourceKey = opts.xml ? 'extract.readFromXml' : 'extract.aiExtracted';
+	if (opts.totalMismatch) return { sourceKey, detailKey: 'extract.reviewTotal', tone: 'warn' };
+	return { sourceKey, detailKey: opts.xml ? null : opts.confidenceKey, tone: 'acc' };
+}

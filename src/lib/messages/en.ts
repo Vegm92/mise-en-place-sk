@@ -870,6 +870,8 @@ export default {
   'extract.retry':           'Retry',
   'extract.invoiceOf':       'Invoice {i} of {n}',
   'extract.aiExtracted':     'AI Extracted',
+  'extract.readFromXml':     'Read from XML · no AI',
+  'extract.reviewTotal':     'review the total',
   'extract.reextract':       'Re-extract',
   'extract.confirmSave':     'Confirm & Save',
   'extract.header':          'Header',
