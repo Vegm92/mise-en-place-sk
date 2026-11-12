@@ -66,6 +66,7 @@ export const ADMIN_ROUTES = [
 	'/admin/learning',
 	'/admin/health',
 	'/admin/feature-flags',
+	'/admin/activation',
 ];
 
 // Runs in the page. A table is "clipped" when the nearest ancestor that limits
