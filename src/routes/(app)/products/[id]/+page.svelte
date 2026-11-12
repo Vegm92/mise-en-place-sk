@@ -3,6 +3,7 @@
   import { untrack } from 'svelte';
   import { t, tcat, locale, ti } from '$lib/i18n';
   import { fmt, formatYoyPct } from '$lib/formatters';
+  import { categoryOptions } from '$lib/category-options';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
   import ConfirmDialog from '$lib/components/mep/ConfirmDialog.svelte';
   import ChevronLeft from '@lucide/svelte/icons/chevron-left';
@@ -76,7 +77,7 @@
           <label class="label text-fg-3" for="p-cat">{t('prod.new.category')}</label>
           <select id="p-cat" name="category" class="input" style="padding:0 8px;">
             <option value="">—</option>
-            {#each categories as c}<option value={c} selected={product.category === c}>{tcat(c)}</option>{/each}
+            {#each categoryOptions(categories, product.category) as c}<option value={c} selected={product.category === c}>{tcat(c)}</option>{/each}
           </select>
         </div>
         <div class="flex flex-col gap-1">
