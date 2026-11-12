@@ -873,6 +873,8 @@ export default {
   'extract.retry':           'Reintentar',
   'extract.invoiceOf':       'Albarán {i} de {n}',
   'extract.aiExtracted':     'Extraído por IA',
+  'extract.readFromXml':     'Leído del XML · sin IA',
+  'extract.reviewTotal':     'revisa el total',
   'extract.reextract':       'Reextraer',
   'extract.confirmSave':     'Confirmar y guardar',
   'extract.header':          'Cabecera',

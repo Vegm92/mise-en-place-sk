@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
 	normalizeLine, fillMissingLineRates, docTypeStr, net30Suggestion, bandRowsFrom, priceStr,
+	isXmlSource, reviewSourceLabel,
 	type LineItem, type ProductMatch,
 } from '../src/lib/batch-form';
 
@@ -111,5 +112,35 @@ describe('fillMissingLineRates', () => {
 			{ description: '', productId: null, productName: '', status: 'new', score: null, suggestedTaxRate },
 		];
 		expect(fillMissingLineRates(items, matches)[0]?.tax_rate).toBe(expected);
+	});
+});
+
+describe('isXmlSource', () => {
+	it('detects Facturae/UBL uploads by extension, case-insensitively', () => {
+		expect(isXmlSource('factura_conservas_0412_6b4791.xml')).toBe(true);
+		expect(isXmlSource('FACTURA.XML')).toBe(true);
+	});
+	it('treats PDFs, images and missing names as non-XML', () => {
+		expect(isXmlSource('albaran.pdf')).toBe(false);
+		expect(isXmlSource('foto.xml.png')).toBe(false);
+		expect(isXmlSource(undefined)).toBe(false);
+		expect(isXmlSource(null)).toBe(false);
+	});
+});
+
+describe('reviewSourceLabel (R3-07)', () => {
+	it('keeps the AI confidence badge for a clean AI extraction', () => {
+		expect(reviewSourceLabel({ xml: false, totalMismatch: false, confidenceKey: 'extract.badge.high' }))
+			.toEqual({ sourceKey: 'extract.aiExtracted', detailKey: 'extract.badge.high', tone: 'acc' });
+	});
+	it('says the data was read from XML, with no AI confidence claim', () => {
+		expect(reviewSourceLabel({ xml: true, totalMismatch: false, confidenceKey: 'extract.badge.high' }))
+			.toEqual({ sourceKey: 'extract.readFromXml', detailKey: null, tone: 'acc' });
+	});
+	it('never says high confidence while the total does not add up', () => {
+		expect(reviewSourceLabel({ xml: false, totalMismatch: true, confidenceKey: 'extract.badge.high' }))
+			.toEqual({ sourceKey: 'extract.aiExtracted', detailKey: 'extract.reviewTotal', tone: 'warn' });
+		expect(reviewSourceLabel({ xml: true, totalMismatch: true, confidenceKey: 'extract.badge.high' }))
+			.toEqual({ sourceKey: 'extract.readFromXml', detailKey: 'extract.reviewTotal', tone: 'warn' });
 	});
 });
