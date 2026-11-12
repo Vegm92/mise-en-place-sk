@@ -13,7 +13,9 @@ import postgres from 'postgres';
 import bcrypt from 'bcryptjs';
 import {
 	OLIVE_OIL,
+	defaultCategoryRows,
 	documentNumberFor,
+	dueDateOffsetFor,
 	documentTypeFor,
 	invoiceTotals,
 	lineDescription,
@@ -101,6 +103,10 @@ async function main() {
 		ON CONFLICT (restaurant_id) DO UPDATE
 			SET plan_tier = 'business', status = 'active', current_period_end = NOW() + INTERVAL '30 days'`;
 
+	await sql`
+		INSERT INTO categories ${sql(defaultCategoryRows(rid))}
+		ON CONFLICT (restaurant_id, name_key) DO NOTHING`;
+
 	const supplierIds = [];
 	for (let i = 0; i < 8; i++) {
 		const name = `Proveedor ${String.fromCharCode(65 + i)}`;
@@ -139,7 +145,7 @@ async function main() {
 		const supplierId = supplierIds[i % supplierIds.length];
 		const status = statuses[i % statuses.length];
 		const invoiceDate = isoDay(-(i * 3));
-		const dueDate = isoDay(-(i * 3) + (i % 4 === 0 ? -5 : 25));
+		const dueDate = isoDay(-(i * 3) + dueDateOffsetFor(i));
 		const supplierIndex = i % supplierIds.length;
 		const lines = [];
 		for (let j = 0; j < 4; j++) {

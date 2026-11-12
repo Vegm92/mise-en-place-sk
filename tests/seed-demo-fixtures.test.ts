@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
 	OLIVE_OIL,
+	defaultCategoryRows,
 	documentNumberFor,
+	dueDateOffsetFor,
 	documentTypeFor,
 	invoiceTotals,
 	lineTotal,
@@ -11,6 +13,8 @@ import {
 } from '../scripts/seed-demo-fixtures.mjs';
 import { normalizeProductKey } from '../src/lib/server/normalize';
 import { detectTotalMismatch } from '../src/lib/tax';
+import { seedDefaultCategories } from '../src/lib/server/categories';
+import type { BatchDb } from '../src/lib/server/batch';
 
 describe('seed demo fixtures', () => {
 	it('derives tax base, 10% VAT and total from the line totals', () => {
@@ -44,5 +48,32 @@ describe('seed demo fixtures', () => {
 		expect(previous).not.toBeNull();
 		expect((latest! - previous!) / previous!).toBeGreaterThan(0.15);
 		expect(oliveOilPriceFor(0)).toBeNull();
+	});
+
+	it('seeds the same default category rows the app seeds for a new tenant', async () => {
+		let inserted: unknown[] = [];
+		const exec = {
+			insert: () => ({
+				values: (rows: unknown[]) => {
+					inserted = rows;
+					return { onConflictDoNothing: async () => undefined };
+				},
+			}),
+		} as unknown as BatchDb;
+		await seedDefaultCategories('rid-1', exec);
+		const seeded = defaultCategoryRows('rid-1').map((r) => ({
+			restaurantId: r.restaurant_id,
+			name: r.name,
+			nameKey: r.name_key,
+			slug: r.slug,
+			sortOrder: r.sort_order,
+			isDefault: r.is_default,
+		}));
+		expect(seeded.length).toBeGreaterThan(0);
+		expect(seeded).toEqual(inserted);
+	});
+
+	it('always puts the due date after the invoice date', () => {
+		for (let i = 0; i < 30; i++) expect(dueDateOffsetFor(i)).toBeGreaterThan(0);
 	});
 });

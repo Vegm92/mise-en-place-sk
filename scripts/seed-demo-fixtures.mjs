@@ -3,6 +3,8 @@
  * keys the seed writes can be unit-tested without a database.
  */
 
+import { UNCATEGORIZED_CATEGORY, VALID_CATEGORIES, categoryKey, categorySlug } from '../src/lib/constants.ts';
+
 export const FOOD_VAT_RATE = 0.1;
 
 export const OLIVE_OIL = {
@@ -79,4 +81,26 @@ export function invoiceTotals(lineTotals, rate = FOOD_VAT_RATE) {
 export function oliveOilPriceFor(i) {
 	if (i % 8 !== OLIVE_OIL.supplierIndex) return null;
 	return i === OLIVE_OIL.supplierIndex ? OLIVE_OIL.risenPrice : OLIVE_OIL.basePrice;
+}
+
+/**
+ * Same rows seedDefaultCategories (src/lib/server/categories.ts) inserts for a
+ * new tenant; that function needs the app's db and $lib aliases, so the seed
+ * builds the rows from the same constants instead.
+ * @param {string} rid
+ */
+export function defaultCategoryRows(rid) {
+	return VALID_CATEGORIES.filter((name) => name !== UNCATEGORIZED_CATEGORY).map((name, index) => ({
+		restaurant_id: rid,
+		name,
+		name_key: categoryKey(name),
+		slug: categorySlug(name),
+		sort_order: index,
+		is_default: true,
+	}));
+}
+
+/** @param {number} i @returns {number} days from invoice_date to due_date, always positive */
+export function dueDateOffsetFor(i) {
+	return i % 4 === 0 ? 5 : 25;
 }
