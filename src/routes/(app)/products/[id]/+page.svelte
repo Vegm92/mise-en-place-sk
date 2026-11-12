@@ -262,7 +262,7 @@
     {/if}
   </SectionCard>
 
-  <SectionCard title={t('prod.detail.supplierPrices')} noPad>
+  <SectionCard id="supplier-prices" title={t('prod.detail.supplierPrices')} noPad>
     {#if supplierPrices.length < 2}
       <p class="body text-center py-6">{t('prod.detail.noSupplierPrices')}</p>
     {:else}
@@ -293,7 +293,7 @@
     {/if}
   </SectionCard>
 
-  <SectionCard title={t('prod.detail.priceHistory')} noPad>
+  <SectionCard id="price-history" title={t('prod.detail.priceHistory')} noPad>
     {#if priceHistory.length === 0}
       <p class="body text-center py-10">{t('prod.detail.noPriceHistory')}</p>
     {:else}

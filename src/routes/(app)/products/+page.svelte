@@ -7,7 +7,7 @@
   import ListPageTemplate from '$lib/components/mep/ListPageTemplate.svelte';
   import MobileProducts from '$lib/components/mobile/MobileProducts.svelte';
   import PeriodPills from '$lib/components/mep/PeriodPills.svelte';
-  import { PRODUCT_SORT_KEYS, productSortHref, type ProductSortKey } from '$lib/product-filters';
+  import { PRODUCT_SORT_KEYS, hasActiveProductFilters, productSortHref, type ProductSortKey } from '$lib/product-filters';
   import { formatYoyPct } from '$lib/formatters';
   import Plus from '@lucide/svelte/icons/plus';
   import Search from '@lucide/svelte/icons/search';
@@ -273,7 +273,12 @@
           {/if}
         </div>
 
-        {#if filteredProducts.length === 0}
+        {#if filteredProducts.length === 0 && hasActiveProductFilters(search, catFilter)}
+          <div class="body text-center py-16" data-testid="prod-no-matches">
+            <p>{t('prod.noMatches')}</p>
+            <button type="button" class="btn btn-ghost mt-2 text-[12.5px]" onclick={clearFilters}>{t('prod.clearFilters')}</button>
+          </div>
+        {:else if filteredProducts.length === 0}
           <p class="body text-center py-16">{t('prod.empty')}</p>
         {:else}
           <table class="tbl tbl-stack">

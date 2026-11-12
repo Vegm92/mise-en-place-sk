@@ -34,6 +34,7 @@
     turno_price_shocks: PriceShockInput[];
     missing_invoices: MissingInput[];
     invoices_outside_month: number;
+    betaFeatures?: { budgets?: boolean };
   }
 
   let { data }: { data: DashboardData } = $props();
@@ -43,6 +44,8 @@
 
   const daysInMonth = $derived(data.projection?.days_in_month ?? 30);
   const daysElapsed = $derived(data.projection?.days_elapsed ?? daysInMonth);
+
+  const budgetsEnabled = $derived(data.betaFeatures?.budgets === true);
 
   const turnoInput = $derived<TurnoInput>({
     isCurrentMonth: data.is_current_month,
@@ -58,6 +61,7 @@
     missing: data.missing_invoices,
     uncategorized: data.uncategorized_suppliers,
     uncategorizedLines: data.uncategorized_lines,
+    budgetsEnabled,
   });
 
   const worklist = $derived(buildWorklist(turnoInput));
@@ -224,9 +228,11 @@
 
       <RailBlock title={t('turno.rail.cats')}>
         {#snippet headerRight()}
-          <a href="/budgets" class="btn btn-ghost" style="height:22px;font-size:11px;padding:0 6px;text-decoration:none;">
-            {t('turno.rail.catsAll')}
-          </a>
+          {#if budgetsEnabled}
+            <a href="/budgets" class="btn btn-ghost" style="height:22px;font-size:11px;padding:0 6px;text-decoration:none;">
+              {t('turno.rail.catsAll')}
+            </a>
+          {/if}
         {/snippet}
         {#if categoryRisk.length === 0}
           <div class="body">

@@ -92,6 +92,10 @@ const monthShortFormatters: Record<Locale, Intl.DateTimeFormat> = {
 	en: new Intl.DateTimeFormat('en-GB', MONTH_SHORT_OPTS),
 };
 
+export function fmtDecimal1(n: number, locale: Locale = 'es'): string {
+	return (oneDecimalFormatters[locale] ?? oneDecimalFormatters.es).format(n);
+}
+
 export function fmtSize(bytes: number, locale: Locale = 'es'): string {
 	const fmtInt = integerFormatters[locale] ?? integerFormatters.es;
 	const fmtDec = oneDecimalFormatters[locale] ?? oneDecimalFormatters.es;
