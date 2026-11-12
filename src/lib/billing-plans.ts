@@ -8,7 +8,7 @@ function byTier<T>(value: (tier: TierId) => T): Record<TierId, T> {
 	return Object.fromEntries(TIER_IDS.map((tier) => [tier, value(tier)])) as Record<TierId, T>;
 }
 
-export const PROVISIONAL_PRICE: Record<TierId, number> = { starter: 69, pro: 139, business: 299 };
+export const PROVISIONAL_PRICE: Record<TierId, number> = { starter: 29, pro: 59, business: 129 };
 
 export const ANNUAL_MONTHS_BILLED = 10;
 
@@ -20,9 +20,9 @@ export const ANNUAL_MONTHLY_EQUIVALENT: Record<TierId, number> = byTier(
 	(tier) => Math.round((ANNUAL_PRICE[tier] * 100) / 12) / 100,
 );
 
-export const TIER_QUOTA: Record<TierId, number | null> = { starter: 100, pro: 400, business: null };
+export const TIER_QUOTA: Record<TierId, number | null> = { starter: 100, pro: 300, business: null };
 
-export const TIER_MAX_LOCATIONS: Record<TierId, number> = { starter: 1, pro: 1, business: 10 };
+export const TIER_MAX_LOCATIONS: Record<TierId, number> = { starter: 1, pro: 1, business: 5 };
 
 export const FOUNDER_OFFER = { percentOff: 60, maxRedemptions: 50, redeemBy: '2026-12-13' } as const;
 

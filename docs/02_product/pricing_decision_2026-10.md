@@ -5,6 +5,11 @@ related: "[[CONTEXT]]"
 
 # Pricing decision — October 2026
 
+> **Status: proposed, not applied.** The launch release ships the structure
+> from this memo (single price source, annual toggle, coupon fix) with the
+> existing €29 / 59 / 129 table and 100 / 300 / unlimited quotas. Applying the
+> table below is a separate change once the founder confirms it on #780.
+
 - **Date:** 2026-10-18. **Decides:** issue #780 (one price table). **Feeds:** #836 (COGS).
 - **Supersedes:** the 2026-09-08 decision comment on #780 ("keep €29/59/129 as
   the permanent table"). The founder has since asked to launch at a higher list

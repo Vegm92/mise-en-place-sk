@@ -443,26 +443,24 @@ describe('switchTier', () => {
 // docs/02_product/pricing_decision_2026-10.md — the launch table. Every number
 // the public page, /billing and /admin/revenue show is derived from these, so
 // they are pinned here rather than re-derived.
-describe('launch price table (pricing decision 2026-10)', () => {
+describe('launch price table (current list prices; #1266 table deferred)', () => {
 	const tiers: TierId[] = ['starter', 'pro', 'business'];
 
-	it('lists 69 / 139 / 299 € a month, and the annual price is ten months of it', () => {
-		expect(PROVISIONAL_PRICE).toEqual({ starter: 69, pro: 139, business: 299 });
-		expect(ANNUAL_PRICE).toEqual({ starter: 690, pro: 1390, business: 2990 });
+	it('lists 29 / 59 / 129 € a month, and the annual price is ten months of it', () => {
+		expect(PROVISIONAL_PRICE).toEqual({ starter: 29, pro: 59, business: 129 });
+		expect(ANNUAL_PRICE).toEqual({ starter: 290, pro: 590, business: 1290 });
 		for (const tier of tiers) {
 			expect(ANNUAL_PRICE[tier]).toBe(PROVISIONAL_PRICE[tier] * ANNUAL_MONTHS_BILLED);
 			expect(tierPrice(tier, 'month')).toBe(PROVISIONAL_PRICE[tier]);
 			expect(tierPrice(tier, 'year')).toBe(ANNUAL_PRICE[tier]);
 		}
-		expect(ANNUAL_MONTHLY_EQUIVALENT).toEqual({ starter: 57.5, pro: 115.83, business: 249.17 });
+		expect(ANNUAL_MONTHLY_EQUIVALENT).toEqual({ starter: 24.17, pro: 49.17, business: 107.5 });
 	});
 
 	// The waitlist told every sign-up that the price it showed (29 / 59 / 129)
-	// would stay frozen for life. The founder coupon is what keeps that promise
-	// under the new list price, so it must never price a founder above it.
+	// would stay frozen for life, so a founder must never pay more than that.
 	it('keeps every founder price at or below what the waitlist promised', () => {
 		const promised: Record<TierId, number> = { starter: 29, pro: 59, business: 129 };
-		expect(FOUNDER_PRICE).toEqual({ starter: 27.6, pro: 55.6, business: 119.6 });
 		for (const tier of tiers) expect(FOUNDER_PRICE[tier]).toBeLessThanOrEqual(promised[tier]);
 	});
 
@@ -471,16 +469,15 @@ describe('launch price table (pricing decision 2026-10)', () => {
 			expect(TIERS[tier].monthlyInvoiceQuota).toBe(TIER_QUOTA[tier]);
 			expect(TIERS[tier].maxLocations).toBe(TIER_MAX_LOCATIONS[tier]);
 		}
-		expect(TIERS.pro.monthlyInvoiceQuota).toBe(400);
+		expect(TIERS.pro.monthlyInvoiceQuota).toBe(300);
 	});
 
-	// A group of 2–10 restaurants must land on Business: Pro covers one
-	// restaurant, so any second location forces the top tier, and the top tier
-	// has room for ten.
-	it('sizes Business for a 2–10-location group and keeps Pro single-location', () => {
+	// A group of 2–5 restaurants must land on Business: Pro covers one
+	// restaurant, so any second location forces the top tier.
+	it('sizes Business for a 2–5-location group and keeps Pro single-location', () => {
 		expect(TIERS.pro.maxLocations).toBe(1);
 		expect(TIERS.starter.maxLocations).toBe(1);
-		expect(TIERS.business.maxLocations).toBe(10);
+		expect(TIERS.business.maxLocations).toBe(5);
 		expect(TIERS.business.features.multiLocation).toBe(true);
 	});
 });
@@ -503,7 +500,7 @@ describe('annual billing', () => {
 
 	it('prices an annual subscription at a twelfth of the annual price for MRR', () => {
 		expect(planMonthlyPriceCents('business', 'year')).toBe(Math.round((ANNUAL_PRICE.business * 100) / 12));
-		expect(subscriptionMonthlyPriceCents('business', 'price_business_annual')).toBe(24917);
+		expect(subscriptionMonthlyPriceCents('business', 'price_business_annual')).toBe(10750);
 		expect(subscriptionMonthlyPriceCents('pro', 'price_pro')).toBe(PROVISIONAL_PRICE.pro * 100);
 		expect(planMonthlyPriceCents('trial', 'year')).toBe(0);
 	});

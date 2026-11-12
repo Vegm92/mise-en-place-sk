@@ -19,13 +19,13 @@ records: `docs/02_product/pricing_decision_2026-10.md` (the price table) and
 | Tier | Monthly price (excl. IVA) | Annual price (excl. IVA) | Monthly document quota | Locations | Recipe sheets | `weeklyDigest` | `stockTracking` | `supplierScores` | `multiLocation` | `aiAssistant` | `prioritySupport` | `inventoryTemplate` |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | `trial` | 0 | — | 20 | 1 | 3 | — | — | — | — | — | — | — |
-| `starter` | €69 | €690 | 100 | 1 | 3 | — | — | — | — | — | — | — |
-| `pro` | €139 | €1,390 | 400 | 1 | unlimited | ✓ | ✓ | ✓ | — | ✓ | — | ✓ |
-| `business` | €299 | €2,990 | unlimited (`null`) | 10 | unlimited | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `starter` | €29 | €290 | 100 | 1 | 3 | — | — | — | — | — | — | — |
+| `pro` | €59 | €590 | 300 | 1 | unlimited | ✓ | ✓ | ✓ | — | ✓ | — | ✓ |
+| `business` | €129 | €1,290 | unlimited (`null`) | 5 | unlimited | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 
 - Annual = 10 × monthly (`ANNUAL_MONTHS_BILLED`, "2 months free").
 - One price per account, not per restaurant: a Business subscription covers the
-  parent restaurant and up to 9 more locations (10 in total). Location creation
+  parent restaurant and up to 4 more locations (5 in total). Location creation
   is additionally gated by the global `multiLocation` beta flag
   (`docs/03_features/feature_flags.md`), which defaults to off.
 - Founder offer (`FOUNDER_OFFER`): 60 % off, forever, 50 redemptions, redeem by
