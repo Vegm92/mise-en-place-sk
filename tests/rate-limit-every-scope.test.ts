@@ -32,6 +32,7 @@ const ROWS: Row[] = [
 	r('verify:ip', 10, M, ['src/routes/verify-email/+page.server.ts', 'key: `verify:ip:${ip}`, max: 10']),
 	r('verify:email', 5, M, ['src/routes/verify-email/+page.server.ts', 'key: `verify:email:${email}`, max: 5']),
 	r('waitlist', 5, M, ['src/lib/server/waitlist-join-action.ts', 'key: `waitlist:${ip}`, max: 5']),
+	r('demo', 5, M, ['src/lib/server/demo-request.ts', 'key: `demo:${ip}`, max: 5']),
 	r('login:resend', 3, M, ['src/routes/login/+page.server.ts', "keyPrefix: 'login'"], ['src/lib/server/resend-verification-action.ts', '`${options.keyPrefix}:resend:${ip}`, 3)']),
 	r('signup:resend', 3, M, ['src/routes/signup/+page.server.ts', "keyPrefix: 'signup'"], ['src/lib/server/resend-verification-action.ts', '`${options.keyPrefix}:resend:${ip}`, 3)']),
 	r('email-change', 5, M, ['src/lib/server/account-security.ts', 'checkRateLimit(`email-change:user:${user.id}`, 5)'], ['src/lib/server/account-security.ts', 'checkRateLimit(`email-change:address:${email}`, 5)']),
