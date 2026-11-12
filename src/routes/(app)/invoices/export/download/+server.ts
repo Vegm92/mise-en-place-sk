@@ -14,6 +14,7 @@ import { contentDispositionHeader } from '$lib/server/content-disposition';
 import { buildInvoiceExportZip, zipEntryName } from '$lib/server/invoice-export-zip';
 import { styleHeaderRow, styleBandedRows } from '$lib/server/xlsx-style';
 import { sanitizeFormulaString } from '$lib/reports';
+import { summarizeInvoiceTax } from '$lib/server/invoice-export-tax';
 
 const POSITIVE_INT = /^[1-9]\d*$/;
 const MAX_EXPORT_IDS = 500;
@@ -72,12 +73,14 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		.select({
 			id:             invoices.id,
 			supplier:       suppliers.name,
+			supplier_cif:   suppliers.cif,
 			invoice_number: invoices.invoiceNumber,
 			invoice_date:   invoices.invoiceDate,
 			due_date:       invoices.dueDate,
 			gross_amount:     invoices.grossAmount,
 			discount_amount:  invoices.discountAmount,
 			tax_base:       invoices.taxBase,
+			tax_breakdown:  invoices.taxBreakdown,
 			retention_rate:   invoices.retentionRate,
 			retention_amount: invoices.retentionAmount,
 			total_amount:   invoices.totalAmount,
@@ -104,12 +107,16 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	sheet.columns = [
 		{ header: 'ID',                 key: 'id',             width: 8  },
 		{ header: 'Proveedor',          key: 'supplier',       width: 32 },
+		{ header: 'CIF/NIF',            key: 'supplier_cif',   width: 14 },
 		{ header: 'Nº albarán',         key: 'invoice_number', width: 16 },
 		{ header: 'Fecha',              key: 'invoice_date',   width: 13 },
 		{ header: 'Vencimiento',        key: 'due_date',        width: 13 },
 		{ header: 'Bruto (€)',          key: 'gross_amount',   width: 14 },
 		{ header: 'Descuento (€)',      key: 'discount_amount', width: 14 },
 		{ header: 'Base imponible (€)', key: 'tax_base',       width: 14 },
+		{ header: 'Tipo IVA (%)',       key: 'vat_rates',      width: 12 },
+		{ header: 'Cuota IVA (€)',      key: 'vat_amount',     width: 14 },
+		{ header: 'Recargo eq. (€)',    key: 'rec_amount',     width: 14 },
 		{ header: 'Retención (%)',      key: 'retention_rate', width: 12 },
 		{ header: 'Retención (€)',      key: 'retention_amount', width: 14 },
 		{ header: 'Importe (€)',        key: 'total_amount',   width: 14 },
@@ -118,15 +125,20 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	];
 
 	for (const r of rows) {
+		const tax = summarizeInvoiceTax(r.tax_breakdown);
 		sheet.addRow({
 			id:             r.id,
 			supplier:       sanitizeFormulaString(r.supplier ?? '—'),
+			supplier_cif:   sanitizeFormulaString(r.supplier_cif ?? '—'),
 			invoice_number: sanitizeFormulaString(r.invoice_number ?? '—'),
 			invoice_date:   r.invoice_date ?? '—',
 			due_date:       r.due_date ?? '—',
 			gross_amount:     moneyToNullableNumber(r.gross_amount),
 			discount_amount:  moneyToNullableNumber(r.discount_amount),
 			tax_base:       moneyToNullableNumber(r.tax_base),
+			vat_rates:      tax.vatRates ?? '—',
+			vat_amount:     tax.vatAmount,
+			rec_amount:     tax.recAmount,
 			retention_rate:   r.retention_rate != null ? r.retention_rate * 100 : null,
 			retention_amount: moneyToNullableNumber(r.retention_amount),
 			total_amount:   moneyToNullableNumber(r.total_amount),
@@ -138,6 +150,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	sheet.getColumn('gross_amount').numFmt = '#,##0.00';
 	sheet.getColumn('discount_amount').numFmt = '#,##0.00';
 	sheet.getColumn('tax_base').numFmt = '#,##0.00';
+	sheet.getColumn('vat_amount').numFmt = '#,##0.00';
+	sheet.getColumn('rec_amount').numFmt = '#,##0.00';
 	sheet.getColumn('retention_rate').numFmt = '#,##0.00';
 	sheet.getColumn('retention_amount').numFmt = '#,##0.00';
 	sheet.getColumn('total_amount').numFmt = '#,##0.00';
@@ -145,13 +159,13 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	styleHeaderRow(sheet.getRow(1));
 	styleBandedRows(sheet);
 
-	sheet.autoFilter = { from: 'A1', to: `M${rows.length + 1}` };
+	sheet.autoFilter = { from: 'A1', to: `Q${rows.length + 1}` };
 
 	if (truncated) {
 		const notice = sheet.addRow({
 			id: `Exportación truncada a ${EXPORT_ROW_CAP.toLocaleString(toIntlLocale('es'))} filas — acota el rango de fechas o el proveedor para exportar el resto.`,
 		});
-		sheet.mergeCells(`A${notice.number}:M${notice.number}`);
+		sheet.mergeCells(`A${notice.number}:Q${notice.number}`);
 		notice.getCell('id').font = { italic: true, bold: true, color: { argb: 'FFB00020' } };
 		notice.getCell('id').alignment = { vertical: 'middle' };
 	}
