@@ -7,6 +7,7 @@
   import ConfirmDialog from '$lib/components/mep/ConfirmDialog.svelte';
   import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   import Trash2 from '@lucide/svelte/icons/trash-2';
+  import ScrollStrip from '$lib/components/mep/ScrollStrip.svelte';
 
   const { data, form }: { data: PageData; form: ActionData } = $props();
   const { product, linkedSuppliers, aliases, priceHistory, priceByYear, categories, supplierPrices, productOptions } = $derived(data);
@@ -168,53 +169,55 @@
     {#if aliases.length === 0}
       <p class="body text-center py-10">{t('prod.detail.noAliases')}</p>
     {:else}
-      <table class="tbl">
-        <thead>
-          <tr>
-            <th>{t('prod.detail.aliasText')}</th>
-            <th>{t('prod.col.suppliers')}</th>
-            <th>{t('prod.detail.aliasSku')}</th>
-            <th>{t('prod.detail.aliasSource')}</th>
-            <th></th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each aliases as a (a.id)}
-            <tr class="row">
-              <td>{a.rawText ?? '—'}</td>
-              <td class="body text-fg-3" style="font-size:12px;">{a.supplierName ?? '—'}</td>
-              <td class="body text-fg-3" style="font-size:12px;">{a.supplierSku ?? '—'}</td>
-              <td class="body text-fg-3" style="font-size:12px;">{a.source}</td>
-              <td>
-                {#if a.rawText}
-                  <form method="post" action="?/reassignAlias" style="display:flex;gap:4px;">
-                    <input type="hidden" name="rawText" value={a.rawText} />
-                    <select name="targetProductId" class="input" style="padding:0 6px;height:26px;" required
-                      onchange={(e) => { const f = e.currentTarget.form; if (f && e.currentTarget.value) f.requestSubmit(); }}>
-                      <option value="" selected disabled>{t('prod.detail.aliasReassignPh')}</option>
-                      {#each productOptions as p (p.id)}
-                        <option value={p.id}>{p.name}</option>
-                      {/each}
-                    </select>
-                  </form>
-                {/if}
-              </td>
-              <td>
-                {#if a.rawText}
-                  <form id="delete-alias-form-{a.id}" method="post" action="?/deleteAlias">
-                    <input type="hidden" name="aliasId" value={a.id} />
-                    <button type="button" class="btn btn-ghost text-neg" style="height:26px;font-size:13px;"
-                      onclick={() => requestDeleteAlias(a.id)}>
-                      {t('prod.detail.aliasDelete')}
-                    </button>
-                  </form>
-                {/if}
-              </td>
+      <ScrollStrip padding="0" leadIn="0" gap="0" label={t('prod.detail.aliases')}>
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>{t('prod.detail.aliasText')}</th>
+              <th>{t('prod.col.suppliers')}</th>
+              <th>{t('prod.detail.aliasSku')}</th>
+              <th>{t('prod.detail.aliasSource')}</th>
+              <th></th>
+              <th></th>
             </tr>
-          {/each}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {#each aliases as a (a.id)}
+              <tr class="row">
+                <td>{a.rawText ?? '—'}</td>
+                <td class="body text-fg-3" style="font-size:12px;">{a.supplierName ?? '—'}</td>
+                <td class="body text-fg-3" style="font-size:12px;">{a.supplierSku ?? '—'}</td>
+                <td class="body text-fg-3" style="font-size:12px;">{a.source}</td>
+                <td>
+                  {#if a.rawText}
+                    <form method="post" action="?/reassignAlias" style="display:flex;gap:4px;">
+                      <input type="hidden" name="rawText" value={a.rawText} />
+                      <select name="targetProductId" class="input" style="padding:0 6px;height:26px;" required
+                        onchange={(e) => { const f = e.currentTarget.form; if (f && e.currentTarget.value) f.requestSubmit(); }}>
+                        <option value="" selected disabled>{t('prod.detail.aliasReassignPh')}</option>
+                        {#each productOptions as p (p.id)}
+                          <option value={p.id}>{p.name}</option>
+                        {/each}
+                      </select>
+                    </form>
+                  {/if}
+                </td>
+                <td>
+                  {#if a.rawText}
+                    <form id="delete-alias-form-{a.id}" method="post" action="?/deleteAlias">
+                      <input type="hidden" name="aliasId" value={a.id} />
+                      <button type="button" class="btn btn-ghost text-neg" style="height:26px;font-size:13px;"
+                        onclick={() => requestDeleteAlias(a.id)}>
+                        {t('prod.detail.aliasDelete')}
+                      </button>
+                    </form>
+                  {/if}
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </ScrollStrip>
     {/if}
     {#if form?.error}
       <p class="body text-neg" style="font-size:13px;padding:0 16px 12px;">{form.error}</p>
@@ -266,30 +269,32 @@
     {#if supplierPrices.length < 2}
       <p class="body text-center py-6">{t('prod.detail.noSupplierPrices')}</p>
     {:else}
-      <table class="tbl">
-        <thead>
-          <tr>
-            <th>{t('prod.col.suppliers')}</th>
-            <th class="num">{t('tbl.unitPrice')}</th>
-            <th>{t('tbl.unit')}</th>
-            <th>{t('inv.filter.from')}</th>
-            <th class="num"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each supplierPrices as row, i (row.supplierId ?? row.supplierName)}
-            <tr class="row">
-              <td class:text-pos={i === 0}>{row.supplierName || '—'}</td>
-              <td class="num">{fmt(row.price)}</td>
-              <td class="body text-fg-3 text-[12px]">{row.basis.startsWith('unit:') ? row.basis.slice(5) || '—' : `/${row.basis}`}</td>
-              <td class="body text-fg-3 text-[12px]">{row.asOf}</td>
-              <td class="num" class:text-pos={i === 0} class:text-neg={i > 0}>
-                {i === 0 ? t('prod.detail.cheapest') : ti('prod.detail.vsCheapest', { pct: row.vsCheapestPct.toFixed(1).replace('.', ',') })}
-              </td>
+      <ScrollStrip padding="0" leadIn="0" gap="0" label={t('prod.detail.supplierPrices')}>
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>{t('prod.col.suppliers')}</th>
+              <th class="num">{t('tbl.unitPrice')}</th>
+              <th>{t('tbl.unit')}</th>
+              <th>{t('inv.filter.from')}</th>
+              <th class="num"></th>
             </tr>
-          {/each}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {#each supplierPrices as row, i (row.supplierId ?? row.supplierName)}
+              <tr class="row">
+                <td class:text-pos={i === 0}>{row.supplierName || '—'}</td>
+                <td class="num">{fmt(row.price)}</td>
+                <td class="body text-fg-3 text-[12px]">{row.basis.startsWith('unit:') ? row.basis.slice(5) || '—' : `/${row.basis}`}</td>
+                <td class="body text-fg-3 text-[12px]">{row.asOf}</td>
+                <td class="num" class:text-pos={i === 0} class:text-neg={i > 0}>
+                  {i === 0 ? t('prod.detail.cheapest') : ti('prod.detail.vsCheapest', { pct: row.vsCheapestPct.toFixed(1).replace('.', ',') })}
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </ScrollStrip>
     {/if}
   </SectionCard>
 
@@ -297,30 +302,32 @@
     {#if priceHistory.length === 0}
       <p class="body text-center py-10">{t('prod.detail.noPriceHistory')}</p>
     {:else}
-      <table class="tbl">
-        <thead>
-          <tr>
-            <th>{t('inv.filter.from')}</th>
-            <th>{t('prod.col.suppliers')}</th>
-            <th class="num">{t('tbl.qty')}</th>
-            <th>{t('tbl.unit')}</th>
-            <th class="num">{t('tbl.unitPrice')}</th>
-            <th class="num">{t('prod.detail.normalizedPrice')}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each priceHistory as row, i (i)}
-            <tr class="row">
-              <td>{row.invoiceDate ?? '—'}</td>
-              <td class="body text-fg-3" style="font-size:12px;">{row.supplierName ?? '—'}</td>
-              <td class="num">{row.quantity ?? '—'}</td>
-              <td>{row.unit ?? '—'}</td>
-              <td class="num">{row.unitPrice != null ? fmt(row.unitPrice) : '—'}</td>
-              <td class="num">{row.normalizedUnitPrice != null ? fmt(row.normalizedUnitPrice) : '—'}</td>
+      <ScrollStrip padding="0" leadIn="0" gap="0" label={t('prod.detail.priceHistory')}>
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>{t('inv.filter.from')}</th>
+              <th>{t('prod.col.suppliers')}</th>
+              <th class="num">{t('tbl.qty')}</th>
+              <th>{t('tbl.unit')}</th>
+              <th class="num">{t('tbl.unitPrice')}</th>
+              <th class="num">{t('prod.detail.normalizedPrice')}</th>
             </tr>
-          {/each}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {#each priceHistory as row, i (i)}
+              <tr class="row">
+                <td>{row.invoiceDate ?? '—'}</td>
+                <td class="body text-fg-3" style="font-size:12px;">{row.supplierName ?? '—'}</td>
+                <td class="num">{row.quantity ?? '—'}</td>
+                <td>{row.unit ?? '—'}</td>
+                <td class="num">{row.unitPrice != null ? fmt(row.unitPrice) : '—'}</td>
+                <td class="num">{row.normalizedUnitPrice != null ? fmt(row.normalizedUnitPrice) : '—'}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </ScrollStrip>
     {/if}
   </SectionCard>
 
