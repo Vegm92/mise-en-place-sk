@@ -4,6 +4,7 @@ import { db, forTenant } from '$lib/server/db';
 import { suppliers, invoices, supplierMetrics, unitConversions, invoiceLineItems } from '$lib/server/schema';
 import { eq, desc, and, isNull, or, sql } from 'drizzle-orm';
 import { selectableCategoryNames } from '$lib/server/categories';
+import { resolveSubmittedCategory } from '$lib/category-options';
 import { computeAndCacheReliabilityScore } from '$lib/server/supplier-reliability';
 import { resolveSupplierCategoryAlerts } from '$lib/server/alerts';
 import { toCents, moneyToNumber, moneyToNullableNumber } from '$lib/server/money';
@@ -155,7 +156,9 @@ export const actions: Actions = {
 
 		if (!name) error(400, 'Name is required');
 
-		const cat = (await selectableCategoryNames(rid)).includes(category) ? category : null;
+		const [existing] = await db.select({ category: suppliers.category }).from(suppliers)
+			.where(tdb.scope(suppliers.restaurantId, eq(suppliers.id, id))).limit(1);
+		const cat = resolveSubmittedCategory(category, await selectableCategoryNames(rid), existing?.category);
 
 		await db.update(suppliers)
 			.set({ name, category: cat, contactEmail, contactPhone, cif, iban, address, deliveryDays, paymentTerms: paymentTermms, notes })

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { categoryColor, categoryTint, seriesColor, SERIES_OTHER } from '$lib/colors';
+  import { categoryOptions } from '$lib/category-options';
   import { fmtEur, fmtDate, fmtDateShort, fmtMonthShort, initials } from '$lib/formatters';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
@@ -242,7 +243,7 @@
                 <select id="edit-category" class="input" class:mep-field-highlight={highlightCategory} name="category" style="width:100%;"
                   onfocus={() => highlightCategory = false} onchange={() => highlightCategory = false}>
                   <option value="">{t('sup.noCategory')}</option>
-                  {#each categories as cat}
+                  {#each categoryOptions(categories, s.category) as cat}
                     <option value={cat} selected={s.category === cat}>{tcat(cat)}</option>
                   {/each}
                 </select>
