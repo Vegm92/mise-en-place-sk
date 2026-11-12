@@ -11,6 +11,7 @@
   import { locale, t, ti } from '$lib/i18n';
   import { fmtDate, fmtEur } from '$lib/formatters';
   import { uploadExtname } from '$lib/upload-formats';
+  import { documentTypeLabelKey } from '$lib/document-type';
 
   interface LineItem {
     id: number;
@@ -121,7 +122,7 @@
             flex-shrink: 0; font-size: 11px; font-weight: 500; padding: 1px 6px; border-radius: 10px;
             background: var(--mep-surface-2); color: var(--mep-fg-3);
           ">
-            {t(`field.documentType.${invoice.document_type}`)}
+            {t(documentTypeLabelKey(invoice.document_type))}
           </span>
         {/if}
       </div>
@@ -239,7 +240,7 @@
         <div>
           <div class="label" style="margin-bottom: 2px;">{t('inv.detail.linkedDocument')}</div>
           <div class="body-strong">
-            {invoice.linked_invoice.document_type ? t(`field.documentType.${invoice.linked_invoice.document_type}`) : ''}
+            {invoice.linked_invoice.document_type ? t(documentTypeLabelKey(invoice.linked_invoice.document_type)) : ''}
             {invoice.linked_invoice.invoice_number ?? `#${invoice.linked_invoice.id}`}
           </div>
         </div>
