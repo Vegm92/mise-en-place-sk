@@ -221,6 +221,7 @@
         <p class="mt-3 mb-0 text-[14.5px] font-semibold text-fg">{ti('waitlist.trialNote', { days: data.facts.trial.days })}</p>
         <a href="#calculadora" class="mt-1.5 inline-block text-[14px] text-fg-2 underline underline-offset-2">{t('waitlist.heroCalcLink')}</a>
 
+        {#if data.spotTaken >= 10}
         <div class="mt-6 flex max-w-[500px] flex-wrap items-center gap-3.5 rounded-[10px] border border-divider bg-surface px-3.5 py-2.5">
           <div class="flex items-baseline gap-1.5">
             <span class="font-mono text-2xl font-bold leading-none tracking-[-0.6px] text-acc">{data.spotTaken}</span>
@@ -231,6 +232,7 @@
             <progress class="mep-spot-progress" max={SPOT_TOTAL} value={Math.min(data.spotTaken, SPOT_TOTAL)} aria-label={t('waitlist.spotLabel')}></progress>
           </div>
         </div>
+        {/if}
       </div>
 
       <div class="mx-auto w-full max-w-[520px]">
