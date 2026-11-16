@@ -79,6 +79,8 @@
           <p>{paragraph[loc]}</p>
         {/each}
         <p>{section.linkPre[loc]}<a href="/cookies">{section.linkText[loc]}</a>{section.linkPost[loc]}</p>
+      {:else if section.id === 'processor'}
+        <p>{section.textPre[loc]}<a href="/terms">{section.linkText[loc]}</a>{section.textPost[loc]}</p>
       {:else if section.id === 'contact'}
         <p>
           {section.textPre[loc]}<a href="mailto:{privacyMeta.contactEmail}">{privacyMeta.contactEmail}</a>
