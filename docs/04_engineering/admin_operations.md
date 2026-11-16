@@ -5,7 +5,7 @@ related: "[[CONTEXT]]"
 
 # Admin Operations
 
-The ops console under `/admin` (dashboard, events, revenue, health), the public health endpoint, and the server modules backing them. Admin access is guarded by `isAdminUser` in `src/lib/server/admin.ts`.
+The ops console under `/admin` (dashboard, events, revenue, activation, health), the public health endpoint, and the server modules backing them. Admin access is guarded by `isAdminUser` in `src/lib/server/admin.ts`.
 
 ## Code notes
 
@@ -89,6 +89,25 @@ The ops console under `/admin` (dashboard, events, revenue, health), the public 
 - `addCost` / `deleteCost` maintain the acquisition-spend table that CAC divides by; without ≥ one month of spend, CAC, LTV/CAC and payback stay blank rather than reporting a zero cost of acquisition.
 - `snapshot` / `backfill` are the manual twins of the daily `scheduled-mrr-snapshot` job: capture the current month now, or replay each subscription's current tier over its lifetime so cohorts and churn have history on day one. Backfilled rows carry `source = 'estimated'` and never overwrite a live capture.
 - Amounts parsed with `parseAmountCents` (shared, tested), not `Number()`: a Spanish-speaking operator types `1.250,50` and it must mean 1250.50, not NaN.
+
+### `src/lib/server/activation-metrics.ts`
+**`function activationFunnel`**
+- One read-only query, one row per top-level restaurant, giving first upload / extraction / insight and week-4 activity as correlated `min()` / `EXISTS` subqueries. Metric definitions are in `docs/02_product/revenue_metrics.md` § Activation funnel. The query needs no migration and no event stream: every timestamp is already written by the upload, extraction and alert paths. It is cross-tenant on purpose (`tenant-scope-ok:`) and runs under the `runAsSystem` scope `request-policy.ts` gives every `/admin` request.
+- Upload and extraction each take the `LEAST` of a short-lived table (`batch_items`, swept at 24 h by `cleanupStaleBatches`) and a durable one (`usage_events` claims, `extraction_results` live rows, kept 730 days). Reading `batch_items` alone would empty the funnel for every tenant older than a day. Reading the durable rows alone would miss an upload the worker has not yet picked up.
+- `restaurantIds` narrows the query for tests, which share one database across parallel files. An empty list returns an empty funnel because `inArray([])` renders `false`.
+
+**`function isInternalTenant`**
+- Runs in TS on the member emails rather than in SQL, so the rule is unit-tested without a database and `isAdminEmail` (`admin.ts`) stays the single reading of `AUTH_ADMIN_EMAIL`.
+
+**`function summarizeFunnel`**
+- Pure. Every rate keeps its denominator (`RateStat.eligible`), and a restaurant whose window has not closed is left out of a rate rather than counted as a miss. The page shows "x of y" next to every percentage, so a 100% from one restaurant reads as such.
+
+**`function activationReport`**
+- Passes the funnel's restaurant ids into the #786 `timeToValueStats` / `weekFourRetention`, so those two panels use the same internal-tenant exclusion. The page receives only the 50 most recent restaurants.
+
+### `src/routes/(admin)/admin/activation/+page.svelte`
+**`markup`**
+- Sections: funnel (count, conversion from the previous step, bar = share of signups), time to first insight (median, P75, within-target, 7-day activation, week-4 KPIs plus the distribution), weekly signup cohorts, the two #786 panels, then per-restaurant milestones. Every table sits in `AdminTableScroll`. With no customers every count renders `0` and every rate renders `—`. Step and bucket labels are runtime keys (`admin.activation.funnel.*`, `admin.activation.tti.bucket.*`), and `tests/786-activation-metrics.test.ts` asserts both locales from `FUNNEL_STEPS` / `INSIGHT_BUCKETS`.
 
 ### `src/routes/(admin)/admin/health/+page.server.ts`
 **`const actions.retryAll`**
