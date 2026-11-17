@@ -32,7 +32,22 @@ set anywhere. RLS policies exist but are inert (owner bypasses them).
 | 1.4 | Verify with `psql "$RUNTIME_URL"`: DML works with `app.admin`, `CREATE TABLE` and `ALTER TABLE` refused, unscoped `SELECT count(*) FROM invoices` returns 0, scoped returns the tenant's rows (DEPLOYMENT.md § Runtime vs. migration roles, steps 3–4) | owner | four psql results as documented |
 | 1.5 | Redeploy both services, open `/admin/health` | owner | `DB role` check reads `mep_runtime · not table owner · RLS active` |
 
-Rollback: point `DATABASE_URL` back at the owner URL (both services), redeploy.
+Order matters: do the cutover **before** deploying any build that contains
+`assertScopedDbRole()` (`src/hooks.server.ts`, #1272). In production the web
+process refuses to boot (`process.exit(1)`) when `DATABASE_URL` is not a scoped
+role. Note the commit running in production before you start (Deployments tab)
+so a rollback target exists. `scripts/ops/verify-runtime-cutover.sh` (with
+`RUNTIME_URL` and `OWNER_URL`) runs the four psql checks of 1.4 plus the scoped
+read and prints OK/FAIL per check.
+
+Rollback:
+- **Worker:** point `DATABASE_URL` back at the owner URL, redeploy (the worker
+  does not run the boot check).
+- **Web, on code that includes the boot check:** an owner URL on the web
+  **crash-loops** (Railway keeps the previous deployment serving). Redeploy a
+  commit from before #1272 and then point `DATABASE_URL` at the owner, or fix
+  forward (usually a call site missing `runAsSystem()`, ADR-030).
+
 Never disable RLS or drop policies as an incident response.
 
 ## Gate 2 — migration chain (journal == ledger)
@@ -48,7 +63,7 @@ not pending.
 | 2.1 | `railway.json` (web): `preDeployCommand: pnpm db:migrate` — the only place migrations run | repo ✔ | — |
 | 2.2 | `railway.worker.json` (worker): `preDeployCommand: node build/wait-for-migrations.js` — waits (≤10 min, `MIGRATION_WAIT_TIMEOUT_MS`) until every journal entry is applied, so the old worker keeps running until the schema the new build needs exists; exits non-zero on a SKIPPED entry | repo ✔ | — |
 | 2.3 | CI: `pnpm db:check-sync` green on the release commit (schema.ts ↔ drizzle/) | CI | — |
-| 2.4 | `/admin/health` → `Migrations` check | owner | `76/76 applied · last 0075_solid_blacklash` (or the current tail), no pending, no SKIPPED, no drift |
+| 2.4 | `/admin/health` → `Migrations` check | owner | `92/92 applied · last 0091_refresh_rollups_skip_supplier_monthly_spend` (or the current tail of `drizzle/meta/_journal.json`), no pending, no SKIPPED, no drift |
 | 2.5 | Postgres image is `postgres-ssl:18`; CI runs `postgres:18` — migrations are exercised on the version they run on | repo ✔ | — |
 
 ## Gate 3 — worker heartbeat (P0 #781)
@@ -63,6 +78,20 @@ app can page anyone when it stops — the alarm has to live outside the worker.
 | 3.2 | `railway.worker.json`: `restartPolicyType: ALWAYS` (was `ON_FAILURE` × 10 — ten crashes during a Postgres maintenance window left the worker permanently down) | repo ✔ | — |
 | 3.3 | Set `HEALTH_CHECK_TOKEN` on the **web** service; point an external monitor (Railway alert, UptimeRobot, Better Stack…) at `GET /api/health` with header `X-Health-Token`, alerting when `worker.liveness != "alive"` or HTTP ≠ 200, check every 2–5 min | owner | a test alert fires when the worker service is paused |
 | 3.4 | Set `SENTRY_DSN` on the **worker** service (missing today — worker exceptions currently go nowhere) and a Sentry alert rule (email/Slack) on the `Worker heartbeat stale` issue the **web** process raises every 60 s on the alive→stale transition (`src/lib/server/worker-liveness-monitor.ts`) | owner | pausing the worker for 3 min produces the Sentry issue and the alert |
+
+## Backups and restore (owner; hole #8)
+
+Target RPO 24 h, RTO 4 h. Two layers; nothing here changes the app.
+
+| # | Step | Who | Done when |
+|---|---|---|---|
+| B.1 | Railway volume backups on the Postgres service: schedule on, one manual backup now (retention and price depend on the plan: confirm in the dashboard) | owner | backup listed as completed, non-zero size |
+| B.2 | Independent logical backup: `scripts/ops/pg-backup.sh` daily (cron service or external job) with `BACKUP_DATABASE_URL`, `BACKUP_S3_BUCKET`, `BACKUP_S3_PREFIX`, `BACKUP_S3_ENDPOINT_URL`, `AWS_*`, optional `BACKUP_AGE_RECIPIENT`; rotation keeps the newest 30 plus the oldest of each of the newest 12 months | owner | a new dump and `.counts` appear in the external bucket each day |
+| B.3 | Uploads bucket mirrored to a second bucket (rclone / `aws s3 sync`) | owner | object counts match |
+| B.4 | Restore test: `scripts/ops/restore-check.sh <dump>` restores into a throwaway local Postgres container and compares row counts and `drizzle.__drizzle_migrations` against the journal (`92`) | owner | `RESULT: restore verified`; record the duration as the real RTO |
+| B.5 | Repeat B.4 quarterly and after any region or role change | owner | dated entry kept |
+
+Dumps are customer data (GDPR): private destination, encrypt, delete test copies.
 
 ## Service configuration (live vs. repo)
 
@@ -147,7 +176,7 @@ open in a second tab:
 
 | Symptom | Lever |
 |---|---|
-| RLS refuses a legitimate query after gate 1 | `DATABASE_URL` back to the owner URL on both services; fix the missing `runAsSystem()` forward |
+| RLS refuses a legitimate query after gate 1 | worker: `DATABASE_URL` back to the owner URL; web on code with `assertScopedDbRole()`: the owner URL crash-loops, redeploy a pre-#1272 commit first or fix the missing `runAsSystem()` forward |
 | Migration failed in web pre-deploy | previous deployment keeps serving; worker pre-deploy waits then times out (old worker keeps running); fix forward, never hand-edit the ledger |
 | Worker crash-looping | `ALWAYS` keeps retrying; read the worker log, fix env, redeploy |
 | Web healthcheck never 200 | previous deployment keeps serving; `GET /api/health` returns 503 only when the DB is unreachable |
