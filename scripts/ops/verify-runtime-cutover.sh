@@ -18,21 +18,29 @@
 #   5 scoped SELECT on invoices returns exactly that tenant's rows
 #
 # Exit code: 0 when every check is OK, 1 when any check FAILs, 2 on usage/connection errors.
+# URLs are parsed into PG* variables and a private passfile: they never appear in argv or in messages.
 # Writes nothing: the two DDL probes run inside a transaction that is always rolled back.
 set -u
 
+here="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=lib-pgurl.sh
+. "$here/lib-pgurl.sh"
+trap pgurl_cleanup EXIT
 PSQL_BASE=(psql -X -A -t -q -v ON_ERROR_STOP=1)
 export PGCONNECT_TIMEOUT="${PGCONNECT_TIMEOUT:-10}"
 fails=0
 
-usage() { sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
+usage() { awk 'NR>1 && /^#/ {sub(/^# ?/,""); print; next} NR>1 {exit}' "$0"; exit 2; }
 [ "${1:-}" = "-h" ] || [ "${1:-}" = "--help" ] && usage
 [ -n "${RUNTIME_URL:-}" ] || { echo "RUNTIME_URL is not set" >&2; exit 2; }
 [ -n "${OWNER_URL:-}" ] || { echo "OWNER_URL is not set" >&2; exit 2; }
 command -v psql >/dev/null 2>&1 || { echo "psql not found" >&2; exit 2; }
 
-run_rt() { "${PSQL_BASE[@]}" "$RUNTIME_URL" 2>&1; }
-run_ow() { "${PSQL_BASE[@]}" "$OWNER_URL" 2>&1; }
+pgurl_load RT "$RUNTIME_URL" || exit 2
+pgurl_load OW "$OWNER_URL" || exit 2
+unset RUNTIME_URL OWNER_URL
+run_rt() { pgurl_run RT "${PSQL_BASE[@]}" 2>&1 | redact; return "${PIPESTATUS[0]}"; }
+run_ow() { pgurl_run OW "${PSQL_BASE[@]}" 2>&1 | redact; return "${PIPESTATUS[0]}"; }
 
 report() {
 	if [ "$1" = "OK" ]; then
@@ -44,11 +52,12 @@ report() {
 	fi
 }
 
-who=$(printf 'SELECT current_user;\n' | run_rt) || { echo "cannot connect with RUNTIME_URL" >&2; exit 2; }
-owner_who=$(printf 'SELECT current_user;\n' | run_ow) || { echo "cannot connect with OWNER_URL" >&2; exit 2; }
+who=$(printf 'SELECT current_user;\n' | run_rt) || { echo "cannot connect with RUNTIME_URL: $(printf '%s' "$who" | head -n1)" >&2; exit 2; }
+owner_who=$(printf 'SELECT current_user;\n' | run_ow) || { echo "cannot connect with OWNER_URL: $(printf '%s' "$owner_who" | head -n1)" >&2; exit 2; }
 echo "runtime connection role: $who | owner connection role: $owner_who"
 if [ "$who" = "$owner_who" ]; then
 	echo "RUNTIME_URL and OWNER_URL connect as the same role; RLS cannot be active." >&2
+	report FAIL "0 RUNTIME_URL and OWNER_URL are the same role ($who)" "use the mep_runtime credentials in RUNTIME_URL"
 fi
 
 out=$(printf "SELECT set_config('app.admin','true',false);\nSELECT count(*) FROM restaurants;\n" | run_rt)
@@ -60,21 +69,21 @@ else
 	report FAIL "1 DML as mep_runtime with app.admin" "$(printf '%s' "$out" | head -n2 | tr '\n' ' ')"
 fi
 
-out=$(printf 'BEGIN;\nCREATE TABLE mep_verify_should_fail (id int);\nROLLBACK;\n' | run_rt)
-if printf '%s' "$out" | grep -qi 'permission denied'; then
-	report OK "2 CREATE TABLE refused (permission denied)"
+out=$(printf '\\set VERBOSITY sqlstate\nBEGIN;\nCREATE TABLE mep_verify_should_fail (id int);\nROLLBACK;\n' | run_rt)
+if printf '%s' "$out" | grep -q '42501'; then
+	report OK "2 CREATE TABLE refused (SQLSTATE 42501, locale independent)"
 else
 	report FAIL "2 CREATE TABLE was not refused" "$(printf '%s' "$out" | head -n2 | tr '\n' ' ')"
 fi
 
-out=$(printf 'BEGIN;\nALTER TABLE restaurants ADD COLUMN mep_verify_should_fail text;\nROLLBACK;\n' | run_rt)
-if printf '%s' "$out" | grep -qi 'must be owner'; then
-	report OK "3 ALTER TABLE restaurants refused (must be owner)"
+out=$(printf '\\set VERBOSITY sqlstate\nBEGIN;\nALTER TABLE restaurants ADD COLUMN mep_verify_should_fail text;\nROLLBACK;\n' | run_rt)
+if printf '%s' "$out" | grep -q '42501'; then
+	report OK "3 ALTER TABLE restaurants refused (SQLSTATE 42501)"
 else
 	report FAIL "3 ALTER TABLE was not refused" "$(printf '%s' "$out" | head -n2 | tr '\n' ' ')"
 fi
 
-pick=$(printf 'SELECT restaurant_id, count(*) FROM invoices GROUP BY restaurant_id ORDER BY count(*) DESC LIMIT 1;\n' | "${PSQL_BASE[@]}" -F ' ' "$OWNER_URL" 2>&1)
+pick=$(printf 'SELECT restaurant_id, count(*) FROM invoices GROUP BY restaurant_id ORDER BY count(*) DESC LIMIT 1;\n' | pgurl_run OW "${PSQL_BASE[@]}" -F ' ' 2>&1 | redact)
 rid=$(printf '%s' "$pick" | awk '{print $1}')
 expected=$(printf '%s' "$pick" | awk '{print $2}')
 total=$(printf 'SELECT count(*) FROM invoices;\n' | run_ow)

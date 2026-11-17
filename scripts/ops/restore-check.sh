@@ -15,13 +15,13 @@
 # What it does: starts one docker container with no published port and trust auth inside the container
 # (no credentials anywhere), restores the dump with pg_restore --no-owner --no-privileges --exit-on-error,
 # counts every table of public/drizzle/pgboss, compares them with the .counts sidecar (default: <dump>.counts),
-# checks the migration ledger against the journal, and ALWAYS removes the container on exit.
+# checks the migration ledger against the journal, and ALWAYS removes the container AND its data volume on exit.
 # It never connects to any real database. Exit code: 0 all OK, 1 any FAIL, 2 usage error.
-# Needs: docker. The restored data is customer data: the container is deleted on exit; delete the dump when done.
+# Needs: docker. The restored data is customer data: container and volume are deleted on exit; delete the dump when done.
 set -uo pipefail
 
 if [ $# -lt 1 ] || [ "${1:-}" = "-h" ] || [ "${1:-}" = "--help" ]; then
-	sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'
+	awk 'NR>1 && /^#/ {sub(/^# ?/,""); print; next} NR>1 {exit}' "$0"
 	[ $# -lt 1 ] && exit 2
 	exit 0
 fi
@@ -35,12 +35,17 @@ IMAGE="${RESTORE_PG_IMAGE:-postgres:18}"
 NAME="mep-restore-check-$$-$(date +%s)"
 work=""
 errfile=""
+volumes=""
 cleanup() {
-	docker rm -f "$NAME" >/dev/null 2>&1 || true
+	docker rm -fv "$NAME" >/dev/null 2>&1 || true
+	# belt and braces: the anonymous data volume holds the restored customer data
+	for v in $volumes; do docker volume rm -f "$v" >/dev/null 2>&1 || true; done
 	[ -n "$work" ] && rm -rf "$work"
 	[ -n "$errfile" ] && rm -f "$errfile"
 }
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 if [[ "$dump" == *.age ]]; then
 	command -v age >/dev/null || { echo "age not found" >&2; exit 2; }
@@ -54,7 +59,7 @@ expected_migrations="${RESTORE_EXPECT_MIGRATIONS:-}"
 if [ -z "$expected_migrations" ]; then
 	here="$(cd "$(dirname "$0")" && pwd)"
 	journal="$here/../../drizzle/meta/_journal.json"
-	[ -f "$journal" ] && expected_migrations="$(grep -c '"tag"' "$journal")"
+	[ -f "$journal" ] && expected_migrations="$(grep -o '"tag"' "$journal" | wc -l | tr -d ' ')"
 fi
 
 fails=0
@@ -63,7 +68,8 @@ warn() { printf 'WARN  %s\n' "$1"; }
 bad()  { printf 'FAIL  %s\n' "$1"; fails=$((fails + 1)); }
 
 echo "starting throwaway $IMAGE as $NAME"
-docker run -d --rm --name "$NAME" -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=mep_restore "$IMAGE" >/dev/null || { echo "could not start the container" >&2; exit 2; }
+docker run -d --name "$NAME" -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=mep_restore "$IMAGE" >/dev/null || { echo "could not start the container" >&2; exit 2; }
+volumes="$(docker inspect -f '{{range .Mounts}}{{if .Name}}{{.Name}} {{end}}{{end}}' "$NAME" 2>/dev/null || true)"
 ready=0
 for _ in $(seq 1 60); do
 	if docker exec "$NAME" pg_isready -U postgres -d mep_restore -q 2>/dev/null; then
@@ -79,7 +85,7 @@ started=$(date +%s)
 if docker exec -i "$NAME" pg_restore -U postgres -d mep_restore --no-owner --no-privileges --exit-on-error < "$dump" 2> "$errfile"; then
 	ok "pg_restore finished without errors ($(( $(date +%s) - started )) s)"
 else
-	bad "pg_restore failed: $(head -n3 "$errfile" | tr '\n' ' ')"
+	bad "pg_restore failed: $(head -n1 "$errfile" | sed -E 's/ *DETAIL:.*//' | cut -c1-160) (full output withheld: it can contain customer data)"
 fi
 
 COUNT_SQL="SELECT n.nspname || '.' || c.relname || ' ' || (xpath('/row/c/text()', query_to_xml(format('SELECT count(*) AS c FROM %I.%I', n.nspname, c.relname), false, true, '')))[1]::text
@@ -100,7 +106,10 @@ while read -r tname texpected; do
 		if [ "${RESTORE_ALLOW_DRIFT:-0}" = "1" ]; then warn "$tname: $tactual rows, source had $texpected"; else bad "$tname: $tactual rows, source had $texpected"; fi
 	fi
 done < "$counts"
-[ "$diffs" -eq 0 ] && ok "all $tables tables match the source row counts"
+actual_tables="$(printf '%s\n' "$actual" | grep -c '^[a-z_]*\.[^ ]* [0-9]')"
+if [ "$tables" -lt 1 ]; then bad "the counts file lists no tables"
+elif [ "$tables" -ne "$actual_tables" ]; then bad "the counts file lists $tables tables but the restored database has $actual_tables"; fi
+[ "$diffs" -eq 0 ] && [ "$tables" -ge 1 ] && ok "all $tables tables match the source row counts"
 
 ledger="$(printf '%s\n' "$actual" | awk '$1 == "drizzle.__drizzle_migrations" {print $2}')"
 if [ -z "$ledger" ]; then
