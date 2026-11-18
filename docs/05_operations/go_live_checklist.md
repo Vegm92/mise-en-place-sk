@@ -108,7 +108,7 @@ the `Env` rows on `/admin/health`, are the real gate.
 | `SENTRY_RELEASE`, `VITE_SENTRY_RELEASE` | ✖ | set both to `${{RAILWAY_GIT_COMMIT_SHA}}` — without them Sentry cannot bisect to a deploy; `VITE_` one is a build arg (Dockerfile `ARG`) |
 | `HEALTH_CHECK_TOKEN` | ✖ | gate 3.3 |
 | `TURNSTILE_SECRET_KEY`, `PUBLIC_TURNSTILE_SITE_KEY` | ✖ | optional; set both or neither |
-| `WHATSAPP_*` (Cloud API) | ✖ | intentionally off until Meta registration (ADR-025) |
+| `WHATSAPP_ENABLED` / `WHATSAPP_*` (Cloud API) | ✖ | intentionally off until Meta registration (ADR-025). Before ever setting `WHATSAPP_ENABLED=true`, restore the WhatsApp/Meta sections removed from `privacy.ts` |
 | `COMPANY_LEGAL_NAME/ADDRESS/NIF` | ✖ | email legal footer — set once the SL exists (#779) |
 | `CHAT_RATE_LIMIT_RPM`, `MAX_CONCURRENT_EXTRACTIONS`, `UPLOADS_DIR` | ✔ | |
 | `STORAGE_BUCKET`, `STRIPE_PORTAL_CONFIG_ID`, `SK_SESSIONS_DIR`, `resend._domainkey` | ~ | not read anywhere in `src/`; delete |

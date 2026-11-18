@@ -271,6 +271,8 @@ where the Node process is directly internet-facing.
 
 ### WhatsApp Cloud API (optional — invoice ingest by WhatsApp)
 
+> **Disabled for the free/demo launch.** Every WhatsApp surface (Baileys transport, Settings tab and actions, `/admin/whatsapp`, digest push, notify queue, health probes) is behind the master switch `WHATSAPP_ENABLED`; unset means off, and `WHATSAPP_BOT_ENABLED` or the Meta credentials alone do not turn anything on. To re-enable set `WHATSAPP_ENABLED=true` **and restore the WhatsApp/Meta sections removed from `src/lib/content/legal/privacy.ts`** (data collected, international transfers). Baileys is an unofficial client (ADR-025). The `@whiskeysockets/baileys` dependency stays in the worker bundle but is never loaded while the flag is off.
+
 | Variable | Required | Notes |
 |---|---|---|
 | `WHATSAPP_ACCESS_TOKEN` | For WhatsApp | Permanent system-user token with `whatsapp_business_messaging` (Meta App → WhatsApp → API Setup). |

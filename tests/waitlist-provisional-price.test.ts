@@ -194,7 +194,7 @@ function buildMigratedCopy(loc: Locale) {
 		closeHead: tr(loc, 'waitlist.closeHead'),
 		closeSub: tr(loc, 'waitlist.closeSub'),
 		footerNote: tr(loc, 'waitlist.footerNote'),
-		mockWhatsappReply: tr(loc, 'waitlist.mock.whatsappReply'),
+		mockWhatsappReply: tr(loc, 'waitlist.mock.reply'),
 		mockConfirmed: tr(loc, 'waitlist.mock.confirmed'),
 		mockExtractedIn: tr(loc, 'waitlist.mock.extractedIn'),
 		mockLinesVat: tr(loc, 'waitlist.mock.linesVat'),
@@ -316,6 +316,15 @@ const POST_333_FAQ_4_A: Record<Locale, string> = {
  * roadmap, and still states it is not available yet. The retraction is
  * unchanged — no TPV is named as connected — so the ratchet still holds.
  */
+/**
+ * Launch without WhatsApp: `steps[0]` no longer advertises the WhatsApp channel
+ * (disabled for the free/demo launch). Pinned so the snapshot diff stays meaningful.
+ */
+const POST_NO_WHATSAPP_STEPS_0_BODY: Record<Locale, string> = {
+	es: 'Desde el móvil, con una foto hecha en la app, o arrastrando el PDF al panel. Sin instalaciones. Sin app que recordar abrir.',
+	en: 'From your phone, with a photo taken in the app, or dragging the PDF into the panel. No install. No app to remember to open.',
+};
+
 const POST_GEO0_STEPS_2_BODY: Record<Locale, string> = {
 	es: 'Gasto por categoría. Alertas de precio. Comparativa entre proveedores y entre locales. Tu coste de compra, al día.',
 	en: 'Spend by category. Price alerts. Comparison across suppliers and across venues. Your purchase cost, up to date.',
@@ -391,7 +400,7 @@ describe('waitlist copy migration is byte-identical to the pre-migration inline 
 			});
 			const preMigrationSteps = expected.steps as { num: string; tag: string; title: string; body: string }[];
 			expected.steps = preMigrationSteps.map((row, i) =>
-				i === 2 ? { ...row, body: POST_GEO0_STEPS_2_BODY[loc] } : row
+				i === 2 ? { ...row, body: POST_GEO0_STEPS_2_BODY[loc] } : i === 0 ? { ...row, body: POST_NO_WHATSAPP_STEPS_0_BODY[loc] } : row
 			);
 			const preMigrationTiers = expected.pricingTiers as { name: string; bullets: string[] }[];
 			expected.pricingTiers = preMigrationTiers.map((tier) => {

@@ -1,5 +1,5 @@
 import { renderTemplate, type Locale } from '$lib/i18n-messages';
-import { APP_BASE_URL } from './env';
+import { APP_BASE_URL, WHATSAPP_ENABLED } from './env';
 import { getOrCreateActiveShare } from './digest-share';
 import { digestOptedInContacts, isDigestOptedIn } from './whatsapp-contacts';
 import { sendWhatsAppMessage } from './whatsapp';
@@ -16,7 +16,7 @@ export async function pushWeeklyDigestOverWhatsApp(
 	week: string,
 	digest: string | null,
 ): Promise<void> {
-	if (!digest) return;
+	if (!WHATSAPP_ENABLED || !digest) return;
 
 	try {
 		const contacts = await digestOptedInContacts(restaurantId);
