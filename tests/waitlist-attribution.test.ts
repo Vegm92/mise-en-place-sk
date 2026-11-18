@@ -90,6 +90,7 @@ describeDb('insertWaitlistEmail — attribution (issue #326)', () => {
 		const secondAttempt = await insertWaitlistEmail(email, {
 			source: 'facebook',
 			campaign: 'retarget',
+			content: null,
 			variant: 'z',
 			segment: 'owners',
 			referrer: 'https://facebook.com/',
