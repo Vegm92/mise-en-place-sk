@@ -16,6 +16,7 @@ export async function insertWaitlistEmail(email: string, attribution?: Attributi
 			email,
 			source:       attribution?.source ?? null,
 			campaign:     attribution?.campaign ?? null,
+			content:      attribution?.content ?? null,
 			variant:      attribution?.variant ?? null,
 			segment:      attribution?.segment ?? null,
 			referrer:     attribution?.referrer ?? null,
