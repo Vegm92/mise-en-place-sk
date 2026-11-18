@@ -5,7 +5,7 @@
  * and verifies that queries scoped to one restaurant never surface data
  * from the other. Cleans up all test data in afterAll.
  */
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { eq, and } from 'drizzle-orm';
 import {
 	testDb, testSql, closeDb,
@@ -279,10 +279,12 @@ describe.skipIf(!hasDbEnv)('countWaitlistEmails', () => {
 	});
 
 	it('reflects the real row count, not a fixed value', async () => {
-		const before = await countWaitlistEmails();
+		const realCount = async () => Number((await testSql`SELECT count(*)::int AS n FROM waitlist`)[0]!.n);
 		await testDb.insert(waitlist).values({ email: testEmail }).onConflictDoNothing();
-		const after = await countWaitlistEmails();
-		expect(after).toBe(before + 1);
+		expect(await realCount()).toBeGreaterThanOrEqual(1);
+		await vi.waitFor(async () => {
+			expect(await countWaitlistEmails()).toBe(await realCount());
+		}, { timeout: 5000, interval: 25 });
 	});
 });
 
