@@ -28,6 +28,7 @@ function uniqueEmail(suffix: string): string {
 const FULL_ATTRIBUTION: Attribution = {
 	source: 'google',
 	campaign: 'spring_launch',
+	content: 'reel-3-a',
 	variant: 'b',
 	segment: 'chefs',
 	referrer: 'https://google.com/search',
@@ -46,6 +47,7 @@ afterAll(async () => {
 function assertFullAttribution(row: Record<string, unknown>) {
 	expect(row.source).toBe('google');
 	expect(row.campaign).toBe('spring_launch');
+	expect(row.content).toBe('reel-3-a');
 	expect(row.variant).toBe('b');
 	expect(row.segment).toBe('chefs');
 	expect(row.referrer).toBe('https://google.com/search');
@@ -63,6 +65,7 @@ describeDb('insertWaitlistEmail — attribution (issue #326)', () => {
 		expect(rows).toHaveLength(1);
 		expect(rows[0]!.source).toBe('google');
 		expect(rows[0]!.campaign).toBe('spring_launch');
+		expect(rows[0]!.content).toBe('reel-3-a');
 		expect(rows[0]!.variant).toBe('b');
 		expect(rows[0]!.segment).toBe('chefs');
 		expect(rows[0]!.referrer).toBe('https://google.com/search');
@@ -172,5 +175,22 @@ describeDb('waitlist referral codes (issue #332)', () => {
 		const after = await testSql`SELECT referral_code FROM waitlist WHERE email = ${email}`;
 		expect(after[0]!.referral_code).toBe(backfilled);
 		expect(await getReferralCode(email)).toBe(backfilled);
+	});
+});
+
+describeDb('insertWaitlistEmail — utm_content (nullable)', () => {
+	it('stores NULL content when the link had no utm_content', async () => {
+		const email = uniqueEmail('nocontent');
+		expect(await insertWaitlistEmail(email, { ...FULL_ATTRIBUTION, content: null })).toBe(true);
+		const rows = await testSql`SELECT content, campaign FROM waitlist WHERE email = ${email}`;
+		expect(rows[0]!.content).toBeNull();
+		expect(rows[0]!.campaign).toBe('spring_launch');
+	});
+
+	it('stores NULL content when no attribution is passed at all', async () => {
+		const email = uniqueEmail('noattr');
+		expect(await insertWaitlistEmail(email)).toBe(true);
+		const rows = await testSql`SELECT content FROM waitlist WHERE email = ${email}`;
+		expect(rows[0]!.content).toBeNull();
 	});
 });

@@ -154,3 +154,44 @@ describe('hasAttributionSignal', () => {
 		expect(hasAttributionSignal({ ...EMPTY_ATTRIBUTION, referredBy: 'ABC' })).toBe(true);
 	});
 });
+
+describe('utm_content', () => {
+	it('is captured next to utm_source / utm_campaign', () => {
+		const a = parseAttribution(url('/waitlist?utm_source=ig&utm_campaign=redes-pieza-s1-a&utm_content=reel-3-a'));
+		expect(a.source).toBe('ig');
+		expect(a.campaign).toBe('redes-pieza-s1-a');
+		expect(a.content).toBe('reel-3-a');
+	});
+
+	it('is null when the param is absent, empty or whitespace (existing links keep working)', () => {
+		expect(parseAttribution(url('/waitlist?utm_source=ig')).content).toBeNull();
+		expect(parseAttribution(url('/waitlist?utm_content=')).content).toBeNull();
+		expect(parseAttribution(url('/waitlist?utm_content=%20%20')).content).toBeNull();
+		expect(EMPTY_ATTRIBUTION.content).toBeNull();
+	});
+
+	it('is truncated to the same 100-char limit and stripped of unsafe characters', () => {
+		const long = parseAttribution(url(`/waitlist?utm_content=${'a'.repeat(5000)}`)).content;
+		expect(long).toHaveLength(100);
+		const odd = parseAttribution(url('/waitlist?utm_content=' + encodeURIComponent('<script>alert(1)</script>;DROP TABLE'))).content;
+		expect(odd).not.toMatch(/[<>;()]/);
+	});
+
+	it('is a signal on its own and survives the cookie round-trip', () => {
+		const a = parseAttribution(url('/waitlist?utm_content=reel-3-a'));
+		expect(hasAttributionSignal(a)).toBe(true);
+		expect(parseAttributionCookie(serializeAttribution(a)).content).toBe('reel-3-a');
+	});
+
+	it('an old cookie without the field parses to content null', () => {
+		const old = JSON.stringify({ source: 'x', campaign: 'y' });
+		const parsed = parseAttributionCookie(old);
+		expect(parsed.campaign).toBe('y');
+		expect(parsed.content).toBeNull();
+	});
+
+	it('a tampered oversized cookie value is truncated too', () => {
+		const tampered = JSON.stringify({ ...EMPTY_ATTRIBUTION, content: 'x'.repeat(5000) });
+		expect(parseAttributionCookie(tampered).content).toHaveLength(100);
+	});
+});

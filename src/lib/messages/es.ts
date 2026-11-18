@@ -1738,6 +1738,8 @@ export default {
   'admin.access.colStatus':       'Estado',
   'admin.access.colCreated':      'Alta',
   'admin.access.colJoined':       'Se apuntó',
+  'admin.access.colCampaign':      'Campaña (utm_campaign)',
+  'admin.access.colContent':       'Contenido (utm_content)',
   'admin.access.colAction':       'Acción',
   'admin.access.approved':        'Aprobado',
   'admin.access.pending':         'Pendiente',

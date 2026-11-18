@@ -1757,6 +1757,8 @@ export default {
   'admin.access.colStatus':       'Status',
   'admin.access.colCreated':      'Signed up',
   'admin.access.colJoined':       'Joined',
+  'admin.access.colCampaign':      'Campaign (utm_campaign)',
+  'admin.access.colContent':       'Content (utm_content)',
   'admin.access.colAction':       'Action',
   'admin.access.approved':        'Approved',
   'admin.access.pending':         'Pending',
