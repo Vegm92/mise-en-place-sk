@@ -381,7 +381,7 @@
             </div>
             <div>
               {#if i === 0}
-                <CaptureMock whatsappReply={t('waitlist.mock.whatsappReply')} />
+                <CaptureMock reply={t('waitlist.mock.reply')} />
               {:else if i === 1}
                 <ExtractMock copy={extractMockCopy} />
               {:else}

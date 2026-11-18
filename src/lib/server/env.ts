@@ -58,6 +58,7 @@ export const WHATSAPP_API_VERSION     = process.env.WHATSAPP_API_VERSION     ?? 
 export const WHATSAPP_DISPLAY_NUMBER  = process.env.WHATSAPP_DISPLAY_NUMBER  ?? '';
 export const WHATSAPP_SENDER_HOURLY_LIMIT = parseInt(process.env.WHATSAPP_SENDER_HOURLY_LIMIT ?? '30', 10);
 export const WHATSAPP_BOT_ENABLED      = process.env.WHATSAPP_BOT_ENABLED      ?? '';
+export const WHATSAPP_ENABLED          = (process.env.WHATSAPP_ENABLED          ?? '').trim().toLowerCase() === 'true';
 export const EMAIL_INGEST_ENABLED      = process.env.EMAIL_INGEST_ENABLED      ?? '';
 export const EMAIL_INGEST_DOMAIN       = process.env.EMAIL_INGEST_DOMAIN       ?? '';
 export const RESEND_WEBHOOK_SECRET     = process.env.RESEND_WEBHOOK_SECRET     ?? '';

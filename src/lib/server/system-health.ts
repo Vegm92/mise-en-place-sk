@@ -22,7 +22,7 @@ import { probeGemini, probeResend, probeStripe, probeWhatsAppCloud, type ProbeRe
 import { ANALYTICS_ROLLUP_REFRESHED_FLAG, getFlag } from './app-flags';
 import { WHATSAPP_STATUS_FLAG } from './integrations/whatsapp/runtime';
 import {
-	GEMINI_MODEL, STORAGE_DRIVER, WHATSAPP_BOT_ENABLED,
+	GEMINI_MODEL, STORAGE_DRIVER, WHATSAPP_BOT_ENABLED, WHATSAPP_ENABLED,
 } from './env';
 
 const NODE_ENV: string = process.env.NODE_ENV ?? 'development';
@@ -544,7 +544,8 @@ export function probeCheck(name: string, probe: ProbeResult, missingIsError = fa
 async function checkProbes(): Promise<{ checks: HealthCheck[]; probes: ExternalProbes }> {
 	const production = NODE_ENV === 'production';
 	const [gemini, stripe, resend, whatsappCloud] = await Promise.all([
-		probeGemini(), probeStripe(), probeResend(), probeWhatsAppCloud(),
+		probeGemini(), probeStripe(), probeResend(),
+		WHATSAPP_ENABLED ? probeWhatsAppCloud() : Promise.resolve<ProbeResult>({ state: 'unconfigured', detail: 'WhatsApp disabled', latencyMs: null, checkedAt: new Date().toISOString() }),
 	]);
 	const checks = [
 		probeCheck('Gemini', gemini, true),
@@ -568,6 +569,7 @@ export function whatsAppTransportCheck(botEnabled: boolean, flag: string | null)
 }
 
 async function checkWhatsAppTransport(): Promise<HealthCheck[]> {
+	if (!WHATSAPP_ENABLED) return [];
 	try {
 		const botEnabled = WHATSAPP_BOT_ENABLED === 'true';
 		const flag = botEnabled ? await getFlag(WHATSAPP_STATUS_FLAG) : null;
@@ -578,6 +580,7 @@ async function checkWhatsAppTransport(): Promise<HealthCheck[]> {
 }
 
 async function whatsAppDetail(): Promise<WhatsAppDetail | null> {
+	if (!WHATSAPP_ENABLED) return null;
 	try {
 		return { tenants: await contactsPerTenant() };
 	} catch (e) {

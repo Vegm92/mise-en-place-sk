@@ -1,7 +1,7 @@
 <script lang="ts">
   import { scrollReveal, revealAfter } from '$lib/waitlist/reveal';
 
-  let { whatsappReply }: { whatsappReply: string } = $props();
+  let { reply }: { reply: string } = $props();
 
   let progress = $state(0);
   const paperP = $derived(Math.min(1, progress / 0.55));
@@ -72,7 +72,7 @@
                      justify-content:center;font-size:8px;font-weight:700;">M</span>
         <span style="font-size:11px;font-weight:600;">Mise en Place</span>
       </div>
-      {whatsappReply}
+      {reply}
       <div style="font-size:10.5px;color:#4a7a5f;margin-top:3px;font-family:var(--mep-fs-mono);">14:02</div>
     </div>
   </div>

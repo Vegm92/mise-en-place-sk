@@ -1,6 +1,6 @@
 import { PgBoss } from 'pg-boss';
 import { pgSslConfig } from './db-ssl.js';
-import { storageFingerprint } from './env.js';
+import { storageFingerprint, WHATSAPP_ENABLED } from './env.js';
 
 import {
 	type WhatsAppNotifyJobData,
@@ -128,6 +128,7 @@ export async function enqueueWhatsAppNotify(
 	restaurantId: string,
 	requestId?: string,
 ): Promise<boolean> {
+	if (!WHATSAPP_ENABLED) return false;
 	const b = await getBoss();
 	const data: WhatsAppNotifyJobData = { itemId, restaurantId, requestId };
 	const jobId = await b.send(WHATSAPP_NOTIFY_QUEUE, data, WHATSAPP_NOTIFY_OPTIONS(itemId));

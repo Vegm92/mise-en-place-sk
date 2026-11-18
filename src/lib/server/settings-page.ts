@@ -6,7 +6,7 @@ import { TIERS } from './billing';
 import { listCategories } from './categories';
 import { isBetaFeatureEnabled } from './feature-flags';
 import { getSetting, putSetting } from './settings-store';
-import { WHATSAPP_BOT_NUMBER, WHATSAPP_ENABLED, loadWhatsappPanel } from './whatsapp-settings';
+import { WHATSAPP_BOT_NUMBER, whatsappPanelEnabled, loadWhatsappPanel } from './whatsapp-settings';
 import {
 	ALERT_PREFERENCE_GROUPS,
 	ALERT_PREFERENCE_TYPES,
@@ -93,10 +93,10 @@ export function loadSettingsPage(locals: App.Locals) {
 			multiLocation: features.multiLocation && multiLocationFlag,
 			maxLocations,
 			activeRestaurantId: rid,
-			whatsappEnabled: WHATSAPP_ENABLED,
+			whatsappEnabled: whatsappPanelEnabled(),
 			whatsappContacts: whatsapp.contacts,
 			canManageWhatsapp: isOwner,
-			whatsappBotNumber: WHATSAPP_BOT_NUMBER,
+			whatsappBotNumber: whatsappPanelEnabled() ? WHATSAPP_BOT_NUMBER : null,
 			whatsappPairingCode: whatsapp.pairingCode,
 		};
 	});
