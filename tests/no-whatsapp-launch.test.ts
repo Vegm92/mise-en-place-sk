@@ -191,6 +191,51 @@ describe('check 2b: queues and jobs', () => {
 		expect(contacts).not.toHaveBeenCalled();
 		expect(send).not.toHaveBeenCalled();
 	});
+
+	async function digestJob(env: Record<string, string>) {
+		setEnv(env);
+		const claimSetting = vi.fn().mockResolvedValue(true);
+		const push = vi.fn().mockResolvedValue(undefined);
+		const chain: Record<string, unknown> = {};
+		for (const k of ['select', 'from', 'where']) chain[k] = () => chain;
+		chain.limit = () => Promise.resolve([]);
+		vi.doMock('../src/lib/server/db', () => ({ db: chain, forTenant: () => ({ scope: vi.fn() }) }));
+		vi.doMock('../src/lib/server/settings-store', () => ({ claimSetting }));
+		vi.doMock('../src/lib/server/email', () => ({
+			sendEmail: vi.fn().mockResolvedValue(undefined),
+			weeklyDigestEmail: vi.fn().mockReturnValue({}),
+			incidenciaDigestEmail: vi.fn(),
+			trialExpiryEmail: vi.fn(),
+			trialExpiredEmail: vi.fn(),
+		}));
+		vi.doMock('../src/lib/server/weekly-digest', () => ({ getOrGenerateWeeklyDigest: vi.fn().mockResolvedValue('digest'), isoWeek: vi.fn() }));
+		vi.doMock('../src/lib/server/whatsapp-digest-push', () => ({ pushWeeklyDigestOverWhatsApp: push }));
+		vi.doMock('../src/lib/server/alert-preferences', () => ({ isAlertEnabled: vi.fn().mockResolvedValue(true) }));
+		vi.doMock('../src/lib/server/billing', () => ({ TIERS: {}, effectiveTier: vi.fn() }));
+		vi.doMock('../src/lib/server/tenant-fanout', () => ({ dispatchTenantJobs: vi.fn() }));
+		const mod = await import('../src/lib/server/tenant-notification-jobs');
+		try {
+			await mod.sendWeeklyDigest({ restaurantId: 'r', name: 'n', week: '2026-W46' } as never);
+		} finally {
+			for (const m of ['db', 'settings-store', 'email', 'weekly-digest', 'whatsapp-digest-push', 'alert-preferences', 'billing', 'tenant-fanout']) vi.doUnmock(`../src/lib/server/${m}`);
+			vi.resetModules();
+		}
+		const claimedKeys = claimSetting.mock.calls.map((c) => c[1]);
+		return { claimedKeys, push };
+	}
+
+	it('flag off: the weekly digest job never claims the WhatsApp week key nor pushes', async () => {
+		const { claimedKeys, push } = await digestJob({ ...CREDS });
+		expect(claimedKeys).toContain('weekly_digest_email_week');
+		expect(claimedKeys).not.toContain('weekly_digest_whatsapp_week');
+		expect(push).not.toHaveBeenCalled();
+	});
+
+	it('flag on: the weekly digest job claims the WhatsApp week key and pushes', async () => {
+		const { claimedKeys, push } = await digestJob({ ...CREDS, WHATSAPP_ENABLED: 'true' });
+		expect(claimedKeys).toContain('weekly_digest_whatsapp_week');
+		expect(push).toHaveBeenCalledTimes(1);
+	});
 });
 
 describe('check 3: settings has no WhatsApp option, even with Meta credentials present', () => {
