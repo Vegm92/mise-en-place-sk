@@ -19,6 +19,11 @@ const NEUTRAL_KEYS = [
 	'upload.extractDataN',
 	'upload.extractData.one',
 	'upload.extractData.other',
+	'upload.title',
+	'action.upload',
+	'sup.uploadInvoice',
+	'dash.firstInvoice',
+	'upload.reject.tooSmall',
 ] as const;
 const ALBARAN_ONLY = /albaranes?\b/i;
 const mentionsInvoiceOrNote = { es: /factura/i, en: /invoice/i } as const;
@@ -57,6 +62,16 @@ describe('photo intake copy is document-neutral (gap 5)', () => {
 		expect(translations.en['upload.extractData.other']).toBe('Extract {n} documents');
 	});
 
+	it('the header, onboarding empty state and camera error say documento / document', () => {
+		expect(translations.es['upload.title']).toBe('Subir documento');
+		expect(translations.es['action.upload']).toBe('Subir documento');
+		expect(translations.es['dash.firstInvoice']).toBe('Procesa tu primer documento');
+		expect(translations.es['upload.reject.tooSmall']).toContain('para ser un documento real');
+		expect(translations.en['upload.title']).toBe('Upload document');
+		expect(translations.en['dash.firstInvoice']).toBe('Process your first document');
+		expect(translations.en['upload.reject.tooSmall']).toContain('real document');
+	});
+
 	it('the capture tip and dropzone name both factura and albarán / invoice and delivery note', () => {
 		expect(translations.es['upload.captureTip']).toMatch(/factura o albarán/);
 		expect(translations.es['upload.dropHeadline']).toMatch(/facturas o albaranes/);
@@ -89,5 +104,15 @@ describe('the consent banner cannot cover the upload CTA (gap 4)', () => {
 		expect(shell).toContain('class="mep mep-app-shell"');
 		expect(rule).toContain('height: calc(100vh - var(--mep-cookie-h, 0px));');
 		expect(rule).toContain('height: calc(100dvh - var(--mep-cookie-h, 0px));');
+	});
+
+	it('pages outside the app shell (onboarding, auth) scroll past the banner via body padding', () => {
+		const css = read('src/app.css');
+		const start = css.indexOf('body:not(:has(.mep-app-shell)) {');
+		expect(start).toBeGreaterThan(-1);
+		const rule = css.slice(start, css.indexOf('}', start));
+		expect(rule).toContain('padding-bottom: var(--mep-cookie-h, 0px);');
+		expect(rule).toContain('min-height: 100%;');
+		expect(rule).toContain('height: auto;');
 	});
 });
