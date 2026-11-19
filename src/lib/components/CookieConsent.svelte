@@ -3,14 +3,23 @@
   import { getT } from '$lib/i18n-context';
   import type { ConsentState } from '$lib/cookie-consent';
 
-  const { state }: { state: ConsentState } = $props();
+  const { state: consent }: { state: ConsentState } = $props();
 
   const t = getT();
   const nextPath = $derived(page.url.pathname + page.url.search);
+
+  let bannerHeight = $state(0);
+  const reservedHeight = $derived(consent === 'unset' ? bannerHeight : 0);
+
+  $effect(() => {
+    const root = document.documentElement;
+    root.style.setProperty('--mep-cookie-h', `${reservedHeight}px`);
+    return () => root.style.removeProperty('--mep-cookie-h');
+  });
 </script>
 
-{#if state === 'unset'}
-  <aside class="mep-cookie-banner" aria-label={t('cookies.banner.label')}>
+{#if consent === 'unset'}
+  <aside class="mep-cookie-banner" bind:clientHeight={bannerHeight} aria-label={t('cookies.banner.label')}>
     <div class="mep-cookie-inner">
       <div class="mep-cookie-copy">
         <p class="mep-cookie-title">{t('cookies.banner.title')}</p>

@@ -20,6 +20,14 @@
   --mep-r-pill:  999px;
 }
 
+.mep-app-shell {
+  width: 100%;
+  height: calc(100vh - var(--mep-cookie-h, 0px));
+  height: calc(100dvh - var(--mep-cookie-h, 0px));
+  display: flex;
+  overflow: hidden;
+}
+
 /* Semantic base. Must live on :root, not .mep — a custom property declared on
    .mep beats the value it would inherit from :root[data-theme="dark"], so the
    dark overrides below never reached any component. */

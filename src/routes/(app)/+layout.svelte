@@ -388,8 +388,7 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
   <meta name="description" content={t('app.metaDesc')} />
 </svelte:head>
 
-<div class="mep" data-accent="tinta" data-density="default"
-  style="width:100%;height:100vh;height:100dvh;display:flex;overflow:hidden;">
+<div class="mep mep-app-shell" data-accent="tinta" data-density="default">
 
   {#if mobileOpen}
     <div
