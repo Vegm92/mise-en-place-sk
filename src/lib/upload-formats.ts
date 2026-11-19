@@ -99,3 +99,12 @@ export async function validateUploadFile(file: File): Promise<RejectReason | nul
 	const header = await readUploadHeader(file);
 	return checkMagicBytes(header, ext) ? null : 'contentMismatch';
 }
+
+export type UploadRejection = { key: string; vars: { name: string; ext: string } };
+
+export async function rejectUploadFile(file: File): Promise<UploadRejection | null> {
+	const vars = { name: file.name, ext: uploadExtname(file.name) };
+	if (isHeicUpload(file)) return { key: 'upload.reject.heic', vars };
+	const reason = await validateUploadFile(file);
+	return reason ? { key: `upload.reject.${reason}`, vars } : null;
+}

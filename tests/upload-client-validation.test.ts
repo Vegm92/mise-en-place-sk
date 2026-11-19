@@ -27,6 +27,7 @@ import {
 	checkMagicBytes,
 	readUploadHeader,
 	validateUploadFile,
+	rejectUploadFile,
 	type RejectReason,
 } from '../src/lib/upload-formats';
 
@@ -224,15 +225,50 @@ describe('unsupported-file message-key selection (mirrors UploadPanel.svelte#add
 		expect(untranslated(keys)).toEqual([]);
 	});
 
-	it('the component checks HEIC before validating the rest (source order, not just logic parity)', () => {
+	it('the component routes both the picker and the camera through the shared rejectUploadFile', () => {
 		const source = readFileSync(
 			new URL('../src/lib/components/UploadPanel.svelte', import.meta.url),
 			'utf-8',
 		);
-		const heicIdx = source.indexOf('isHeicUpload(f)');
-		const validateIdx = source.indexOf('validateUploadFile(f)');
-		expect(heicIdx, 'UploadPanel no longer special-cases HEIC before the shared validator').toBeGreaterThan(-1);
-		expect(validateIdx, 'UploadPanel no longer calls the shared client-side validator').toBeGreaterThan(-1);
-		expect(heicIdx).toBeLessThan(validateIdx);
+		const addFilesBody = source.slice(source.indexOf('async function addFiles'), source.indexOf('function removeFile'));
+		const cameraBody = source.slice(source.indexOf('async function onCameraCapture'), source.indexOf('function confirmPreview'));
+		expect(addFilesBody).toContain('rejectUploadFile(f)');
+		expect(cameraBody, 'camera capture skips the shared validator again (gap 2)').toContain('rejectUploadFile(f)');
+		expect(cameraBody.indexOf('rejectUploadFile(f)')).toBeLessThan(cameraBody.indexOf('previewUrl ='));
+		expect(cameraBody.indexOf('rejectUploadFile(f)')).toBeLessThan(cameraBody.indexOf('previewFile ='));
+	});
+});
+
+describe('rejectUploadFile — what the camera capture and the picker both run before a file is accepted', () => {
+	const jpegBytes = SAMPLE['.jpg']!;
+
+	it('accepts a well-formed camera JPEG', async () => {
+		expect(await rejectUploadFile(fileWith('captura.jpg', jpegBytes))).toBeNull();
+	});
+
+	it('rejects a HEIC capture by extension with the iPhone tip key, before any size or magic check', async () => {
+		expect(await rejectUploadFile(fileWith('IMG_0001.heic', jpegBytes)))
+			.toEqual({ key: 'upload.reject.heic', vars: { name: 'IMG_0001.heic', ext: '.heic' } });
+	});
+
+	it('rejects a HEIC capture that arrives with a .jpg name but a HEIC mime type', async () => {
+		const file = new File([Buffer.from(jpegBytes)], 'IMG_0002.jpg', { type: 'image/heic' });
+		expect((await rejectUploadFile(file))?.key).toBe('upload.reject.heic');
+	});
+
+	it('rejects a capture under the 1 KB floor as tooSmall', async () => {
+		expect((await rejectUploadFile(fileWith('tiny.jpg', [0xff, 0xd8, 0xff, 0xe0])))?.key).toBe('upload.reject.tooSmall');
+	});
+
+	it('rejects a capture whose bytes are not a JPEG as contentMismatch', async () => {
+		expect((await rejectUploadFile(fileWith('fake.jpg', SAMPLE['.pdf']!)))?.key).toBe('upload.reject.contentMismatch');
+	});
+
+	it('rejects an unsupported extension as unsupportedType', async () => {
+		expect((await rejectUploadFile(fileWith('captura.webp', jpegBytes)))?.key).toBe('upload.reject.unsupportedType');
+	});
+
+	it('every key it can return resolves in both locales', () => {
+		expect(untranslated(['upload.reject.heic', 'upload.reject.tooSmall', 'upload.reject.contentMismatch', 'upload.reject.unsupportedType'])).toEqual([]);
 	});
 });

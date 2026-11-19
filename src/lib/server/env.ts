@@ -76,5 +76,5 @@ export const DIGEST_SHARE_VIEW_RATE_LIMIT_RPM = parseInt(process.env.DIGEST_SHAR
 
 if (!GEMINI_API_KEY) console.warn('[env] GEMINI_API_KEY is not set — invoice extraction will fail');
 if (!APP_BASE_URL) {
-	console.warn('[env] APP_BASE_URL is not set — batch links sent over WhatsApp will be relative paths');
+	console.warn('[env] APP_BASE_URL is not set — links in notifications and emails will be relative paths');
 }
