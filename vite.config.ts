@@ -17,7 +17,11 @@ const testFiles = readdirSync('tests', { recursive: true })
 // XX000 "tuple concurrently updated". They get their own project, run last and one file
 // at a time (see the `test` script), so nothing else is writing the catalog meanwhile.
 const CATALOG_DDL = /REASSIGN OWNED|DROP OWNED|CREATE ROLE|GRANT [^`'"]* ON ALL (TABLES|SEQUENCES)/;
-const catalogTests = testFiles.filter((f) => CATALOG_DDL.test(readFileSync(f, 'utf8')));
+// Files that run the real extraction workflow leave batch_items / corpus rows mid-flight that
+// whole-table sweeps in other files count (queue-depth, 813-extraction-corpus), so they run
+// in the same serial project, after everything else.
+const SERIAL_PIPELINE_TESTS = ['tests/photo-intake-e2e.test.ts'];
+const catalogTests = testFiles.filter((f) => CATALOG_DDL.test(readFileSync(f, 'utf8')) || SERIAL_PIPELINE_TESTS.includes(f));
 const isolatedTests = testFiles.filter((f) => !catalogTests.includes(f) && MOCKS_OR_ENV.test(readFileSync(f, 'utf8')));
 const sharedTests = testFiles.filter((f) => !isolatedTests.includes(f) && !catalogTests.includes(f));
 

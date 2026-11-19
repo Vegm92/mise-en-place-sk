@@ -20,6 +20,12 @@
   --mep-r-pill:  999px;
 }
 
+body:not(:has(.mep-app-shell)) {
+  height: auto;
+  min-height: 100%;
+  padding-bottom: var(--mep-cookie-h, 0px);
+}
+
 .mep-app-shell {
   width: 100%;
   height: calc(100vh - var(--mep-cookie-h, 0px));
