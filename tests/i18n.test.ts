@@ -248,23 +248,23 @@ describe('ti (interpolating translator)', () => {
 describe('tp (pluralizing translator)', () => {
   it('selects the .one form for a count of 1', () => {
     setLocale('en');
-    expect(trp('misc.invoice', 1)).toBe('1 invoice');
+    expect(trp('misc.invoice', 1)).toBe('1 document');
     setLocale('es');
-    expect(trp('misc.invoice', 1)).toBe('1 albarán');
+    expect(trp('misc.invoice', 1)).toBe('1 documento');
   });
 
   it('selects the .other form and interpolates the count', () => {
     setLocale('en');
-    expect(trp('misc.invoice', 3)).toBe('3 invoices');
+    expect(trp('misc.invoice', 3)).toBe('3 documents');
     setLocale('es');
-    expect(trp('misc.invoice', 3)).toBe('3 albaranes');
+    expect(trp('misc.invoice', 3)).toBe('3 documentos');
   });
 
   it('uses the .zero form when defined for a count of 0', () => {
     setLocale('en');
-    expect(trp('misc.invoice', 0)).toBe('No invoices');
+    expect(trp('misc.invoice', 0)).toBe('No documents');
     setLocale('es');
-    expect(trp('misc.invoice', 0)).toBe('Sin albaranes');
+    expect(trp('misc.invoice', 0)).toBe('Sin documentos');
   });
 
   it('falls back to the .other form at 0 when no .zero form exists', () => {

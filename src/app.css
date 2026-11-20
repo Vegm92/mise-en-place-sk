@@ -1910,3 +1910,8 @@ body:not(:has(.mep-app-shell)) {
 .hud-kpi-value.good { color: #34d399; }
 .hud-kpi-value.warn { color: #fbbf24; }
 .hud-kpi-value.bad { color: #f87171; }
+
+.onb-root {
+  min-height: calc(100vh - var(--mep-cookie-h, 0px));
+  min-height: calc(100dvh - var(--mep-cookie-h, 0px));
+}

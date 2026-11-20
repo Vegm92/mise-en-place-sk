@@ -154,8 +154,8 @@ describe('batch review screen accessible names (issue #537)', () => {
   it('ties the header fields to their visible labels via <label for>', () => {
     for (const [fieldId, labelKey] of [
       ['field-supplier-name', "t('field.supplier')"],
-      ['field-invoice-number', "t('field.invoiceNum')"],
-      ['field-invoice-date', "t('field.invoiceDate')"],
+      ['field-invoice-number', "t(docKey('field.invoiceNum', documentTypeInput))"],
+      ['field-invoice-date', "t(docKey('field.invoiceDate', documentTypeInput))"],
       ['field-due-date', "t('extract.due')"],
       ['field-total-amount', "t('tbl.total')"],
       ['field-notes', "t('extract.notesInternal')"],
