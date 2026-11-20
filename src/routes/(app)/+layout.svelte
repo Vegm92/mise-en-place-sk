@@ -374,7 +374,7 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
   const pageTitle = $derived.by(() => {
     if (!page.data.title) return 'Mise en Place';
     if (page.data.titleParams) return ti(docKey(page.data.title, page.data.titleDocType), page.data.titleParams as Record<string, string | number>);
-    return t(page.data.title);
+    return t(docKey(page.data.title, page.data.titleDocType));
   });
   const userName  = $derived(data?.user?.name ?? 'Usuario');
   const headerPlace = $derived(currentLocation || data.restaurantName || '');

@@ -138,6 +138,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 		return {
 			title: 'edit.pageTitle',
+			titleDocType: row.document_type,
 			invoice: { ...row, total_amount: moneyToNullableNumber(row.total_amount) },
 			lineItems: lineItems.map(li => ({
 				...li,

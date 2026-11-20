@@ -56,7 +56,7 @@
     {/if}
 
     <div class="card p-5">
-      <p class="label mb-4">{t('edit.details').toUpperCase()}</p>
+      <p class="label mb-4">{t(docKey('edit.details', invoice.document_type)).toUpperCase()}</p>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="flex flex-col gap-1">
           <label class="label" for="edit-supplier">{t('field.supplier')}</label>
