@@ -15,9 +15,12 @@
  *   npx vite dev --port 5198 --host 127.0.0.1 &
  *   node scripts/cookie-banner-cta-audit.mjs --image=<path to a jpg > 1 KB>
  *   node scripts/cookie-banner-cta-audit.mjs --routes=/onboarding?preview=1
+ *   node scripts/cookie-banner-cta-audit.mjs --at-top --routes=/onboarding?preview=1
  *   node scripts/cookie-banner-cta-audit.mjs --anon --routes=/login,/signup
  *
  * Flags: --base-url (default http://127.0.0.1:5198), --email, --password,
+ *        --at-top (route mode: no scrolling; the CTA must be fully inside the
+ *        viewport and clear of the banner at scroll 0),
  *        --chrome=<path to a chromium binary>, --width (390), --height (844), --simulate-overlap (proves the check
  *        fails when the banner height is not reserved).
  */
@@ -36,6 +39,7 @@ const height = Number(arg('height', '844'));
 const image = arg('image', '');
 const chrome = arg('chrome', '');
 const simulateOverlap = process.argv.includes('--simulate-overlap');
+const atTop = process.argv.includes('--at-top');
 
 const routes = arg('routes', '').split(',').filter(Boolean);
 const anon = process.argv.includes('--anon');
@@ -76,13 +80,13 @@ async function auditRoute(page, banner, route) {
 	await page.waitForLoadState('networkidle');
 	await banner.waitFor({ state: 'visible', timeout: 10000 });
 	if (simulateOverlap) await page.evaluate(() => document.documentElement.style.setProperty('--mep-cookie-h', '0px'));
-	await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+	if (!atTop) await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
 	await page.waitForTimeout(300);
 	const bannerBox = await banner.boundingBox();
 	const out = [];
 	for (const el of await page.locator('button[type=submit]:visible:not(.mep-cookie-banner *)').all()) {
 		const label = ((await el.innerText()) || '').trim().slice(0, 40);
-		out.push({ route, label, banner: bannerBox, cta: await el.boundingBox() });
+		out.push({ route, label, strict: atTop, banner: bannerBox, cta: await el.boundingBox() });
 	}
 	if (out.length === 0) out.push({ route, label: '(no submit button found)', banner: bannerBox, cta: null });
 	return out;

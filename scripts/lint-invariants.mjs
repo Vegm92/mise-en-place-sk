@@ -394,7 +394,7 @@ const INLINE_TOKEN_STYLE_BUDGET = new Map([
 	['src/lib/components/waitlist/ExtractMock.svelte', 13],
 	['src/routes/(app)/settings/+page.svelte', 12],
 	['src/lib/components/waitlist/AppDashboardMock.svelte', 11],
-	['src/routes/onboarding/+page.svelte', 11],
+	['src/routes/onboarding/+page.svelte', 8],
 	['src/lib/components/mep/NotificationBell.svelte', 8],
 	['src/lib/components/mobile/MobileRecipes.svelte', 10],
 	['src/routes/(admin)/+layout.svelte', 10],

@@ -144,6 +144,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 		return {
 			title: 'inv.detail.pageTitle',
+			titleDocType: row.document_type,
 			titleParams: { number: row.invoice_number ?? row.id },
 			invoice: {
 				...row,

@@ -36,6 +36,7 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
   import Newspaper from '@lucide/svelte/icons/newspaper';
   import Sparkles from '@lucide/svelte/icons/sparkles';
   import { locale, t, initLocale, toggleLocale, ti, tp } from '$lib/i18n';
+  import { docKey } from '$lib/document-type';
   import DateRangePicker from '$lib/components/mep/DateRangePicker.svelte';
   import PeriodPicker from '$lib/components/mep/PeriodPicker.svelte';
   import { withPeriodParam } from '$lib/period';
@@ -372,8 +373,8 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
 
   const pageTitle = $derived.by(() => {
     if (!page.data.title) return 'Mise en Place';
-    if (page.data.titleParams) return ti(page.data.title, page.data.titleParams as Record<string, string | number>);
-    return t(page.data.title);
+    if (page.data.titleParams) return ti(docKey(page.data.title, page.data.titleDocType), page.data.titleParams as Record<string, string | number>);
+    return t(docKey(page.data.title, page.data.titleDocType));
   });
   const userName  = $derived(data?.user?.name ?? 'Usuario');
   const headerPlace = $derived(currentLocation || data.restaurantName || '');

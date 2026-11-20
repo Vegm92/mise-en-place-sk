@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { docKey } from '$lib/document-type';
   import type { PageData, ActionData } from './$types';
   import { enhance } from '$app/forms';
   import { locale, t, ti } from '$lib/i18n';
@@ -107,7 +108,7 @@
             <span class="body-strong">{invoice.supplier_name ?? '—'}</span>
           </div>
           <div style="display:flex;flex-direction:column;gap:2px;">
-            <span class="label">{t('field.invoiceNum')}</span>
+            <span class="label">{t(docKey('field.invoiceNum', invoice.document_type))}</span>
             <span class="body-strong">{invoice.invoice_number ?? '—'}</span>
           </div>
           {#if invoice.document_type}
@@ -117,7 +118,7 @@
             </div>
           {/if}
           <div style="display:flex;flex-direction:column;gap:2px;">
-            <span class="label">{t('field.invoiceDate')}</span>
+            <span class="label">{t(docKey('field.invoiceDate', invoice.document_type))}</span>
             <span class="body-strong">{fmtDate(invoice.invoice_date, locale.current)}</span>
           </div>
           <div style="display:flex;flex-direction:column;gap:2px;">
@@ -307,7 +308,7 @@
     <div class="card" style="overflow:hidden;">
       <div class="card-header">
         <div class="section-title">
-          <span class="subtitle">{t('extract.lineItems')}</span>
+          <span class="subtitle">{t(docKey('extract.lineItems', invoice.document_type))}</span>
         </div>
       </div>
       {#if unlinkedLineCount > 0}
