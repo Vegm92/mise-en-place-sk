@@ -15,12 +15,15 @@ export function registerPWA(): void {
 
 	if (import.meta.env.DEV) return;
 
-	window.addEventListener('load', () => {
+	const register = () => {
 		navigator.serviceWorker
 			.register('/sw.js', { scope: '/' })
 			.then(watchForUpdates)
 			.catch((err) => {
 				console.warn('[pwa] Service worker registration failed:', err);
 			});
-	});
+	};
+	// Kit 3 can hydrate after the load event, which would never fire again.
+	if (document.readyState === 'complete') register();
+	else window.addEventListener('load', register, { once: true });
 }

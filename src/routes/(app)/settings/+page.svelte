@@ -229,7 +229,7 @@
               <span class="set-lbl-hint">{t('set.profile.nameHint')}</span>
             </label>
             <div>
-              <input id="{idp}-profile-name" name="name" type="text" maxlength="80" required
+              <input name={nameForm.fields.name.as('text').name} id="{idp}-profile-name" type="text" maxlength="80" required
                 form="{idp}-form-cuenta" bind:value={profileName} class="input set-input" />
               {#if (nameForm.fields.name.issues() ?? []).length > 0}
                 <p class="set-msg set-msg-err">{t((nameForm.fields.name.issues() ?? [])[0]!.message)}</p>
