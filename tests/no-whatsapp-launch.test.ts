@@ -3,7 +3,7 @@
  * switched off behind the master flag WHATSAPP_ENABLED (default off). The Meta
  * credentials or WHATSAPP_BOT_ENABLED alone must not turn anything on.
  *
- * Contract: /home/vg/WarRoom/reports/contract-no-whatsapp.md (checks 1, 2, 2b, 3, 5, 5b, 6).
+ * Covers checks 1, 2, 2b, 3, 5, 5b and 6 of the no-WhatsApp launch contract.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
