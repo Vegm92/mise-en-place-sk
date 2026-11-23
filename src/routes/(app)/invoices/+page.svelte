@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { docKey } from '$lib/document-type';
   import type { PageData } from './$types';
   import { seriesColor } from '$lib/colors';
   import { untrack } from 'svelte';
@@ -547,7 +548,7 @@
                     </tbody>
                   </table>
                 {:else}
-                  <p class="body">{t('inv.detail.noLines')}</p>
+                  <p class="body">{t(docKey('inv.detail.noLines', inv.document_type))}</p>
                 {/if}
 
                 <div class="flex flex-col gap-1.5">

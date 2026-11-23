@@ -147,10 +147,12 @@ the silent failure mode before #518.
   stops the container ~10 minutes after each deploy and *nothing can wake it* —
   a queue consumer has no inbound request to trigger on. While it is stopped no
   job is consumed and no cron fires. This is config-as-code, not a dashboard
-  setting: `railway.json` (web) keeps `sleepApplication: true`, and the worker
-  service points its `railwayConfigFile` at **`railway.worker.json`**, which is
-  the same config with `sleepApplication: false`. Flipping it in the Railway
-  dashboard does not hold — the next deploy re-applies the file.
+  setting: both `railway.json` (web) and `railway.worker.json` (worker) set
+  `sleepApplication: false`, and the worker service points its
+  `railwayConfigFile` at **`railway.worker.json`**. The dashboard can still
+  display `sleepApplication: true` for the web service; the deployment's Config
+  tab shows the effective value. Flipping it in the Railway dashboard does not
+  hold — the next deploy re-applies the file.
 - **That config-as-code mechanism is deprecated and expires 2026-12-01.**
   Railway replaced `railway.json` / `railway.toml` with Infrastructure as Code
   (`.railway/railway.ts`), and stops reading the old files at the cutoff. The

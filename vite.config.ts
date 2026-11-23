@@ -11,8 +11,19 @@ const MOCKS_OR_ENV = /vi\.(mock|doMock|stubEnv|stubGlobal|hoisted)\(|process\.en
 const testFiles = readdirSync('tests', { recursive: true })
 	.map((f) => `tests/${String(f).replace(/\\/g, '/')}`)
 	.filter((f) => f.endsWith('.test.ts'));
-const isolatedTests = testFiles.filter((f) => MOCKS_OR_ENV.test(readFileSync(f, 'utf8')));
-const sharedTests = testFiles.filter((f) => !isolatedTests.includes(f));
+// Files that rewrite catalog rows every other file touches (CREATE ROLE, GRANT ... ON ALL
+// TABLES rewrites relacl on every table, REASSIGN/DROP OWNED) race against any file that
+// runs DDL or REFRESH MATERIALIZED VIEW at the same time: Postgres aborts one side with
+// XX000 "tuple concurrently updated". They get their own project, run last and one file
+// at a time (see the `test` script), so nothing else is writing the catalog meanwhile.
+const CATALOG_DDL = /REASSIGN OWNED|DROP OWNED|CREATE ROLE|GRANT [^`'"]* ON ALL (TABLES|SEQUENCES)/;
+// Files that run the real extraction workflow leave batch_items / corpus rows mid-flight that
+// whole-table sweeps in other files count (queue-depth, 813-extraction-corpus), so they run
+// in the same serial project, after everything else.
+const SERIAL_PIPELINE_TESTS = ['tests/photo-intake-e2e.test.ts'];
+const catalogTests = testFiles.filter((f) => CATALOG_DDL.test(readFileSync(f, 'utf8')) || SERIAL_PIPELINE_TESTS.includes(f));
+const isolatedTests = testFiles.filter((f) => !catalogTests.includes(f) && MOCKS_OR_ENV.test(readFileSync(f, 'utf8')));
+const sharedTests = testFiles.filter((f) => !isolatedTests.includes(f) && !catalogTests.includes(f));
 
 // Sentry, tailwind and the PWA plugin only matter for dev/build; under vitest
 // (environment: node, no component or CSS tests) merely importing them costs
@@ -129,6 +140,7 @@ export default defineConfig(({ mode }) => {
 			projects: [
 				{ extends: true, test: { name: 'shared', include: sharedTests } },
 				{ extends: true, test: { name: 'isolated', include: isolatedTests } },
+				{ extends: true, test: { name: 'catalog', include: catalogTests, fileParallelism: false } },
 			],
 			alias: { '@sentry/sveltekit': fileURLToPath(new URL('./tests/helpers/sentry-stub.ts', import.meta.url)) },
 			globalSetup: ['tests/setup/global-setup.ts'],

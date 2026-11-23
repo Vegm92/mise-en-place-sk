@@ -1,15 +1,20 @@
 import { type ActionOutcome, reject, succeed } from './action-outcome';
 import { WHATSAPP_ACCESS_TOKEN, WHATSAPP_DISPLAY_NUMBER, WHATSAPP_PHONE_NUMBER_ID } from './env';
+import { whatsappFeatureEnabled } from './integrations/whatsapp/whatsapp-config';
 import { listContacts, removeContact } from './whatsapp-contacts';
 import { activePairingCode, generatePairingCode, revokePairingCodes } from './whatsapp-pairing';
 import { requireOwner } from './restaurant-admin';
 import { renderQrSvg } from './qr-svg';
 import { formatPhoneNumber, normalizePhoneNumber, waMeLink } from '$lib/phone';
 
-export const WHATSAPP_ENABLED = Boolean(WHATSAPP_ACCESS_TOKEN && WHATSAPP_PHONE_NUMBER_ID);
+export const WHATSAPP_CONFIGURED = Boolean(WHATSAPP_ACCESS_TOKEN && WHATSAPP_PHONE_NUMBER_ID);
+
+export function whatsappPanelEnabled(): boolean {
+	return whatsappFeatureEnabled() && WHATSAPP_CONFIGURED;
+}
 
 export const WHATSAPP_BOT_NUMBER = (() => {
-	if (!WHATSAPP_ENABLED || !WHATSAPP_DISPLAY_NUMBER) return null;
+	if (!WHATSAPP_CONFIGURED || !WHATSAPP_DISPLAY_NUMBER) return null;
 	const normalized = normalizePhoneNumber(WHATSAPP_DISPLAY_NUMBER);
 	if (!normalized.ok) {
 		console.warn(`[settings] WHATSAPP_DISPLAY_NUMBER is not a usable phone number (${normalized.reason}) — hiding the click-to-chat block`);
@@ -25,14 +30,14 @@ export const WHATSAPP_BOT_NUMBER = (() => {
 
 export async function loadWhatsappPanel(restaurantId: string) {
 	const [contacts, pairingCode] = await Promise.all([
-		WHATSAPP_ENABLED ? listContacts(restaurantId) : Promise.resolve([]),
-		WHATSAPP_ENABLED ? activePairingCode(restaurantId) : Promise.resolve(null),
+		whatsappPanelEnabled() ? listContacts(restaurantId) : Promise.resolve([]),
+		whatsappPanelEnabled() ? activePairingCode(restaurantId) : Promise.resolve(null),
 	]);
 	return { contacts, pairingCode };
 }
 
 async function ownerGate(restaurantId: string, userId: string): Promise<ActionOutcome | null> {
-	if (!WHATSAPP_ENABLED) return reject(403, 'set.whatsapp.err.disabled');
+	if (!whatsappPanelEnabled()) return reject(403, 'set.whatsapp.err.disabled');
 	if (!(await requireOwner(restaurantId, userId))) return reject(403, 'set.whatsapp.err.notOwner');
 	return null;
 }

@@ -11,10 +11,6 @@ import {
 	type NormalizeJobData,
 } from './lib/server/contracts/products-contract.js';
 import {
-	WHATSAPP_NOTIFY_QUEUE,
-	type WhatsAppNotifyJobData,
-} from './lib/server/contracts/whatsapp-contract.js';
-import {
 	ACCOUNT_CLEANUP_QUEUE,
 	type AccountCleanupJobData,
 	type LegacyAccountCleanupJobData,
@@ -30,10 +26,7 @@ import { assertRoleConfig } from './lib/server/config.js';
 import { MAX_CONCURRENT_EXTRACTIONS } from './lib/server/env.js';
 import { createLogger } from './lib/server/log.js';
 import { recordWorkerHeartbeat, startWorkerHeartbeat } from './lib/server/worker-heartbeat.js';
-import { handleInboundMessage } from './lib/server/integrations/whatsapp/message-handler.js';
-import { newRequestId } from './lib/server/request-id.js';
-import { notifyWhatsAppSender } from './lib/server/integrations/whatsapp/notify.js';
-import { startWhatsAppTransport } from './lib/server/integrations/whatsapp/runtime.js';
+import { startWhatsAppWorker } from './lib/server/integrations/whatsapp/worker-registration.js';
 import type { WhatsAppTransport } from './lib/server/integrations/whatsapp/transport.js';
 
 const NODE_ENV: string = process.env.NODE_ENV ?? 'development';
@@ -140,22 +133,7 @@ await boss.work(
 );
 log.info('Listening for queue jobs', { queue: ACCOUNT_CLEANUP_QUEUE });
 
-const whatsapp: WhatsAppTransport | null = await startWhatsAppTransport();
-if (whatsapp) {
-	whatsapp.onMessage((msg) => handleInboundMessage(msg, whatsapp, newRequestId()));
-	await boss.work(
-		WHATSAPP_NOTIFY_QUEUE,
-		{ batchSize: 1, includeMetadata: true },
-		async (jobs: JobWithMetadata<WhatsAppNotifyJobData>[]) => {
-			for (const job of jobs) {
-				await runJob(job, () => notifyWhatsAppSender(job.data, whatsapp));
-			}
-		},
-	);
-	log.info('Listening for queue jobs', { queue: WHATSAPP_NOTIFY_QUEUE });
-} else {
-	log.info('WhatsApp bot disabled — not starting a transport');
-}
+const whatsapp: WhatsAppTransport | null = await startWhatsAppWorker(boss);
 
 await registerScheduledJobs(boss);
 

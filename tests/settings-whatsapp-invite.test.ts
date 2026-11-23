@@ -24,7 +24,7 @@ vi.mock('$lib/server/db', async () => {
 
 vi.mock('../src/lib/server/env', async (importOriginal) => {
 	const actual = await importOriginal<typeof import('../src/lib/server/env')>();
-	return { ...actual, WHATSAPP_ACCESS_TOKEN: 'test-token', WHATSAPP_PHONE_NUMBER_ID: '123456', WHATSAPP_DISPLAY_NUMBER: '' };
+	return { ...actual, WHATSAPP_ENABLED: true, WHATSAPP_ACCESS_TOKEN: 'test-token', WHATSAPP_PHONE_NUMBER_ID: '123456', WHATSAPP_DISPLAY_NUMBER: '' };
 });
 
 import { testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv } from './helpers/test-db';

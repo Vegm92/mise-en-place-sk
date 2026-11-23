@@ -10,6 +10,10 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 
+vi.hoisted(() => {
+	process.env.WHATSAPP_ENABLED = 'true';
+});
+
 vi.mock('pg-boss', async () => (await import('./helpers/pg-boss-mock')).pgBossMockModule);
 
 import {

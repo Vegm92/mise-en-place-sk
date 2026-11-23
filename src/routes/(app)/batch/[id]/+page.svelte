@@ -3,6 +3,7 @@
   import { MediaQuery } from 'svelte/reactivity';
   import { goto, invalidateAll } from '$app/navigation';
   import { enhance } from '$app/forms';
+  import { docKey } from '$lib/document-type';
   import type { PageData } from './$types';
   import { str } from '$lib/formatters';
   import { UPLOAD_ACCEPT } from '$lib/upload-formats';
@@ -740,7 +741,7 @@
       <span class="rev-strip-name">
         <span class="rev-strip-file">{activeDoc?.name ?? ''}</span>
         <span class="num rev-strip-sub">
-          {ti('review.docOf', { i: activeDocIndex, n: data.queue.length })}{queueRemaining > 0 ? ` · ${tp('review.inQueue', queueRemaining)}` : ''}
+          {ti(docKey('review.docOf', documentTypeInput), { i: activeDocIndex, n: data.queue.length })}{queueRemaining > 0 ? ` · ${tp('review.inQueue', queueRemaining)}` : ''}
         </span>
       </span>
       <span class="rev-strip-dots">
@@ -1084,7 +1085,7 @@
                 </div>
                 <div>
                   <label class="rev-field-label" for="field-invoice-number">
-                    {t('field.invoiceNum')}
+                    {t(docKey('field.invoiceNum', documentTypeInput))}
                     <ConfidenceDot confidence={fieldConf.invoice_number} />
                   </label>
                   <input id="field-invoice-number" type="text" name="invoice_number" bind:value={invoiceNumberInput}
@@ -1103,7 +1104,7 @@
                 </div>
                 <div>
                   <label class="rev-field-label" for="field-invoice-date">
-                    {t('field.invoiceDate')}
+                    {t(docKey('field.invoiceDate', documentTypeInput))}
                     <ConfidenceDot confidence={fieldConf.invoice_date} />
                   </label>
                   <input id="field-invoice-date" type="text" name="invoice_date" bind:value={invoiceDateInput} placeholder="YYYY-MM-DD"
@@ -1210,7 +1211,7 @@
 
             <div class="rev-sticky-head">
               <div class="body-strong">
-                {t('extract.lineItems')} <span class="num text-fg-3 font-normal">· {lineItems.length}</span>
+                {t(docKey('extract.lineItems', documentTypeInput))} <span class="num text-fg-3 font-normal">· {lineItems.length}</span>
               </div>
               <button type="button" class="btn btn-ghost" style="height:26px;font-size:12px;padding:0 8px;gap:5px;" onclick={addRow}>
                 <Plus size={12} /> {t('extract.addLine')}

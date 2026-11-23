@@ -21,6 +21,8 @@ type AccountRow = {
 	email_verified: string | null;
 	created_at: string;
 	restaurant_count: string;
+	attr_campaign: string | null;
+	attr_content: string | null;
 };
 
 const AccountRowSchema = v.object({
@@ -31,13 +33,17 @@ const AccountRowSchema = v.object({
 	email_verified: v.nullable(v.string()),
 	created_at: v.union([v.string(), v.instance(Date)]),
 	restaurant_count: v.union([v.string(), v.number()]),
+	attr_campaign: v.nullish(v.string()),
+	attr_content: v.nullish(v.string()),
 });
 
-type WaitlistRow = { email: string; created_at: string };
+type WaitlistRow = { email: string; created_at: string; campaign: string | null; content: string | null };
 
 const WaitlistRowSchema = v.object({
 	email: v.string(),
 	created_at: v.union([v.string(), v.instance(Date)]),
+	campaign: v.nullish(v.string()),
+	content: v.nullish(v.string()),
 });
 
 export const load: PageServerLoad = async () => {
@@ -45,7 +51,7 @@ export const load: PageServerLoad = async () => {
 		safe('admin/access-flag', () => isAccessOpen(), false),
 		safe<AccountRow[]>('admin/access-accounts', async () => {
 			const rawRows = await db.execute(sql`
-				SELECT u.id, u.email, u.access_status, u.founder, u.email_verified, u.created_at,
+				SELECT u.id, u.email, u.access_status, u.founder, u.email_verified, u.created_at, u.attr_campaign, u.attr_content,
 					(SELECT COUNT(*) FROM user_restaurants ur WHERE ur.user_id = u.id) AS restaurant_count
 				FROM ${users} u
 				ORDER BY (u.access_status = 'pending') DESC, u.created_at DESC
@@ -56,11 +62,13 @@ export const load: PageServerLoad = async () => {
 				...r,
 				created_at: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
 				restaurant_count: String(r.restaurant_count),
+				attr_campaign: r.attr_campaign ?? null,
+				attr_content: r.attr_content ?? null,
 			}));
 		}, []),
 		safe<WaitlistRow[]>('admin/access-waitlist', async () => {
 			const rawRows = await db.execute(sql`
-				SELECT w.email, w.created_at
+				SELECT w.email, w.created_at, w.campaign, w.content
 				FROM ${waitlist} w
 				WHERE NOT EXISTS (SELECT 1 FROM ${users} u WHERE u.email = w.email)
 				ORDER BY w.created_at DESC
@@ -70,6 +78,8 @@ export const load: PageServerLoad = async () => {
 			return rows.map((r) => ({
 				...r,
 				created_at: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
+				campaign: r.campaign ?? null,
+				content: r.content ?? null,
 			}));
 		}, []),
 	]);

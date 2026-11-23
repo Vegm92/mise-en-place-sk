@@ -37,7 +37,7 @@
     { href: '/admin/activation', label: t('admin.activation.nav') },
     { href: '/admin/feature-flags', label: t('admin.featureFlags.nav') },
     { href: '/admin/events',  label: t('admin.events') },
-    { href: '/admin/whatsapp', label: t('admin.whatsapp.nav') },
+    ...(data.whatsappEnabled ? [{ href: '/admin/whatsapp', label: t('admin.whatsapp.nav') }] : []),
     { href: '/admin/dead-letters', label: t('admin.dlq.nav') },
     { href: '/admin/errors',  label: t('admin.errors') },
     { href: '/admin/learning', label: t('admin.learning.nav') },

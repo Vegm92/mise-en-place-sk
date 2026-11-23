@@ -121,9 +121,19 @@ with zero manual steps while every app table in `public` stays owned by the migr
    ADR's audit missed — a query that legitimately needs to see more than one tenant but was not routed
    through `runAsSystem()` (see ADR-030's table of enumerated call sites). To un-block production while
    that is fixed forward, without losing the least-privilege boundary #464 built:
-   - **Fastest, temporary:** point `DATABASE_URL` back at the owner/superuser connection string (the
-     same value `DATABASE_MIGRATION_URL` holds) — this exactly reverses step 2 and makes RLS inert
-     again immediately, same as before this cutover.
+   - **Worker:** point `DATABASE_URL` back at the owner/superuser connection string (the same value
+     `DATABASE_MIGRATION_URL` holds on the web service) and redeploy — the worker does not run the
+     boot check below, so this makes RLS inert for it again immediately.
+   - **Web, on code that includes `assertScopedDbRole()`** (`src/hooks.server.ts`, `src/lib/server/db-role.ts`,
+     since #1272): this lever **does not work**. In production the web process calls the check at boot
+     and `process.exit(1)`s when `DATABASE_URL` is not a scoped role (not superuser, no BYPASSRLS, not
+     the owner of `restaurants`), so an owner URL on the web crash-loops and Railway keeps serving the
+     previous deployment. Either redeploy a commit from before #1272 (note its SHA before the cutover)
+     and then point `DATABASE_URL` at the owner, or fix forward and redeploy. Consequently the cutover
+     must be done **before** deploying any build that contains the check; deploy that build only once
+     `DATABASE_URL` is `mep_runtime` on the web service.
+     - Run `scripts/ops/verify-runtime-cutover.sh` (needs `RUNTIME_URL` and `OWNER_URL`) instead of the
+       manual psql lines to get an OK/FAIL per check.
      - Do **not** run `ALTER TABLE … DISABLE ROW LEVEL SECURITY` or `DROP POLICY` as a live-incident
        response — that is a migration-level change, reviewed and shipped normally, not a rollback
        lever to pull under production load.
@@ -274,6 +284,8 @@ where the Node process is directly internet-facing.
 
 ### WhatsApp Cloud API (optional — invoice ingest by WhatsApp)
 
+> **Disabled for the free/demo launch.** Every WhatsApp surface (Baileys transport, Settings tab and actions, `/admin/whatsapp`, digest push, notify queue, health probes) is behind the master switch `WHATSAPP_ENABLED`; unset means off, and `WHATSAPP_BOT_ENABLED` or the Meta credentials alone do not turn anything on. To re-enable set `WHATSAPP_ENABLED=true` **and restore the WhatsApp/Meta sections removed from `src/lib/content/legal/privacy.ts`** (data collected, international transfers). Baileys is an unofficial client (ADR-025). The `@whiskeysockets/baileys` dependency stays in the worker bundle but is never loaded while the flag is off.
+
 | Variable | Required | Notes |
 |---|---|---|
 | `WHATSAPP_ACCESS_TOKEN` | For WhatsApp | Permanent system-user token with `whatsapp_business_messaging` (Meta App → WhatsApp → API Setup). |
@@ -389,7 +401,7 @@ six `AWS_*` variables on each (see [File storage](#file-storage)). Set `ADDRESS_
 ## Production constraints (read before scaling)
 
 - **One web + one worker.** The rate limiter is an in-memory bucket per process and extraction concurrency is the worker's `batchSize`, so extra replicas multiply both limits. Add a shared store before scaling the web tier out, and a real cross-process cap before scaling the worker. Upload sessions live in Postgres and are replica-safe.
-- **Persistent, shared storage** for uploads (see [File storage](#file-storage)) + a backup policy for both the volume and the database.
+- **Persistent, shared storage** for uploads (see [File storage](#file-storage)) + a backup policy for both the volume and the database. Policy: target RPO 24 h and RTO 4 h. Layer A is the Railway volume backups of the Postgres service (schedule and retention depend on the plan: confirm in the dashboard). Layer B is independent of Railway: `scripts/ops/pg-backup.sh` takes a daily `pg_dump --format=custom` (plus a `.counts` sidecar) to an S3-compatible bucket outside the project, keeping the newest 30 and the oldest of each of the newest 12 months, optionally `age`-encrypted. Mirror the uploads bucket to a second bucket separately. Prove restores with `scripts/ops/restore-check.sh <dump>` (throwaway local Postgres container, compares row counts and the `drizzle.__drizzle_migrations` ledger) after setup and at least quarterly. Dumps contain customer data: keep them private and delete test copies.
 - **`ADDRESS_HEADER` only where a proxy actually rewrites the header** (see [Reverse proxy / client IP](#reverse-proxy--client-ip)): behind a real proxy and unset, all IP-keyed limits collapse into one shared bucket; with nothing in front to rewrite it and set anyway, those same limits become spoofable.
 - Scheduled work (weekly digest generation + email, overdue-invoice reminders, trial-expiry notices) runs as pg-boss cron jobs inside the **worker** process (`src/lib/server/scheduler.ts`). If the worker is not running, none of it fires.
 - Security headers are set by the app: HSTS, X-Frame-Options, nosniff, Referrer-Policy and Permissions-Policy in `src/hooks.server.ts`; CSP (hash mode) in `svelte.config.js`. **Do not add a second CSP at the proxy** — two policies intersect and will break the app. The proxy only needs the PWA cache headers below.
@@ -451,8 +463,9 @@ and `OK`/`NO` replies behave identically either way.
    banned personal number costs someone their own messaging.
 2. Set `WHATSAPP_BOT_ENABLED=true` on the **worker** service only. The web
    service never opens a socket.
-3. **Disable `sleepApplication` on the worker service** in Railway. The repo's
-   `railway.json` sets it for the web service, and a slept process drops the
+3. **Disable `sleepApplication` on the worker service** in Railway. Both
+   `railway.json` (web) and `railway.worker.json` (worker) set it to `false`; the dashboard may still
+   show `true`, and the deployment's Config tab shows what applied. A slept process drops the
    socket — the bot goes silent until something wakes it.
 4. Deploy, then pair. The worker has no HTTP port, so the QR is surfaced twice:
    as ASCII in the worker log, and at **`/admin/whatsapp`** as a rendered code.

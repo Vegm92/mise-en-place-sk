@@ -1,4 +1,4 @@
-import { fail } from '@sveltejs/kit';
+import { error, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { safe } from '$lib/server/load-guard';
 import { isAdminUser } from '$lib/server/admin';
@@ -7,10 +7,11 @@ import { renderQrSvg } from '$lib/server/qr-svg';
 import {
 	WHATSAPP_BOT_FLAG, WHATSAPP_QR_FLAG, WHATSAPP_STATUS_FLAG,
 } from '$lib/server/integrations/whatsapp/runtime';
-import { WHATSAPP_BOT_ENABLED } from '$lib/server/env';
+import { WHATSAPP_BOT_ENABLED, WHATSAPP_ENABLED } from '$lib/server/env';
 import { releaseContactByPhone } from '$lib/server/whatsapp-contacts';
 
 export const load: PageServerLoad = async () => {
+	if (!WHATSAPP_ENABLED) error(404, 'Not found');
 	const [killSwitch, qr, status] = await Promise.all([
 		safe('admin/whatsapp-flag', () => getFlag(WHATSAPP_BOT_FLAG), null),
 		safe('admin/whatsapp-qr', () => getFlag(WHATSAPP_QR_FLAG), null),
@@ -28,6 +29,7 @@ export const load: PageServerLoad = async () => {
 
 export const actions: Actions = {
 	toggleBot: async ({ request, locals }) => {
+		if (!WHATSAPP_ENABLED) error(404, 'Not found');
 		if (!isAdminUser(locals.user)) return fail(403, { error: 'forbidden' });
 
 		const data = await request.formData();
@@ -36,6 +38,7 @@ export const actions: Actions = {
 	},
 
 	releaseContact: async ({ request, locals }) => {
+		if (!WHATSAPP_ENABLED) error(404, 'Not found');
 		if (!isAdminUser(locals.user)) return fail(403, { error: 'forbidden' });
 
 		const data = await request.formData();

@@ -67,6 +67,7 @@ export const WHATSAPP_API_VERSION     = process.env.WHATSAPP_API_VERSION     ?? 
 export const WHATSAPP_DISPLAY_NUMBER  = process.env.WHATSAPP_DISPLAY_NUMBER  ?? '';
 export const WHATSAPP_SENDER_HOURLY_LIMIT = parseInt(process.env.WHATSAPP_SENDER_HOURLY_LIMIT ?? '30', 10);
 export const WHATSAPP_BOT_ENABLED      = process.env.WHATSAPP_BOT_ENABLED      ?? '';
+export const WHATSAPP_ENABLED          = (process.env.WHATSAPP_ENABLED          ?? '').trim().toLowerCase() === 'true';
 export const EMAIL_INGEST_ENABLED      = process.env.EMAIL_INGEST_ENABLED      ?? '';
 export const EMAIL_INGEST_DOMAIN       = process.env.EMAIL_INGEST_DOMAIN       ?? '';
 export const RESEND_WEBHOOK_SECRET     = process.env.RESEND_WEBHOOK_SECRET     ?? '';
@@ -88,5 +89,5 @@ if (process.env.EXTRACTION_FIXTURES && !EXTRACTION_FIXTURES) {
 if (EXTRACTION_FIXTURES) console.warn('[env] EXTRACTION_FIXTURES=1 — extraction returns golden-corpus fixtures, not LLM output');
 if (!GEMINI_API_KEY) console.warn('[env] GEMINI_API_KEY is not set — invoice extraction will fail');
 if (!APP_BASE_URL) {
-	console.warn('[env] APP_BASE_URL is not set — batch links sent over WhatsApp will be relative paths');
+	console.warn('[env] APP_BASE_URL is not set — links in notifications and emails will be relative paths');
 }

@@ -1,6 +1,7 @@
 export interface Attribution {
 	source: string | null;
 	campaign: string | null;
+	content: string | null;
 	variant: string | null;
 	segment: string | null;
 	referrer: string | null;
@@ -16,6 +17,7 @@ const SAFE_CHARS_RE = /[^a-zA-Z0-9 _\-.:/]/g;
 const QUERY_PARAM_MAP: Record<string, keyof Omit<Attribution, 'referrer' | 'landingPath'>> = {
 	utm_source: 'source',
 	utm_campaign: 'campaign',
+	utm_content: 'content',
 	variant: 'variant',
 	segment: 'segment',
 	ref: 'referredBy',
@@ -24,6 +26,7 @@ const QUERY_PARAM_MAP: Record<string, keyof Omit<Attribution, 'referrer' | 'land
 export const EMPTY_ATTRIBUTION: Attribution = {
 	source: null,
 	campaign: null,
+	content: null,
 	variant: null,
 	segment: null,
 	referrer: null,
@@ -60,7 +63,7 @@ export function parseAttribution(url: URL, referer?: string | null): Attribution
 }
 
 export function hasAttributionSignal(a: Attribution): boolean {
-	return !!(a.source || a.campaign || a.variant || a.segment || a.referrer || a.referredBy);
+	return !!(a.source || a.campaign || a.content || a.variant || a.segment || a.referrer || a.referredBy);
 }
 
 export function serializeAttribution(a: Attribution): string {
@@ -80,6 +83,7 @@ export function parseAttributionCookie(raw: string | null | undefined): Attribut
 	return {
 		source: clean(obj.source),
 		campaign: clean(obj.campaign),
+		content: clean(obj.content),
 		variant: clean(obj.variant),
 		segment: clean(obj.segment),
 		referrer: clean(obj.referrer),

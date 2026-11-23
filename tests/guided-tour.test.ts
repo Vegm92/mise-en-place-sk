@@ -163,7 +163,7 @@ describe('the tour chrome is themed', () => {
 		// tour chrome rendered as a sibling of the shell resolves them to nothing:
 		// the primary button loses its fill and the spotlight ring disappears, in
 		// both themes, with no error anywhere.
-		const shellOpen = SHELL.indexOf('<div class="mep"');
+		const shellOpen = SHELL.indexOf('<div class="mep ');
 		const chromeOpen = SHELL.indexOf('{#if browser}');
 		expect(shellOpen).toBeGreaterThan(-1);
 		expect(chromeOpen).toBeGreaterThan(shellOpen);

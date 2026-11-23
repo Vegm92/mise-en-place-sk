@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { docKey } from '$lib/document-type';
   import { untrack } from 'svelte';
   import type { ActionData, PageData } from './$types';
   import { initRows, addRow, removeRow, updateRow, calcTotal } from '$lib/invoice-items';
@@ -55,7 +56,7 @@
     {/if}
 
     <div class="card p-5">
-      <p class="label mb-4">{t('edit.details').toUpperCase()}</p>
+      <p class="label mb-4">{t(docKey('edit.details', invoice.document_type)).toUpperCase()}</p>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="flex flex-col gap-1">
           <label class="label" for="edit-supplier">{t('field.supplier')}</label>
@@ -63,12 +64,12 @@
             class="input" style="height:36px;" />
         </div>
         <div class="flex flex-col gap-1">
-          <label class="label" for="edit-inv-num">{t('field.invoiceNum')}</label>
+          <label class="label" for="edit-inv-num">{t(docKey('field.invoiceNum', invoice.document_type))}</label>
           <input id="edit-inv-num" type="text" name="invoice_number" value={invoice.invoice_number ?? ''}
             class="input" style="height:36px;" />
         </div>
         <div class="flex flex-col gap-1">
-          <label class="label" for="edit-inv-date">{t('field.invoiceDate')}</label>
+          <label class="label" for="edit-inv-date">{t(docKey('field.invoiceDate', invoice.document_type))}</label>
           <input id="edit-inv-date" type="date" name="invoice_date" value={invoice.invoice_date ?? ''}
             class="input" style="height:36px;" />
         </div>
@@ -124,7 +125,7 @@
 
     <div class="card overflow-hidden">
       <div class="card-header">
-        <span class="body-strong" style="font-size:14px;">{t('edit.lineItems')}</span>
+        <span class="body-strong" style="font-size:14px;">{t(docKey('edit.lineItems', invoice.document_type))}</span>
       </div>
       <div class="p-5">
         <div class="li-grid li-head mb-2 items-end">
