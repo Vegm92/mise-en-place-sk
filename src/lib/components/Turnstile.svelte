@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { env } from '$env/dynamic/public';
+	import { PUBLIC_TURNSTILE_SITE_KEY } from '$app/env/public';
 
-	const siteKey = env.PUBLIC_TURNSTILE_SITE_KEY ?? '';
+	const siteKey = PUBLIC_TURNSTILE_SITE_KEY ?? '';
 	let widget: HTMLDivElement | undefined = $state();
 
 	$effect(() => {
