@@ -23,7 +23,7 @@
   const hasInventoryTemplate = $derived(data.features.inventoryTemplate);
 
   function setSort(next: string) {
-    goto(productSortHref(next as ProductSortKey, page.url.searchParams), { keepFocus: true, noScroll: true });
+    goto(productSortHref(next as ProductSortKey, new URLSearchParams(page.url.search)), { reset: false });
   }
 
   const UNCATEGORIZED_FILTER = '__uncategorized__';

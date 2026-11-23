@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { toggleTheme as flipTheme, currentTheme } from '$lib/theme';
-  import { browser } from '$app/environment';
+  import { browser } from '$app/env';
   import { slide } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
   import Sun from '@lucide/svelte/icons/sun';
@@ -64,7 +64,7 @@
   }
 
   const alternate = $derived(otherLocale(locale.current));
-  const alternateHref = $derived(localeHref(page.url, alternate));
+  const alternateHref = $derived(localeHref(new URL(page.url.href), alternate));
 
   function rememberLocale() {
     setLocale(alternate);

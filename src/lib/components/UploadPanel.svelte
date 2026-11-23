@@ -24,7 +24,7 @@
   import { online } from 'svelte/reactivity/window';
   import { goto } from '$app/navigation';
   import { deserialize } from '$app/forms';
-  import type { ActionResult } from '@sveltejs/kit';
+  import type { ActionResult } from '$app/forms';
   import Upload from '@lucide/svelte/icons/upload';
   import FolderUp from '@lucide/svelte/icons/folder-up';
   import Sparkle from '@lucide/svelte/icons/sparkle';

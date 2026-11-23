@@ -102,6 +102,8 @@ async function clearStaleCustomer(rid: string): Promise<void> {
 		.where(tdb.scope(subscriptions.restaurantId));
 }
 
+const STRIPE_REDIRECT = { external: ['https://checkout.stripe.com', 'https://billing.stripe.com'] };
+
 async function redirectExistingSubscriber(
 	rid: string,
 	stripeCustomerId: string | null,
@@ -109,7 +111,7 @@ async function redirectExistingSubscriber(
 ): Promise<never> {
 	if (stripeCustomerId) {
 		try {
-			redirect(303, await createPortalSession(stripeCustomerId, `${origin}/billing`));
+			redirect(303, await createPortalSession(stripeCustomerId, `${origin}/billing`), STRIPE_REDIRECT);
 		} catch (err) {
 			if (!(err instanceof StaleCustomerError)) throw err;
 			await clearStaleCustomer(rid);
@@ -160,7 +162,7 @@ export const actions: Actions = {
 		}
 
 		if (currentActive) {
-			redirect(303, await getPortalOrBillingUrl(currentActive.stripeCustomerId, siteOrigin(url)));
+			redirect(303, await getPortalOrBillingUrl(currentActive.stripeCustomerId, siteOrigin(url)), STRIPE_REDIRECT);
 		}
 
 		const idemKeyRaw = parsedForm.success ? parsedForm.output.idempotency_key : undefined;
@@ -208,7 +210,7 @@ export const actions: Actions = {
 			throw err;
 		}
 
-		redirect(303, checkoutUrl);
+		redirect(303, checkoutUrl, STRIPE_REDIRECT);
 	},
 
 	portal: async ({ locals, url }) => {
@@ -225,7 +227,7 @@ export const actions: Actions = {
 		if (!sub?.stripeCustomerId) error(400, 'No billing account found. Subscribe first.');
 
 		try {
-			redirect(303, await createPortalSession(sub.stripeCustomerId, `${siteOrigin(url)}/billing`));
+			redirect(303, await createPortalSession(sub.stripeCustomerId, `${siteOrigin(url)}/billing`), STRIPE_REDIRECT);
 		} catch (err) {
 			if (!(err instanceof StaleCustomerError)) throw err;
 			await db.update(subscriptions)

@@ -9,7 +9,7 @@ import { STORAGE_DRIVER, UPLOADS_DIR, HEALTH_CHECK_TOKEN, HEALTH_RATE_LIMIT_RPM 
 import fs from 'node:fs';
 import path from 'node:path';
 import { timingSafeEqual } from 'node:crypto';
-import { version } from '$app/environment';
+import { version } from '$app/env';
 import { readWorkerHeartbeat, workerLiveness } from '$lib/server/worker-heartbeat';
 import { isAdminUser } from '$lib/server/admin';
 import { checkRateLimit } from '$lib/server/rate-limiter';

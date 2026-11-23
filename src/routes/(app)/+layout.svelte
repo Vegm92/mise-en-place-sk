@@ -4,7 +4,7 @@
   import { onMount, untrack } from 'svelte';
   import { on } from 'svelte/events';
   import { MediaQuery } from 'svelte/reactivity';
-  import { browser } from '$app/environment';
+  import { browser } from '$app/env';
   import { goto } from '$app/navigation';
   import CoachMark from '$lib/components/mep/CoachMark.svelte';
   import Logo from '$lib/components/mep/Logo.svelte';

@@ -2,6 +2,7 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig, loadEnv, type PluginOption } from 'vite';
 import { fileURLToPath } from 'node:url';
 import { readdirSync, readFileSync } from 'node:fs';
+import sveltekitConfig from './sveltekit.config.js';
 
 // Files that never touch the module mocker or process.env can share one
 // module graph per worker (isolate: false), which is where most of the
@@ -18,10 +19,10 @@ const sharedTests = testFiles.filter((f) => !isolatedTests.includes(f));
 // (environment: node, no component or CSS tests) merely importing them costs
 // ~1s of fixed startup per invocation, paid twice by `pnpm test`.
 async function buildOnlyPlugins(): Promise<[PluginOption[], PluginOption[]]> {
-	const [{ sentrySvelteKit }, { default: tailwindcss }, { VitePWA }] = await Promise.all([
+	const [{ sentrySvelteKit }, { default: tailwindcss }, { withPwa }] = await Promise.all([
 		import('@sentry/sveltekit'),
 		import('@tailwindcss/vite'),
-		import('vite-plugin-pwa'),
+		import('@vite-pwa/sveltekit'),
 	]);
 	// Uploads source maps and creates a release on build when SENTRY_AUTH_TOKEN is
 	// set; a silent no-op otherwise. Registered before sveltekit() below.
@@ -40,18 +41,20 @@ async function buildOnlyPlugins(): Promise<[PluginOption[], PluginOption[]]> {
 		...(process.env['SENTRY_PROJECT'] ? { project: process.env['SENTRY_PROJECT'] } : {}),
 		...(process.env['SENTRY_AUTH_TOKEN'] ? { authToken: process.env['SENTRY_AUTH_TOKEN'] } : {}),
 	});
-	const pwa = VitePWA({
+	const kitWithPwa = withPwa(sveltekitConfig, {
 		// SW updates silently in the background; new version activates on next visit.
 		registerType: 'autoUpdate',
 		// Null: we register manually in +layout.svelte to stay CSP-compatible.
 		injectRegister: null,
 		// We own the manifest (static/manifest.webmanifest); no plugin injection.
 		manifest: false,
-		workbox: {
+		generateSW: {
 			// Precache JS bundles, CSS, fonts, and icons.
 			// HTML pages are SSR — skip them (no navigateFallback).
-			globPatterns: ['**/*.{js,css,woff2}', 'icons/**/*.png'],
+			globPatterns: ['client/**/*.{js,css,woff2}', 'client/icons/**/*.png'],
 			navigateFallback: null,
+			// The integration always adds a prerendered/ glob, and this app prerenders nothing.
+			globStrict: false,
 			cleanupOutdatedCaches: true,
 			runtimeCaching: [
 				{
@@ -91,9 +94,9 @@ async function buildOnlyPlugins(): Promise<[PluginOption[], PluginOption[]]> {
 			],
 		},
 	});
-	return [[...sentryPlugins, tailwindcss()], [pwa]];
+	return [[...sentryPlugins, tailwindcss()], kitWithPwa];
 }
-const [prePlugins, postPlugins] = process.env['VITEST'] ? [[], []] : await buildOnlyPlugins();
+const [prePlugins, kitPlugins] = process.env['VITEST'] ? [[], [sveltekit(sveltekitConfig)]] : await buildOnlyPlugins();
 
 export default defineConfig(({ mode }) => {
 	// Vite loads .env into import.meta.env / $env only — server modules that
@@ -104,7 +107,10 @@ export default defineConfig(({ mode }) => {
 	}
 
 	return {
-		plugins: [...prePlugins, sveltekit(), ...postPlugins],
+		plugins: [...prePlugins, ...kitPlugins],
+		resolve: {
+			alias: { $lib: fileURLToPath(new URL('./src/lib', import.meta.url)) },
+		},
 		build: {
 			reportCompressedSize: false,
 			sourcemap: process.env['SENTRY_AUTH_TOKEN'] ? 'hidden' : false,

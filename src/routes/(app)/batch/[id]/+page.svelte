@@ -451,7 +451,7 @@
 
   async function selectItem(itemId: string) {
     if (itemId === data.review?.itemId) return;
-    await goto(`/batch/${data.batchId}?item=${itemId}`, { keepFocus: true, noScroll: true });
+    await goto(`/batch/${data.batchId}?item=${itemId}`, { reset: false });
   }
 
   function clearDraftOnSuccess(itemId: string) {

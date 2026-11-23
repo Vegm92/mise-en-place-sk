@@ -15,12 +15,14 @@ export function registerPWA(): void {
 
 	if (import.meta.env.DEV) return;
 
-	window.addEventListener('load', () => {
+	const register = () => {
 		navigator.serviceWorker
 			.register('/sw.js', { scope: '/' })
 			.then(watchForUpdates)
 			.catch((err) => {
 				console.warn('[pwa] Service worker registration failed:', err);
 			});
-	});
+	};
+	if (document.readyState === 'complete') register();
+	else window.addEventListener('load', register, { once: true });
 }

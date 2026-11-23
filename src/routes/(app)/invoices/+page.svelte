@@ -67,8 +67,7 @@
   function applyFilters(replace = false) {
     lastRequested = invoiceFilterParams(filterDraft, {}).toString();
     goto(invoiceFiltersHref(filterDraft, {}), {
-      keepFocus: true,
-      noScroll: true,
+      reset: false,
       replaceState: replace,
     });
   }
@@ -86,7 +85,7 @@
   }
 
   function loadMoreMobile() {
-    goto(pageUrl(pagination.page + 1), { keepFocus: true, noScroll: true });
+    goto(pageUrl(pagination.page + 1), { reset: false });
   }
 
   function setSearch(value: string) {
