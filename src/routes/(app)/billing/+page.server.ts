@@ -102,7 +102,6 @@ async function clearStaleCustomer(rid: string): Promise<void> {
 		.where(tdb.scope(subscriptions.restaurantId));
 }
 
-// Kit 3 rejects external redirects unless allowed; same hosts as the CSP form-action.
 const STRIPE_REDIRECT = { external: ['https://checkout.stripe.com', 'https://billing.stripe.com'] };
 
 async function redirectExistingSubscriber(
