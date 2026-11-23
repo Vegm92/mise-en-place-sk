@@ -9,10 +9,10 @@
 
   function pick(p: string) {
     open = false;
-    const url = new URL(page.url);
+    const url = new URL(page.url.href);
     if (p === DEFAULT_RANGE_PERIOD) url.searchParams.delete('period');
     else url.searchParams.set('period', p);
-    goto(url.toString(), { replaceState: true, noScroll: true, keepFocus: true });
+    goto(url.toString(), { replaceState: true, reset: false });
   }
 </script>
 

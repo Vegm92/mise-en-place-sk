@@ -2,7 +2,7 @@
   import { page } from '$app/state';
   import { toggleTheme as flipTheme, currentTheme } from '$lib/theme';
   import { onMount } from 'svelte';
-  import { browser } from '$app/environment';
+  import { browser } from '$app/env';
   import { t, initLocale } from '$lib/i18n';
   import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   import Sun from '@lucide/svelte/icons/sun';

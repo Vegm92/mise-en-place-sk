@@ -71,7 +71,7 @@
   }
 
   function href(params: Record<string, string>): string {
-    const next = new URLSearchParams(page.url.searchParams);
+    const next = new URLSearchParams(page.url.search);
     for (const [k, v] of Object.entries(params)) next.set(k, v);
     return `?${next.toString()}`;
   }

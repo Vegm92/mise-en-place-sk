@@ -50,7 +50,7 @@
   }
 
   function listUrl(patch: Record<string, string | null>) {
-    const params = new URLSearchParams(page.url.searchParams);
+    const params = new URLSearchParams(page.url.search);
     for (const [key, value] of Object.entries(patch)) {
       if (value) params.set(key, value); else params.delete(key);
     }
@@ -59,7 +59,7 @@
   }
 
   function applyFilters(patch: Record<string, string | null>, replace = false) {
-    goto(listUrl(patch), { keepFocus: true, noScroll: true, replaceState: replace });
+    goto(listUrl(patch), { reset: false, replaceState: replace });
   }
 
   let search = $state(untrack(() => data.search));

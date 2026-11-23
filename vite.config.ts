@@ -2,6 +2,7 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig, loadEnv, type PluginOption } from 'vite';
 import { fileURLToPath } from 'node:url';
 import { readdirSync, readFileSync } from 'node:fs';
+import sveltekitConfig from './sveltekit.config.js';
 
 // Files that never touch the module mocker or process.env can share one
 // module graph per worker (isolate: false), which is where most of the
@@ -104,7 +105,10 @@ export default defineConfig(({ mode }) => {
 	}
 
 	return {
-		plugins: [...prePlugins, sveltekit(), ...postPlugins],
+		plugins: [...prePlugins, sveltekit(sveltekitConfig), ...postPlugins],
+		resolve: {
+			alias: { $lib: fileURLToPath(new URL('./src/lib', import.meta.url)) },
+		},
 		build: {
 			reportCompressedSize: false,
 			sourcemap: process.env['SENTRY_AUTH_TOKEN'] ? 'hidden' : false,

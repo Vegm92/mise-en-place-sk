@@ -1,5 +1,6 @@
 import * as Sentry from '@sentry/sveltekit';
-import { json, redirect, type Handle, type RequestEvent } from '@sveltejs/kit';
+import { json, redirect, type RequestEvent } from '@sveltejs/kit';
+import type { Handle } from '@sveltejs/kit/hooks';
 import { isAdminUser } from '$lib/server/admin';
 import { db, runAsSystem, runWithTenantContext } from '$lib/server/db';
 import { users } from '$lib/server/schema';

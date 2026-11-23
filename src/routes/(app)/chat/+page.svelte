@@ -75,9 +75,9 @@
       }
       if (d.sessionId && d.sessionId !== activeSessionId) {
         activeSessionId = d.sessionId;
-        const url = new URL(page.url);
+        const url = new URL(page.url.href);
         url.searchParams.set('session', String(d.sessionId));
-        goto(url.toString(), { replaceState: true, noScroll: true });
+        goto(url.toString(), { replaceState: true, reset: false });
       }
       messages = [...messages, { role: 'assistant', text: d.reply ?? t('chat.error'), actions: d.actions }];
       invalidateAll();

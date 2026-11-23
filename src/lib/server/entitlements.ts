@@ -1,4 +1,5 @@
-import { json, redirect, type Handle } from '@sveltejs/kit';
+import { json, redirect } from '@sveltejs/kit';
+import type { Handle } from '@sveltejs/kit/hooks';
 import type { RouteId } from '$app/types';
 import type { AccessState, TierConfig } from './billing';
 
@@ -120,7 +121,7 @@ export const ROUTE_POLICY = {
 	'/terms':                            'open',
 	'/verify-email':                     'open',
 	'/waitlist':                         'open',
-} satisfies Record<RouteId, RoutePolicy>;
+} satisfies Record<RouteId, RoutePolicy> & Record<string, RoutePolicy>;
 
 export const REDIRECT_TARGET_ROUTES: RouteId[] = [
 	'/(app)/billing',
