@@ -2,6 +2,7 @@ import { and, eq, isNull, sql } from 'drizzle-orm';
 import { db, forTenant } from './db';
 import { invoices, userRestaurants, users } from './schema';
 import { claimSetting } from './settings-store';
+import { WHATSAPP_ENABLED } from './env';
 import { sendEmail, weeklyDigestEmail, incidenciaDigestEmail, trialExpiryEmail, trialExpiredEmail } from './email';
 import { getOrGenerateWeeklyDigest, isoWeek } from './weekly-digest';
 import { pushWeeklyDigestOverWhatsApp } from './whatsapp-digest-push';
@@ -73,7 +74,7 @@ export async function sendWeeklyDigest(data: WeeklyDigestJobData): Promise<boole
 
 	if (!(await claimSetting(data.restaurantId, 'weekly_digest_email_week', data.week))) return false;
 
-	if (await claimSetting(data.restaurantId, 'weekly_digest_whatsapp_week', data.week)) {
+	if (WHATSAPP_ENABLED && await claimSetting(data.restaurantId, 'weekly_digest_whatsapp_week', data.week)) {
 		await pushWeeklyDigestOverWhatsApp(data.restaurantId, data.name, data.week, digest);
 	}
 

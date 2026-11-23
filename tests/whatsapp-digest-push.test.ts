@@ -21,7 +21,7 @@ vi.mock('../src/lib/server/whatsapp-contacts', () => ({
 	isDigestOptedIn: optedInMock,
 }));
 vi.mock('../src/lib/server/digest-share', () => ({ getOrCreateActiveShare: shareMock }));
-vi.mock('../src/lib/server/env', () => ({ APP_BASE_URL: 'https://app.example.com' }));
+vi.mock('../src/lib/server/env', () => ({ APP_BASE_URL: 'https://app.example.com', WHATSAPP_ENABLED: true }));
 
 import { condensedDigestMessage, pushWeeklyDigestOverWhatsApp } from '../src/lib/server/whatsapp-digest-push';
 

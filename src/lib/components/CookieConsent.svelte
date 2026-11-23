@@ -13,12 +13,12 @@
   let bannerHeight = $state(0);
 
   const visible = $derived(consent === 'unset' && !dismissed);
+  const reservedHeight = $derived(dismissed ? 0 : consent === 'unset' ? bannerHeight : 0);
 
   $effect(() => {
-    if (!visible || bannerHeight <= 0) return;
     const root = document.documentElement;
-    root.style.setProperty('--cookie-banner-h', `${bannerHeight}px`);
-    return () => root.style.removeProperty('--cookie-banner-h');
+    root.style.setProperty('--mep-cookie-h', `${reservedHeight}px`);
+    return () => root.style.removeProperty('--mep-cookie-h');
   });
 
   async function submitChoice(event: SubmitEvent) {
@@ -38,7 +38,7 @@
 </script>
 
 {#if visible}
-  <aside class="mep-cookie-banner" aria-label={t('cookies.banner.label')} bind:offsetHeight={bannerHeight}>
+  <aside class="mep-cookie-banner" bind:clientHeight={bannerHeight} aria-label={t('cookies.banner.label')}>
     <div class="mep-cookie-inner">
       <div class="mep-cookie-copy">
         <p class="mep-cookie-title">{t('cookies.banner.title')}</p>
@@ -61,9 +61,6 @@
 {/if}
 
 <style>
-  :global(:root:has(.mep-cookie-banner) .mep) {
-    padding-bottom: var(--cookie-banner-h, 72px);
-  }
   .mep-cookie-banner {
     position: fixed;
     left: 0;
@@ -106,8 +103,5 @@
   @media (max-width: 640px) {
     .mep-cookie-inner { flex-direction: column; align-items: stretch; gap: 12px; }
     .mep-cookie-actions .btn { flex: 1; justify-content: center; }
-    :global(:root:has(.mep-cookie-banner) .mep) {
-      padding-bottom: var(--cookie-banner-h, 192px);
-    }
   }
 </style>

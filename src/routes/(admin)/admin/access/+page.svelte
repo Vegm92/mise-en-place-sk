@@ -69,6 +69,8 @@
           <tr>
             <th scope="col" class="l">{t('admin.access.colEmail')}</th>
             <th scope="col" class="l">{t('admin.access.colStatus')}</th>
+            <th scope="col" class="l">{t('admin.access.colCampaign')}</th>
+            <th scope="col" class="l">{t('admin.access.colContent')}</th>
             <th scope="col" class="r">{t('admin.access.colCreated')}</th>
             <th scope="col" class="r">{t('admin.access.colAction')}</th>
           </tr>
@@ -84,6 +86,8 @@
               <td class:good={a.access_status === 'approved'} class:dim={a.access_status !== 'approved'}>
                 {a.access_status === 'approved' ? t('admin.access.approved') : t('admin.access.pending')}
               </td>
+              <td class="dim">{a.attr_campaign ?? '—'}</td>
+              <td class="dim">{a.attr_content ?? '—'}</td>
               <td class="r dim nowrap">{day(a.created_at)}</td>
               <td class="r">
                 <form method="POST" action={a.access_status === 'approved' ? '?/revoke' : '?/approve'} use:enhance style="display:inline;">
@@ -95,7 +99,7 @@
               </td>
             </tr>
           {:else}
-            <tr><td colspan="4" class="empty">{t('admin.access.noAccounts')}</td></tr>
+            <tr><td colspan="6" class="empty">{t('admin.access.noAccounts')}</td></tr>
           {/each}
         </tbody>
       </table>
@@ -124,6 +128,8 @@
         <thead>
           <tr>
             <th scope="col" class="l">{t('admin.access.colEmail')}</th>
+            <th scope="col" class="l">{t('admin.access.colCampaign')}</th>
+            <th scope="col" class="l">{t('admin.access.colContent')}</th>
             <th scope="col" class="r">{t('admin.access.colJoined')}</th>
             <th scope="col" class="r">{t('admin.access.colAction')}</th>
           </tr>
@@ -132,6 +138,8 @@
           {#each data.pendingInvites as w}
             <tr>
               <td>{w.email}</td>
+              <td class="dim">{w.campaign ?? '—'}</td>
+              <td class="dim">{w.content ?? '—'}</td>
               <td class="r dim nowrap">{day(w.created_at)}</td>
               <td class="r">
                 <div style="display:inline-flex;gap:6px;">
@@ -153,7 +161,7 @@
               </td>
             </tr>
           {:else}
-            <tr><td colspan="3" class="empty">{t('admin.access.noWaitlist')}</td></tr>
+            <tr><td colspan="5" class="empty">{t('admin.access.noWaitlist')}</td></tr>
           {/each}
         </tbody>
       </table>

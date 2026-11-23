@@ -391,7 +391,7 @@ const INLINE_TOKEN_STYLE_BUDGET = new Map([
 	['src/lib/components/mobile/MobileDashboard.svelte', 14],
 	['src/lib/components/mep/BillingPlanCard.svelte', 12],
 	['src/routes/(app)/settings/+page.svelte', 12],
-	['src/routes/onboarding/+page.svelte', 11],
+	['src/routes/onboarding/+page.svelte', 8],
 	['src/lib/components/mep/NotificationBell.svelte', 8],
 	['src/lib/components/mobile/MobileRecipes.svelte', 10],
 	['src/routes/(admin)/+layout.svelte', 10],

@@ -74,6 +74,7 @@ export const actions: Actions = {
 					passwordHash,
 					attrSource:      attribution.source,
 					attrCampaign:    attribution.campaign,
+					attrContent:     attribution.content,
 					attrVariant:     attribution.variant,
 					attrSegment:     attribution.segment,
 					attrReferrer:    attribution.referrer,

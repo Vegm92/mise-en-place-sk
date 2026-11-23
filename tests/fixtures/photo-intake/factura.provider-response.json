@@ -1,0 +1,19 @@
+{
+  "supplier_name": "Distribuciones Alimentarias Test S.L.",
+  "supplier_nif": "B12345678",
+  "receiver_name": "Restaurante Demo",
+  "invoice_number": "F-2026-0417",
+  "document_type": "factura",
+  "invoice_date": "2026-11-12",
+  "due_date": "2026-12-12",
+  "total_amount": 121.0,
+  "currency": "EUR",
+  "tax_base": 100.0,
+  "tax_breakdown": [{ "rate": 0.21, "base": 100.0, "tax_amount": 21.0, "type": "iva" }],
+  "line_items": [
+    { "description": "Aceite de oliva virgen extra 5L", "quantity": 2, "unit": "garrafa", "unit_price": 35.0, "total_price": 70.0, "tax_rate": 0.21, "confidence": 0.97 },
+    { "description": "Harina de trigo 25kg", "quantity": 1, "unit": "saco", "unit_price": 30.0, "total_price": 30.0, "tax_rate": 0.21, "confidence": 0.96 }
+  ],
+  "field_confidences": { "supplier_name": 0.98, "invoice_number": 0.97, "document_type": 0.98, "total_amount": 0.99 },
+  "confidence": 0.97
+}

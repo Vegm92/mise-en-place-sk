@@ -100,6 +100,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				supplier_id:    invoices.supplierId,
 				supplier_name:  suppliers.name,
 				invoice_number: invoices.invoiceNumber,
+				document_type:  invoices.documentType,
 				invoice_date:   invoices.invoiceDate,
 				due_date:       invoices.dueDate,
 				total_amount:   invoices.totalAmount,
@@ -137,6 +138,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 		return {
 			title: 'edit.pageTitle',
+			titleDocType: row.document_type,
 			invoice: { ...row, total_amount: moneyToNullableNumber(row.total_amount) },
 			lineItems: lineItems.map(li => ({
 				...li,

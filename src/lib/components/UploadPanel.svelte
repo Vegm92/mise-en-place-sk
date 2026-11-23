@@ -5,9 +5,7 @@
     MAX_UPLOAD_BYTES,
     MAX_UPLOAD_TOTAL_BYTES,
     exceedsUploadTotal,
-    isHeicUpload,
-    uploadExtname,
-    validateUploadFile,
+    rejectUploadFile,
     ZIP_UPLOAD_ACCEPT,
   } from '$lib/upload-formats';
   import { detectDirectoryPickerSupport } from '$lib/upload-capabilities';
@@ -134,12 +132,8 @@
   async function addFiles(newFiles: FileList | null) {
     if (!newFiles || trialExpired) return;
     for (const f of Array.from(newFiles)) {
-      if (isHeicUpload(f)) { showError(ti('upload.reject.heic', { name: f.name })); continue; }
-      const reason = await validateUploadFile(f);
-      if (reason) {
-        showError(ti(`upload.reject.${reason}`, { name: f.name, ext: uploadExtname(f.name) }));
-        continue;
-      }
+      const rejection = await rejectUploadFile(f);
+      if (rejection) { showError(ti(rejection.key, rejection.vars)); continue; }
       const relPath = f.webkitRelativePath || f.name;
       if (!files.some(e => e.name === f.name && e.size === f.size && (e.webkitRelativePath || e.name) === relPath)) {
         files = [...files, f];
@@ -166,11 +160,13 @@
     cameraInputEl?.click();
   }
 
-  function onCameraCapture(e: Event) {
+  async function onCameraCapture(e: Event) {
     const input = e.target as HTMLInputElement;
     const f = input.files?.[0];
     if (!f) return;
     if (f.size > MAX_MB * 1024 * 1024) { showError(ti('upload.imageTooLarge', { mb: MAX_MB }), true); return; }
+    const rejection = await rejectUploadFile(f);
+    if (rejection) { showError(ti(rejection.key, rejection.vars)); return; }
     previewUrl = URL.createObjectURL(f);
     previewFile = f;
   }

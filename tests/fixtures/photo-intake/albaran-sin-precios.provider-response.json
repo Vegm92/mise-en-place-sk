@@ -1,0 +1,19 @@
+{
+  "supplier_name": "Frutas y Verduras Test S.A.",
+  "supplier_nif": "A87654321",
+  "receiver_name": "Restaurante Demo",
+  "invoice_number": "ALB-2026-0092",
+  "document_type": "albaran",
+  "invoice_date": "2026-11-13",
+  "due_date": null,
+  "total_amount": null,
+  "currency": "EUR",
+  "tax_base": null,
+  "tax_breakdown": null,
+  "line_items": [
+    { "description": "Tomate pera", "quantity": 12, "unit": "kg", "unit_price": null, "total_price": null, "tax_rate": null, "confidence": 0.95 },
+    { "description": "Lechuga romana", "quantity": 20, "unit": "ud", "unit_price": null, "total_price": null, "tax_rate": null, "confidence": 0.94 }
+  ],
+  "field_confidences": { "supplier_name": 0.97, "invoice_number": 0.95, "document_type": 0.96 },
+  "confidence": 0.95
+}

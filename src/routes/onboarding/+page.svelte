@@ -20,13 +20,11 @@
 	<title>{t('onboard.metaTitle')} · Mise en Place</title>
 </svelte:head>
 
-<div class="mep" data-accent="tinta" data-density="default"
-	style="min-height:100vh;display:flex;align-items:center;justify-content:center;
-	       padding:24px;background:var(--mep-bg);">
+<div class="mep onb-root" data-accent="tinta" data-density="default">
 
-	<div style="width:100%;max-width:400px;">
+	<div class="onb-col">
 
-		<div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+		<div class="onb-lang">
 			<button
 				type="button"
 				onclick={toggleLocale}
@@ -36,13 +34,13 @@
 			</button>
 		</div>
 
-		<div style="display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:32px;">
+		<div class="onb-logo">
 			<Logo size={22} wordmark />
 		</div>
 
-		<div class="card" style="padding:28px;">
-			<h1 style="font-size:17px;font-weight:600;color:var(--mep-fg);margin:0 0 4px;">{t('onboard.title')}</h1>
-			<p style="font-size:13px;color:var(--mep-fg-3);margin:0 0 24px;">
+		<div class="card onb-card">
+			<h1 class="onb-title">{t('onboard.title')}</h1>
+			<p class="onb-subtitle">
 				{t('onboard.subtitle')}
 			</p>
 
@@ -53,7 +51,7 @@
 				</div>
 			{/if}
 
-			<form method="POST" style="display:flex;flex-direction:column;gap:16px;">
+			<form method="POST" class="onb-form">
 				<input type="hidden" name="idempotency_key" value={idempotencyKey} />
 				<div style="display:flex;flex-direction:column;gap:6px;">
 					<label for="name" style="font-size:12px;font-weight:500;color:var(--mep-fg-2);">
@@ -115,3 +113,29 @@
 
 	</div>
 </div>
+
+<style>
+	.onb-root {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 24px;
+		background: var(--mep-bg);
+	}
+	.onb-col { width: 100%; max-width: 400px; }
+	.onb-lang { display: flex; justify-content: flex-end; margin-bottom: 16px; }
+	.onb-logo { display: flex; align-items: center; gap: 10px; justify-content: center; margin-bottom: 32px; }
+	.onb-card { padding: 28px; }
+	.onb-title { font-size: 17px; font-weight: 600; color: var(--mep-fg); margin: 0 0 4px; }
+	.onb-subtitle { font-size: 13px; color: var(--mep-fg-3); margin: 0 0 24px; }
+	.onb-form { display: flex; flex-direction: column; gap: 16px; }
+
+	@media (max-width: 640px) {
+		.onb-root { padding: 12px; }
+		.onb-lang { margin-bottom: 6px; }
+		.onb-logo { margin-bottom: 10px; }
+		.onb-card { padding: 16px; }
+		.onb-subtitle { margin-bottom: 12px; }
+		.onb-form { gap: 10px; }
+	}
+</style>

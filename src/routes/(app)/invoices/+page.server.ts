@@ -84,6 +84,7 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 				supplier_name:    suppliers.name,
 				supplier_category: suppliers.category,
 				invoice_number: invoices.invoiceNumber,
+				document_type:  invoices.documentType,
 				invoice_date:   invoices.invoiceDate,
 				due_date:       invoices.dueDate,
 				total_amount:   invoices.totalAmount,
