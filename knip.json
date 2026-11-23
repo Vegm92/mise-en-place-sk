@@ -1,6 +1,7 @@
 {
 	"$schema": "https://unpkg.com/knip@6/schema.json",
 	"entry": [
+		"src/env.ts",
 		"src/worker.ts",
 		"src/wait-for-migrations.ts",
 		"src/backfill-products.ts",
